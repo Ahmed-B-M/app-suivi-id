@@ -7,7 +7,6 @@ import {
   schedulerSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { collection, writeBatch, doc } from "firebase/firestore";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 
 // --- Task Fetching Logic ---
@@ -96,7 +95,6 @@ export async function runExportAction(
     const allTasks: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tâches...`);
     
-    // The 'unplanned' flag ignores the date range.
     if (unplanned) {
         logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
         const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
@@ -139,10 +137,10 @@ export async function runExportAction(
       `\n💾 Sauvegarde de ${allTasks.length} tâches dans Firestore...`
     );
 
-    const tasksCollectionRef = collection(db, "tasks");
-    const batch = writeBatch(db);
+    const batch = db.batch();
+    const tasksCollectionRef = db.collection("tasks");
     allTasks.forEach((task) => {
-      const docRef = doc(tasksCollectionRef, task.id || task._id);
+      const docRef = tasksCollectionRef.doc(task.id || task._id);
       batch.set(docRef, task, { merge: true });
     });
     await batch.commit();
@@ -248,11 +246,6 @@ export async function runRoundExportAction(
 
     const baseParams = new URLSearchParams();
     if (status && status !== "all") {
-      // The API spec doesn't specify a status filter for rounds,
-      // but we can filter the results client-side after fetching.
-      // For now, we fetch all and will filter later if needed.
-      // For now, let's assume we can add it, but it won't work on the API side.
-      // We will filter them from the result.
     }
 
     const allRounds: any[] = [];
@@ -299,10 +292,10 @@ export async function runRoundExportAction(
       `\n💾 Sauvegarde de ${filteredRounds.length} tournées dans Firestore...`
     );
 
-    const roundsCollectionRef = collection(db, "rounds");
-    const batch = writeBatch(db);
+    const batch = db.batch();
+    const roundsCollectionRef = db.collection("rounds");
     filteredRounds.forEach((round) => {
-      const docRef = doc(roundsCollectionRef, round.id || round._id);
+      const docRef = roundsCollectionRef.doc(round.id || round._id);
       batch.set(docRef, round, { merge: true });
     });
     await batch.commit();
