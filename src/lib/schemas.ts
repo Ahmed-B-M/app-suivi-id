@@ -8,7 +8,7 @@ export const exportFormSchema = z.object({
   to: z.date({
     required_error: "An end date is required.",
   }),
-  hubs: z.string().min(1, "At least one Hub ID is required."),
+  hubs: z.string().optional(),
 });
 
 export type ExportFormValues = z.infer<typeof exportFormSchema>;

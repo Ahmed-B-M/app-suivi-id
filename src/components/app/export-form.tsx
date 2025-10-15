@@ -41,7 +41,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 type ExportFormProps = {
@@ -64,7 +63,7 @@ export function ExportForm({
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
       from: new Date("2025-09-17"),
       to: new Date("2025-09-17"),
-      hubs: "643d1b6f48ee2952098a2e60,643d1af5cfe5c0793a3267c4,5c51e0782c99a67a610c7c9c,6363fb105a892b9794bc60bd,5b339c63221dbf1cbe9e695e,5b339c7c4a73200f926b326e",
+      hubs: "",
     },
   });
 
@@ -215,27 +214,6 @@ export function ExportForm({
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="hubs"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>IDs de Hub</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Entrez les IDs de hub, séparés par des virgules"
-                      className="font-code"
-                      rows={4}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Séparez les multiples IDs par une virgule.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-2">
             <Button type="submit" disabled={isLoading}>

@@ -59,7 +59,7 @@ export async function runExportAction(values: z.infer<typeof exportFormSchema>) 
         to.toISOString().split("T")[0]
       }`
     );
-    const hubIds = hubs.split(",").map((h) => h.trim()).filter(h => h);
+    const hubIds = hubs ? hubs.split(",").map((h) => h.trim()).filter(h => h) : [];
     logs.push(`   - Hubs: ${hubIds.length > 0 ? hubIds.join(', ') : 'Tous les hubs'}`);
 
     const allTasks: any[] = [];
@@ -91,7 +91,7 @@ export async function runExportAction(values: z.infer<typeof exportFormSchema>) 
             }
           } catch (error) {
             if (error instanceof Error) {
-                logs.push(`    - ❌ Erreur lors de la récupération pour le hub ${hub}: ${error.message}`);
+                logs.push(`    - ❌ Erreur lors de la récupération pour le hub ${hub || 'tous'}: ${error.message}`);
             }
             // Stop trying for this hub if an error occurs
             hasMoreData = false; 
