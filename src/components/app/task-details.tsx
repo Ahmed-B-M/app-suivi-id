@@ -32,6 +32,34 @@ function DetailItem({ label, value }: DetailItemProps) {
   );
 }
 
+const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    try {
+        return new Date(dateString).toLocaleString('fr-FR');
+    } catch (e) {
+        return "Date invalide";
+    }
+}
+
+const formatTime = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    try {
+        return new Date(dateString).toLocaleTimeString('fr-FR');
+    } catch (e) {
+        return "Heure invalide";
+    }
+}
+
+const formatDateOnly = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    try {
+        return new Date(dateString).toLocaleDateString('fr-FR');
+    } catch (e) {
+        return "Date invalide";
+    }
+}
+
+
 export function TaskDetails({ task }: { task: any }) {
   if (!task) return null;
 
@@ -48,10 +76,10 @@ export function TaskDetails({ task }: { task: any }) {
           <DetailItem label="Type" value={task.type} />
           <DetailItem label="Client" value={task.client} />
           <DetailItem label="Hub" value={task.hubName} />
-          <DetailItem label="Date de la Tâche" value={new Date(task.date).toLocaleDateString()} />
-          <DetailItem label="Fenêtre de livraison" value={`${new Date(task.timeWindow.start).toLocaleTimeString()} - ${new Date(task.timeWindow.stop).toLocaleTimeString()}`} />
-          <DetailItem label="Arrivée réelle" value={new Date(task.actualTime?.arrive?.when).toLocaleString()} />
-          <DetailItem label="Date de clôture" value={new Date(task.closureDate).toLocaleString()} />
+          <DetailItem label="Date de la Tâche" value={formatDateOnly(task.date)} />
+          <DetailItem label="Fenêtre de livraison" value={`${formatTime(task.timeWindow?.start)} - ${formatTime(task.timeWindow?.stop)}`} />
+          <DetailItem label="Arrivée réelle" value={formatDate(task.actualTime?.arrive?.when)} />
+          <DetailItem label="Date de clôture" value={formatDate(task.closureDate)} />
         </CardContent>
       </Card>
 
@@ -94,7 +122,7 @@ export function TaskDetails({ task }: { task: any }) {
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <DetailItem label="Nom de la tournée" value={task.roundName}/>
-          <DetailItem label="Nom du chauffeur" value={`${task.driver?.firstName ?? ''} ${task.driver?.lastName ?? ''}`.trim()}/>
+          <DetailItem label="Nom du chauffeur" value={`${task.driver?.firstName ?? ''} ${task.driver?.lastName ?? ''}`.trim() || "N/A"}/>
           <DetailItem label="ID Externe Chauffeur" value={task.driver?.externalId}/>
           <DetailItem label="Séquence" value={task.sequence}/>
         </CardContent>
@@ -119,15 +147,21 @@ export function TaskDetails({ task }: { task: any }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {task.items?.map((item: any) => (
-                <TableRow key={item._id}>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.barcode}</TableCell>
-                  <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
-                  <TableCell>{item.quantity}</TableCell>
-                  <TableCell><Badge variant={item.status === 'DELIVERED' ? 'secondary' : 'destructive'}>{item.status}</Badge></TableCell>
+              {task.items?.length > 0 ? (
+                task.items.map((item: any) => (
+                  <TableRow key={item._id}>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.barcode}</TableCell>
+                    <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell><Badge variant={item.status === 'DELIVERED' ? 'secondary' : 'destructive'}>{item.status}</Badge></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                    <TableCell colSpan={5} className="text-center">Aucun article trouvé.</TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
