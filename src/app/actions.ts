@@ -432,40 +432,30 @@ export async function getScheduleAction(
 }
 
 // --- Firestore Save Actions ---
-
-export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds' | 'hubs' | 'customers' | 'tickets', data: any[]) {
+export async function saveBatchToFirestoreAction(dataType: 'tasks' | 'rounds' | 'hubs' | 'customers' | 'tickets', batchData: any[]) {
     const logs: string[] = [];
     try {
-        const { firestore: db } = initializeFirebaseOnServer();
-
-        logs.push(`\n💾 Sauvegarde de ${data.length} ${dataType} dans Firestore...`);
+        const { firestore: db } = await initializeFirebaseOnServer();
 
         const collectionName = dataType;
         const collectionRef = db.collection(collectionName);
-        const batchSize = 450; // Firestore batch limit is 500, being safe
+        
+        const batch = db.batch();
+        
+        batchData.forEach((item) => {
+            const docId = item.id || item._id;
+            if (docId) {
+                const docRef = collectionRef.doc(docId.toString());
+                batch.set(docRef, item, { merge: true });
+            }
+        });
 
-        for (let i = 0; i < data.length; i += batchSize) {
-            const chunk = data.slice(i, i + batchSize);
-            const batch = db.batch();
-            
-            logs.push(`   - Traitement du lot ${i / batchSize + 1}... (${chunk.length} documents)`);
+        await batch.commit();
 
-            chunk.forEach((item) => {
-                const docId = item.id || item._id;
-                if (docId) {
-                    const docRef = collectionRef.doc(docId.toString());
-                    batch.set(docRef, item, { merge: true });
-                }
-            });
-
-            await batch.commit();
-            logs.push(`   - Lot ${i / batchSize + 1} sauvegardé.`);
-        }
-
-        logs.push(`\n✨ ${data.length} documents sauvegardés dans Firestore !`);
+        logs.push(`   - Lot de ${batchData.length} ${dataType} sauvegardé avec succès.`);
         return { logs, error: null };
     } catch (e) {
-        const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde dans Firestore.";
+        const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
         logs.push(errorMsg);
         if (e instanceof Error) {
             logs.push(e.message);

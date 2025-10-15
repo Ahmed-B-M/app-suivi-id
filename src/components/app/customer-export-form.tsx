@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { customerExportFormSchema, type CustomerExportFormValues } from "@/lib/schemas";
-import { runCustomerExportAction, saveDataToFirestoreAction } from "@/app/actions";
+import { runCustomerExportAction, saveBatchToFirestoreAction } from "@/app/actions";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -88,23 +88,40 @@ export function CustomerExportForm({
   const handleSaveToFirestore = async () => {
     if (!jsonData) return;
     setIsSaving(true);
+    onExportComplete([`\n💾 Sauvegarde de ${jsonData.length} clients dans Firestore...`], null);
 
-    const result = await saveDataToFirestoreAction('customers', jsonData);
-    
-    onExportComplete(result.logs, null);
-    
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Sauvegarde échouée",
-        description: result.error,
-      });
-    } else {
-       toast({
-        title: "Succès",
-        description: "Données sauvegardées dans Firestore.",
-      });
+    const batchSize = 450;
+    let success = true;
+
+    for (let i = 0; i < jsonData.length; i += batchSize) {
+        const chunk = jsonData.slice(i, i + batchSize);
+        onExportComplete([`   - Traitement du lot ${i / batchSize + 1}... (${chunk.length} documents)`], null);
+        
+        const result = await saveBatchToFirestoreAction('customers', chunk);
+        
+        onExportComplete(result.logs, null);
+        
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: `Erreur lors de la sauvegarde du lot ${i / batchSize + 1}`,
+                description: result.error,
+            });
+            success = false;
+            break; 
+        }
     }
+    
+    if (success) {
+        onExportComplete([`\n✨ ${jsonData.length} documents sauvegardés dans Firestore !`], null);
+        toast({
+            title: "Succès",
+            description: "Toutes les données ont été sauvegardées dans Firestore.",
+        });
+    } else {
+        onExportComplete([`\n❌ La sauvegarde a été interrompue en raison d'une erreur.`], null);
+    }
+    
     setIsSaving(false);
   };
 
@@ -170,7 +187,7 @@ export function CustomerExportForm({
                 ) : (
                   <Save />
                 )}
-                Sauvegarder
+                {isSaving ? "Sauvegarde..." : "Sauvegarder"}
               </Button>
               <Button
                 type="button"

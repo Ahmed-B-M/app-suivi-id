@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { roundExportFormSchema, type RoundExportFormValues } from "@/lib/schemas";
-import { runRoundExportAction, saveDataToFirestoreAction } from "@/app/actions";
+import { runRoundExportAction, saveBatchToFirestoreAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -105,20 +105,40 @@ export function RoundExportForm({
   const handleSaveToFirestore = async () => {
     if (!jsonData) return;
     setIsSaving(true);
-    const result = await saveDataToFirestoreAction('rounds', jsonData);
-    onExportComplete(result.logs, null); // Pass logs to parent
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Sauvegarde échouée",
-        description: result.error,
-      });
-    } else {
-       toast({
-        title: "Succès",
-        description: "Données sauvegardées dans Firestore.",
-      });
+    onExportComplete([`\n💾 Sauvegarde de ${jsonData.length} tournées dans Firestore...`], null);
+
+    const batchSize = 450;
+    let success = true;
+
+    for (let i = 0; i < jsonData.length; i += batchSize) {
+        const chunk = jsonData.slice(i, i + batchSize);
+        onExportComplete([`   - Traitement du lot ${i / batchSize + 1}... (${chunk.length} documents)`], null);
+        
+        const result = await saveBatchToFirestoreAction('rounds', chunk);
+        
+        onExportComplete(result.logs, null);
+        
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: `Erreur lors de la sauvegarde du lot ${i / batchSize + 1}`,
+                description: result.error,
+            });
+            success = false;
+            break; 
+        }
     }
+    
+    if (success) {
+        onExportComplete([`\n✨ ${jsonData.length} documents sauvegardés dans Firestore !`], null);
+        toast({
+            title: "Succès",
+            description: "Toutes les données ont été sauvegardées dans Firestore.",
+        });
+    } else {
+        onExportComplete([`\n❌ La sauvegarde a été interrompue en raison d'une erreur.`], null);
+    }
+    
     setIsSaving(false);
   };
 
@@ -298,7 +318,7 @@ export function RoundExportForm({
                 ) : (
                   <Save />
                 )}
-                Sauvegarder
+                {isSaving ? "Sauvegarde..." : "Sauvegarder"}
               </Button>
               <Button
                 type="button"
