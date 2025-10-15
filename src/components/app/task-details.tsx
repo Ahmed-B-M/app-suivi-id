@@ -52,9 +52,9 @@ const DataObjectTable = ({ data }: { data: any }) => {
     <Table>
       <TableBody>
         {entries.map(([key, value]) => {
+           if (key === '_id') return null; // Ne pas afficher le champ _id
            if (value === null || value === undefined) return null;
-           // Hide empty arrays/objects from the main view unless it's an array of items
-           if (Array.isArray(value) && value.length === 0 && key !== 'items') return null;
+           if (Array.isArray(value) && value.length === 0) return null;
            if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return null;
 
            return (
