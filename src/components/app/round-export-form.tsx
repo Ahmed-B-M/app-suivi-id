@@ -111,12 +111,12 @@ export function RoundExportForm({
   
   const handleSaveToFirestore = async () => {
     if (!jsonData || !firestore) {
-        toast({
-            variant: "destructive",
-            title: "Erreur",
-            description: "Aucune donnée à sauvegarder ou la base de données n'est pas disponible.",
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Aucune donnée à sauvegarder ou la base de données n'est pas disponible.",
+      });
+      return;
     }
 
     setIsSaving(true);
@@ -126,44 +126,52 @@ export function RoundExportForm({
     const batchSize = 450;
     let success = true;
 
+    // Create an array of chunks
+    const chunks = [];
     for (let i = 0; i < jsonData.length; i += batchSize) {
-        const chunk = jsonData.slice(i, i + batchSize);
-        onExportComplete([`   - Traitement du lot ${Math.floor(i / batchSize) + 1}... (${chunk.length} documents)`], null);
+      chunks.push(jsonData.slice(i, i + batchSize));
+    }
+
+    // Process chunks sequentially
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      onExportComplete([`   - Traitement du lot ${i + 1}... (${chunk.length} documents)`], null);
+      
+      try {
+        const batch = writeBatch(firestore);
+        chunk.forEach((item) => {
+          const docId = item.id || item._id;
+          if (docId) {
+            const docRef = doc(collectionRef, docId.toString());
+            batch.set(docRef, item, { merge: true });
+          }
+        });
+        // Wait for the batch to commit before starting the next one
+        await batch.commit();
+        onExportComplete([`   - Lot de ${chunk.length} tournées sauvegardé avec succès.`], null);
+      } catch (e) {
+        const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
+        let detailedError = e instanceof Error ? e.message : "Erreur inconnue";
         
-        try {
-            const batch = writeBatch(firestore);
-            chunk.forEach((item) => {
-                const docId = item.id || item._id;
-                if (docId) {
-                    const docRef = doc(collectionRef, docId.toString());
-                    batch.set(docRef, item, { merge: true });
-                }
-            });
-            await batch.commit();
-            onExportComplete([`   - Lot de ${chunk.length} tournées sauvegardé avec succès.`], null);
-        } catch (e) {
-            const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
-            let detailedError = e instanceof Error ? e.message : "Erreur inconnue";
-            
-            onExportComplete([errorMsg, detailedError], null);
-            toast({
-                variant: "destructive",
-                title: `Erreur lors de la sauvegarde du lot ${Math.floor(i / batchSize) + 1}`,
-                description: detailedError,
-            });
-            success = false;
-            break;
-        }
+        onExportComplete([errorMsg, detailedError], null);
+        toast({
+          variant: "destructive",
+          title: `Erreur lors de la sauvegarde du lot ${i + 1}`,
+          description: detailedError,
+        });
+        success = false;
+        break; // Stop processing further chunks if one fails
+      }
     }
     
     if (success) {
-        onExportComplete([`\n✨ ${jsonData.length} documents sauvegardés dans Firestore !`], null);
-        toast({
-            title: "Succès",
-            description: "Toutes les données ont été sauvegardées dans Firestore.",
-        });
+      onExportComplete([`\n✨ ${jsonData.length} documents sauvegardés dans Firestore !`], null);
+      toast({
+        title: "Succès",
+        description: "Toutes les données ont été sauvegardées dans Firestore.",
+      });
     } else {
-        onExportComplete([`\n❌ La sauvegarde a été interrompue en raison d'une erreur.`], null);
+      onExportComplete([`\n❌ La sauvegarde a été interrompue en raison d'une erreur.`], null);
     }
     
     setIsSaving(false);
