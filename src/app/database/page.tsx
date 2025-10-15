@@ -1,7 +1,9 @@
+
 "use client";
 
+import { useMemo } from "react";
 import { useCollection } from "@/firebase";
-import { collection, getFirestore } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { TasksTable } from "@/components/app/tasks-table";
 import { RoundsTable } from "@/components/app/rounds-table";
@@ -11,17 +13,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function DatabasePage() {
   const { firestore } = useFirebase();
 
+  const tasksCollection = useMemo(() => {
+    if (!firestore) return null;
+    return collection(firestore, "tasks");
+  }, [firestore]);
+
+  const roundsCollection = useMemo(() => {
+    if (!firestore) return null;
+    return collection(firestore, "rounds");
+  }, [firestore]);
+
+
   const {
     data: tasks,
     isLoading: isLoadingTasks,
     error: tasksError,
-  } = useCollection(collection(firestore, "tasks"));
+  } = useCollection(tasksCollection);
 
   const {
     data: rounds,
     isLoading: isLoadingRounds,
     error: roundsError,
-  } = useCollection(collection(firestore, "rounds"));
+  } = useCollection(roundsCollection);
 
   return (
     <main className="flex-1 container py-8">
