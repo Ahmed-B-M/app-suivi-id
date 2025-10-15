@@ -15,7 +15,7 @@ export default function Home() {
   const [roundJsonData, setRoundJsonData] = useState<any[] | null>(null);
 
   const handleTaskExportComplete = (newLogs: string[], data: any[] | null) => {
-    setTaskLogs(newLogs);
+    setTaskLogs(prev => [...prev, ...newLogs]);
     if (data) {
       setTaskJsonData(data);
     }
@@ -27,7 +27,7 @@ export default function Home() {
   };
 
   const handleRoundExportComplete = (newLogs: string[], data: any[] | null) => {
-    setRoundLogs(newLogs);
+    setRoundLogs(prev => [...prev, ...newLogs]);
     if (data) {
       setRoundJsonData(data);
     }

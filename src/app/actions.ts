@@ -79,8 +79,6 @@ export async function runExportAction(
   const logs: string[] = [];
 
   try {
-    const { firestore: db } = initializeFirebaseOnServer();
-
     logs.push(`🚀 Début de l'interrogation des tâches...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
@@ -120,7 +118,6 @@ export async function runExportAction(
         }
     }
 
-
     if (allTasks.length === 0) {
       logs.push(
         `\n⚠️ Aucune tâche récupérée pour les filtres sélectionnés.`
@@ -134,22 +131,10 @@ export async function runExportAction(
 
     logs.push(`\n✅ ${allTasks.length} tâches brutes récupérées au total.`);
     logs.push(
-      `\n💾 Sauvegarde de ${allTasks.length} tâches dans Firestore...`
-    );
-
-    const batch = db.batch();
-    const tasksCollectionRef = db.collection("tasks");
-    allTasks.forEach((task) => {
-      const docRef = tasksCollectionRef.doc(task.id || task._id);
-      batch.set(docRef, task, { merge: true });
-    });
-    await batch.commit();
-
-    logs.push(
       `\n🔄 Sauvegarde des données brutes dans 'donnees_urbantz_tasks_filtrees.json'...`
     );
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Données également sauvegardées dans Firestore !`);
+    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
 
     return {
       logs,
@@ -239,7 +224,6 @@ export async function runRoundExportAction(
   const logs: string[] = [];
 
   try {
-    const { firestore: db } = initializeFirebaseOnServer();
     logs.push(`🚀 Début de l'interrogation des tournées...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
@@ -287,23 +271,12 @@ export async function runRoundExportAction(
     }
 
     logs.push(`\n✅ ${filteredRounds.length} tournées récupérées au total.`);
-    logs.push(
-      `\n💾 Sauvegarde de ${filteredRounds.length} tournées dans Firestore...`
-    );
-
-    const batch = db.batch();
-    const roundsCollectionRef = db.collection("rounds");
-    filteredRounds.forEach((round) => {
-      const docRef = roundsCollectionRef.doc(round.id || round._id);
-      batch.set(docRef, round, { merge: true });
-    });
-    await batch.commit();
-
+    
     logs.push(
       `\n🔄 Sauvegarde des données dans 'donnees_urbantz_rounds_filtrees.json'...`
     );
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Données également sauvegardées dans Firestore !`);
+    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
 
     return {
       logs,
@@ -340,4 +313,39 @@ export async function getScheduleAction(
         "Failed to get schedule from AI. Please check your inputs and try again.",
     };
   }
+}
+
+// --- Firestore Save Actions ---
+
+export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds', data: any[]) {
+    const logs: string[] = [];
+    try {
+        const { firestore: db } = initializeFirebaseOnServer();
+
+        logs.push(`\n💾 Sauvegarde de ${data.length} ${dataType} dans Firestore...`);
+
+        const collectionName = dataType;
+        const batch = db.batch();
+        const collectionRef = db.collection(collectionName);
+        
+        data.forEach((item) => {
+            const docId = item.id || item._id;
+            if (docId) {
+                const docRef = collectionRef.doc(docId);
+                batch.set(docRef, item, { merge: true });
+            }
+        });
+
+        await batch.commit();
+
+        logs.push(`\n✨ Données sauvegardées dans Firestore !`);
+        return { logs, error: null };
+    } catch (e) {
+        const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde dans Firestore.";
+        logs.push(errorMsg);
+        if (e instanceof Error) {
+            logs.push(e.message);
+        }
+        return { logs, error: errorMsg };
+    }
 }

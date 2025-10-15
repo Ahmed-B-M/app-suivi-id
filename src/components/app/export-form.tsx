@@ -10,10 +10,11 @@ import {
   Loader2,
   Rocket,
   RotateCcw,
+  Save,
 } from "lucide-react";
 
 import { exportFormSchema, type ExportFormValues } from "@/lib/schemas";
-import { runExportAction } from "@/app/actions";
+import { runExportAction, saveDataToFirestoreAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,8 @@ export function ExportForm({
   onReset,
   jsonData,
 }: ExportFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<ExportFormValues>({
@@ -73,11 +75,11 @@ export function ExportForm({
   });
 
   const onSubmit = async (values: ExportFormValues) => {
-    setIsLoading(true);
+    setIsExporting(true);
     onReset();
     const result = await runExportAction(values);
     onExportComplete(result.logs, result.jsonData);
-    setIsLoading(false);
+    setIsExporting(false);
 
     if (result.error) {
       toast({
@@ -100,11 +102,37 @@ export function ExportForm({
     link.click();
     document.body.removeChild(link);
   };
+  
+  const handleSaveToFirestore = async () => {
+    if (!jsonData) return;
+    setIsSaving(true);
+
+    const result = await saveDataToFirestoreAction('tasks', jsonData);
+    
+    onExportComplete(result.logs, null); // Pass logs to parent
+    
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Sauvegarde échouée",
+        description: result.error,
+      });
+    } else {
+       toast({
+        title: "Succès",
+        description: "Données sauvegardées dans Firestore.",
+      });
+    }
+    setIsSaving(false);
+  };
+
 
   const handleResetClick = () => {
     form.reset();
     onReset();
   }
+
+  const isLoading = isExporting || isSaving;
 
   return (
     <Card>
@@ -296,17 +324,29 @@ export function ExportForm({
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-2">
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
+              {isExporting ? (
                 <Loader2 className="animate-spin" />
               ) : (
                 <Rocket />
               )}
-              {isLoading ? "Export en cours..." : "Lancer l'export"}
+              {isExporting ? "Export en cours..." : "Lancer l'export"}
             </Button>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={handleResetClick} disabled={isLoading}>
                 <RotateCcw/>
                 Réinitialiser
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveToFirestore}
+                disabled={!jsonData || jsonData.length === 0 || isLoading}
+              >
+                {isSaving ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Save />
+                )}
+                Sauvegarder
               </Button>
               <Button
                 type="button"
