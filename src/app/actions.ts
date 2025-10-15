@@ -73,7 +73,7 @@ export async function runExportAction(values: z.infer<typeof exportFormSchema>) 
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
     
     const baseParams = new URLSearchParams();
-    if(status) baseParams.append("progress", status);
+    if(status && status !== 'all') baseParams.append("progress", status);
     if(taskId) baseParams.append("taskId", taskId);
     if(roundId) baseParams.append("round", roundId);
     if(unplanned) baseParams.append("unplanned", "true");

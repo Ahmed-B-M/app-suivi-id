@@ -65,7 +65,7 @@ export function ExportForm({
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
       from: new Date("2025-09-17"),
       to: new Date("2025-09-17"),
-      status: "",
+      status: "all",
       taskId: "",
       roundId: "",
       unplanned: false,
@@ -232,7 +232,7 @@ export function ExportForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       <SelectItem value="COMPLETED">Terminée</SelectItem>
                       <SelectItem value="ONGOING">En cours</SelectItem>
                       <SelectItem value="ASSIGNED">Assignée</SelectItem>
