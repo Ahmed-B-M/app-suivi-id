@@ -1,49 +1,56 @@
 /**
- * @fileoverview Firestore Security Rules for Urbantz API Data.
+ * @fileoverview Firestore Security Rules for Prototyping.
  *
  * Core Philosophy:
- * This ruleset allows completely open access to the `tasks` and `rounds` collections.
- * This assumes that all data stored in these collections is intended to be public.
+ * This ruleset is in prototyping mode. It assumes data is public.
  *
  * Data Structure:
- * - /tasks/{taskId}: Stores task data.
- * - /rounds/{roundId}: Stores round data.
+ * - /tasks/{taskId}: Stores task data fetched from the Urbantz API.
+ * - /rounds/{roundId}: Stores round data fetched from the Urbantz API.
  *
  * Key Security Decisions:
- * - Unrestricted read and write access to all documents. This is acceptable ONLY if all data is considered public.
+ * - Data is publicly readable.
+ * - Data can be created, updated, and deleted by any authenticated user.
+ *
+ * Denormalization for Authorization:
+ * - Not applicable in this case, as data is public and writable by authenticated users.
+ *
+ * Structural Segregation:
+ * - Not applicable, as there's no separation between private and public data in the current data model.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read or write tasks.
+     * @description Grants public read access to tasks and allows any authenticated user to create, update, and delete tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list) - Any user can read any task.
-     * @allow (create, update, delete) - Any user can create, update, or delete any task.
-     * @deny None
-     * @principle Open access for all users.
+     * @allow (get, list): Public read access.
+     * @allow (create, update, delete): Any authenticated user.
+     * @deny (create, update, delete): Unauthenticated users.
+     * @principle Allows public reads and authenticated writes during prototyping.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow create, update, delete: if isSignedIn();
     }
 
     /**
-     * @description Allows anyone to read or write rounds.
+     * @description Grants public read access to rounds and allows any authenticated user to create, update, and delete rounds.
      * @path /rounds/{roundId}
-     * @allow (get, list) - Any user can read any round.
-     * @allow (create, update, delete) - Any user can create, update, or delete any round.
-     * @deny None
-     * @principle Open access for all users.
+     * @allow (get, list): Public read access.
+     * @allow (create, update, delete): Any authenticated user.
+     * @deny (create, update, delete): Unauthenticated users.
+     * @principle Allows public reads and authenticated writes during prototyping.
      */
     match /rounds/{roundId} {
       allow get, list: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if true;
+      allow create, update, delete: if isSignedIn();
+    }
+
+    // Helper function to check if a user is signed in
+    function isSignedIn() {
+      return request.auth != null;
     }
   }
 }
