@@ -5,14 +5,11 @@ import {
   exportFormSchema,
   roundExportFormSchema,
   schedulerSchema,
-  hubExportFormSchema,
-  customerExportFormSchema,
-  ticketExportFormSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 
 async function fetchGeneric(
-    endpoint: 'task' | 'round' | 'hub' | 'customer' | 'tickets',
+    endpoint: 'task' | 'round',
     apiKey: string,
     params: URLSearchParams,
     logs: string[]
@@ -21,7 +18,7 @@ async function fetchGeneric(
     let page = 0;
     let hasMoreData = true;
     const allItems: any[] = [];
-    const itemName = endpoint === 'customer' ? 'client' : endpoint;
+    const itemName = endpoint;
 
     while (hasMoreData) {
         const basePath = 'v2';
@@ -248,154 +245,6 @@ export async function runRoundExportAction(
     return {
       logs,
       jsonData: filteredRounds,
-      error: null,
-    };
-  } catch (e) {
-    const errorMsg = "❌ Une erreur inattendue est survenue.";
-    logs.push(errorMsg);
-    if (e instanceof Error) {
-      logs.push(e.message);
-    }
-    return { logs, jsonData: null, error: errorMsg };
-  }
-}
-
-// --- Hub Export Action ---
-export async function runHubExportAction(
-  values: z.infer<typeof hubExportFormSchema>
-) {
-  const validatedFields = hubExportFormSchema.safeParse(values);
-  if (!validatedFields.success) {
-    return { logs: [], jsonData: null, error: "Invalid input." };
-  }
-
-  const { apiKey } = validatedFields.data;
-  const logs: string[] = [];
-
-  try {
-    logs.push(`🚀 Début de l'interrogation des hubs...`);
-    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-
-    const params = new URLSearchParams();
-    const allHubs = await fetchGeneric("hub", apiKey, params, logs);
-
-    if (allHubs.length === 0) {
-      logs.push(`\n⚠️ Aucun hub récupéré.`);
-      return { logs, jsonData: [], error: null };
-    }
-
-    logs.push(`\n✅ ${allHubs.length} hubs récupérés au total.`);
-    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
-
-    return {
-      logs,
-      jsonData: allHubs,
-      error: null,
-    };
-  } catch (e) {
-    const errorMsg = "❌ Une erreur inattendue est survenue.";
-    logs.push(errorMsg);
-    if (e instanceof Error) {
-      logs.push(e.message);
-    }
-    return { logs, jsonData: null, error: errorMsg };
-  }
-}
-
-// --- Customer Export Action ---
-export async function runCustomerExportAction(
-  values: z.infer<typeof customerExportFormSchema>
-) {
-  const validatedFields = customerExportFormSchema.safeParse(values);
-  if (!validatedFields.success) {
-    return { logs: [], jsonData: null, error: "Invalid input." };
-  }
-
-  const { apiKey } = validatedFields.data;
-  const logs: string[] = [];
-
-  try {
-    logs.push(`🚀 Début de l'interrogation des clients...`);
-    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-
-    const params = new URLSearchParams();
-    const allCustomers = await fetchGeneric("customer", apiKey, params, logs);
-
-     if (allCustomers.length === 0) {
-      logs.push(`\n⚠️ Aucun client récupéré.`);
-      return { logs, jsonData: [], error: null };
-    }
-
-    logs.push(`\n✅ ${allCustomers.length} clients récupérés au total.`);
-    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
-
-
-    return {
-      logs,
-      jsonData: allCustomers,
-      error: null,
-    };
-  } catch (e) {
-    const errorMsg = "❌ Une erreur inattendue est survenue.";
-    logs.push(errorMsg);
-    if (e instanceof Error) {
-      logs.push(e.message);
-    }
-    return { logs, jsonData: null, error: errorMsg };
-  }
-}
-
-// --- Ticket Export Action ---
-export async function runTicketExportAction(
-  values: z.infer<typeof ticketExportFormSchema>
-) {
-  const validatedFields = ticketExportFormSchema.safeParse(values);
-  if (!validatedFields.success) {
-    return { logs: [], jsonData: null, error: "Invalid input." };
-  }
-
-  const { apiKey, from, to } = validatedFields.data;
-  const logs: string[] = [];
-
-  try {
-    logs.push(`🚀 Début de l'interrogation des tickets...`);
-    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-
-    const allTickets: any[] = [];
-    logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tickets...`);
-
-    const fromString = from.toISOString().split("T")[0];
-    const toString = to.toISOString().split("T")[0];
-    logs.push(`   - Période: ${fromString} à ${toString}`);
-
-    const dateCursor = new Date(from);
-    while (dateCursor <= to) {
-      const dateString = dateCursor.toISOString().split("T")[0];
-      logs.push(`\n🗓️  Traitement du ${dateString}...`);
-
-      const paramsForDay = new URLSearchParams();
-      paramsForDay.append("date", dateString);
-
-      const ticketsForDay = await fetchGeneric("tickets", apiKey, paramsForDay, logs);
-      allTickets.push(...ticketsForDay);
-
-      dateCursor.setDate(dateCursor.getDate() + 1);
-    }
-
-    if (allTickets.length === 0) {
-      logs.push(`\n⚠️ Aucun ticket récupéré.`);
-      return { logs, jsonData: [], error: null };
-    }
-
-    logs.push(`\n✅ ${allTickets.length} tickets récupérés au total.`);
-    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
-
-    return {
-      logs,
-      jsonData: allTickets,
       error: null,
     };
   } catch (e) {

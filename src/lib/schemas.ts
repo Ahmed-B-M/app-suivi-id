@@ -29,31 +29,6 @@ export const roundExportFormSchema = z.object({
 
 export type RoundExportFormValues = z.infer<typeof roundExportFormSchema>;
 
-export const hubExportFormSchema = z.object({
-  apiKey: z.string().min(1, "La clé d'API est requise."),
-});
-
-export type HubExportFormValues = z.infer<typeof hubExportFormSchema>;
-
-export const customerExportFormSchema = z.object({
-  apiKey: z.string().min(1, "La clé d'API est requise."),
-});
-
-export type CustomerExportFormValues = z.infer<typeof customerExportFormSchema>;
-
-export const ticketExportFormSchema = z.object({
-  apiKey: z.string().min(1, "La clé d'API est requise."),
-  from: z.date({
-    required_error: "Une date de début est requise.",
-  }),
-  to: z.date({
-    required_error: "Une date de fin est requise.",
-  }),
-});
-
-export type TicketExportFormValues = z.infer<typeof ticketExportFormSchema>;
-
-
 export const schedulerSchema = z.object({
   estimatedDataSize: z.coerce
     .number()
