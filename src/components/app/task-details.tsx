@@ -35,7 +35,7 @@ function DetailItem({ label, value }: DetailItemProps) {
 const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     try {
-        return new Date(dateString).toLocaleString('fr-FR');
+        return new Date(dateString).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'medium' });
     } catch (e) {
         return "Date invalide";
     }
@@ -72,16 +72,28 @@ export function TaskDetails({ task }: { task: any }) {
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <DetailItem label="ID Tâche" value={task.taskId} />
+          <DetailItem label="ID Interne" value={task._id} />
           <DetailItem label="Statut" value={<Badge variant={task.progress === 'COMPLETED' ? 'default' : 'secondary'}>{task.progress}</Badge>} />
           <DetailItem label="Type" value={task.type} />
           <DetailItem label="Client" value={task.client} />
+          <DetailItem label="Plateforme" value={task.platformName} />
           <DetailItem label="Hub" value={task.hubName} />
-          <DetailItem label="Date de la Tâche" value={formatDateOnly(task.date)} />
-          <DetailItem label="Fenêtre de livraison" value={`${formatTime(task.timeWindow?.start)} - ${formatTime(task.timeWindow?.stop)}`} />
-          <DetailItem label="Arrivée réelle" value={formatDate(task.actualTime?.arrive?.when)} />
-          <DetailItem label="Date de clôture" value={formatDate(task.closureDate)} />
         </CardContent>
       </Card>
+      
+      {/* Dates & Times */}
+      <Card>
+          <CardHeader><CardTitle>Dates et Horaires</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <DetailItem label="Date de la Tâche" value={formatDateOnly(task.date)} />
+              <DetailItem label="Fenêtre de livraison" value={`${formatTime(task.timeWindow?.start)} - ${formatTime(task.timeWindow?.stop)}`} />
+              <DetailItem label="Créé le" value={formatDate(task.when)} />
+              <DetailItem label="Mis à jour le" value={formatDate(task.updated)} />
+              <DetailItem label="Arrivée réelle" value={formatDate(task.actualTime?.arrive?.when)} />
+              <DetailItem label="Date de clôture" value={formatDate(task.closureDate)} />
+          </CardContent>
+      </Card>
+
 
       {/* Contact & Location */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -93,6 +105,7 @@ export function TaskDetails({ task }: { task: any }) {
             <DetailItem label="Nom" value={task.contact?.person} />
             <DetailItem label="Téléphone" value={task.contact?.phone} />
             <DetailItem label="Email" value={task.contact?.email} />
+            <DetailItem label="Compte" value={task.contact?.account} />
             <Separator />
             <p className="text-sm font-medium text-muted-foreground">Infos Immeuble</p>
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -111,6 +124,7 @@ export function TaskDetails({ task }: { task: any }) {
           <CardContent className="space-y-4">
             <DetailItem label="Adresse" value={task.location?.address} />
             <DetailItem label="Instructions" value={task.instructions} />
+            <DetailItem label="Coordonnées" value={`${task.location?.location?.geometry?.[1]}, ${task.location?.location?.geometry?.[0]}`} />
           </CardContent>
         </Card>
       </div>
@@ -125,7 +139,20 @@ export function TaskDetails({ task }: { task: any }) {
           <DetailItem label="Nom du chauffeur" value={`${task.driver?.firstName ?? ''} ${task.driver?.lastName ?? ''}`.trim() || "N/A"}/>
           <DetailItem label="ID Externe Chauffeur" value={task.driver?.externalId}/>
           <DetailItem label="Séquence" value={task.sequence}/>
+          <DetailItem label="Transporteur" value={task.associatedName}/>
         </CardContent>
+      </Card>
+      
+      {/* Execution Details */}
+      <Card>
+          <CardHeader><CardTitle>Détails d'Exécution</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <DetailItem label="Terminé par" value={task.completedBy}/>
+              <DetailItem label="Sans contact" value={task.execution?.contactless?.forced ? 'Forcé' : 'Non'}/>
+              <DetailItem label="Tentatives" value={task.attempts}/>
+              <DetailItem label="Image" value={task.execution?.successPicture ? <a href={`${task.imagePath}${task.execution?.successPicture}`} target="_blank" rel="noopener noreferrer" className="text-primary underline">Voir l'image</a> : 'N/A'}/>
+              <DetailItem label="Temps de service réel" value={task.realServiceTime?.serviceTime ? `${Math.round(task.realServiceTime.serviceTime)} sec` : 'N/A'}/>
+          </CardContent>
       </Card>
 
 
@@ -133,7 +160,13 @@ export function TaskDetails({ task }: { task: any }) {
       <Card>
         <CardHeader>
           <CardTitle>Articles ({task.items?.length || 0})</CardTitle>
-          <CardDescription>Liste des articles inclus dans cette tâche.</CardDescription>
+          <CardDescription>
+            <div className="grid grid-cols-3 gap-2 text-sm mt-2">
+                <span>Volume total: {task.dimensions?.volume?.toFixed(3)} m³</span>
+                <span>Poids total: {task.dimensions?.poids?.toFixed(2)} kg</span>
+                <span>Bacs: {task.dimensions?.bac}</span>
+            </div>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -144,6 +177,7 @@ export function TaskDetails({ task }: { task: any }) {
                 <TableHead>Type</TableHead>
                 <TableHead>Quantité</TableHead>
                 <TableHead>Statut</TableHead>
+                <TableHead>Poids</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -155,11 +189,12 @@ export function TaskDetails({ task }: { task: any }) {
                     <TableCell><Badge variant="outline">{item.type}</Badge></TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell><Badge variant={item.status === 'DELIVERED' ? 'secondary' : 'destructive'}>{item.status}</Badge></TableCell>
+                    <TableCell>{item.dimensions?.poids?.toFixed(2)} kg</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-center">Aucun article trouvé.</TableCell>
+                    <TableCell colSpan={6} className="text-center">Aucun article trouvé.</TableCell>
                 </TableRow>
               )}
             </TableBody>
