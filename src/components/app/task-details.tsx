@@ -17,7 +17,24 @@ const formatDate = (dateString?: string) => {
     }
 }
 
-const renderValue = (value: any): React.ReactNode => {
+const fieldsToRemove = [
+  'endpoint', 'announcement', 'by', 'collect', 'externalCarrier', 'flux', 'hub',
+  'barcodeEncoding', 'log.by', 'log.id', 'items.id', 'location.geocodeScore',
+  'location.origin', 'location.precision', 'platform', 'platformName',
+  'targetFlux', 'taskReference', 'trackingId', 'order', 'associated',
+  'driver.id', 'round', 'realServiceTime.taskIdsDeliveredInSameStop',
+  'realServiceTime.id', 'imagePath', 'id'
+];
+
+const shouldRemoveField = (key: string, path: string = ''): boolean => {
+    const fullPath = path ? `${path}.${key}` : key;
+    const genericPath = path.replace(/\.\d+\./, '.'); // items.0.id -> items.id
+    const fullGenericPath = path ? `${genericPath}.${key}` : key;
+
+    return fieldsToRemove.includes(key) || fieldsToRemove.includes(fullPath) || fieldsToRemove.includes(fullGenericPath);
+}
+
+const renderValue = (value: any, path: string): React.ReactNode => {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground">N/A</span>;
   }
@@ -33,7 +50,7 @@ const renderValue = (value: any): React.ReactNode => {
   if (typeof value === 'object') {
     return (
       <div className="pl-4 border-l">
-        <DataObjectTable data={value} />
+        <DataObjectTable data={value} path={path} />
       </div>
     );
   }
@@ -41,7 +58,7 @@ const renderValue = (value: any): React.ReactNode => {
 };
 
 
-const DataObjectTable = ({ data }: { data: any }) => {
+const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
   const entries = Object.entries(data);
 
   if (entries.length === 0) {
@@ -51,25 +68,27 @@ const DataObjectTable = ({ data }: { data: any }) => {
   return (
     <Table>
       <TableBody>
-        {entries.map(([key, value]) => {
-           if (key === '_id') return null; // Ne pas afficher le champ _id
+        {entries.map(([key, value], index) => {
+           const currentPath = Array.isArray(data) ? path : (path ? `${path}.${key}` : key);
+           
+           if (key === '_id' || shouldRemoveField(key, path)) return null;
            if (value === null || value === undefined) return null;
            if (Array.isArray(value) && value.length === 0) return null;
            if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return null;
 
            return (
-            <TableRow key={key}>
+            <TableRow key={key + index}>
               <TableCell className="font-medium capitalize py-1 pr-2 w-1/3">{key.replace(/([A-Z])/g, ' $1')}</TableCell>
               <TableCell className="py-1">
                 {Array.isArray(value) ? (
                    <div className="flex flex-col gap-2">
-                    {value.map((item, index) => (
-                      <div key={index} className="border rounded-md p-2">
-                        {renderValue(item)}
+                    {value.map((item, itemIndex) => (
+                      <div key={itemIndex} className="border rounded-md p-2">
+                        {renderValue(item, `${currentPath}.${itemIndex}`)}
                       </div>
                     ))}
                   </div>
-                ) : renderValue(value)}
+                ) : renderValue(value, currentPath)}
               </TableCell>
             </TableRow>
           );
