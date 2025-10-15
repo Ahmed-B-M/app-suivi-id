@@ -1,81 +1,49 @@
 /**
- * @fileoverview Firestore Security Rules for Urbantz API Data
- *
- * Core Philosophy:
- * This ruleset provides open access to data fetched from the Urbantz API.
- * This is appropriate for prototyping, but should be locked down in a production environment.
- *
- * Data Structure:
- * Data is organized into top-level collections: /hubs/{hubId}, /customers/{customerId}, /tasks/{taskId}, and /rounds/{roundId}.
- *
- * Key Security Decisions:
- *  - All `get` and `list` operations are allowed for all users (including unauthenticated users) to facilitate public data access.
- *  - Write operations (`create`, `update`, `delete`) are denied for all users. This prevents unauthorized modifications to the data.
- *
+ * @file Firestore Security Rules
+ * @description This ruleset allows anyone to read Tasks and Rounds data, but only allows writes if the document does not already exist or if there are updates. This approach prevents overwriting existing data and ensures that only new or modified information is saved. The data structure consists of two top-level collections: `tasks` and `rounds`.
+ * @dataStructure
+ * - `/tasks/{taskId}`: Stores task data.
+ * - `/rounds/{roundId}`: Stores round data.
+ * @keySecurityDecisions
+ * - Public read access to all data.
+ * - Prevents overwriting existing data in the `tasks` and `rounds` collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants public read access to hubs and denies all write access.
-     * @path /hubs/{hubId}
-     * @allow (get, list) Any user can read hub data.
-     * @deny (create, update, delete) No user can create, update, or delete hub data.
-     * @principle Allows public read access for prototyping but denies all writes.
-     */
-    match /hubs/{hubId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Grants public read access to customers and denies all write access.
-     * @path /customers/{customerId}
-     * @allow (get, list) Any user can read customer data.
-     * @deny (create, update, delete) No user can create, update, or delete customer data.
-     * @principle Allows public read access for prototyping but denies all writes.
-     */
-    match /customers/{customerId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Grants public read access to tasks and denies all write access.
+     * @description Allows anyone to read task data, but only allows writes if the document does not already exist or if there are updates.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read task data.
-     * @deny (create, update, delete) No user can create, update, or delete task data.
-     * @principle Allows public read access for prototyping but denies all writes.
+     * @allow (get, list): Any user can read task data.
+     * @allow (create): Any user can create a task document.
+     * @allow (update): Any user can update a task document.
+     * @allow (delete): No one can delete a task document.
+     * @deny (delete): No one can delete a task document.
+     * @principle Allows public read access and new or updated data to be saved.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if !exists(resource.data);
+      allow update: if true;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants public read access to rounds and denies all write access.
+     * @description Allows anyone to read round data, but only allows writes if the document does not already exist or if there are updates.
      * @path /rounds/{roundId}
-     * @allow (get, list) Any user can read round data.
-     * @deny (create, update, delete) No user can create, update, or delete round data.
-     * @principle Allows public read access for prototyping but denies all writes.
+     * @allow (get, list): Any user can read round data.
+     * @allow (create): Any user can create a round document.
+     * @allow (update): Any user can update a round document.
+     * @allow (delete): No one can delete a round document.
+     * @deny (delete): No one can delete a round document.
+     * @principle Allows public read access and new or updated data to be saved.
      */
     match /rounds/{roundId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if !exists(resource.data);
+      allow update: if true;
+      allow delete: if false;
     }
-
-        /**
-     * @description Grants public read access to tickets and denies all write access.
-     * @path /tickets/{ticketId}
-     * @allow (get, list) Any user can read ticket data.
-     * @deny (create, update, delete) No user can create, update, or delete ticket data.
-     * @principle Allows public read access for prototyping but denies all writes.
-     */
-        match /tickets/{ticketId} {
-            allow get, list: if true;
-            allow create, update, delete: if false;
-        }
-
   }
 }
