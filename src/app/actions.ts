@@ -74,8 +74,9 @@ export async function runExportAction(
   if (!validatedFields.success) {
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
-
+  
   const { firestore } = initializeFirebaseOnServer();
+  const db = getFirestore();
 
   const { apiKey, from, to, status, taskId, roundId, unplanned } =
     validatedFields.data;
@@ -139,10 +140,10 @@ export async function runExportAction(
       `\n💾 Sauvegarde de ${allTasks.length} tâches dans Firestore...`
     );
 
-    const tasksCollection = collection(firestore, "tasks");
-    const batch = writeBatch(firestore);
+    const tasksCollectionRef = collection(db, "tasks");
+    const batch = writeBatch(db);
     allTasks.forEach((task) => {
-      const docRef = doc(tasksCollection, task.id || task._id);
+      const docRef = doc(tasksCollectionRef, task.id || task._id);
       batch.set(docRef, task, { merge: true });
     });
     await batch.commit();
@@ -238,6 +239,7 @@ export async function runRoundExportAction(
   }
 
   const { firestore } = initializeFirebaseOnServer();
+  const db = getFirestore();
 
   const { apiKey, from, to, status } = validatedFields.data;
   const logs: string[] = [];
@@ -299,10 +301,10 @@ export async function runRoundExportAction(
       `\n💾 Sauvegarde de ${filteredRounds.length} tournées dans Firestore...`
     );
 
-    const roundsCollection = collection(firestore, "rounds");
-    const batch = writeBatch(firestore);
+    const roundsCollectionRef = collection(db, "rounds");
+    const batch = writeBatch(db);
     filteredRounds.forEach((round) => {
-      const docRef = doc(roundsCollection, round.id || round._id);
+      const docRef = doc(roundsCollectionRef, round.id || round._id);
       batch.set(docRef, round, { merge: true });
     });
     await batch.commit();
