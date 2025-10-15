@@ -16,6 +16,20 @@ export const exportFormSchema = z.object({
 
 export type ExportFormValues = z.infer<typeof exportFormSchema>;
 
+export const roundExportFormSchema = z.object({
+  apiKey: z.string().min(1, "La clé d'API est requise."),
+  from: z.date({
+    required_error: "Une date de début est requise.",
+  }),
+  to: z.date({
+    required_error: "Une date de fin est requise.",
+  }),
+  status: z.string().optional(),
+});
+
+export type RoundExportFormValues = z.infer<typeof roundExportFormSchema>;
+
+
 export const schedulerSchema = z.object({
   estimatedDataSize: z.coerce
     .number()

@@ -6,14 +6,16 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Terminal } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type LogDisplayProps = {
   logs: string[];
+  className?: string;
 };
 
-export function LogDisplay({ logs }: LogDisplayProps) {
+export function LogDisplay({ logs, className }: LogDisplayProps) {
   return (
-    <Card className="h-[400px] flex flex-col">
+    <Card className={cn("h-[400px] flex flex-col", className)}>
       <CardHeader className="flex flex-row items-center gap-2">
         <Terminal className="h-5 w-5 text-muted-foreground" />
         <CardTitle className="text-xl">Logs</CardTitle>

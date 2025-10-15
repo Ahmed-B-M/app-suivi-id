@@ -12,8 +12,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import { exportFormSchema, type ExportFormValues } from "@/lib/schemas";
-import { runExportAction } from "@/app/actions";
+import { roundExportFormSchema, type RoundExportFormValues } from "@/lib/schemas";
+import { runRoundExportAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -43,46 +42,42 @@ import {
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 
-type ExportFormProps = {
+type RoundExportFormProps = {
   onExportComplete: (logs: string[], data: any[] | null) => void;
   onReset: () => void;
   jsonData: any[] | null;
 };
 
-export function ExportForm({
+export function RoundExportForm({
   onExportComplete,
   onReset,
   jsonData,
-}: ExportFormProps) {
+}: RoundExportFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<ExportFormValues>({
-    resolver: zodResolver(exportFormSchema),
+  const form = useForm<RoundExportFormValues>({
+    resolver: zodResolver(roundExportFormSchema),
     defaultValues: {
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
       from: new Date("2025-09-17"),
       to: new Date("2025-09-17"),
       status: "all",
-      taskId: "",
-      roundId: "",
-      unplanned: false,
     },
   });
 
-  const onSubmit = async (values: ExportFormValues) => {
+  const onSubmit = async (values: RoundExportFormValues) => {
     setIsLoading(true);
     onReset();
-    const result = await runExportAction(values);
+    const result = await runRoundExportAction(values);
     onExportComplete(result.logs, result.jsonData);
     setIsLoading(false);
 
     if (result.error) {
       toast({
         variant: "destructive",
-        title: "Export Failed",
+        title: "Échec de l'exportation",
         description: result.error,
       });
     }
@@ -95,7 +90,7 @@ export function ExportForm({
     )}`;
     const link = document.createElement("a");
     link.href = jsonString;
-    link.download = "donnees_urbantz_tasks_filtrees.json";
+    link.download = "donnees_urbantz_rounds_filtrees.json";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -109,9 +104,9 @@ export function ExportForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Configuration de l'Export des Tâches</CardTitle>
+        <CardTitle>Configuration de l'Export des Tournées</CardTitle>
         <CardDescription>
-          Configurez et lancez l'exportation des tâches depuis l'API Urbantz.
+          Configurez et lancez l'exportation des tournées depuis l'API Urbantz.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -224,72 +219,28 @@ export function ExportForm({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Statut de la tâche</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormLabel>Statut de la tournée</FormLabel>
+                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un statut" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                       <SelectItem value="all">Tous</SelectItem>
-                      <SelectItem value="COMPLETED">Terminée</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="CREATED">Créée</SelectItem>
+                      <SelectItem value="VALIDATED">Validée</SelectItem>
+                      <SelectItem value="PUBLISHED">Publiée</SelectItem>
                       <SelectItem value="ONGOING">En cours</SelectItem>
                       <SelectItem value="ASSIGNED">Assignée</SelectItem>
-                      <SelectItem value="UNPLANNED">Non planifiée</SelectItem>
+                      <SelectItem value="IN_PREPARATION">En préparation</SelectItem>
+                      <SelectItem value="COMPLETED">Terminée</SelectItem>
+                      <SelectItem value="READY">Prête</SelectItem>
+                      <SelectItem value="ARRIVED">Arrivée</SelectItem>
+                      <SelectItem value="IN_DELIVERY">En livraison</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="taskId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ID de la tâche</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Entrer l'ID de la tâche" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="roundId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ID de la tournée</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Entrer l'ID de la tournée" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="unplanned"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Inclure les tâches non planifiées
-                    </FormLabel>
-                    <FormDescription>
-                      Si coché, récupère les tâches sans date assignée.
-                    </FormDescription>
-                  </div>
                 </FormItem>
               )}
             />
