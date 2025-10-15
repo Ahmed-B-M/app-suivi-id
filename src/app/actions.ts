@@ -5,9 +5,69 @@ import {
   exportFormSchema,
   roundExportFormSchema,
   schedulerSchema,
+  hubExportFormSchema,
+  customerExportFormSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
+
+async function fetchGeneric(
+    endpoint: 'task' | 'round' | 'hub' | 'customer',
+    apiKey: string,
+    params: URLSearchParams,
+    logs: string[]
+) {
+    const pageSize = 500;
+    let page = 0;
+    let hasMoreData = true;
+    const allItems: any[] = [];
+    const itemName = endpoint === 'customer' ? 'client' : endpoint;
+
+    while (hasMoreData) {
+        const url = new URL(`https://api.urbantz.com/v2/${endpoint}`);
+        params.forEach((value, key) => url.searchParams.append(key, value));
+        url.searchParams.append("page", page.toString());
+        url.searchParams.append("pageSize", pageSize.toString());
+
+        logs.push(
+            `    - Récupération de la page ${
+                page + 1
+            } avec les paramètres: ${params.toString()}`
+        );
+
+        const response = await fetch(url.toString(), {
+            headers: {
+                "x-api-key": apiKey,
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            logs.push(
+                `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
+            );
+            hasMoreData = false;
+            continue;
+        }
+
+        const items = await response.json();
+        logs.push(`    - ${items.length} ${itemName}s bruts récupérés.`);
+
+        if (items.length > 0) {
+            allItems.push(...items);
+            page++;
+        } else {
+            hasMoreData = false;
+            if (page === 0) {
+                logs.push(`    - Aucun ${itemName} trouvé pour ces paramètres.`);
+            } else {
+                logs.push(`    - Fin des données pour ces paramètres.`);
+            }
+        }
+    }
+    return allItems;
+}
+
 
 // --- Task Fetching Logic ---
 async function fetchTasks(
@@ -15,54 +75,7 @@ async function fetchTasks(
   params: URLSearchParams,
   logs: string[]
 ) {
-  const pageSize = 500;
-  let page = 0;
-  let hasMoreData = true;
-  const allTasks: any[] = [];
-
-  while (hasMoreData) {
-    const url = new URL("https://api.urbantz.com/v2/task");
-    params.forEach((value, key) => url.searchParams.append(key, value));
-    url.searchParams.append("page", page.toString());
-    url.searchParams.append("pageSize", pageSize.toString());
-
-    logs.push(
-      `    - Récupération de la page ${
-        page + 1
-      } avec les paramètres: ${params.toString()}`
-    );
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        "x-api-key": apiKey,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logs.push(
-        `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
-      );
-      hasMoreData = false;
-      continue;
-    }
-
-    const tasks = await response.json();
-    logs.push(`    - ${tasks.length} tâches brutes récupérées.`);
-
-    if (tasks.length > 0) {
-      allTasks.push(...tasks);
-      page++;
-    } else {
-      hasMoreData = false;
-      if (page === 0) {
-        logs.push(`    - Aucune tâche trouvée pour ces paramètres.`);
-      } else {
-        logs.push(`    - Fin des données pour ces paramètres.`);
-      }
-    }
-  }
-  return allTasks;
+  return fetchGeneric("task", apiKey, params, logs);
 }
 
 // --- Task Export Action ---
@@ -161,54 +174,7 @@ async function fetchRounds(
   params: URLSearchParams,
   logs: string[]
 ) {
-  const pageSize = 500;
-  let page = 0;
-  let hasMoreData = true;
-  const allRounds: any[] = [];
-
-  while (hasMoreData) {
-    const url = new URL("https://api.urbantz.com/v2/round");
-    params.forEach((value, key) => url.searchParams.append(key, value));
-    url.searchParams.append("page", page.toString());
-    url.searchParams.append("pageSize", pageSize.toString());
-
-    logs.push(
-      `    - Récupération de la page ${
-        page + 1
-      } avec les paramètres: ${params.toString()}`
-    );
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        "x-api-key": apiKey,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logs.push(
-        `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
-      );
-      hasMoreData = false;
-      continue;
-    }
-
-    const rounds = await response.json();
-    logs.push(`    - ${rounds.length} tournées brutes récupérées.`);
-
-    if (rounds.length > 0) {
-      allRounds.push(...rounds);
-      page++;
-    } else {
-      hasMoreData = false;
-      if (page === 0) {
-        logs.push(`    - Aucune tournée trouvée pour ces paramètres.`);
-      } else {
-        logs.push(`    - Fin des données pour ces paramètres.`);
-      }
-    }
-  }
-  return allRounds;
+  return fetchGeneric("round", apiKey, params, logs);
 }
 
 // --- Round Export Action ---
@@ -293,6 +259,93 @@ export async function runRoundExportAction(
   }
 }
 
+// --- Hub Export Action ---
+export async function runHubExportAction(
+  values: z.infer<typeof hubExportFormSchema>
+) {
+  const validatedFields = hubExportFormSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { logs: [], jsonData: null, error: "Invalid input." };
+  }
+
+  const { apiKey } = validatedFields.data;
+  const logs: string[] = [];
+
+  try {
+    logs.push(`🚀 Début de l'interrogation des hubs...`);
+    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
+
+    const params = new URLSearchParams();
+    const allHubs = await fetchGeneric("hub", apiKey, params, logs);
+
+    if (allHubs.length === 0) {
+      logs.push(`\n⚠️ Aucun hub récupéré.`);
+      return { logs, jsonData: [], error: null };
+    }
+
+    logs.push(`\n✅ ${allHubs.length} hubs récupérés au total.`);
+    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
+    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
+
+    return {
+      logs,
+      jsonData: allHubs,
+      error: null,
+    };
+  } catch (e) {
+    const errorMsg = "❌ Une erreur inattendue est survenue.";
+    logs.push(errorMsg);
+    if (e instanceof Error) {
+      logs.push(e.message);
+    }
+    return { logs, jsonData: null, error: errorMsg };
+  }
+}
+
+// --- Customer Export Action ---
+export async function runCustomerExportAction(
+  values: z.infer<typeof customerExportFormSchema>
+) {
+  const validatedFields = customerExportFormSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { logs: [], jsonData: null, error: "Invalid input." };
+  }
+
+  const { apiKey } = validatedFields.data;
+  const logs: string[] = [];
+
+  try {
+    logs.push(`🚀 Début de l'interrogation des clients...`);
+    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
+
+    const params = new URLSearchParams();
+    const allCustomers = await fetchGeneric("customer", apiKey, params, logs);
+
+     if (allCustomers.length === 0) {
+      logs.push(`\n⚠️ Aucun client récupéré.`);
+      return { logs, jsonData: [], error: null };
+    }
+
+    logs.push(`\n✅ ${allCustomers.length} clients récupérés au total.`);
+    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
+    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
+
+
+    return {
+      logs,
+      jsonData: allCustomers,
+      error: null,
+    };
+  } catch (e) {
+    const errorMsg = "❌ Une erreur inattendue est survenue.";
+    logs.push(errorMsg);
+    if (e instanceof Error) {
+      logs.push(e.message);
+    }
+    return { logs, jsonData: null, error: errorMsg };
+  }
+}
+
 // --- Scheduler Action ---
 export async function getScheduleAction(
   values: z.infer<typeof schedulerSchema>
@@ -317,7 +370,7 @@ export async function getScheduleAction(
 
 // --- Firestore Save Actions ---
 
-export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds', data: any[]) {
+export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds' | 'hubs' | 'customers', data: any[]) {
     const logs: string[] = [];
     try {
         const { firestore: db } = initializeFirebaseOnServer();
@@ -331,7 +384,7 @@ export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds', da
         data.forEach((item) => {
             const docId = item.id || item._id;
             if (docId) {
-                const docRef = collectionRef.doc(docId);
+                const docRef = collectionRef.doc(docId.toString());
                 batch.set(docRef, item, { merge: true });
             }
         });
