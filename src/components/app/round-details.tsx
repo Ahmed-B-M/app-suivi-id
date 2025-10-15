@@ -17,21 +17,6 @@ const formatDate = (dateString?: string) => {
     }
 }
 
-const fieldsToRemove = [
-  'id', '_id', 'platform', 'flux', 'hub', 'associated', 'targetFlux', 'imagePath', 'driver.id', 'vehicle.id', 'vehicle._id'
-];
-
-const shouldRemoveField = (key: string, path: string = ''): boolean => {
-    const fullPath = path ? `${path}.${key}` : key;
-    const genericPath = path.replace(/\.\d+(\.|$)/, '.'); 
-    const fullGenericPath = path ? `${genericPath}${key}` : key;
-
-    if (fieldsToRemove.includes(key) || fieldsToRemove.includes(fullPath) || fieldsToRemove.includes(fullGenericPath)) {
-        return true;
-    }
-    return false;
-}
-
 const renderValue = (value: any, path: string): React.ReactNode => {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground">N/A</span>;
@@ -69,7 +54,6 @@ const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
         {entries.map(([key, value]) => {
            const currentPath = Array.isArray(data) ? path : (path ? `${path}.${key}` : key);
            
-           if (shouldRemoveField(key, path)) return null;
            if (value === null || value === undefined) return null;
            if (Array.isArray(value) && value.length === 0) return null;
            if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return null;
