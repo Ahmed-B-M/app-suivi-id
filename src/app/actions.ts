@@ -13,7 +13,7 @@ import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 
 async function fetchGeneric(
-    endpoint: 'task' | 'round' | 'hub' | 'customer' | 'ticket',
+    endpoint: 'task' | 'round' | 'hub' | 'customer' | 'tickets',
     apiKey: string,
     params: URLSearchParams,
     logs: string[]
@@ -364,7 +364,7 @@ export async function runTicketExportAction(
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
     const params = new URLSearchParams();
-    const allTickets = await fetchGeneric("ticket", apiKey, params, logs);
+    const allTickets = await fetchGeneric("tickets", apiKey, params, logs);
 
      if (allTickets.length === 0) {
       logs.push(`\n⚠️ Aucun ticket récupéré.`);
