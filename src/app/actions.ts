@@ -10,7 +10,6 @@ import {
   ticketExportFormSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { initializeFirebaseOnServer } from "@/firebase/server-init";
 
 async function fetchGeneric(
     endpoint: 'task' | 'round' | 'hub' | 'customer' | 'tickets',
@@ -429,38 +428,4 @@ export async function getScheduleAction(
         "Failed to get schedule from AI. Please check your inputs and try again.",
     };
   }
-}
-
-// --- Firestore Save Actions ---
-export async function saveBatchToFirestoreAction(dataType: 'tasks' | 'rounds' | 'hubs' | 'customers' | 'tickets', batchData: any[]) {
-    const logs: string[] = [];
-    try {
-        const { firestore: db } = await initializeFirebaseOnServer();
-
-        const collectionName = dataType;
-        const collectionRef = db.collection(collectionName);
-        
-        const batch = db.batch();
-        
-        batchData.forEach((item) => {
-            const docId = item.id || item._id;
-            if (docId) {
-                const docRef = collectionRef.doc(docId.toString());
-                batch.set(docRef, item, { merge: true });
-            }
-        });
-
-        await batch.commit();
-
-        logs.push(`   - Lot de ${batchData.length} ${dataType} sauvegardé avec succès.`);
-        return { logs, error: null };
-    } catch (e) {
-        const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
-        logs.push(errorMsg);
-        if (e instanceof Error) {
-            logs.push(e.message);
-            console.error(e);
-        }
-        return { logs, error: errorMsg };
-    }
 }

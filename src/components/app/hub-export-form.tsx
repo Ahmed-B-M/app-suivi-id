@@ -10,9 +10,14 @@ import {
   RotateCcw,
   Save,
 } from "lucide-react";
+import {
+  writeBatch,
+  collection,
+  doc,
+} from "firebase/firestore";
 
 import { hubExportFormSchema, type HubExportFormValues } from "@/lib/schemas";
-import { runHubExportAction, saveBatchToFirestoreAction } from "@/app/actions";
+import { runHubExportAction } from "@/app/actions";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +38,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useFirebase } from "@/firebase";
 
 type HubExportFormProps = {
   onExportComplete: (logs: string[], data: any[] | null) => void;
@@ -48,6 +54,7 @@ export function HubExportForm({
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { firestore } = useFirebase();
 
   const form = useForm<HubExportFormValues>({
     resolver: zodResolver(hubExportFormSchema),
@@ -86,29 +93,49 @@ export function HubExportForm({
   };
   
   const handleSaveToFirestore = async () => {
-    if (!jsonData) return;
+    if (!jsonData || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Aucune donnée à sauvegarder ou la base de données n'est pas disponible.",
+        });
+        return;
+    }
+
     setIsSaving(true);
     onExportComplete([`\n💾 Sauvegarde de ${jsonData.length} hubs dans Firestore...`], null);
 
+    const collectionRef = collection(firestore, 'hubs');
     const batchSize = 450;
     let success = true;
 
     for (let i = 0; i < jsonData.length; i += batchSize) {
         const chunk = jsonData.slice(i, i + batchSize);
-        onExportComplete([`   - Traitement du lot ${i / batchSize + 1}... (${chunk.length} documents)`], null);
+        onExportComplete([`   - Traitement du lot ${Math.floor(i / batchSize) + 1}... (${chunk.length} documents)`], null);
         
-        const result = await saveBatchToFirestoreAction('hubs', chunk);
-        
-        onExportComplete(result.logs, null);
-        
-        if (result.error) {
+        try {
+            const batch = writeBatch(firestore);
+            chunk.forEach((item) => {
+                const docId = item.id || item._id;
+                if (docId) {
+                    const docRef = doc(collectionRef, docId.toString());
+                    batch.set(docRef, item, { merge: true });
+                }
+            });
+            await batch.commit();
+            onExportComplete([`   - Lot de ${chunk.length} hubs sauvegardé avec succès.`], null);
+        } catch (e) {
+            const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
+            let detailedError = e instanceof Error ? e.message : "Erreur inconnue";
+            
+            onExportComplete([errorMsg, detailedError], null);
             toast({
                 variant: "destructive",
-                title: `Erreur lors de la sauvegarde du lot ${i / batchSize + 1}`,
-                description: result.error,
+                title: `Erreur lors de la sauvegarde du lot ${Math.floor(i / batchSize) + 1}`,
+                description: detailedError,
             });
             success = false;
-            break; 
+            break;
         }
     }
     

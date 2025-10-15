@@ -12,9 +12,14 @@ import {
   RotateCcw,
   Save,
 } from "lucide-react";
+import {
+  writeBatch,
+  collection,
+  doc,
+} from "firebase/firestore";
 
 import { roundExportFormSchema, type RoundExportFormValues } from "@/lib/schemas";
-import { runRoundExportAction, saveBatchToFirestoreAction } from "@/app/actions";
+import { runRoundExportAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +48,7 @@ import {
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFirebase } from "@/firebase";
 
 type RoundExportFormProps = {
   onExportComplete: (logs: string[], data: any[] | null) => void;
@@ -58,6 +64,7 @@ export function RoundExportForm({
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { firestore } = useFirebase();
   
   const today = new Date();
   const tomorrow = new Date();
@@ -103,29 +110,49 @@ export function RoundExportForm({
   };
   
   const handleSaveToFirestore = async () => {
-    if (!jsonData) return;
+    if (!jsonData || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Aucune donnée à sauvegarder ou la base de données n'est pas disponible.",
+        });
+        return;
+    }
+
     setIsSaving(true);
     onExportComplete([`\n💾 Sauvegarde de ${jsonData.length} tournées dans Firestore...`], null);
 
+    const collectionRef = collection(firestore, 'rounds');
     const batchSize = 450;
     let success = true;
 
     for (let i = 0; i < jsonData.length; i += batchSize) {
         const chunk = jsonData.slice(i, i + batchSize);
-        onExportComplete([`   - Traitement du lot ${i / batchSize + 1}... (${chunk.length} documents)`], null);
+        onExportComplete([`   - Traitement du lot ${Math.floor(i / batchSize) + 1}... (${chunk.length} documents)`], null);
         
-        const result = await saveBatchToFirestoreAction('rounds', chunk);
-        
-        onExportComplete(result.logs, null);
-        
-        if (result.error) {
+        try {
+            const batch = writeBatch(firestore);
+            chunk.forEach((item) => {
+                const docId = item.id || item._id;
+                if (docId) {
+                    const docRef = doc(collectionRef, docId.toString());
+                    batch.set(docRef, item, { merge: true });
+                }
+            });
+            await batch.commit();
+            onExportComplete([`   - Lot de ${chunk.length} tournées sauvegardé avec succès.`], null);
+        } catch (e) {
+            const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
+            let detailedError = e instanceof Error ? e.message : "Erreur inconnue";
+            
+            onExportComplete([errorMsg, detailedError], null);
             toast({
                 variant: "destructive",
-                title: `Erreur lors de la sauvegarde du lot ${i / batchSize + 1}`,
-                description: result.error,
+                title: `Erreur lors de la sauvegarde du lot ${Math.floor(i / batchSize) + 1}`,
+                description: detailedError,
             });
             success = false;
-            break; 
+            break;
         }
     }
     
