@@ -1,78 +1,97 @@
 /**
- * @description This ruleset enforces a public read-only model for all Urbantz API data (hubs, customers, tasks, rounds, and tickets).
- *   All data is stored in top-level collections.
- * @dataStructure
- *   /hubs/{hubId}
- *   /customers/{customerId}
- *   /tasks/{taskId}
- *   /rounds/{roundId}
- *   /tickets/{ticketId}
- * @keySecurityDecisions
- *   - All collections are publicly readable.
- *   - Writes are disallowed for all users (including authenticated users) due to the lack of an ownership field.
- *   - Listing of all collections is enabled.
+ * @fileoverview Firestore Security Rules for Urbantz API data.
+ *
+ * Core Philosophy:
+ * This ruleset provides public read access to all collections (hubs, customers, tasks, rounds, tickets)
+ * and restricts all write access to prevent unauthorized data modification. This is suitable for
+ * scenarios where data is managed and populated by a trusted backend.
+ *
+ * Data Structure:
+ * The Firestore database consists of top-level collections for each Urbantz API entity:
+ * /hubs/{hubId}
+ * /customers/{customerId}
+ * /tasks/{taskId}
+ * /rounds/{roundId}
+ * /tickets/{ticketId}
+ *
+ * Key Security Decisions:
+ * - Public Read Access: All users, including unauthenticated users, can read any document in any collection.
+ * - Write Access Denied: No users can create, update, or delete any document. This ensures data integrity
+ *   and prevents unauthorized modifications.
+ * - No User Listing: Listing users is disallowed.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     /**
-     * @description Allows public read access to hub data.  Writes are forbidden.
+     * @description Grants public read access to hubs and denies all write operations.
      * @path /hubs/{hubId}
      * @allow (get, list): Any user can read hub data.
      * @deny (create, update, delete): No user can modify hub data.
-     * @principle Allows public read, but forbids all writes.
+     * @principle Grants public read access and restricts all write operations.
      */
     match /hubs/{hubId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to customer data. Writes are forbidden.
+     * @description Grants public read access to customers and denies all write operations.
      * @path /customers/{customerId}
      * @allow (get, list): Any user can read customer data.
      * @deny (create, update, delete): No user can modify customer data.
-     * @principle Allows public read, but forbids all writes.
+     * @principle Grants public read access and restricts all write operations.
      */
     match /customers/{customerId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to task data. Writes are forbidden.
+     * @description Grants public read access to tasks and denies all write operations.
      * @path /tasks/{taskId}
      * @allow (get, list): Any user can read task data.
      * @deny (create, update, delete): No user can modify task data.
-     * @principle Allows public read, but forbids all writes.
+     * @principle Grants public read access and restricts all write operations.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to round data. Writes are forbidden.
+     * @description Grants public read access to rounds and denies all write operations.
      * @path /rounds/{roundId}
      * @allow (get, list): Any user can read round data.
      * @deny (create, update, delete): No user can modify round data.
-     * @principle Allows public read, but forbids all writes.
+     * @principle Grants public read access and restricts all write operations.
      */
     match /rounds/{roundId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to ticket data. Writes are forbidden.
+     * @description Grants public read access to tickets and denies all write operations.
      * @path /tickets/{ticketId}
      * @allow (get, list): Any user can read ticket data.
      * @deny (create, update, delete): No user can modify ticket data.
-     * @principle Allows public read, but forbids all writes.
+     * @principle Grants public read access and restricts all write operations.
      */
     match /tickets/{ticketId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
