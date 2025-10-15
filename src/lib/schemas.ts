@@ -8,7 +8,10 @@ export const exportFormSchema = z.object({
   to: z.date({
     required_error: "An end date is required.",
   }),
-  hubs: z.string().optional(),
+  status: z.string().optional(),
+  taskId: z.string().optional(),
+  roundId: z.string().optional(),
+  unplanned: z.boolean().optional(),
 });
 
 export type ExportFormValues = z.infer<typeof exportFormSchema>;

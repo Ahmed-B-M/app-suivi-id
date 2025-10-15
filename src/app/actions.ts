@@ -4,42 +4,59 @@ import { z } from "zod";
 import { exportFormSchema, schedulerSchema } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 
-async function fetchTasksForDay(
+async function fetchTasks(
   apiKey: string,
-  date: string,
-  hub: string | null,
-  page: number,
+  params: URLSearchParams,
   logs: string[]
 ) {
   const pageSize = 500;
-  const url = new URL("https://api.urbantz.com/v2/task");
-  url.searchParams.append("date", date);
-  url.searchParams.append("page", page.toString());
-  url.searchParams.append("pageSize", pageSize.toString());
-  if (hub) {
-    url.searchParams.append("hub", hub);
+  let page = 0;
+  let hasMoreData = true;
+  const allTasks: any[] = [];
+
+  while (hasMoreData) {
+    const url = new URL("https://api.urbantz.com/v2/task");
+    params.forEach((value, key) => url.searchParams.append(key, value));
+    url.searchParams.append("page", page.toString());
+    url.searchParams.append("pageSize", pageSize.toString());
+
+    logs.push(`    - Récupération de la page ${page + 1} avec les paramètres: ${params.toString()}`);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        "x-api-key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logs.push(
+        `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
+      );
+      // We stop fetching for this set of parameters on error
+      hasMoreData = false; 
+      // We don't throw an error to allow other loops to continue
+      continue;
+    }
+
+    const tasks = await response.json();
+    logs.push(`    - ${tasks.length} tâches brutes récupérées.`);
+
+    if (tasks.length > 0) {
+      allTasks.push(...tasks);
+      page++;
+    } else {
+      hasMoreData = false;
+      if(page === 0) {
+        logs.push(`    - Aucune tâche trouvée pour ces paramètres.`);
+      } else {
+        logs.push(`    - Fin des données pour ces paramètres.`);
+      }
+    }
   }
-
-  logs.push(`    - Récupération de la page ${page + 1} pour le hub ${hub || 'tous'}...`);
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      "x-api-key": apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    logs.push(
-      `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
-    );
-    throw new Error(`API Error: ${response.status} ${response.statusText}`);
-  }
-
-  const tasks = await response.json();
-  logs.push(`    - ${tasks.length} tâches brutes récupérées.`);
-  return tasks;
+  return allTasks;
 }
+
 
 // --- Export Action ---
 export async function runExportAction(values: z.infer<typeof exportFormSchema>) {
@@ -48,57 +65,48 @@ export async function runExportAction(values: z.infer<typeof exportFormSchema>) 
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
 
-  const { apiKey, from, to, hubs } = validatedFields.data;
+  const { apiKey, from, to, status, taskId, roundId, unplanned } = validatedFields.data;
   const logs: string[] = [];
 
   try {
     logs.push(`🚀 Début de l'interrogation...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-    logs.push(
-      `   - Période: ${from.toISOString().split("T")[0]} à ${
-        to.toISOString().split("T")[0]
-      }`
-    );
-    const hubIds = hubs ? hubs.split(",").map((h) => h.trim()).filter(h => h) : [];
-    logs.push(`   - Hubs: ${hubIds.length > 0 ? hubIds.join(', ') : 'Tous les hubs'}`);
+    
+    const baseParams = new URLSearchParams();
+    if(status) baseParams.append("progress", status);
+    if(taskId) baseParams.append("taskId", taskId);
+    if(roundId) baseParams.append("round", roundId);
+    if(unplanned) baseParams.append("unplanned", "true");
 
+
+    logs.push(`   - Filtres: ${baseParams.toString() || 'Aucun'}`);
+    
     const allTasks: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz...`);
 
-    const dateCursor = new Date(from);
-    while (dateCursor <= to) {
-      const dateString = dateCursor.toISOString().split("T")[0];
-      logs.push(`\n🗓️  Traitement du ${dateString}...`);
-      
-      const targetHubs = hubIds.length > 0 ? hubIds : [null];
+    if (unplanned) {
+        logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
+        const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
+        allTasks.push(...unplannedTasks);
+    } else {
+        logs.push(
+          `   - Période: ${from.toISOString().split("T")[0]} à ${
+            to.toISOString().split("T")[0]
+          }`
+        );
+        const dateCursor = new Date(from);
+        while (dateCursor <= to) {
+            const dateString = dateCursor.toISOString().split("T")[0];
+            logs.push(`\n🗓️  Traitement du ${dateString}...`);
+            
+            const paramsForDay = new URLSearchParams(baseParams);
+            paramsForDay.append("date", dateString);
 
-      for (const hub of targetHubs) {
-        let page = 0;
-        let hasMoreData = true;
-        while (hasMoreData) {
-          try {
-            const tasks = await fetchTasksForDay(apiKey, dateString, hub, page, logs);
-            if (tasks.length > 0) {
-              allTasks.push(...tasks);
-              page++;
-            } else {
-              hasMoreData = false;
-              if(page === 0){
-                logs.push(`    - Aucune tâche trouvée pour le hub ${hub || 'tous'} ce jour-là.`);
-              } else {
-                logs.push(`    - Fin des données pour le hub ${hub || 'tous'}.`);
-              }
-            }
-          } catch (error) {
-            if (error instanceof Error) {
-                logs.push(`    - ❌ Erreur lors de la récupération pour le hub ${hub || 'tous'}: ${error.message}`);
-            }
-            // Stop trying for this hub if an error occurs
-            hasMoreData = false; 
-          }
+            const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
+            allTasks.push(...tasksForDay);
+            
+            dateCursor.setDate(dateCursor.getDate() + 1);
         }
-      }
-      dateCursor.setDate(dateCursor.getDate() + 1);
     }
     
     if (allTasks.length === 0) {

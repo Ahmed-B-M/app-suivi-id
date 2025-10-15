@@ -42,6 +42,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type ExportFormProps = {
   onExportComplete: (logs: string[], data: any[] | null) => void;
@@ -63,7 +65,10 @@ export function ExportForm({
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
       from: new Date("2025-09-17"),
       to: new Date("2025-09-17"),
-      hubs: "",
+      status: "",
+      taskId: "",
+      roundId: "",
+      unplanned: false,
     },
   });
 
@@ -214,6 +219,80 @@ export function ExportForm({
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Statut de la tâche</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un statut" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="COMPLETED">Terminée</SelectItem>
+                      <SelectItem value="ONGOING">En cours</SelectItem>
+                      <SelectItem value="ASSIGNED">Assignée</SelectItem>
+                      <SelectItem value="UNPLANNED">Non planifiée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="taskId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ID de la tâche</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Entrer l'ID de la tâche" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="roundId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ID de la tournée</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Entrer l'ID de la tournée" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="unplanned"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Inclure les tâches non planifiées
+                    </FormLabel>
+                    <FormDescription>
+                      Si coché, récupère les tâches sans date assignée.
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-2">
             <Button type="submit" disabled={isLoading}>
