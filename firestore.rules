@@ -1,49 +1,49 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset allows anyone to read Tasks and Rounds data, but only allows writes if the document does not already exist or if there are updates. This approach prevents overwriting existing data and ensures that only new or modified information is saved. The data structure consists of two top-level collections: `tasks` and `rounds`.
- * @dataStructure
- * - `/tasks/{taskId}`: Stores task data.
- * - `/rounds/{roundId}`: Stores round data.
- * @keySecurityDecisions
- * - Public read access to all data.
- * - Prevents overwriting existing data in the `tasks` and `rounds` collections.
+ * @fileoverview Firestore Security Rules for Urbantz API Data.
+ *
+ * Core Philosophy:
+ * This ruleset allows completely open access to the `tasks` and `rounds` collections.
+ * This assumes that all data stored in these collections is intended to be public.
+ *
+ * Data Structure:
+ * - /tasks/{taskId}: Stores task data.
+ * - /rounds/{roundId}: Stores round data.
+ *
+ * Key Security Decisions:
+ * - Unrestricted read and write access to all documents. This is acceptable ONLY if all data is considered public.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read task data, but only allows writes if the document does not already exist or if there are updates.
+     * @description Allows anyone to read or write tasks.
      * @path /tasks/{taskId}
-     * @allow (get, list): Any user can read task data.
-     * @allow (create): Any user can create a task document.
-     * @allow (update): Any user can update a task document.
-     * @allow (delete): No one can delete a task document.
-     * @deny (delete): No one can delete a task document.
-     * @principle Allows public read access and new or updated data to be saved.
+     * @allow (get, list) - Any user can read any task.
+     * @allow (create, update, delete) - Any user can create, update, or delete any task.
+     * @deny None
+     * @principle Open access for all users.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create: if !exists(resource.data);
+      allow create: if true;
       allow update: if true;
-      allow delete: if false;
+      allow delete: if true;
     }
 
     /**
-     * @description Allows anyone to read round data, but only allows writes if the document does not already exist or if there are updates.
+     * @description Allows anyone to read or write rounds.
      * @path /rounds/{roundId}
-     * @allow (get, list): Any user can read round data.
-     * @allow (create): Any user can create a round document.
-     * @allow (update): Any user can update a round document.
-     * @allow (delete): No one can delete a round document.
-     * @deny (delete): No one can delete a round document.
-     * @principle Allows public read access and new or updated data to be saved.
+     * @allow (get, list) - Any user can read any round.
+     * @allow (create, update, delete) - Any user can create, update, or delete any round.
+     * @deny None
+     * @principle Open access for all users.
      */
     match /rounds/{roundId} {
       allow get, list: if true;
-      allow create: if !exists(resource.data);
+      allow create: if true;
       allow update: if true;
-      allow delete: if false;
+      allow delete: if true;
     }
   }
 }
