@@ -4,19 +4,41 @@ import { z } from "zod";
 import { exportFormSchema, schedulerSchema } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 
-// --- Mock Data ---
-function createMockTask(id: number) {
-  return {
-    id: `task_${id}`,
-    status: Math.random() > 0.2 ? "completed" : "failed",
-    creationDate: new Date(
-      Date.now() - Math.floor(Math.random() * 1000000000)
-    ).toISOString(),
-    hub: `hub_${(id % 6) + 1}`,
-    driver: `driver_${id % 20}`,
-    vehicle: `vehicle_${id % 10}`,
-    eta: new Date(Date.now() + Math.floor(Math.random() * 100000000)).toISOString(),
-  };
+async function fetchTasksForDay(
+  apiKey: string,
+  date: string,
+  hub: string | null,
+  page: number,
+  logs: string[]
+) {
+  const pageSize = 500;
+  const url = new URL("https://api.urbantz.com/v2/task");
+  url.searchParams.append("date", date);
+  url.searchParams.append("page", page.toString());
+  url.searchParams.append("pageSize", pageSize.toString());
+  if (hub) {
+    url.searchParams.append("hub", hub);
+  }
+
+  logs.push(`    - Récupération de la page ${page + 1} pour le hub ${hub || 'tous'}...`);
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      "x-api-key": apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logs.push(
+      `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
+    );
+    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+  }
+
+  const tasks = await response.json();
+  logs.push(`    - ${tasks.length} tâches brutes récupérées.`);
+  return tasks;
 }
 
 // --- Export Action ---
@@ -33,41 +55,54 @@ export async function runExportAction(values: z.infer<typeof exportFormSchema>) 
     logs.push(`🚀 Début de l'interrogation...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
     logs.push(
-      `   - Période: ${
-        from.toISOString().split("T")[0]
-      } à ${to.toISOString().split("T")[0]}`
+      `   - Période: ${from.toISOString().split("T")[0]} à ${
+        to.toISOString().split("T")[0]
+      }`
     );
-    logs.push(`   - Hubs: ${hubs.split(",").length} hubs sélectionnés`);
+    const hubIds = hubs.split(",").map((h) => h.trim()).filter(h => h);
+    logs.push(`   - Hubs: ${hubIds.length > 0 ? hubIds.join(', ') : 'Tous les hubs'}`);
 
     const allTasks: any[] = [];
-    const totalPages = Math.floor(Math.random() * 3) + 3; // Simulate 3-5 pages
-
     logs.push(`\n🛰️  Interrogation de l'API Urbantz...`);
 
-    for (let page = 0; page < totalPages; page++) {
-      logs.push(`    - Récupération de la page ${page + 1}/${totalPages}...`);
-      // Simulate network delay
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.random() * 500 + 250)
-      );
-
-      const isLastPage = page === totalPages - 1;
-      const tasksOnPage = isLastPage ? 0 : Math.floor(Math.random() * 5) + 8; // 8-12 tasks per page
+    const dateCursor = new Date(from);
+    while (dateCursor <= to) {
+      const dateString = dateCursor.toISOString().split("T")[0];
+      logs.push(`\n🗓️  Traitement du ${dateString}...`);
       
-      if (tasksOnPage === 0) {
-        logs.push(`    - Fin des données, arrêt de la récupération.`);
-        break;
+      const targetHubs = hubIds.length > 0 ? hubIds : [null];
+
+      for (const hub of targetHubs) {
+        let page = 0;
+        let hasMoreData = true;
+        while (hasMoreData) {
+          try {
+            const tasks = await fetchTasksForDay(apiKey, dateString, hub, page, logs);
+            if (tasks.length > 0) {
+              allTasks.push(...tasks);
+              page++;
+            } else {
+              hasMoreData = false;
+              if(page === 0){
+                logs.push(`    - Aucune tâche trouvée pour le hub ${hub || 'tous'} ce jour-là.`);
+              } else {
+                logs.push(`    - Fin des données pour le hub ${hub || 'tous'}.`);
+              }
+            }
+          } catch (error) {
+            if (error instanceof Error) {
+                logs.push(`    - ❌ Erreur lors de la récupération pour le hub ${hub}: ${error.message}`);
+            }
+            // Stop trying for this hub if an error occurs
+            hasMoreData = false; 
+          }
+        }
       }
-      
-      const newTasks = Array.from({ length: tasksOnPage }, (_, i) =>
-        createMockTask(page * 10 + i)
-      );
-      allTasks.push(...newTasks);
-      logs.push(`    - ${newTasks.length} tâches brutes récupérées.`);
+      dateCursor.setDate(dateCursor.getDate() + 1);
     }
-
+    
     if (allTasks.length === 0) {
-        logs.push(`\n⚠️ Aucune donnée récupérée.`);
+        logs.push(`\n⚠️ Aucune donnée récupérée pour les filtres sélectionnés.`);
         return {
             logs,
             jsonData: [],
