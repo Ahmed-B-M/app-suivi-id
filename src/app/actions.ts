@@ -7,7 +7,7 @@ import {
   schedulerSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { getFirestore, collection, writeBatch, doc } from "firebase/firestore";
+import { collection, writeBatch, doc } from "firebase/firestore";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 
 // --- Task Fetching Logic ---
@@ -75,8 +75,7 @@ export async function runExportAction(
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
   
-  const { firestore } = initializeFirebaseOnServer();
-  const db = getFirestore();
+  const { firestore: db } = initializeFirebaseOnServer();
 
   const { apiKey, from, to, status, taskId, roundId, unplanned } =
     validatedFields.data;
@@ -238,8 +237,7 @@ export async function runRoundExportAction(
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
 
-  const { firestore } = initializeFirebaseOnServer();
-  const db = getFirestore();
+  const { firestore: db } = initializeFirebaseOnServer();
 
   const { apiKey, from, to, status } = validatedFields.data;
   const logs: string[] = [];
