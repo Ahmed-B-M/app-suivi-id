@@ -16,6 +16,7 @@ import {
   writeBatch,
   collection,
   doc,
+  getDocs,
 } from "firebase/firestore";
 
 import { exportFormSchema, type ExportFormValues } from "@/lib/schemas";
@@ -130,17 +131,56 @@ export function ExportForm({
     onExportComplete([`\n💾 Sauvegarde de ${jsonData.length} tâches dans Firestore...`], null);
 
     const collectionRef = collection(firestore, 'tasks');
-    const batchSize = 450;
     let success = true;
+    let itemsToSave = [];
 
+    try {
+      onExportComplete(["   - Récupération des données existantes pour comparaison..."], null);
+      const existingDocsSnapshot = await getDocs(collectionRef);
+      const existingDocsMap = new Map();
+      existingDocsSnapshot.forEach(doc => {
+        existingDocsMap.set(doc.id, doc.data().updatedAt || doc.data().updated);
+      });
+      onExportComplete([`   - ${existingDocsMap.size} documents existants trouvés.`], null);
+
+      for (const item of jsonData) {
+        const docId = item.id || item._id;
+        if (!docId) continue;
+
+        const existingTimestamp = existingDocsMap.get(docId.toString());
+        const newTimestamp = item.updatedAt || item.updated;
+
+        if (!existingTimestamp || new Date(newTimestamp) > new Date(existingTimestamp)) {
+            itemsToSave.push(item);
+        }
+      }
+      onExportComplete([`\n   - ${itemsToSave.length} nouvelles tâches ou tâches mises à jour à sauvegarder.`], null);
+
+    } catch (e) {
+        const errorMsg = "❌ Une erreur est survenue lors de la récupération des données existantes.";
+        let detailedError = e instanceof Error ? e.message : "Erreur inconnue";
+        onExportComplete([errorMsg, detailedError], null);
+        toast({ title: "Erreur", description: detailedError, variant: "destructive" });
+        setIsSaving(false);
+        return;
+    }
+
+    if (itemsToSave.length === 0) {
+        onExportComplete(["\n✅ Aucune nouvelle donnée à sauvegarder. La base de données est à jour."], null);
+        setIsSaving(false);
+        toast({ title: "A jour", description: "Aucune nouvelle donnée à sauvegarder." });
+        return;
+    }
+
+    const batchSize = 450;
     const chunks = [];
-    for (let i = 0; i < jsonData.length; i += batchSize) {
-      chunks.push(jsonData.slice(i, i + batchSize));
+    for (let i = 0; i < itemsToSave.length; i += batchSize) {
+      chunks.push(itemsToSave.slice(i, i + batchSize));
     }
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      onExportComplete([`   - Traitement du lot ${i + 1}... (${chunk.length} documents)`], null);
+      onExportComplete([`   - Traitement du lot ${i + 1}/${chunks.length}... (${chunk.length} documents)`], null);
       
       try {
         const batch = writeBatch(firestore);
@@ -170,7 +210,7 @@ export function ExportForm({
     }
     
     if (success) {
-      onExportComplete([`\n✨ ${jsonData.length} documents sauvegardés dans Firestore !`], null);
+      onExportComplete([`\n✨ ${itemsToSave.length} documents sauvegardés dans Firestore !`], null);
       toast({
         title: "Succès",
         description: "Toutes les données ont été sauvegardées dans Firestore.",
