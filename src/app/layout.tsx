@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+import { FirebaseClientProvider } from "@/firebase";
+import { AppHeader } from "@/components/app/header";
 
 export const metadata: Metadata = {
   title: "Urbantz Data Exporter",
@@ -17,7 +19,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
           rel="stylesheet"
@@ -28,8 +34,18 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased min-h-screen bg-background")}>
-        {children}
-        <Toaster />
+        <FirebaseClientProvider>
+          <div className="flex flex-col min-h-screen">
+            <AppHeader />
+            {children}
+            <Toaster />
+            <footer className="py-6 border-t mt-8">
+              <div className="container text-center text-sm text-muted-foreground">
+                Urbantz Data Exporter
+              </div>
+            </footer>
+          </div>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

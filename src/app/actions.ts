@@ -1,8 +1,14 @@
 "use server";
 
 import { z } from "zod";
-import { exportFormSchema, roundExportFormSchema, schedulerSchema } from "@/lib/schemas";
+import {
+  exportFormSchema,
+  roundExportFormSchema,
+  schedulerSchema,
+} from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
+import { getFirestore, collection, writeBatch, doc } from "firebase/firestore";
+import { initializeFirebase } from "@/firebase";
 
 // --- Task Fetching Logic ---
 async function fetchTasks(
@@ -21,7 +27,11 @@ async function fetchTasks(
     url.searchParams.append("page", page.toString());
     url.searchParams.append("pageSize", pageSize.toString());
 
-    logs.push(`    - Récupération de la page ${page + 1} avec les paramètres: ${params.toString()}`);
+    logs.push(
+      `    - Récupération de la page ${
+        page + 1
+      } avec les paramètres: ${params.toString()}`
+    );
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -34,7 +44,7 @@ async function fetchTasks(
       logs.push(
         `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
       );
-      hasMoreData = false; 
+      hasMoreData = false;
       continue;
     }
 
@@ -46,7 +56,7 @@ async function fetchTasks(
       page++;
     } else {
       hasMoreData = false;
-      if(page === 0) {
+      if (page === 0) {
         logs.push(`    - Aucune tâche trouvée pour ces paramètres.`);
       } else {
         logs.push(`    - Fin des données pour ces paramètres.`);
@@ -57,70 +67,89 @@ async function fetchTasks(
 }
 
 // --- Task Export Action ---
-export async function runExportAction(values: z.infer<typeof exportFormSchema>) {
+export async function runExportAction(
+  values: z.infer<typeof exportFormSchema>
+) {
   const validatedFields = exportFormSchema.safeParse(values);
   if (!validatedFields.success) {
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
+  
+  const { firestore } = initializeFirebase();
 
-  const { apiKey, from, to, status, taskId, roundId, unplanned } = validatedFields.data;
+  const { apiKey, from, to, status, taskId, roundId, unplanned } =
+    validatedFields.data;
   const logs: string[] = [];
 
   try {
     logs.push(`🚀 Début de l'interrogation des tâches...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-    
+
     const baseParams = new URLSearchParams();
-    if(status && status !== 'all') baseParams.append("progress", status);
-    if(taskId) baseParams.append("taskId", taskId);
-    if(roundId) baseParams.append("round", roundId);
-    if(unplanned) baseParams.append("unplanned", "true");
+    if (status && status !== "all") baseParams.append("progress", status);
+    if (taskId) baseParams.append("taskId", taskId);
+    if (roundId) baseParams.append("round", roundId);
+    if (unplanned) baseParams.append("unplanned", "true");
 
+    logs.push(`   - Filtres: ${baseParams.toString() || "Aucun"}`);
 
-    logs.push(`   - Filtres: ${baseParams.toString() || 'Aucun'}`);
-    
     const allTasks: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tâches...`);
 
     if (unplanned) {
-        logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
-        const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
-        allTasks.push(...unplannedTasks);
+      logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
+      const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
+      allTasks.push(...unplannedTasks);
     } else {
-        logs.push(
-          `   - Période: ${from.toISOString().split("T")[0]} à ${
-            to.toISOString().split("T")[0]
-          }`
-        );
-        const dateCursor = new Date(from);
-        while (dateCursor <= to) {
-            const dateString = dateCursor.toISOString().split("T")[0];
-            logs.push(`\n🗓️  Traitement du ${dateString}...`);
-            
-            const paramsForDay = new URLSearchParams(baseParams);
-            paramsForDay.append("date", dateString);
+      logs.push(
+        `   - Période: ${from.toISOString().split("T")[0]} à ${
+          to.toISOString().split("T")[0]
+        }`
+      );
+      const dateCursor = new Date(from);
+      while (dateCursor <= to) {
+        const dateString = dateCursor.toISOString().split("T")[0];
+        logs.push(`\n🗓️  Traitement du ${dateString}...`);
 
-            const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
-            allTasks.push(...tasksForDay);
-            
-            dateCursor.setDate(dateCursor.getDate() + 1);
-        }
+        const paramsForDay = new URLSearchParams(baseParams);
+        paramsForDay.append("date", dateString);
+
+        const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
+        allTasks.push(...tasksForDay);
+
+        dateCursor.setDate(dateCursor.getDate() + 1);
+      }
     }
-    
+
     if (allTasks.length === 0) {
-        logs.push(`\n⚠️ Aucune tâche récupérée pour les filtres sélectionnés.`);
-        return {
-            logs,
-            jsonData: [],
-            error: null,
-        }
+      logs.push(
+        `\n⚠️ Aucune tâche récupérée pour les filtres sélectionnés.`
+      );
+      return {
+        logs,
+        jsonData: [],
+        error: null,
+      };
     }
 
     logs.push(`\n✅ ${allTasks.length} tâches brutes récupérées au total.`);
     logs.push(
+      `\n💾 Sauvegarde de ${allTasks.length} tâches dans Firestore...`
+    );
+
+    const tasksCollection = collection(firestore, "tasks");
+    const batch = writeBatch(firestore);
+    allTasks.forEach((task) => {
+      const docRef = doc(tasksCollection, task.id || task._id);
+      batch.set(docRef, task, { merge: true });
+    });
+    await batch.commit();
+
+    logs.push(
       `\n🔄 Sauvegarde des données brutes dans 'donnees_urbantz_tasks_filtrees.json'...`
     );
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
+    logs.push(`\n✨ Données également sauvegardées dans Firestore !`);
 
     return {
       logs,
@@ -158,8 +187,12 @@ async function fetchRounds(
     url.searchParams.append("page", page.toString());
     url.searchParams.append("pageSize", pageSize.toString());
 
-    logs.push(`    - Récupération de la page ${page + 1} avec les paramètres: ${params.toString()}`);
-    
+    logs.push(
+      `    - Récupération de la page ${
+        page + 1
+      } avec les paramètres: ${params.toString()}`
+    );
+
     const response = await fetch(url.toString(), {
       headers: {
         "x-api-key": apiKey,
@@ -183,7 +216,7 @@ async function fetchRounds(
       page++;
     } else {
       hasMoreData = false;
-       if(page === 0) {
+      if (page === 0) {
         logs.push(`    - Aucune tournée trouvée pour ces paramètres.`);
       } else {
         logs.push(`    - Fin des données pour ces paramètres.`);
@@ -194,11 +227,15 @@ async function fetchRounds(
 }
 
 // --- Round Export Action ---
-export async function runRoundExportAction(values: z.infer<typeof roundExportFormSchema>) {
+export async function runRoundExportAction(
+  values: z.infer<typeof roundExportFormSchema>
+) {
   const validatedFields = roundExportFormSchema.safeParse(values);
   if (!validatedFields.success) {
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
+
+  const { firestore } = initializeFirebase();
 
   const { apiKey, from, to, status } = validatedFields.data;
   const logs: string[] = [];
@@ -206,19 +243,19 @@ export async function runRoundExportAction(values: z.infer<typeof roundExportFor
   try {
     logs.push(`🚀 Début de l'interrogation des tournées...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-    
+
     const baseParams = new URLSearchParams();
-    if (status && status !== 'all') {
+    if (status && status !== "all") {
       // The API spec doesn't specify a status filter for rounds,
       // but we can filter the results client-side after fetching.
       // For now, we fetch all and will filter later if needed.
       // For now, let's assume we can add it, but it won't work on the API side.
       // We will filter them from the result.
     }
-    
+
     const allRounds: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tournées...`);
-    
+
     logs.push(
       `   - Période: ${from.toISOString().split("T")[0]} à ${
         to.toISOString().split("T")[0]
@@ -229,31 +266,50 @@ export async function runRoundExportAction(values: z.infer<typeof roundExportFor
     while (dateCursor <= to) {
       const dateString = dateCursor.toISOString().split("T")[0];
       logs.push(`\n🗓️  Traitement du ${dateString}...`);
-      
+
       const paramsForDay = new URLSearchParams(baseParams);
       paramsForDay.append("date", dateString);
 
       const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs);
       allRounds.push(...roundsForDay);
-      
+
       dateCursor.setDate(dateCursor.getDate() + 1);
     }
-    
+
     let filteredRounds = allRounds;
-    if (status && status !== 'all') {
+    if (status && status !== "all") {
       logs.push(`\n🔄 Filtrage des tournées par statut: ${status}`);
-      filteredRounds = allRounds.filter(round => round.status === status);
-      logs.push(`   - ${allRounds.length - filteredRounds.length} tournées écartées.`);
+      filteredRounds = allRounds.filter((round) => round.status === status);
+      logs.push(
+        `   - ${allRounds.length - filteredRounds.length} tournées écartées.`
+      );
     }
 
     if (filteredRounds.length === 0) {
-        logs.push(`\n⚠️ Aucune donnée de tournée récupérée pour les filtres sélectionnés.`);
-        return { logs, jsonData: [], error: null };
+      logs.push(
+        `\n⚠️ Aucune donnée de tournée récupérée pour les filtres sélectionnés.`
+      );
+      return { logs, jsonData: [], error: null };
     }
 
     logs.push(`\n✅ ${filteredRounds.length} tournées récupérées au total.`);
-    logs.push(`\n🔄 Sauvegarde des données dans 'donnees_urbantz_rounds_filtrees.json'...`);
+    logs.push(
+      `\n💾 Sauvegarde de ${filteredRounds.length} tournées dans Firestore...`
+    );
+
+    const roundsCollection = collection(firestore, "rounds");
+    const batch = writeBatch(firestore);
+    filteredRounds.forEach((round) => {
+      const docRef = doc(roundsCollection, round.id || round._id);
+      batch.set(docRef, round, { merge: true });
+    });
+    await batch.commit();
+
+    logs.push(
+      `\n🔄 Sauvegarde des données dans 'donnees_urbantz_rounds_filtrees.json'...`
+    );
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
+    logs.push(`\n✨ Données également sauvegardées dans Firestore !`);
 
     return {
       logs,
@@ -286,7 +342,8 @@ export async function getScheduleAction(
   } catch (error) {
     console.error("AI schedule optimization failed:", error);
     return {
-      error: "Failed to get schedule from AI. Please check your inputs and try again.",
+      error:
+        "Failed to get schedule from AI. Please check your inputs and try again.",
     };
   }
 }
