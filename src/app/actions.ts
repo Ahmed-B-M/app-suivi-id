@@ -25,7 +25,8 @@ async function fetchGeneric(
     const itemName = endpoint === 'customer' ? 'client' : endpoint;
 
     while (hasMoreData) {
-        const url = new URL(`https://api.urbantz.com/v2/${endpoint}`);
+        const basePath = endpoint === 'tickets' ? 'api/v2' : 'v2';
+        const url = new URL(`https://api.urbantz.com/${basePath}/${endpoint}`);
         params.forEach((value, key) => url.searchParams.append(key, value));
         url.searchParams.append("page", page.toString());
         url.searchParams.append("pageSize", pageSize.toString());
