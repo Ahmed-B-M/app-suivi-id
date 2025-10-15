@@ -23,15 +23,23 @@ const fieldsToRemove = [
   'location.origin', 'location.precision', 'platform', 'platformName',
   'targetFlux', 'taskReference', 'trackingId', 'order', 'associated',
   'driver.id', 'round', 'realServiceTime.taskIdsDeliveredInSameStop',
-  'realServiceTime.id', 'imagePath', 'id'
+  'realServiceTime.id', 'imagePath', 'id', '_id'
 ];
 
 const shouldRemoveField = (key: string, path: string = ''): boolean => {
     const fullPath = path ? `${path}.${key}` : key;
-    const genericPath = path.replace(/\.\d+\./, '.'); // items.0.id -> items.id
-    const fullGenericPath = path ? `${genericPath}.${key}` : key;
-
-    return fieldsToRemove.includes(key) || fieldsToRemove.includes(fullPath) || fieldsToRemove.includes(fullGenericPath);
+    // This logic helps in matching nested fields like "items.id" or "log.by"
+    const genericPath = path.replace(/\.\d+(\.|$)/, '.'); 
+    const fullGenericPath = path ? `${genericPath}${key}` : key;
+    
+    if (fieldsToRemove.includes(key) || fieldsToRemove.includes(fullPath) || fieldsToRemove.includes(fullGenericPath)) {
+        // Exception for contact.buildingInfo
+        if (fullPath.startsWith('contact.buildingInfo')) {
+            return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 const renderValue = (value: any, path: string): React.ReactNode => {
@@ -68,16 +76,16 @@ const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
   return (
     <Table>
       <TableBody>
-        {entries.map(([key, value], index) => {
+        {entries.map(([key, value]) => {
            const currentPath = Array.isArray(data) ? path : (path ? `${path}.${key}` : key);
            
-           if (key === '_id' || shouldRemoveField(key, path)) return null;
+           if (shouldRemoveField(key, path)) return null;
            if (value === null || value === undefined) return null;
            if (Array.isArray(value) && value.length === 0) return null;
            if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return null;
 
            return (
-            <TableRow key={key + index}>
+            <TableRow key={currentPath}>
               <TableCell className="font-medium capitalize py-1 pr-2 w-1/3">{key.replace(/([A-Z])/g, ' $1')}</TableCell>
               <TableCell className="py-1">
                 {Array.isArray(value) ? (
