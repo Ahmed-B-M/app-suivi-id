@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Eye } from "lucide-react";
+import { TaskDetails } from "./task-details";
 
 export function TasksTable({ data }: { data: any[] }) {
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -108,9 +109,7 @@ export function TasksTable({ data }: { data: any[] }) {
               <DialogTitle>Détails de la tâche : {selectedTask.taskId}</DialogTitle>
             </DialogHeader>
             <ScrollArea className="h-[70vh] rounded-md border p-4">
-              <pre className="text-sm">
-                {JSON.stringify(selectedTask, null, 2)}
-              </pre>
+              <TaskDetails task={selectedTask} />
             </ScrollArea>
           </DialogContent>
         </Dialog>
