@@ -25,7 +25,7 @@ async function fetchGeneric(
     const itemName = endpoint === 'customer' ? 'client' : endpoint;
 
     while (hasMoreData) {
-        const basePath = endpoint === 'tickets' ? 'api/v2' : 'v2';
+        const basePath = 'v2';
         const url = new URL(`https://api.urbantz.com/${basePath}/${endpoint}`);
         params.forEach((value, key) => url.searchParams.append(key, value));
         url.searchParams.append("page", page.toString());
@@ -357,17 +357,35 @@ export async function runTicketExportAction(
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
 
-  const { apiKey } = validatedFields.data;
+  const { apiKey, from, to } = validatedFields.data;
   const logs: string[] = [];
 
   try {
     logs.push(`🚀 Début de l'interrogation des tickets...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
-    const params = new URLSearchParams();
-    const allTickets = await fetchGeneric("tickets", apiKey, params, logs);
+    const allTickets: any[] = [];
+    logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tickets...`);
 
-     if (allTickets.length === 0) {
+    const fromString = from.toISOString().split("T")[0];
+    const toString = to.toISOString().split("T")[0];
+    logs.push(`   - Période: ${fromString} à ${toString}`);
+
+    const dateCursor = new Date(from);
+    while (dateCursor <= to) {
+      const dateString = dateCursor.toISOString().split("T")[0];
+      logs.push(`\n🗓️  Traitement du ${dateString}...`);
+
+      const paramsForDay = new URLSearchParams();
+      paramsForDay.append("date", dateString);
+
+      const ticketsForDay = await fetchGeneric("tickets", apiKey, paramsForDay, logs);
+      allTickets.push(...ticketsForDay);
+
+      dateCursor.setDate(dateCursor.getDate() + 1);
+    }
+
+    if (allTickets.length === 0) {
       logs.push(`\n⚠️ Aucun ticket récupéré.`);
       return { logs, jsonData: [], error: null };
     }
@@ -375,7 +393,6 @@ export async function runTicketExportAction(
     logs.push(`\n✅ ${allTickets.length} tickets récupérés au total.`);
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
     logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
-
 
     return {
       logs,

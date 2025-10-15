@@ -9,12 +9,16 @@ import {
   Rocket,
   RotateCcw,
   Save,
+  Calendar as CalendarIcon,
 } from "lucide-react";
+import { format } from "date-fns";
 
 import { ticketExportFormSchema, type TicketExportFormValues } from "@/lib/schemas";
 import { runTicketExportAction, saveDataToFirestoreAction } from "@/app/actions";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -32,6 +36,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 
 type TicketExportFormProps = {
@@ -49,10 +58,16 @@ export function TicketExportForm({
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
   const form = useForm<TicketExportFormValues>({
     resolver: zodResolver(ticketExportFormSchema),
     defaultValues: {
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
+      from: today,
+      to: tomorrow,
     },
   });
 
@@ -121,7 +136,7 @@ export function TicketExportForm({
       <CardHeader>
         <CardTitle>Configuration de l'Export des Tickets</CardTitle>
         <CardDescription>
-          Lancez l'exportation des tickets depuis l'API Urbantz.
+          Configurez et lancez l'exportation des tickets depuis l'API Urbantz.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -145,6 +160,90 @@ export function TicketExportForm({
                 </FormItem>
               )}
             />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="from"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date de début</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Choisir une date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="to"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date de fin</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Choisir une date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-2">
             <Button type="submit" disabled={isLoading}>
