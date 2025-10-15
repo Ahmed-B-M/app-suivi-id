@@ -58,6 +58,8 @@ type ExportFormProps = {
   jsonData: any[] | null;
 };
 
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export function ExportForm({
   onExportComplete,
   onReset,
@@ -131,13 +133,11 @@ export function ExportForm({
     const batchSize = 450;
     let success = true;
 
-    // Create an array of chunks
     const chunks = [];
     for (let i = 0; i < jsonData.length; i += batchSize) {
       chunks.push(jsonData.slice(i, i + batchSize));
     }
 
-    // Process chunks sequentially
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       onExportComplete([`   - Traitement du lot ${i + 1}... (${chunk.length} documents)`], null);
@@ -151,9 +151,9 @@ export function ExportForm({
             batch.set(docRef, item, { merge: true });
           }
         });
-        // Wait for the batch to commit before starting the next one
         await batch.commit();
         onExportComplete([`   - Lot de ${chunk.length} tâches sauvegardé avec succès.`], null);
+        await delay(100);
       } catch (e) {
         const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde du lot dans Firestore.";
         let detailedError = e instanceof Error ? e.message : "Erreur inconnue";
@@ -165,7 +165,7 @@ export function ExportForm({
           description: detailedError,
         });
         success = false;
-        break; // Stop processing further chunks if one fails
+        break;
       }
     }
     
