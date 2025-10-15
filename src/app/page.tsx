@@ -6,6 +6,10 @@ import { Scheduler } from "@/components/app/scheduler";
 import { LogDisplay } from "@/components/app/log-display";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoundExportForm } from "@/components/app/round-export-form";
+import { TasksTable } from "@/components/app/tasks-table";
+import { RoundsTable } from "@/components/app/rounds-table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileSearch } from "lucide-react";
 
 export default function Home() {
   const [taskLogs, setTaskLogs] = useState<string[]>([]);
@@ -48,21 +52,47 @@ export default function Home() {
                 <TabsTrigger value="tasks">Exporter les Tâches</TabsTrigger>
                 <TabsTrigger value="rounds">Exporter les Tournées</TabsTrigger>
               </TabsList>
-              <TabsContent value="tasks" className="mt-4">
+              <TabsContent value="tasks" className="mt-4 space-y-8">
                  <ExportForm
                     onExportComplete={handleTaskExportComplete}
                     onReset={handleTaskReset}
                     jsonData={taskJsonData}
                   />
-                  <LogDisplay logs={taskLogs} className="mt-8"/>
+                  {taskJsonData && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileSearch/>
+                                Données de Tâches Extraites
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <TasksTable data={taskJsonData} />
+                        </CardContent>
+                    </Card>
+                  )}
+                  <LogDisplay logs={taskLogs} />
               </TabsContent>
-              <TabsContent value="rounds" className="mt-4">
+              <TabsContent value="rounds" className="mt-4 space-y-8">
                   <RoundExportForm
                       onExportComplete={handleRoundExportComplete}
                       onReset={handleRoundReset}
                       jsonData={roundJsonData}
                     />
-                  <LogDisplay logs={roundLogs} className="mt-8"/>
+                    {roundJsonData && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileSearch/>
+                                    Données de Tournées Extraites
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <RoundsTable data={roundJsonData} />
+                            </CardContent>
+                        </Card>
+                    )}
+                  <LogDisplay logs={roundLogs} />
               </TabsContent>
             </Tabs>
           </div>
