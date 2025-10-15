@@ -1,13 +1,12 @@
 "use client";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { RoundDetails } from "./round-details";
 
 export function RoundsTable({ data }: { data: any[] }) {
   if (!data || data.length === 0) {
@@ -15,35 +14,26 @@ export function RoundsTable({ data }: { data: any[] }) {
   }
 
   return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nom</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Hub</TableHead>
-            <TableHead>Chauffeur</TableHead>
-            <TableHead>Tâches</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((round) => (
-            <TableRow key={round.id}>
-              <TableCell className="font-medium">{round.name}</TableCell>
-               <TableCell>
-                <Badge variant={round.status === 'COMPLETED' ? 'default' : 'secondary'}>
-                  {round.status}
-                </Badge>
-              </TableCell>
-              <TableCell>{new Date(round.date).toLocaleDateString()}</TableCell>
-              <TableCell>{round.hub?.externalId || "N/A"}</TableCell>
-              <TableCell>{round.driver?.firstName || 'Non assigné'}</TableCell>
-               <TableCell>{round.orderCount}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <Accordion type="single" collapsible className="w-full">
+      {data.map((round) => (
+        <AccordionItem value={round.id || round._id} key={round.id || round._id}>
+          <AccordionTrigger>
+            <div className="flex items-center gap-4 justify-between w-full pr-4">
+              <span className="font-mono text-sm">
+                Tournée: {round.name}
+              </span>
+              <Badge
+                variant={round.status === "COMPLETED" ? "default" : "secondary"}
+              >
+                {round.status}
+              </Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <RoundDetails round={round} />
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
   );
 }

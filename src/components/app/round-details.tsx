@@ -18,26 +18,15 @@ const formatDate = (dateString?: string) => {
 }
 
 const fieldsToRemove = [
-  'endpoint', 'announcement', 'by', 'collect', 'externalCarrier', 'flux', 'hub',
-  'barcodeEncoding', 'log.by', 'log.id', 'items.id', 'location.geocodeScore',
-  'location.origin', 'location.precision',
-  'platform', 'platformName',
-  'targetFlux', 'taskReference', 'trackingId', 'order', 'associated',
-  'driver.id', 'round', 'realServiceTime.taskIdsDeliveredInSameStop',
-  'realServiceTime.id', 'imagePath', 'id', '_id'
+  'id', '_id', 'platform', 'flux', 'hub', 'associated', 'targetFlux', 'imagePath', 'driver.id', 'vehicle.id', 'vehicle._id'
 ];
 
 const shouldRemoveField = (key: string, path: string = ''): boolean => {
     const fullPath = path ? `${path}.${key}` : key;
-    // This logic helps in matching nested fields like "items.id" or "log.by"
     const genericPath = path.replace(/\.\d+(\.|$)/, '.'); 
     const fullGenericPath = path ? `${genericPath}${key}` : key;
-    
+
     if (fieldsToRemove.includes(key) || fieldsToRemove.includes(fullPath) || fieldsToRemove.includes(fullGenericPath)) {
-        // Exception for contact.buildingInfo
-        if (fullPath.startsWith('contact.buildingInfo')) {
-            return false;
-        }
         return true;
     }
     return false;
@@ -108,12 +97,12 @@ const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
 };
 
 
-export function TaskDetails({ task }: { task: any }) {
-  if (!task) return null;
+export function RoundDetails({ round }: { round: any }) {
+  if (!round) return null;
 
   return (
     <div className="space-y-2 p-2 bg-muted/50 rounded-lg">
-      <DataObjectTable data={task} />
+      <DataObjectTable data={round} />
     </div>
   );
 }
