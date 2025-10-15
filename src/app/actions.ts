@@ -74,7 +74,7 @@ export async function runExportAction(
   if (!validatedFields.success) {
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
-  
+
   const { firestore } = initializeFirebaseOnServer();
 
   const { apiKey, from, to, status, taskId, roundId, unplanned } =
@@ -95,31 +95,33 @@ export async function runExportAction(
 
     const allTasks: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tâches...`);
-
+    
+    // The 'unplanned' flag ignores the date range.
     if (unplanned) {
-      logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
-      const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
-      allTasks.push(...unplannedTasks);
+        logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
+        const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
+        allTasks.push(...unplannedTasks);
     } else {
-      logs.push(
-        `   - Période: ${from.toISOString().split("T")[0]} à ${
-          to.toISOString().split("T")[0]
-        }`
-      );
-      const dateCursor = new Date(from);
-      while (dateCursor <= to) {
-        const dateString = dateCursor.toISOString().split("T")[0];
-        logs.push(`\n🗓️  Traitement du ${dateString}...`);
+        const fromString = from.toISOString().split("T")[0];
+        const toString = to.toISOString().split("T")[0];
+        logs.push(
+            `   - Période: ${fromString} à ${toString}`
+        );
+        const dateCursor = new Date(from);
+        while (dateCursor <= to) {
+            const dateString = dateCursor.toISOString().split("T")[0];
+            logs.push(`\n🗓️  Traitement du ${dateString}...`);
 
-        const paramsForDay = new URLSearchParams(baseParams);
-        paramsForDay.append("date", dateString);
+            const paramsForDay = new URLSearchParams(baseParams);
+            paramsForDay.append("date", dateString);
 
-        const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
-        allTasks.push(...tasksForDay);
+            const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
+            allTasks.push(...tasksForDay);
 
-        dateCursor.setDate(dateCursor.getDate() + 1);
-      }
+            dateCursor.setDate(dateCursor.getDate() + 1);
+        }
     }
+
 
     if (allTasks.length === 0) {
       logs.push(
@@ -256,10 +258,10 @@ export async function runRoundExportAction(
     const allRounds: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tournées...`);
 
+    const fromString = from.toISOString().split("T")[0];
+    const toString = to.toISOString().split("T")[0];
     logs.push(
-      `   - Période: ${from.toISOString().split("T")[0]} à ${
-        to.toISOString().split("T")[0]
-      }`
+      `   - Période: ${fromString} à ${toString}`
     );
 
     const dateCursor = new Date(from);
