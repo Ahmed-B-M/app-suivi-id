@@ -441,26 +441,35 @@ export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds' | '
         logs.push(`\n💾 Sauvegarde de ${data.length} ${dataType} dans Firestore...`);
 
         const collectionName = dataType;
-        const batch = db.batch();
         const collectionRef = db.collection(collectionName);
-        
-        data.forEach((item) => {
-            const docId = item.id || item._id;
-            if (docId) {
-                const docRef = collectionRef.doc(docId.toString());
-                batch.set(docRef, item, { merge: true });
-            }
-        });
+        const batchSize = 450; // Firestore batch limit is 500, being safe
 
-        await batch.commit();
+        for (let i = 0; i < data.length; i += batchSize) {
+            const chunk = data.slice(i, i + batchSize);
+            const batch = db.batch();
+            
+            logs.push(`   - Traitement du lot ${i / batchSize + 1}... (${chunk.length} documents)`);
 
-        logs.push(`\n✨ Données sauvegardées dans Firestore !`);
+            chunk.forEach((item) => {
+                const docId = item.id || item._id;
+                if (docId) {
+                    const docRef = collectionRef.doc(docId.toString());
+                    batch.set(docRef, item, { merge: true });
+                }
+            });
+
+            await batch.commit();
+            logs.push(`   - Lot ${i / batchSize + 1} sauvegardé.`);
+        }
+
+        logs.push(`\n✨ ${data.length} documents sauvegardés dans Firestore !`);
         return { logs, error: null };
     } catch (e) {
         const errorMsg = "❌ Une erreur est survenue lors de la sauvegarde dans Firestore.";
         logs.push(errorMsg);
         if (e instanceof Error) {
             logs.push(e.message);
+            console.error(e);
         }
         return { logs, error: errorMsg };
     }
