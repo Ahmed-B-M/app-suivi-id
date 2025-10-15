@@ -2,71 +2,75 @@
  * @fileoverview Firestore Security Rules for Urbantz API Data.
  *
  * Core Philosophy:
- * This ruleset is in prototyping mode. It prioritizes a flexible data structure to allow for rapid iteration but enforces a strong default-deny authorization model.  All collections are currently publicly readable but writes are disabled, pending the implementation of a proper authorization strategy.
+ * This ruleset prioritizes data access and assumes all data is publicly readable.
+ * Write access is completely open, which is unsafe for production.
  *
  * Data Structure:
- * The Firestore database consists of three top-level collections: `hubs`, `customers`, and `tasks`. Each collection contains documents representing data fetched from the Urbantz API.
+ * The Firestore database consists of four top-level collections: `hubs`, `customers`, `tasks`, and `rounds`.
+ * There are no subcollections or nested data structures.
  *
  * Key Security Decisions:
- * - Public Read Access: All data is currently readable by anyone (authenticated or unauthenticated) to facilitate prototyping.
- * - Write Restrictions: All write operations are currently denied. This will be updated with an appropriate authorization strategy in a subsequent iteration.
- * - No User Listing: Listing of user documents is explicitly disallowed.
+ * - Public Read Access: All `get` and `list` operations are allowed for all collections. This means anyone can read any data.
+ * - Open Write Access: All `create`, `update`, and `delete` operations are allowed for all collections. This is extremely insecure and must be changed for any real application.
+ * - No Authorization Checks: There are no checks based on user authentication or roles.
  *
- * Denormalization for Authorization:
- * The reasoning section mentions that If authorization was needed denormalized data (like a `members` map or `ownerId`) would be required. This has not been implemented.
- *
- * Structural Segregation:
- * There is no structural segregation.
+ * WARNING: This ruleset is for prototyping purposes only and is extremely insecure.
+ * Do not use these rules in a production environment without implementing proper authorization.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows read access to hubs data. Write access is denied.
+     * @description Allows anyone to read and write hub data. WARNING: Open write access.
      * @path /hubs/{hubId}
-     * @allow (get, list) if true;
-     * @deny (create, update, delete) always.
-     * @principle Public read access for prototyping; writes disabled for security.
+     * @allow (get, list): Any user can read hub data.
+     * @allow (create, update, delete): Any user can modify hub data.
+     * @deny (none): There are no restrictions.
+     * @principle Open read and write access for prototyping.
      */
     match /hubs/{hubId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows read access to customers data. Write access is denied.
+     * @description Allows anyone to read and write customer data. WARNING: Open write access.
      * @path /customers/{customerId}
-     * @allow (get, list) if true;
-     * @deny (create, update, delete) always.
-     * @principle Public read access for prototyping; writes disabled for security.
+     * @allow (get, list): Any user can read customer data.
+     * @allow (create, update, delete): Any user can modify customer data.
+     * @deny (none): There are no restrictions.
+     * @principle Open read and write access for prototyping.
      */
     match /customers/{customerId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows read access to tasks data. Write access is denied.
+     * @description Allows anyone to read and write task data. WARNING: Open write access.
      * @path /tasks/{taskId}
-     * @allow (get, list) if true;
-     * @deny (create, update, delete) always.
-     * @principle Public read access for prototyping; writes disabled for security.
+     * @allow (get, list): Any user can read task data.
+     * @allow (create, update, delete): Any user can modify task data.
+     * @deny (none): There are no restrictions.
+     * @principle Open read and write access for prototyping.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update, delete: if true;
     }
 
-      /**
-       * @description Denies listing of the /rounds collection.
-       * @path /rounds
-       * @deny (list) Always.
-       * @principle Listing of this data is prohibited.
-       */
-      match /rounds {
-        allow get, create, update, delete: if false;
-        allow list: if false;
+    /**
+     * @description Allows anyone to read and write round data. WARNING: Open write access.
+     * @path /rounds/{roundId}
+     * @allow (get, list): Any user can read round data.
+     * @allow (create, update, delete): Any user can modify round data.
+     * @deny (none): There are no restrictions.
+     * @principle Open read and write access for prototyping.
+     */
+    match /rounds/{roundId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
   }
 }
