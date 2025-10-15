@@ -1,57 +1,72 @@
 /**
- * @fileoverview Firestore Security Rules for Urbantz API data.
+ * @fileoverview Firestore Security Rules for Urbantz API Data.
  *
  * Core Philosophy:
- * This ruleset provides open access to all data. This is appropriate for prototyping where authorization is not needed and data is intended to be public.
+ * This ruleset is in prototyping mode. It prioritizes a flexible data structure to allow for rapid iteration but enforces a strong default-deny authorization model.  All collections are currently publicly readable but writes are disabled, pending the implementation of a proper authorization strategy.
  *
  * Data Structure:
- * The database consists of three top-level collections: `hubs`, `customers`, and `tasks`.  Each collection stores data fetched directly from the Urbantz API.  Tasks reference Hubs and Customers by ID.
+ * The Firestore database consists of three top-level collections: `hubs`, `customers`, and `tasks`. Each collection contains documents representing data fetched from the Urbantz API.
  *
  * Key Security Decisions:
- * - All reads and writes are allowed.  This is insecure for production use.
- * - No user authentication or authorization is enforced.
+ * - Public Read Access: All data is currently readable by anyone (authenticated or unauthenticated) to facilitate prototyping.
+ * - Write Restrictions: All write operations are currently denied. This will be updated with an appropriate authorization strategy in a subsequent iteration.
+ * - No User Listing: Listing of user documents is explicitly disallowed.
+ *
+ * Denormalization for Authorization:
+ * The reasoning section mentions that If authorization was needed denormalized data (like a `members` map or `ownerId`) would be required. This has not been implemented.
+ *
+ * Structural Segregation:
+ * There is no structural segregation.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows read and write access to all hub documents.
+     * @description Allows read access to hubs data. Write access is denied.
      * @path /hubs/{hubId}
-     * @allow (get, list) Any user can read any hub.
-     * @allow (create, update, delete) Any user can create, update, or delete any hub.
-     * @deny None.
-     * @principle Allows public read and write access to hub data.
+     * @allow (get, list) if true;
+     * @deny (create, update, delete) always.
+     * @principle Public read access for prototyping; writes disabled for security.
      */
     match /hubs/{hubId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows read and write access to all customer documents.
+     * @description Allows read access to customers data. Write access is denied.
      * @path /customers/{customerId}
-     * @allow (get, list) Any user can read any customer.
-     * @allow (create, update, delete) Any user can create, update, or delete any customer.
-     * @deny None.
-     * @principle Allows public read and write access to customer data.
+     * @allow (get, list) if true;
+     * @deny (create, update, delete) always.
+     * @principle Public read access for prototyping; writes disabled for security.
      */
     match /customers/{customerId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows read and write access to all task documents.
+     * @description Allows read access to tasks data. Write access is denied.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read any task.
-     * @allow (create, update, delete) Any user can create, update, or delete any task.
-     * @deny None.
-     * @principle Allows public read and write access to task data.
+     * @allow (get, list) if true;
+     * @deny (create, update, delete) always.
+     * @principle Public read access for prototyping; writes disabled for security.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
+    }
+
+      /**
+       * @description Denies listing of the /rounds collection.
+       * @path /rounds
+       * @deny (list) Always.
+       * @principle Listing of this data is prohibited.
+       */
+      match /rounds {
+        allow get, create, update, delete: if false;
+        allow list: if false;
     }
   }
 }
