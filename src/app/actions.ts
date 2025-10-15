@@ -7,12 +7,13 @@ import {
   schedulerSchema,
   hubExportFormSchema,
   customerExportFormSchema,
+  ticketExportFormSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 
 async function fetchGeneric(
-    endpoint: 'task' | 'round' | 'hub' | 'customer',
+    endpoint: 'task' | 'round' | 'hub' | 'customer' | 'ticket',
     apiKey: string,
     params: URLSearchParams,
     logs: string[]
@@ -346,6 +347,50 @@ export async function runCustomerExportAction(
   }
 }
 
+// --- Ticket Export Action ---
+export async function runTicketExportAction(
+  values: z.infer<typeof ticketExportFormSchema>
+) {
+  const validatedFields = ticketExportFormSchema.safeParse(values);
+  if (!validatedFields.success) {
+    return { logs: [], jsonData: null, error: "Invalid input." };
+  }
+
+  const { apiKey } = validatedFields.data;
+  const logs: string[] = [];
+
+  try {
+    logs.push(`🚀 Début de l'interrogation des tickets...`);
+    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
+
+    const params = new URLSearchParams();
+    const allTickets = await fetchGeneric("ticket", apiKey, params, logs);
+
+     if (allTickets.length === 0) {
+      logs.push(`\n⚠️ Aucun ticket récupéré.`);
+      return { logs, jsonData: [], error: null };
+    }
+
+    logs.push(`\n✅ ${allTickets.length} tickets récupérés au total.`);
+    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
+    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
+
+
+    return {
+      logs,
+      jsonData: allTickets,
+      error: null,
+    };
+  } catch (e) {
+    const errorMsg = "❌ Une erreur inattendue est survenue.";
+    logs.push(errorMsg);
+    if (e instanceof Error) {
+      logs.push(e.message);
+    }
+    return { logs, jsonData: null, error: errorMsg };
+  }
+}
+
 // --- Scheduler Action ---
 export async function getScheduleAction(
   values: z.infer<typeof schedulerSchema>
@@ -370,7 +415,7 @@ export async function getScheduleAction(
 
 // --- Firestore Save Actions ---
 
-export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds' | 'hubs' | 'customers', data: any[]) {
+export async function saveDataToFirestoreAction(dataType: 'tasks' | 'rounds' | 'hubs' | 'customers' | 'tickets', data: any[]) {
     const logs: string[] = [];
     try {
         const { firestore: db } = initializeFirebaseOnServer();

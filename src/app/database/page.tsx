@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HubsTable } from "@/components/app/hubs-table";
 import { CustomersTable } from "@/components/app/customers-table";
+import { TicketsTable } from "@/components/app/tickets-table";
 
 export default function DatabasePage() {
   const { firestore } = useFirebase();
@@ -32,6 +33,11 @@ export default function DatabasePage() {
   const customersCollection = useMemo(() => {
     if (!firestore) return null;
     return collection(firestore, "customers");
+  }, [firestore]);
+
+  const ticketsCollection = useMemo(() => {
+    if (!firestore) return null;
+    return collection(firestore, "tickets");
   }, [firestore]);
 
 
@@ -59,16 +65,23 @@ export default function DatabasePage() {
     error: customersError,
   } = useCollection(customersCollection);
 
+  const {
+    data: tickets,
+    isLoading: isLoadingTickets,
+    error: ticketsError,
+  } = useCollection(ticketsCollection);
+
 
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Données Sauvegardées</h1>
       <Tabs defaultValue="tasks">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="tasks">Tâches</TabsTrigger>
           <TabsTrigger value="rounds">Tournées</TabsTrigger>
           <TabsTrigger value="hubs">Hubs</TabsTrigger>
           <TabsTrigger value="customers">Clients</TabsTrigger>
+          <TabsTrigger value="tickets">Tickets</TabsTrigger>
         </TabsList>
         <TabsContent value="tasks" className="mt-4">
           {isLoadingTasks && <Skeleton className="h-64 w-full" />}
@@ -89,6 +102,11 @@ export default function DatabasePage() {
            {isLoadingCustomers && <Skeleton className="h-64 w-full" />}
           {customersError && <p className="text-destructive">Erreur: {customersError.message}</p>}
           {customers && <CustomersTable data={customers} />}
+        </TabsContent>
+        <TabsContent value="tickets" className="mt-4">
+           {isLoadingTickets && <Skeleton className="h-64 w-full" />}
+          {ticketsError && <p className="text-destructive">Erreur: {ticketsError.message}</p>}
+          {tickets && <TicketsTable data={tickets} />}
         </TabsContent>
       </Tabs>
     </main>

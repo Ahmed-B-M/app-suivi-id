@@ -145,6 +145,40 @@
         "status",
         "date"
       ]
+    },
+    "Ticket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ticket",
+      "type": "object",
+      "description": "Represents a ticket from the Urbantz API.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ticket."
+        },
+        "taskId": {
+          "type": "string",
+          "description": "The ID of the task this ticket is related to."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason for the ticket."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the ticket."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the ticket was created."
+        }
+      },
+      "required": [
+        "id",
+        "taskId",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -215,6 +249,22 @@
             {
               "name": "roundId",
               "description": "Unique identifier for the round."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/tickets/{ticketId}",
+        "definition": {
+          "entityName": "Ticket",
+          "schema": {
+            "$ref": "#/backend/entities/Ticket"
+          },
+          "description": "Stores ticket data fetched from the Urbantz API.",
+          "params": [
+            {
+              "name": "ticketId",
+              "description": "Unique identifier for the ticket."
             }
           ]
         }

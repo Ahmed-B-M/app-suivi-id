@@ -14,6 +14,8 @@ import { HubExportForm } from "@/components/app/hub-export-form";
 import { HubsTable } from "@/components/app/hubs-table";
 import { CustomerExportForm } from "@/components/app/customer-export-form";
 import { CustomersTable } from "@/components/app/customers-table";
+import { TicketExportForm } from "@/components/app/ticket-export-form";
+import { TicketsTable } from "@/components/app/tickets-table";
 
 export default function Home() {
   const [taskLogs, setTaskLogs] = useState<string[]>([]);
@@ -27,6 +29,9 @@ export default function Home() {
 
   const [customerLogs, setCustomerLogs] = useState<string[]>([]);
   const [customerJsonData, setCustomerJsonData] = useState<any[] | null>(null);
+  
+  const [ticketLogs, setTicketLogs] = useState<string[]>([]);
+  const [ticketJsonData, setTicketJsonData] = useState<any[] | null>(null);
 
   const handleTaskExportComplete = (newLogs: string[], data: any[] | null) => {
     setTaskLogs(prev => [...prev, ...newLogs]);
@@ -76,17 +81,30 @@ export default function Home() {
     setCustomerJsonData(null);
   };
 
+  const handleTicketExportComplete = (newLogs: string[], data: any[] | null) => {
+    setTicketLogs(prev => [...prev, ...newLogs]);
+    if (data) {
+      setTicketJsonData(data);
+    }
+  };
+
+  const handleTicketReset = () => {
+    setTicketLogs([]);
+    setTicketJsonData(null);
+  };
+
 
   return (
       <main className="flex-1 container py-8">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
           <div className="lg:col-span-3 flex flex-col gap-8">
             <Tabs defaultValue="tasks">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="tasks">Tâches</TabsTrigger>
                 <TabsTrigger value="rounds">Tournées</TabsTrigger>
                 <TabsTrigger value="hubs">Hubs</TabsTrigger>
                 <TabsTrigger value="customers">Clients</TabsTrigger>
+                <TabsTrigger value="tickets">Tickets</TabsTrigger>
               </TabsList>
               <TabsContent value="tasks" className="mt-4 space-y-8">
                  <ExportForm
@@ -171,6 +189,27 @@ export default function Home() {
                         </Card>
                     )}
                   <LogDisplay logs={customerLogs} />
+              </TabsContent>
+              <TabsContent value="tickets" className="mt-4 space-y-8">
+                  <TicketExportForm
+                      onExportComplete={handleTicketExportComplete}
+                      onReset={handleTicketReset}
+                      jsonData={ticketJsonData}
+                    />
+                    {ticketJsonData && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileSearch/>
+                                    Données de Tickets Extraites
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <TicketsTable data={ticketJsonData} />
+                            </CardContent>
+                        </Card>
+                    )}
+                  <LogDisplay logs={ticketLogs} />
               </TabsContent>
             </Tabs>
           </div>

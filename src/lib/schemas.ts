@@ -41,6 +41,12 @@ export const customerExportFormSchema = z.object({
 
 export type CustomerExportFormValues = z.infer<typeof customerExportFormSchema>;
 
+export const ticketExportFormSchema = z.object({
+  apiKey: z.string().min(1, "La clé d'API est requise."),
+});
+
+export type TicketExportFormValues = z.infer<typeof ticketExportFormSchema>;
+
 
 export const schedulerSchema = z.object({
   estimatedDataSize: z.coerce
