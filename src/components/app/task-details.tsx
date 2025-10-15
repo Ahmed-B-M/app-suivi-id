@@ -27,7 +27,7 @@ function DetailItem({ label, value }: DetailItemProps) {
   return (
     <div>
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="text-base font-semibold">{value ?? "N/A"}</p>
+      <div className="text-base font-semibold">{value ?? "N/A"}</div>
     </div>
   );
 }
