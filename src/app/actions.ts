@@ -74,13 +74,13 @@ export async function runExportAction(
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
   
-  const { firestore: db } = initializeFirebaseOnServer();
-
   const { apiKey, from, to, status, taskId, roundId, unplanned } =
     validatedFields.data;
   const logs: string[] = [];
 
   try {
+    const { firestore: db } = initializeFirebaseOnServer();
+
     logs.push(`🚀 Début de l'interrogation des tâches...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
@@ -235,12 +235,11 @@ export async function runRoundExportAction(
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
 
-  const { firestore: db } = initializeFirebaseOnServer();
-
   const { apiKey, from, to, status } = validatedFields.data;
   const logs: string[] = [];
 
   try {
+    const { firestore: db } = initializeFirebaseOnServer();
     logs.push(`🚀 Début de l'interrogation des tournées...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
