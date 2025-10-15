@@ -58,13 +58,17 @@ export function RoundExportForm({
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
 
   const form = useForm<RoundExportFormValues>({
     resolver: zodResolver(roundExportFormSchema),
     defaultValues: {
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
-      from: new Date("2025-09-17"),
-      to: new Date("2025-09-17"),
+      from: today,
+      to: tomorrow,
       status: "all",
     },
   });
