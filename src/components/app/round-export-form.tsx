@@ -173,9 +173,9 @@ export function RoundExportForm({
       chunks.push(itemsToSave.slice(i, i + batchSize));
     }
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      onExportComplete([`   - Traitement du lot ${i + 1}/${chunks.length}... (${chunk.length} documents)`], null);
+    for (const chunk of chunks) {
+      const currentBatchIndex = chunks.indexOf(chunk) + 1;
+      onExportComplete([`   - Traitement du lot ${currentBatchIndex}/${chunks.length}... (${chunk.length} documents)`], null);
       
       try {
         const batch = writeBatch(firestore);
@@ -196,7 +196,7 @@ export function RoundExportForm({
         onExportComplete([errorMsg, detailedError], null);
         toast({
           variant: "destructive",
-          title: `Erreur lors de la sauvegarde du lot ${i + 1}`,
+          title: `Erreur lors de la sauvegarde du lot ${currentBatchIndex}`,
           description: detailedError,
         });
         success = false;
