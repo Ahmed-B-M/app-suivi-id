@@ -8,7 +8,7 @@ export interface Task {
   date?: string;
   rating?: number;
   notationLivreur?: number;
-  commentaires?: string;
+  commentaireLivr?: string;
   // Add other task properties as needed
   [key: string]: any;
 }

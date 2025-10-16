@@ -60,9 +60,9 @@
           "type": "number",
           "description": "The rating given by the delivery person."
         },
-        "commentaires": {
+        "commentaireLivr": {
           "type": "string",
-          "description": "Comments associated with the task."
+          "description": "Comments associated with the task, from the delivery person."
         }
       },
       "required": [
