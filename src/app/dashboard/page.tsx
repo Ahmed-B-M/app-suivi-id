@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
+import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -32,6 +33,7 @@ export default function DashboardPage() {
     from: subDays(new Date(), 29),
     to: new Date(),
   });
+  const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -179,6 +181,11 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 container py-8">
+      <RatingDetailsDialog
+        isOpen={isRatingDetailsOpen}
+        onOpenChange={setIsRatingDetailsOpen}
+        tasks={filteredData.tasks}
+      />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
         <div className="flex items-center gap-2">
@@ -253,7 +260,7 @@ export default function DashboardPage() {
 
       {!isLoading && !error && dashboardData && dashboardData.hasData && (
         <div className="space-y-6">
-          <DashboardStats stats={dashboardData.stats} />
+          <DashboardStats stats={dashboardData.stats} onRatingClick={() => setIsRatingDetailsOpen(true)}/>
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="tasks">Analyse des Tâches</TabsTrigger>

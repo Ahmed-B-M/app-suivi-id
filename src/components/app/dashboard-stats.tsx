@@ -20,9 +20,10 @@ type DashboardStatsProps = {
     totalRounds: number;
     completedRounds: number;
   };
+  onRatingClick: () => void;
 };
 
-export function DashboardStats({ stats }: DashboardStatsProps) {
+export function DashboardStats({ stats, onRatingClick }: DashboardStatsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
       <Card>
@@ -43,7 +44,7 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
           <div className="text-2xl font-bold">{stats.completedTasks}</div>
         </CardContent>
       </Card>
-      <Card>
+      <Card onClick={onRatingClick} className="cursor-pointer hover:bg-muted">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Note Moyenne</CardTitle>
           <Star className="h-4 w-4 text-muted-foreground" />

@@ -45,6 +45,10 @@
           "type": "string",
           "description": "Reference to the Customer associated with the task. (Relationship: Customer 1:N Task)"
         },
+        "driverId": {
+            "type": "string",
+            "description": "Identifier for the driver associated with the task."
+        },
         "tags": {
           "type": "array",
           "description": "Tags associates to the task",

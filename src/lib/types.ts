@@ -9,6 +9,7 @@ export interface Task {
   rating?: number;
   notationLivreur?: number;
   commentaireLivr?: string;
+  driverId?: string;
   metadata?: {
     notationLivreur?: number;
     commentaireLivr?: string;
