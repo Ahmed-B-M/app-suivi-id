@@ -1,19 +1,19 @@
 // A detailed representation of the Task object based on the user's specified fields
 export interface Task {
-  id: string;
   _id: string;
-  taskId: string | number;
-  type: string;
-  date: string;
-  progress: string;
-  client: string;
-  platformName: string;
-  when: string;
-  closureDate: string;
-  updated: string;
-  attempts: number;
-  completedBy: string;
-  unplanned: boolean;
+  id: string;
+  taskId?: string | number;
+  type?: string;
+  date?: string;
+  progress?: string;
+  client?: string;
+  platformName?: string;
+  when?: string;
+  closureDate?: string;
+  updated?: string;
+  attempts?: number;
+  completedBy?: string;
+  unplanned?: boolean;
 
   hubName?: string;
   roundName?: string;
@@ -94,6 +94,8 @@ export interface Task {
   };
   
   driverId?: string; // Kept for rating details functionality
+  rating?: number; // Kept for rating details functionality
+  [key: string]: any; // Allow other properties
 }
 
 // A basic representation of the Round object based on schema

@@ -10,15 +10,16 @@ import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Task } from "@/lib/types";
 
 /**
- * Transforms a raw task object from the Urbantz API into the desired structure.
+ * Transforms a raw task object from the Urbantz API into the desired structure,
+ * keeping only the user-specified fields.
  * @param rawTask - The raw task object from the API.
- * @returns A new task object with only the specified fields.
+ * @returns A new, filtered task object.
  */
 function transformTaskData(rawTask: any): Task {
   return {
     // Base fields
-    id: rawTask.id || rawTask._id,
     _id: rawTask._id,
+    id: rawTask.id || rawTask._id,
     taskId: rawTask.taskId,
     type: rawTask.type,
     date: rawTask.date,
@@ -30,7 +31,6 @@ function transformTaskData(rawTask: any): Task {
     updated: rawTask.updated,
     attempts: rawTask.attempts,
     completedBy: rawTask.completedBy,
-    unplanned: rawTask.unplanned || false,
     
     // Round info
     hubName: rawTask.hubName,
@@ -205,6 +205,7 @@ async function fetchTasks(
   // Appelle la fonction générique avec l'endpoint 'task'.
   const rawTasks = await fetchGeneric("task", apiKey, params, logs);
   logs.push(`\n🔄 Transformation de ${rawTasks.length} tâches brutes...`);
+  // Applique la transformation pour ne garder que les champs spécifiés.
   const transformedTasks = rawTasks.map(transformTaskData);
   logs.push(`   - Transformation terminée.`);
   return transformedTasks;
