@@ -80,12 +80,15 @@ export default function DashboardPage() {
   const dashboardData = useMemo(() => {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
-    const ratedTasks = filteredData.tasks.filter(
-      (t) => typeof t.rating === "number"
-    );
+    const ratedTasks = filteredData.tasks.map(t => {
+      // Dynamically find rating field
+      const rating = t.rating ?? t.score;
+      return typeof rating === 'number' ? rating : null;
+    }).filter((r): r is number => r !== null);
+    
     const averageRating =
       ratedTasks.length > 0
-        ? ratedTasks.reduce((sum, t) => sum + t.rating!, 0) /
+        ? ratedTasks.reduce((sum, rating) => sum + rating, 0) /
           ratedTasks.length
         : null;
 
