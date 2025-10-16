@@ -81,8 +81,8 @@ export default function DashboardPage() {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
     const ratedTasks = filteredData.tasks.map(t => {
-      // Dynamically find rating field
-      const rating = t.rating ?? t.score;
+      // Dynamically find rating field, preferring 'notationLivreur'
+      const rating = t.notationLivreur ?? t.rating;
       return typeof rating === 'number' ? rating : null;
     }).filter((r): r is number => r !== null);
     
@@ -309,5 +309,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    

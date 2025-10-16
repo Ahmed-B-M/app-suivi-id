@@ -7,6 +7,8 @@ export interface Task {
   unplanned: boolean;
   date?: string;
   rating?: number;
+  notationLivreur?: number;
+  commentaires?: string;
   // Add other task properties as needed
   [key: string]: any;
 }
@@ -21,5 +23,3 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
-
-    
