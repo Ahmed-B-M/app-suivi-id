@@ -50,7 +50,7 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {stats.averageRating ? stats.averageRating.toFixed(1) : "N/A"}
+            {stats.averageRating ? stats.averageRating.toFixed(1) : "la note moyenne n'est pas là"}
           </div>
         </CardContent>
       </Card>
