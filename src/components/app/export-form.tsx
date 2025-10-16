@@ -152,7 +152,7 @@ export function ExportForm({
         const existingTimestamp = existingDocsMap.get(docId.toString());
         const newTimestamp = item.dateMiseAJour;
 
-        if (!existingTimestamp || new Date(newTimestamp) > new Date(existingTimestamp)) {
+        if (!existingTimestamp || (newTimestamp && new Date(newTimestamp) > new Date(existingTimestamp))) {
             itemsToSave.push(item);
         }
       }
