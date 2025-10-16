@@ -8,7 +8,7 @@ import { useFirebase } from "@/firebase/provider";
 import { TaskDetails } from "@/components/app/task-details";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Task } from "@/lib/types";
+import type { Tache } from "@/lib/types";
 import { AlertCircle } from "lucide-react";
 
 export default function TaskPage({ params }: { params: { taskId: string } }) {
@@ -23,7 +23,7 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
     data: task,
     isLoading,
     error,
-  } = useDoc<Task>(taskRef);
+  } = useDoc<Tache>(taskRef);
 
   return (
     <main className="flex-1 container py-8">
@@ -56,7 +56,7 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
       {task && (
          <Card>
             <CardHeader>
-              <CardTitle>Détails de la Tâche: {task.taskId}</CardTitle>
+              <CardTitle>Détails de la Tâche: {task.tacheId}</CardTitle>
             </CardHeader>
             <CardContent>
               <TaskDetails taskData={task} />
@@ -68,7 +68,7 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
          <Card>
             <CardHeader>
                 <CardTitle>Tâche non trouvée</CardTitle>
-            </CardHeader>
+            </Header>
             <CardContent>
                 <p>Aucune tâche trouvée avec l'ID : {params.taskId}</p>
             </CardContent>

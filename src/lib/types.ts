@@ -1,65 +1,65 @@
-// A detailed representation of the Task object based on the user's specified fields
-export interface Task {
-  taskId: string | number;
+// Définition de la structure d'une Tâche avec les champs en français
+export interface Tache {
+  tacheId: string | number;
   type?: string;
   date?: string;
-  progress?: string;
+  progression?: string;
   client?: string;
-  platformName?: string;
-  when?: string;
-  closureDate?: string;
-  updated?: string;
-  attempts?: number;
-  completedBy?: string;
-  unplanned?: boolean;
+  nomPlateforme?: string;
+  dateCreation?: string;
+  dateCloture?: string;
+  dateMiseAJour?: string;
+  tentatives?: number;
+  completePar?: string;
+  nonPlanifie?: boolean;
 
-  hubName?: string;
-  roundName?: string;
+  nomHub?: string;
+  nomTournee?: string;
   sequence?: number;
-  associatedName?: string;
-  driver?: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
+  nomAssocie?: string;
+  livreur?: {
+    prenom?: string;
+    nom?: string;
+    idExterne?: string;
   };
 
-  timeWindow?: {
-    start?: string;
-    stop?: string;
+  creneauHoraire?: {
+    debut?: string;
+    fin?: string;
   };
-  actualTime?: {
-    arrive?: {
-      when?: string;
-      isCorrectAddress?: boolean;
+  heureReelle?: {
+    arrivee?: {
+      date?: string;
+      adresseCorrecte?: boolean;
     };
   };
-  realServiceTime?: {
-    startTime?: string;
-    endTime?: string;
-    serviceTime?: number;
+  tempsDeServiceReel?: {
+    debut?: string;
+    fin?: string;
+    duree?: number;
   };
-  serviceTime?: number;
+  tempsDeServiceEstime?: number;
 
   contact?: {
-    person?: string;
-    phone?: string;
+    personne?: string;
+    telephone?: string;
     email?: string;
-    buildingInfo?: {
-      floor?: string;
-      hasElevator?: boolean;
+    infoImmeuble?: {
+      etage?: string;
+      ascenseur?: boolean;
       digicode1?: string;
-      hasInterphone?: boolean;
-      interphoneCode?: string;
+      interphone?: boolean;
+      codeInterphone?: string;
     };
   };
-  location?: {
-    address?: string;
-    street?: string;
-    number?: string;
-    zip?: string;
-    city?: string;
-    countryCode?: string;
-    geometry?: [number, number];
+  localisation?: {
+    adresse?: string;
+    rue?: string;
+    numero?: string;
+    codePostal?: string;
+    ville?: string;
+    codePays?: string;
+    geometrie?: [number, number];
   };
   instructions?: string;
 
@@ -68,36 +68,36 @@ export interface Task {
     bac?: number;
     poids?: number;
   };
-  items?: {
-    name?: string;
-    status?: string;
-    barcode?: string;
+  articles?: {
+    nom?: string;
+    statut?: string;
+    codeBarre?: string;
     type?: string;
     dimensions?: {
       poids?: number;
     };
     log?: {
-      when?: string;
-      to?: string;
+      date?: string;
+      vers?: string;
     }[];
   }[];
   
   execution?: {
-    contactless?: boolean;
+    sansContact?: boolean;
   };
 
-  metadata?: {
+  metaDonnees?: {
     notationLivreur?: number;
-    commentaireLivr?: string;
-    building?: string;
+    commentaireLivreur?: string;
+    immeuble?: string;
   };
-  
-  driverId?: string; // Kept for rating details functionality
-  rating?: number; // Kept for rating details functionality
-  [key: string]: any; // Allow other properties
+
+  // Permet d'autres propriétés pour la flexibilité
+  [key: string]: any;
 }
 
-// A basic representation of the Round object based on schema
+
+// Représentation de base de l'objet Tournée
 export interface Round {
   id: string;
   _id: string; // some items use _id

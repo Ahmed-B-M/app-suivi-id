@@ -7,7 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import type { Task } from "@/lib/types";
+import type { Tache } from "@/lib/types";
 
 const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -77,7 +77,7 @@ const DataObjectTable = ({ data }: { data: any }) => {
 };
 
 
-export function TaskDetails({ taskData }: { taskData: Task }) {
+export function TaskDetails({ taskData }: { taskData: Tache }) {
   if (!taskData) return null;
 
   return (

@@ -7,110 +7,103 @@ import {
   schedulerSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { Task } from "@/lib/types";
+import { Tache } from "@/lib/types";
 
 /**
- * Transforms a raw task object from the Urbantz API into the desired structure,
- * keeping only the user-specified fields.
+ * Transforms a raw task object from the Urbantz API into the desired French structure.
  * @param rawTask - The raw task object from the API.
- * @returns A new, filtered task object.
+ * @returns A new, filtered and translated task object.
  */
-function transformTaskData(rawTask: any): Task {
+function transformTaskData(rawTask: any): Tache {
   return {
-    // Base fields
-    taskId: rawTask.taskId,
+    tacheId: rawTask.taskId,
     type: rawTask.type,
     date: rawTask.date,
-    progress: rawTask.progress,
+    progression: rawTask.progress,
     client: rawTask.client,
-    platformName: rawTask.platformName,
-    when: rawTask.when,
-    closureDate: rawTask.closureDate,
-    updated: rawTask.updated,
-    attempts: rawTask.attempts,
-    completedBy: rawTask.completedBy,
+    nomPlateforme: rawTask.platformName,
+    dateCreation: rawTask.when,
+    dateCloture: rawTask.closureDate,
+    dateMiseAJour: rawTask.updated,
+    tentatives: rawTask.attempts,
+    completePar: rawTask.completedBy,
     
-    // Round info
-    hubName: rawTask.hubName,
-    roundName: rawTask.roundName,
+    nomHub: rawTask.hubName,
+    nomTournee: rawTask.roundName,
     sequence: rawTask.sequence,
-    associatedName: rawTask.associatedName,
-    driver: rawTask.driver ? {
-      firstName: rawTask.driver.firstName,
-      lastName: rawTask.driver.lastName,
-      email: rawTask.driver.email,
+    nomAssocie: rawTask.associatedName,
+    livreur: rawTask.driver ? {
+      prenom: rawTask.driver.firstName,
+      nom: rawTask.driver.lastName,
+      idExterne: rawTask.driver.externalId, // Utilisation de externalId
     } : undefined,
 
-    // Time info
-    timeWindow: rawTask.timeWindow ? {
-      start: rawTask.timeWindow.start,
-      stop: rawTask.timeWindow.stop,
+    creneauHoraire: rawTask.timeWindow ? {
+      debut: rawTask.timeWindow.start,
+      fin: rawTask.timeWindow.stop,
     } : undefined,
-    actualTime: rawTask.actualTime ? {
-      arrive: rawTask.actualTime.arrive ? {
-        when: rawTask.actualTime.arrive.when,
-        isCorrectAddress: rawTask.actualTime.arrive.isCorrectAddress,
+    heureReelle: rawTask.actualTime ? {
+      arrivee: rawTask.actualTime.arrive ? {
+        date: rawTask.actualTime.arrive.when,
+        adresseCorrecte: rawTask.actualTime.arrive.isCorrectAddress,
       } : undefined,
     } : undefined,
-    realServiceTime: rawTask.realServiceTime ? {
-      startTime: rawTask.realServiceTime.startTime,
-      endTime: rawTask.realServiceTime.endTime,
-      serviceTime: rawTask.realServiceTime.serviceTime,
+    tempsDeServiceReel: rawTask.realServiceTime ? {
+      debut: rawTask.realServiceTime.startTime,
+      fin: rawTask.realServiceTime.endTime,
+      duree: rawTask.realServiceTime.serviceTime,
     } : undefined,
-    serviceTime: rawTask.serviceTime,
+    tempsDeServiceEstime: rawTask.serviceTime,
 
-    // Contact and location
     contact: rawTask.contact ? {
-      person: rawTask.contact.person,
-      phone: rawTask.contact.phone,
+      personne: rawTask.contact.person,
+      telephone: rawTask.contact.phone,
       email: rawTask.contact.email,
-      buildingInfo: rawTask.contact.buildingInfo ? {
-        floor: rawTask.contact.buildingInfo.floor,
-        hasElevator: rawTask.contact.buildingInfo.hasElevator,
+      infoImmeuble: rawTask.contact.buildingInfo ? {
+        etage: rawTask.contact.buildingInfo.floor,
+        ascenseur: rawTask.contact.buildingInfo.hasElevator,
         digicode1: rawTask.contact.buildingInfo.digicode1,
-        hasInterphone: rawTask.contact.buildingInfo.hasInterphone,
-        interphoneCode: rawTask.contact.buildingInfo.interphoneCode,
+        interphone: rawTask.contact.buildingInfo.hasInterphone,
+        codeInterphone: rawTask.contact.buildingInfo.interphoneCode,
       } : undefined,
     } : undefined,
-    location: rawTask.location ? {
-      address: rawTask.location.address,
-      street: rawTask.location.street,
-      number: rawTask.location.number,
-      zip: rawTask.location.zip,
-      city: rawTask.location.city,
-      countryCode: rawTask.location.countryCode,
-      geometry: rawTask.location.location?.geometry,
+    localisation: rawTask.location ? {
+      adresse: rawTask.location.address,
+      rue: rawTask.location.street,
+      numero: rawTask.location.number,
+      codePostal: rawTask.location.zip,
+      ville: rawTask.location.city,
+      codePays: rawTask.location.countryCode,
+      geometrie: rawTask.location.location?.geometry,
     } : undefined,
     instructions: rawTask.instructions,
 
-    // Order details
     dimensions: rawTask.dimensions ? {
       volume: rawTask.dimensions.volume,
       bac: rawTask.dimensions.bac,
       poids: rawTask.dimensions.poids,
     } : undefined,
-    items: Array.isArray(rawTask.items) ? rawTask.items.map((item: any) => ({
-      name: item.name,
-      status: item.status,
-      barcode: item.barcode,
+    articles: Array.isArray(rawTask.items) ? rawTask.items.map((item: any) => ({
+      nom: item.name,
+      statut: item.status,
+      codeBarre: item.barcode,
       type: item.type,
       dimensions: item.dimensions ? {
         poids: item.dimensions.poids,
       } : undefined,
       log: Array.isArray(item.log) ? item.log.map((logEntry: any) => ({
-        when: logEntry.when,
-        to: logEntry.to,
+        date: logEntry.when,
+        vers: logEntry.to,
       })) : undefined,
     })) : undefined,
 
-    // Execution & Metadata
     execution: rawTask.execution ? {
-      contactless: rawTask.execution.contactless,
+      sansContact: rawTask.execution.contactless,
     } : undefined,
-    metadata: rawTask.metadata ? {
+    metaDonnees: rawTask.metadata ? {
       notationLivreur: rawTask.metadata.notationLivreur,
-      commentaireLivr: rawTask.metadata.commentaireLivr,
-      building: rawTask.metadata.building,
+      commentaireLivreur: rawTask.metadata.commentaireLivr,
+      immeuble: rawTask.metadata.building,
     } : undefined,
   };
 }

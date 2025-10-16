@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FileSearch } from "lucide-react";
 import { Accordion } from "@/components/ui/accordion";
-import type { Task } from "@/lib/types";
+import type { Tache } from "@/lib/types";
 
 export default function DatabasePage() {
   const { firestore } = useFirebase();
@@ -30,7 +30,7 @@ export default function DatabasePage() {
     data: tasks,
     isLoading: isLoadingTasks,
     error: tasksError,
-  } = useCollection<Task>(tasksCollection);
+  } = useCollection<Tache>(tasksCollection);
 
   const {
     data: rounds,
@@ -41,13 +41,13 @@ export default function DatabasePage() {
   const tasksByStatus = useMemo(() => {
     if (!tasks) return {};
     return tasks.reduce((acc, task) => {
-      const status = task.progress || "Unknown";
+      const status = task.progression || "Unknown";
       if (!acc[status]) {
         acc[status] = [];
       }
       acc[status].push(task);
       return acc;
-    }, {} as Record<string, Task[]>);
+    }, {} as Record<string, Tache[]>);
   }, [tasks]);
 
   return (

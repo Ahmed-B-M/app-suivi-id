@@ -11,9 +11,9 @@ import { TaskDetails } from "./task-details";
 import { Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
-import type { Task } from "@/lib/types";
+import type { Tache } from "@/lib/types";
 
-export function TasksTable({ data }: { data: Task[] }) {
+export function TasksTable({ data }: { data: Tache[] }) {
 
   if (!data || data.length === 0) {
     return <p>Aucune tâche trouvée.</p>;
@@ -22,15 +22,15 @@ export function TasksTable({ data }: { data: Task[] }) {
   return (
     <Accordion type="single" collapsible className="w-full">
       {data.map((task) => {
-        const rating = task.metadata?.notationLivreur;
+        const rating = task.metaDonnees?.notationLivreur;
         const hasRating = typeof rating === 'number';
-        const id = task.taskId;
+        const id = task.tacheId;
 
         return (
           <AccordionItem value={id.toString()} key={id.toString()}>
             <AccordionTrigger>
               <div className="flex items-center gap-4 justify-between w-full pr-4">
-                  <span className="font-mono text-sm truncate">Tâche: {task.taskId || 'N/A'}</span>
+                  <span className="font-mono text-sm truncate">Tâche: {task.tacheId || 'N/A'}</span>
                   <div className="flex items-center gap-2">
                     {hasRating && (
                       <Badge variant="outline" className="flex items-center gap-1">
@@ -38,8 +38,8 @@ export function TasksTable({ data }: { data: Task[] }) {
                         {rating.toFixed(1)}
                       </Badge>
                     )}
-                    <Badge variant={task.progress === 'COMPLETED' ? 'default' : 'secondary'}>
-                        {task.progress}
+                    <Badge variant={task.progression === 'COMPLETED' ? 'default' : 'secondary'}>
+                        {task.progression}
                     </Badge>
                      <Button variant="outline" size="sm" asChild>
                        <Link href={`/task/${id}`}>

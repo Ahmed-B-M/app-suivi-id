@@ -14,7 +14,7 @@ import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
 import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
 import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
-import type { Task, Round } from "@/lib/types";
+import type { Tache, Round } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +49,7 @@ export default function DashboardPage() {
     data: tasks,
     isLoading: isLoadingTasks,
     error: tasksError,
-  } = useCollection<Task>(tasksCollection);
+  } = useCollection<Tache>(tasksCollection);
 
   const {
     data: rounds,
@@ -60,9 +60,9 @@ export default function DashboardPage() {
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
 
-    const filterByDate = (item: Task | Round) => {
+    const filterByDate = (item: Tache | Round) => {
       if (!from || !to) return true;
-      const itemDateString = item.date || item.createdAt || item.updatedAt;
+      const itemDateString = item.date || item.dateCreation;
       if (!itemDateString) return false;
       
       const itemDate = new Date(itemDateString);
@@ -83,8 +83,7 @@ export default function DashboardPage() {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
     const ratedTasks = filteredData.tasks.map(t => {
-      // Dynamically find rating field, preferring 'metadata.notationLivreur'
-      const rating = t.metadata?.notationLivreur ?? t.notationLivreur ?? t.rating;
+      const rating = t.metaDonnees?.notationLivreur;
       return typeof rating === 'number' ? rating : null;
     }).filter((r): r is number => r !== null);
     
@@ -98,9 +97,9 @@ export default function DashboardPage() {
       ? {
           totalTasks: filteredData.tasks.length,
           completedTasks: filteredData.tasks.filter(
-            (t) => t.progress === "COMPLETED"
+            (t) => t.progression === "COMPLETED"
           ).length,
-          unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
+          unplannedTasks: filteredData.tasks.filter((t) => t.nonPlanifie).length,
           averageRating: averageRating,
         }
       : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null };
@@ -116,7 +115,7 @@ export default function DashboardPage() {
 
     const tasksByStatus = filteredData.tasks
       ? filteredData.tasks.reduce((acc, task) => {
-          const status = task.progress || "Unknown";
+          const status = task.progression || "Unknown";
           acc[status] = (acc[status] || 0) + 1;
           return acc;
         }, {} as Record<string, number>)
@@ -124,8 +123,8 @@ export default function DashboardPage() {
 
     const tasksOverTime = filteredData.tasks
       ? filteredData.tasks.reduce((acc, task) => {
-          const date = task.date ? task.date.split("T")[0] : "Unplanned";
-          if (date === "Unplanned" && !task.unplanned) return acc;
+          const date = task.date ? task.date.split("T")[0] : "Non planifiée";
+          if (date === "Non planifiée" && !task.nonPlanifie) return acc;
           acc[date] = (acc[date] || 0) + 1;
           return acc;
         }, {} as Record<string, number>)

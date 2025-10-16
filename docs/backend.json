@@ -1,90 +1,90 @@
 {
   "entities": {
-    "Task": {
+    "Tache": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Task",
+      "title": "Tache",
       "type": "object",
-      "description": "Represents a filtered task from the Urbantz API with only the user-specified fields.",
+      "description": "Représente une tâche filtrée de l'API Urbantz avec des champs en français.",
       "properties": {
-        "taskId": { "type": ["string", "number"] },
+        "tacheId": { "type": ["string", "number"] },
         "type": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "progress": { "type": "string" },
+        "progression": { "type": "string" },
         "client": { "type": "string" },
-        "platformName": { "type": "string" },
-        "when": { "type": "string", "format": "date-time" },
-        "closureDate": { "type": "string", "format": "date-time" },
-        "updated": { "type": "string", "format": "date-time" },
-        "attempts": { "type": "number" },
-        "completedBy": { "type": "string" },
-        "hubName": { "type": "string" },
-        "roundName": { "type": "string" },
+        "nomPlateforme": { "type": "string" },
+        "dateCreation": { "type": "string", "format": "date-time" },
+        "dateCloture": { "type": "string", "format": "date-time" },
+        "dateMiseAJour": { "type": "string", "format": "date-time" },
+        "tentatives": { "type": "number" },
+        "completePar": { "type": "string" },
+        "nomHub": { "type": "string" },
+        "nomTournee": { "type": "string" },
         "sequence": { "type": "number" },
-        "associatedName": { "type": "string" },
-        "driver": {
+        "nomAssocie": { "type": "string" },
+        "livreur": {
           "type": "object",
           "properties": {
-            "firstName": { "type": "string" },
-            "lastName": { "type": "string" },
-            "email": { "type": "string" }
+            "prenom": { "type": "string" },
+            "nom": { "type": "string" },
+            "idExterne": { "type": "string" }
           }
         },
-        "timeWindow": {
+        "creneauHoraire": {
           "type": "object",
           "properties": {
-            "start": { "type": "string", "format": "date-time" },
-            "stop": { "type": "string", "format": "date-time" }
+            "debut": { "type": "string", "format": "date-time" },
+            "fin": { "type": "string", "format": "date-time" }
           }
         },
-        "actualTime": {
+        "heureReelle": {
           "type": "object",
           "properties": {
-            "arrive": {
+            "arrivee": {
               "type": "object",
               "properties": {
-                "when": { "type": "string", "format": "date-time" },
-                "isCorrectAddress": { "type": "boolean" }
+                "date": { "type": "string", "format": "date-time" },
+                "adresseCorrecte": { "type": "boolean" }
               }
             }
           }
         },
-        "realServiceTime": {
+        "tempsDeServiceReel": {
           "type": "object",
           "properties": {
-            "startTime": { "type": "string", "format": "date-time" },
-            "endTime": { "type": "string", "format": "date-time" },
-            "serviceTime": { "type": "number" }
+            "debut": { "type": "string", "format": "date-time" },
+            "fin": { "type": "string", "format": "date-time" },
+            "duree": { "type": "number" }
           }
         },
-        "serviceTime": { "type": "number" },
+        "tempsDeServiceEstime": { "type": "number" },
         "contact": {
           "type": "object",
           "properties": {
-            "person": { "type": "string" },
-            "phone": { "type": "string" },
+            "personne": { "type": "string" },
+            "telephone": { "type": "string" },
             "email": { "type": "string" },
-            "buildingInfo": {
+            "infoImmeuble": {
               "type": "object",
               "properties": {
-                "floor": { "type": "string" },
-                "hasElevator": { "type": "boolean" },
+                "etage": { "type": "string" },
+                "ascenseur": { "type": "boolean" },
                 "digicode1": { "type": "string" },
-                "hasInterphone": { "type": "boolean" },
-                "interphoneCode": { "type": "string" }
+                "interphone": { "type": "boolean" },
+                "codeInterphone": { "type": "string" }
               }
             }
           }
         },
-        "location": {
+        "localisation": {
           "type": "object",
           "properties": {
-            "address": { "type": "string" },
-            "street": { "type": "string" },
-            "number": { "type": "string" },
-            "zip": { "type": "string" },
-            "city": { "type": "string" },
-            "countryCode": { "type": "string" },
-            "geometry": { "type": "array", "items": { "type": "number" } }
+            "adresse": { "type": "string" },
+            "rue": { "type": "string" },
+            "numero": { "type": "string" },
+            "codePostal": { "type": "string" },
+            "ville": { "type": "string" },
+            "codePays": { "type": "string" },
+            "geometrie": { "type": "array", "items": { "type": "number" } }
           }
         },
         "instructions": { "type": "string" },
@@ -96,14 +96,14 @@
             "poids": { "type": "number" }
           }
         },
-        "items": {
+        "articles": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
-              "status": { "type": "string" },
-              "barcode": { "type": "string" },
+              "nom": { "type": "string" },
+              "statut": { "type": "string" },
+              "codeBarre": { "type": "string" },
               "type": { "type": "string" },
               "dimensions": {
                 "type": "object",
@@ -116,8 +116,8 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "when": { "type": "string", "format": "date-time" },
-                    "to": { "type": "string" }
+                    "date": { "type": "string", "format": "date-time" },
+                    "vers": { "type": "string" }
                   }
                 }
               }
@@ -127,19 +127,19 @@
         "execution": {
           "type": "object",
           "properties": {
-            "contactless": { "type": "boolean" }
+            "sansContact": { "type": "boolean" }
           }
         },
-        "metadata": {
+        "metaDonnees": {
           "type": "object",
           "properties": {
             "notationLivreur": { "type": "number" },
-            "commentaireLivr": { "type": "string" },
-            "building": { "type": "string" }
+            "commentaireLivreur": { "type": "string" },
+            "immeuble": { "type": "string" }
           }
         }
       },
-      "required": ["taskId"]
+      "required": ["tacheId"]
     },
     "Round": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -184,9 +184,9 @@
       {
         "path": "/tasks/{taskId}",
         "definition": {
-          "entityName": "Task",
+          "entityName": "Tache",
           "schema": {
-            "$ref": "#/backend/entities/Task"
+            "$ref": "#/backend/entities/Tache"
           },
           "description": "Stores task data fetched from the Urbantz API. Includes `hubId` and `customerId` to reference related entities.",
           "params": [

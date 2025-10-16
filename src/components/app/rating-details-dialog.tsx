@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Task } from "@/lib/types";
+import type { Tache } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -25,12 +25,12 @@ import { Star } from "lucide-react";
 type RatingDetailsDialogProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  tasks: Task[];
+  tasks: Tache[];
 };
 
 type RatingByDriver = {
   driverId: string;
-  ratings: { rating: number; taskId: string }[];
+  ratings: { rating: number; taskId: string | number }[];
   average: number;
 };
 
@@ -40,17 +40,17 @@ export function RatingDetailsDialog({
   tasks,
 }: RatingDetailsDialogProps) {
   const ratingsByDriver = useMemo(() => {
-    const driversData: Record<string, { ratings: { rating: number; taskId: string }[] }> = {};
+    const driversData: Record<string, { ratings: { rating: number; taskId: string | number }[] }> = {};
 
     tasks.forEach((task) => {
-      const rating = task.metadata?.notationLivreur;
-      const driverId = task.driverId || 'Non assigné';
+      const rating = task.metaDonnees?.notationLivreur;
+      const driverId = task.livreur?.idExterne || 'Non assigné';
 
       if (typeof rating === "number") {
         if (!driversData[driverId]) {
           driversData[driverId] = { ratings: [] };
         }
-        driversData[driverId].ratings.push({ rating, taskId: task.id });
+        driversData[driverId].ratings.push({ rating, taskId: task.tacheId });
       }
     });
 
@@ -97,8 +97,8 @@ export function RatingDetailsDialog({
                     </TableHeader>
                     <TableBody>
                       {ratings.map(({ taskId, rating }) => (
-                        <TableRow key={taskId}>
-                          <TableCell className="font-mono">{taskId}</TableCell>
+                        <TableRow key={taskId.toString()}>
+                          <TableCell className="font-mono">{taskId.toString()}</TableCell>
                           <TableCell className="text-right">{rating}</TableCell>
                         </TableRow>
                       ))}

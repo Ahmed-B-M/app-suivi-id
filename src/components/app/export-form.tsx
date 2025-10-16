@@ -141,16 +141,16 @@ export function ExportForm({
       const existingDocsSnapshot = await getDocs(collectionRef);
       const existingDocsMap = new Map();
       existingDocsSnapshot.forEach(doc => {
-        existingDocsMap.set(doc.id, doc.data().updatedAt || doc.data().updated);
+        existingDocsMap.set(doc.id, doc.data().dateMiseAJour);
       });
       onExportComplete([`   - ${existingDocsMap.size} documents existants trouvés.`], null);
 
       for (const item of jsonData) {
-        const docId = item.taskId;
+        const docId = item.tacheId;
         if (!docId) continue;
 
         const existingTimestamp = existingDocsMap.get(docId.toString());
-        const newTimestamp = item.updatedAt || item.updated;
+        const newTimestamp = item.dateMiseAJour;
 
         if (!existingTimestamp || new Date(newTimestamp) > new Date(existingTimestamp)) {
             itemsToSave.push(item);
@@ -187,7 +187,7 @@ export function ExportForm({
       try {
         const batch = writeBatch(firestore);
         chunk.forEach((item) => {
-          const docId = item.taskId;
+          const docId = item.tacheId;
           if (docId) {
             const docRef = doc(collectionRef, docId.toString());
             batch.set(docRef, item, { merge: true });
