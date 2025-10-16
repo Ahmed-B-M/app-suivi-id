@@ -8,22 +8,37 @@ import {
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 
+/**
+ * Fonction générique pour interroger un endpoint de l'API Urbantz (task ou round).
+ * Gère la pagination pour récupérer toutes les données.
+ * @param endpoint - Le nom de l'endpoint à appeler ('task' ou 'round').
+ * @param apiKey - La clé API pour l'authentification.
+ * @param params - Les paramètres de requête (filtres) à envoyer à l'API.
+ * @param logs - Un tableau pour enregistrer les messages de log du processus.
+ * @returns Un tableau contenant tous les éléments récupérés après pagination.
+ */
 async function fetchGeneric(
     endpoint: 'task' | 'round',
     apiKey: string,
     params: URLSearchParams,
     logs: string[]
 ) {
+    // L'API Urbantz renvoie les données par pages. On définit une taille de page.
     const pageSize = 500;
     let page = 0;
     let hasMoreData = true;
     const allItems: any[] = [];
     const itemName = endpoint;
 
+    // Boucle 'tant que' il y a des données à récupérer.
     while (hasMoreData) {
         const basePath = 'v2';
         const url = new URL(`https://api.urbantz.com/${basePath}/${endpoint}`);
+        
+        // Ajoute les paramètres de filtrage (reçus du formulaire) à l'URL.
         params.forEach((value, key) => url.searchParams.append(key, value));
+        
+        // Ajoute les paramètres de pagination à l'URL.
         url.searchParams.append("page", page.toString());
         url.searchParams.append("pageSize", pageSize.toString());
 
@@ -33,8 +48,10 @@ async function fetchGeneric(
             } avec les paramètres: ${params.toString()}`
         );
 
+        // Exécute la requête 'fetch' vers l'API Urbantz.
         const response = await fetch(url.toString(), {
             headers: {
+                // La clé API est passée dans l'en-tête pour l'authentification.
                 "x-api-key": apiKey,
             },
         });
@@ -44,17 +61,20 @@ async function fetchGeneric(
             logs.push(
                 `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
             );
-            hasMoreData = false;
+            hasMoreData = false; // Arrête la boucle en cas d'erreur.
             continue;
         }
 
+        // Convertit la réponse en JSON.
         const items = await response.json();
         logs.push(`    - ${items.length} ${itemName}s bruts récupérés.`);
 
+        // Si la page contient des données, on les ajoute au tableau principal.
         if (items.length > 0) {
             allItems.push(...items);
-            page++;
+            page++; // On passe à la page suivante pour la prochaine itération.
         } else {
+            // Si la page est vide, c'est qu'il n'y a plus de données à récupérer.
             hasMoreData = false;
             if (page === 0) {
                 logs.push(`    - Aucun ${itemName} trouvé pour ces paramètres.`);
@@ -67,19 +87,22 @@ async function fetchGeneric(
 }
 
 
-// --- Task Fetching Logic ---
+// --- Logique de récupération des Tâches ---
 async function fetchTasks(
   apiKey: string,
   params: URLSearchParams,
   logs: string[]
 ) {
+  // Appelle la fonction générique avec l'endpoint 'task'.
   return fetchGeneric("task", apiKey, params, logs);
 }
 
-// --- Task Export Action ---
+// --- Action d'Exportation des Tâches ---
+// C'est la fonction principale appelée par le formulaire des tâches.
 export async function runExportAction(
   values: z.infer<typeof exportFormSchema>
 ) {
+  // Valide les données du formulaire.
   const validatedFields = exportFormSchema.safeParse(values);
   if (!validatedFields.success) {
     return { logs: [], jsonData: null, error: "Invalid input." };
@@ -93,22 +116,26 @@ export async function runExportAction(
     logs.push(`🚀 Début de l'interrogation des tâches...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
+    // Crée un objet pour les paramètres de base.
+    // Ces filtres sont supportés directement par l'API Urbantz.
     const baseParams = new URLSearchParams();
-    if (status && status !== "all") baseParams.append("progress", status);
+    if (status && status !== "all") baseParams.append("progress", status); // 'progress' est le nom du paramètre pour le statut dans l'API.
     if (taskId) baseParams.append("taskId", taskId);
     if (roundId) baseParams.append("round", roundId);
     if (unplanned) baseParams.append("unplanned", "true");
 
-    logs.push(`   - Filtres: ${baseParams.toString() || "Aucun"}`);
+    logs.push(`   - Filtres API: ${baseParams.toString() || "Aucun"}`);
 
     const allTasks: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tâches...`);
     
+    // Cas spécial pour les tâches non planifiées, qui n'ont pas de date.
     if (unplanned) {
         logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
         const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
         allTasks.push(...unplannedTasks);
     } else {
+        // Pour les tâches planifiées, on doit boucler sur chaque jour de la période sélectionnée.
         const fromString = from.toISOString().split("T")[0];
         const toString = to.toISOString().split("T")[0];
         logs.push(
@@ -119,6 +146,7 @@ export async function runExportAction(
             const dateString = dateCursor.toISOString().split("T")[0];
             logs.push(`\n🗓️  Traitement du ${dateString}...`);
 
+            // Pour chaque jour, on crée une nouvelle requête avec le paramètre 'date'.
             const paramsForDay = new URLSearchParams(baseParams);
             paramsForDay.append("date", dateString);
 
@@ -147,6 +175,7 @@ export async function runExportAction(
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
     logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
 
+    // Renvoie les logs et les données JSON au client.
     return {
       logs,
       jsonData: allTasks,
@@ -166,16 +195,17 @@ export async function runExportAction(
   }
 }
 
-// --- Round Fetching Logic ---
+// --- Logique de récupération des Tournées ---
 async function fetchRounds(
   apiKey: string,
   params: URLSearchParams,
   logs: string[]
 ) {
+  // Appelle la fonction générique avec l'endpoint 'round'.
   return fetchGeneric("round", apiKey, params, logs);
 }
 
-// --- Round Export Action ---
+// --- Action d'Exportation des Tournées ---
 export async function runRoundExportAction(
   values: z.infer<typeof roundExportFormSchema>
 ) {
@@ -191,9 +221,9 @@ export async function runRoundExportAction(
     logs.push(`🚀 Début de l'interrogation des tournées...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
+    // L'API 'round' ne supporte pas de filtre 'status' directement.
+    // On va donc récupérer toutes les tournées pour la période, puis filtrer manuellement.
     const baseParams = new URLSearchParams();
-    if (status && status !== "all") {
-    }
 
     const allRounds: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tournées...`);
@@ -204,13 +234,14 @@ export async function runRoundExportAction(
       `   - Période: ${fromString} à ${toString}`
     );
 
+    // Boucle sur chaque jour pour récupérer les tournées.
     const dateCursor = new Date(from);
     while (dateCursor <= to) {
       const dateString = dateCursor.toISOString().split("T")[0];
       logs.push(`\n🗓️  Traitement du ${dateString}...`);
 
       const paramsForDay = new URLSearchParams(baseParams);
-      paramsForDay.append("date", dateString);
+      paramsForDay.append("date", dateString); // Le seul filtre API utilisé ici est la date.
 
       const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs);
       allRounds.push(...roundsForDay);
@@ -219,8 +250,11 @@ export async function runRoundExportAction(
     }
 
     let filteredRounds = allRounds;
+    // ** FILTRAGE CÔTÉ APPLICATION **
+    // Si un statut est sélectionné (et différent de 'tous'), on filtre le tableau 'allRounds'.
     if (status && status !== "all") {
       logs.push(`\n🔄 Filtrage des tournées par statut: ${status}`);
+      // La fonction .filter() de JavaScript crée un nouveau tableau avec seulement les éléments qui passent le test.
       filteredRounds = allRounds.filter((round) => round.status === status);
       logs.push(
         `   - ${allRounds.length - filteredRounds.length} tournées écartées.`
@@ -257,7 +291,7 @@ export async function runRoundExportAction(
   }
 }
 
-// --- Scheduler Action ---
+// --- Action du Planificateur IA ---
 export async function getScheduleAction(
   values: z.infer<typeof schedulerSchema>
 ) {
