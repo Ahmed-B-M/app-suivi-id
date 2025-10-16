@@ -1,4 +1,4 @@
-# Urbantz Data Exporter
+# EXport API Urbantz
 
 This is a Next.js application that allows you to fetch, filter, and export data from the Urbantz API.
 

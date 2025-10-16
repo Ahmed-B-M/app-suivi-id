@@ -10,18 +10,10 @@ export function AppHeader() {
           <Link href="/" className="flex items-center">
             <Layers className="h-6 w-6 mr-3 text-primary" />
             <span className="font-bold text-lg text-primary">
-              Urbantz Data Exporter
+              EXport API Urbantz
             </span>
           </Link>
         </div>
-        <nav>
-          <Button asChild variant="ghost">
-            <Link href="/database">
-              <Database className="mr-2" />
-              Base de données
-            </Link>
-          </Button>
-        </nav>
       </div>
     </header>
   );

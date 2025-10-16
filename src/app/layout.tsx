@@ -6,7 +6,7 @@ import { FirebaseClientProvider } from "@/firebase";
 import { AppHeader } from "@/components/app/header";
 
 export const metadata: Metadata = {
-  title: "Urbantz Data Exporter",
+  title: "EXport API Urbantz",
   description: "Fetch, filter, and export data from the Urbantz API.",
 };
 
@@ -41,7 +41,7 @@ export default function RootLayout({
             <Toaster />
             <footer className="py-6 border-t mt-8">
               <div className="container text-center text-sm text-muted-foreground">
-                Urbantz Data Exporter
+                EXport API Urbantz
               </div>
             </footer>
           </div>
