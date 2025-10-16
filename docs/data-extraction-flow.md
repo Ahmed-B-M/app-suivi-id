@@ -140,36 +140,17 @@ Cette méthode est moins performante car elle demande plus de données que néce
 
 ---
 
-## Annexe : Signification des Données de l'API
+## Annexe : Comment Voir Toutes les Données de l'API
 
-Voici une description des principaux champs de données que vous pouvez attendre de l'API, basée sur la configuration et l'utilisation dans votre application. **Note :** l'API peut renvoyer bien plus de champs. La méthode la plus fiable pour tous les voir est d'utiliser la vue détaillée dans l'application.
+Il est impossible de créer une documentation statique listant **absolument tous** les champs que l'API Urbantz peut renvoyer. La structure peut changer et dépendre de la configuration de votre compte.
 
-### Entité `Task` (Tâche)
+La seule méthode fiable pour connaître la totalité des données est de les inspecter directement. **L'application a été conçue pour cela.**
 
-| Champ             | Signification                                                                                             | Type de Donnée |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | -------------- |
-| `id`              | L'identifiant unique et technique de la tâche.                                                            | `string`       |
-| `taskId`          | Un autre identifiant pour la tâche, souvent plus lisible ou utilisé dans les interfaces.                  | `string`       |
-| `hubId`           | L'identifiant du centre (hub) auquel la tâche est rattachée.                                              | `string`       |
-| `createdAt`       | Date et heure de création de la tâche.                                                                    | `date-time`    |
-| `updatedAt`       | Date et heure de la dernière modification de la tâche. **Important pour la synchronisation.**             | `date-time`    |
-| `plannedArrival`  | Heure d'arrivée prévue pour l'exécution de la tâche.                                                      | `date-time`    |
-| `description`     | Une description textuelle de ce qui doit être fait.                                                       | `string`       |
-| `status` / `progress` | Le statut actuel de la tâche (ex: `COMPLETED`, `ONGOING`, `ASSIGNED`). Le nom du champ peut varier.     | `string`       |
-| `priority`        | Le niveau de priorité de la tâche.                                                                        | `number`       |
-| `customerId`      | L'identifiant du client associé à cette tâche.                                                            | `string`       |
-| `tags`            | Une liste d'étiquettes ou de mots-clés associés à la tâche.                                               | `array`        |
-| `unplanned`       | Un indicateur (vrai/faux) précisant si la tâche est planifiée ou non.                                     | `boolean`      |
-| `round`           | Un objet ou un identifiant liant la tâche à une tournée (`Round`).                                         | `object/string`|
+Voici comment faire :
 
-### Entité `Round` (Tournée)
+1.  **Lancez un export** : Sur la page d'accueil, remplissez le formulaire et lancez un export de tâches ou de tournées.
+2.  **Attendez les résultats** : Une fois l'export terminé, un tableau de résultats apparaîtra sous le formulaire.
+3.  **Explorez les détails** : Chaque ligne de ce tableau (chaque tâche ou chaque tournée) est un accordéon. **Cliquez sur une ligne pour l'ouvrir.**
+4.  **Inspectez les données brutes** : Le panneau qui s'ouvre (`TaskDetails` ou `RoundDetails`) affiche une table complète contenant **tous les champs et toutes les valeurs** que l'API a renvoyés pour cet élément spécifique, sans aucun filtre. Vous y verrez des objets imbriqués, des listes, des identifiants techniques, etc.
 
-| Champ    | Signification                                                                               | Type de Donnée |
-| -------- | ------------------------------------------------------------------------------------------- | -------------- |
-| `id`     | L'identifiant unique et technique de la tournée.                                            | `string`       |
-| `name`   | Le nom donné à la tournée pour l'identifier facilement.                                     | `string`       |
-| `status` | Le statut actuel de la tournée (ex: `COMPLETED`, `ONGOING`, `VALIDATED`, `PUBLISHED`).       | `string`       |
-| `date`   | La date à laquelle la tournée est prévue ou a eu lieu.                                        | `date-time`    |
-| `tasks`  | Une liste des identifiants de tâches (`Task`) incluses dans cette tournée.                      | `array`        |
-| `vehicle`| Des informations sur le véhicule assigné à la tournée.                                        | `object`       |
-| `driver` | Des informations sur le chauffeur assigné.                                                    | `object`       |
+Cette vue détaillée est votre source de vérité pour comprendre la structure complète des données de l'API Urbantz.
