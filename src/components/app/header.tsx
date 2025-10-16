@@ -14,6 +14,14 @@ export function AppHeader() {
             </span>
           </Link>
         </div>
+        <nav>
+          <Button variant="ghost" asChild>
+            <Link href="/database" className="flex items-center gap-2">
+              <Database />
+              Base de Données
+            </Link>
+          </Button>
+        </nav>
       </div>
     </header>
   );
