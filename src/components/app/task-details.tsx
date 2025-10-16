@@ -17,32 +17,6 @@ const formatDate = (dateString?: string) => {
     }
 }
 
-const fieldsToRemove = [
-  'endpoint', 'announcement', 'by', 'collect', 'externalCarrier', 'flux', 'hub',
-  'barcodeEncoding', 'log.by', 'log.id', 'items.id', 'location.geocodeScore',
-  'location.origin', 'location.precision',
-  'platform', 'platformName',
-  'targetFlux', 'taskReference', 'trackingId', 'order', 'associated',
-  'driver.id', 'round', 'realServiceTime.taskIdsDeliveredInSameStop',
-  'realServiceTime.id', 'imagePath', 'id', '_id'
-];
-
-const shouldRemoveField = (key: string, path: string = ''): boolean => {
-    const fullPath = path ? `${path}.${key}` : key;
-    // This logic helps in matching nested fields like "items.id" or "log.by"
-    const genericPath = path.replace(/\.\d+(\.|$)/, '.'); 
-    const fullGenericPath = path ? `${genericPath}${key}` : key;
-    
-    if (fieldsToRemove.includes(key) || fieldsToRemove.includes(fullPath) || fieldsToRemove.includes(fullGenericPath)) {
-        // Exception for contact.buildingInfo
-        if (fullPath.startsWith('contact.buildingInfo')) {
-            return false;
-        }
-        return true;
-    }
-    return false;
-}
-
 const renderValue = (value: any, path: string): React.ReactNode => {
   if (value === null || value === undefined) {
     return <span className="text-muted-foreground">N/A</span>;
@@ -80,7 +54,6 @@ const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
         {entries.map(([key, value]) => {
            const currentPath = Array.isArray(data) ? path : (path ? `${path}.${key}` : key);
            
-           if (shouldRemoveField(key, path)) return null;
            if (value === null || value === undefined) return null;
            if (Array.isArray(value) && value.length === 0) return null;
            if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return null;
