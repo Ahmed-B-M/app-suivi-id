@@ -1,4 +1,4 @@
-import { Layers, Database } from "lucide-react";
+import { Layers, Database, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
 
@@ -14,7 +14,13 @@ export function AppHeader() {
             </span>
           </Link>
         </div>
-        <nav>
+        <nav className="flex items-center gap-2">
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <LayoutDashboard />
+              Tableau de bord
+            </Link>
+          </Button>
           <Button variant="ghost" asChild>
             <Link href="/database" className="flex items-center gap-2">
               <Database />
