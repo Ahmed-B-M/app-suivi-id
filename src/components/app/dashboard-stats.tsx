@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import {
   CheckCircle,
   ListTodo,
   Route,
+  Star,
   Trophy,
 } from "lucide-react";
 
@@ -14,6 +16,7 @@ type DashboardStatsProps = {
     totalTasks: number;
     completedTasks: number;
     unplannedTasks: number;
+    averageRating: number | null;
     totalRounds: number;
     completedRounds: number;
   };
@@ -21,7 +24,7 @@ type DashboardStatsProps = {
 
 export function DashboardStats({ stats }: DashboardStatsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Tâches Totales</CardTitle>
@@ -38,6 +41,17 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats.completedTasks}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Note Moyenne</CardTitle>
+          <Star className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {stats.averageRating ? stats.averageRating.toFixed(1) : "N/A"}
+          </div>
         </CardContent>
       </Card>
       <Card>
@@ -72,3 +86,5 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
     </div>
   );
 }
+
+    

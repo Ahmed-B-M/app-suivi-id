@@ -80,6 +80,15 @@ export default function DashboardPage() {
   const dashboardData = useMemo(() => {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
+    const ratedTasks = filteredData.tasks.filter(
+      (t) => typeof t.rating === "number"
+    );
+    const averageRating =
+      ratedTasks.length > 0
+        ? ratedTasks.reduce((sum, t) => sum + t.rating!, 0) /
+          ratedTasks.length
+        : null;
+
     const taskStats = filteredData.tasks
       ? {
           totalTasks: filteredData.tasks.length,
@@ -87,8 +96,9 @@ export default function DashboardPage() {
             (t) => t.progress === "COMPLETED"
           ).length,
           unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
+          averageRating: averageRating,
         }
-      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0 };
+      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null };
 
     const roundStats = filteredData.rounds
       ? {
@@ -296,3 +306,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    

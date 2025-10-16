@@ -6,6 +6,7 @@ export interface Task {
   progress?: string;
   unplanned: boolean;
   date?: string;
+  rating?: number;
   // Add other task properties as needed
   [key: string]: any;
 }
@@ -20,3 +21,5 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
+
+    
