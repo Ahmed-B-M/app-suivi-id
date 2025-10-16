@@ -18,8 +18,6 @@ import { Task } from "@/lib/types";
 function transformTaskData(rawTask: any): Task {
   return {
     // Base fields
-    _id: rawTask._id,
-    id: rawTask.id || rawTask._id,
     taskId: rawTask.taskId,
     type: rawTask.type,
     date: rawTask.date,
@@ -40,6 +38,7 @@ function transformTaskData(rawTask: any): Task {
     driver: rawTask.driver ? {
       firstName: rawTask.driver.firstName,
       lastName: rawTask.driver.lastName,
+      email: rawTask.driver.email,
     } : undefined,
 
     // Time info

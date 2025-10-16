@@ -146,7 +146,7 @@ export function ExportForm({
       onExportComplete([`   - ${existingDocsMap.size} documents existants trouvés.`], null);
 
       for (const item of jsonData) {
-        const docId = item.id || item._id;
+        const docId = item.taskId;
         if (!docId) continue;
 
         const existingTimestamp = existingDocsMap.get(docId.toString());
@@ -187,7 +187,7 @@ export function ExportForm({
       try {
         const batch = writeBatch(firestore);
         chunk.forEach((item) => {
-          const docId = item.id || item._id;
+          const docId = item.taskId;
           if (docId) {
             const docRef = doc(collectionRef, docId.toString());
             batch.set(docRef, item, { merge: true });

@@ -1,8 +1,6 @@
 // A detailed representation of the Task object based on the user's specified fields
 export interface Task {
-  _id: string;
-  id: string;
-  taskId?: string | number;
+  taskId: string | number;
   type?: string;
   date?: string;
   progress?: string;
@@ -22,6 +20,7 @@ export interface Task {
   driver?: {
     firstName?: string;
     lastName?: string;
+    email?: string;
   };
 
   timeWindow?: {

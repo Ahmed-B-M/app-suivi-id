@@ -11,8 +11,9 @@ import { TaskDetails } from "./task-details";
 import { Star } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
+import type { Task } from "@/lib/types";
 
-export function TasksTable({ data }: { data: any[] }) {
+export function TasksTable({ data }: { data: Task[] }) {
 
   if (!data || data.length === 0) {
     return <p>Aucune tâche trouvée.</p>;
@@ -23,10 +24,10 @@ export function TasksTable({ data }: { data: any[] }) {
       {data.map((task) => {
         const rating = task.metadata?.notationLivreur;
         const hasRating = typeof rating === 'number';
-        const id = task.id || task._id;
+        const id = task.taskId;
 
         return (
-          <AccordionItem value={id} key={id}>
+          <AccordionItem value={id.toString()} key={id.toString()}>
             <AccordionTrigger>
               <div className="flex items-center gap-4 justify-between w-full pr-4">
                   <span className="font-mono text-sm truncate">Tâche: {task.taskId || 'N/A'}</span>
