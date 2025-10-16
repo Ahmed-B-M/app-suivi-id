@@ -20,15 +20,27 @@ L'architecture est conçue pour être sécurisée et efficace. Elle sépare clai
 
 Toute la logique métier se trouve dans ce fichier. Il contient les fonctions qui s'exécutent côté serveur.
 
-### 1. Les Actions Principales (`runExportAction` et `runRoundExportAction`)
+### Étape 1 : Les Identifiants, Clés et Endpoints
 
--   Ce sont les points d'entrée déclenchés par les formulaires.
--   Elles valident d'abord les données reçues du formulaire à l'aide de Zod (`exportFormSchema`).
--   Elles initialisent un tableau `logs` pour enregistrer chaque étape du processus.
--   Elles préparent les paramètres de requête pour l'API.
+Avant toute chose, il faut comprendre les éléments de base de la communication avec l'API.
+
+-   **Clé d'API (`x-api-key`)**
+    -   **Quoi ?** C'est un code secret (une longue chaîne de caractères) que vous fournissez dans le formulaire.
+    -   **Pourquoi ?** Elle sert à vous authentifier auprès de l'API Urbantz. C'est comme un mot de passe qui prouve que vous avez le droit de demander des données. Elle est envoyée dans l'en-tête (`header`) de chaque requête pour des raisons de sécurité.
+-   **Endpoints (Les Liens de l'API)**
+    -   **Quoi ?** Ce sont les URL spécifiques que l'application appelle pour obtenir des types de données différents.
+    -   **`https://api.urbantz.com/v2/task`** : Utilisé pour récupérer toutes les données liées aux **tâches**.
+    -   **`https://api.urbantz.com/v2/round`** : Utilisé pour récupérer toutes les données liées aux **tournées**.
+
+### Étape 2 : L'Action Principale (`runExportAction` ou `runRoundExportAction`)
+
+-   Ces fonctions sont les points d'entrée déclenchés par les formulaires.
+-   Elles valident d'abord les données reçues (dates, clé API, etc.) grâce à la librairie **Zod**.
+-   Elles initialisent un tableau `logs` pour enregistrer et afficher chaque étape du processus.
+-   Elles préparent les paramètres de requête pour l'API en utilisant `URLSearchParams`.
 
 **Exemple de logique de date :**
-Pour les tâches, l'API ne permet pas toujours de filtrer sur une plage de dates. L'application doit donc boucler sur chaque jour de la période sélectionnée et effectuer un appel API pour chaque journée.
+Pour les tâches, l'API exige de filtrer jour par jour. L'application doit donc boucler sur chaque jour de la période sélectionnée et effectuer un appel API pour chaque journée.
 
 ```javascript
 // Boucle sur chaque jour de la période sélectionnée
@@ -46,7 +58,7 @@ while (dateCursor <= to) {
 }
 ```
 
-### 2. La Fonction Générique : `fetchGeneric`
+### Étape 3 : La Fonction Générique `fetchGeneric` (Le Moteur de Pagination)
 
 Pour éviter de répéter le code pour les tâches (`task`) et les tournées (`round`), une fonction générique a été créée. C'est elle qui gère la complexité de l'interrogation de l'API.
 
@@ -87,14 +99,14 @@ const response = await fetch(url.toString(), {
 });
 ```
 
-### 3. Les Deux Niveaux de Filtrage
+### Étape 4 : Les Deux Niveaux de Filtrage
 
 C'est un point crucial pour comprendre comment l'application optimise les requêtes.
 
 #### Niveau 1 : Filtrage Côté API (Le plus efficace)
 
--   Pour les filtres que l'API Urbantz comprend (ex: `progress`, `taskId`, `round`, `date`), l'application les ajoute directement dans les paramètres de l'URL (`URLSearchParams`).
--   L'API ne renvoie alors que les données correspondantes. C'est la méthode la plus rapide et la plus économique en termes de transfert de données.
+-   Pour les filtres que l'API Urbantz comprend (ex: `progress` pour le statut, `taskId` pour l'ID de tâche, `round` pour l'ID de tournée, `date`), l'application les ajoute directement dans les paramètres de l'URL (`URLSearchParams`).
+-   L'API ne renvoie alors que les données correspondantes. C'est la méthode la plus rapide.
 
 ```javascript
 // Ajoute le filtre de statut si il est présent
@@ -120,8 +132,32 @@ if (status && status !== "all") {
 }
 ```
 
-Cette méthode est moins efficace car elle nécessite de télécharger plus de données que nécessaire, mais elle est indispensable lorsque l'API a des limitations.
-
 ---
 
-En résumé, l'application est un orchestrateur intelligent qui dialogue avec l'API Urbantz. Elle utilise des Actions Serveur pour la sécurité, gère la pagination pour la complétude des données, et combine le filtrage côté API et côté application pour la précision, tout en informant l'utilisateur de chaque étape grâce à un système de logs.
+## Annexe : Signification des Données de l'API
+
+Voici une description des principaux champs de données que vous pouvez attendre de l'API, basée sur la configuration de votre application.
+
+### Entité `Task` (Tâche)
+
+| Champ             | Signification                                                     | Type de Donnée |
+| ----------------- | ----------------------------------------------------------------- | -------------- |
+| `id`              | L'identifiant unique et technique de la tâche.                    | `string`       |
+| `hubId`           | L'identifiant du centre (hub) auquel la tâche est rattachée.      | `string`       |
+| `createdAt`       | Date et heure de création de la tâche.                            | `date-time`    |
+| `updatedAt`       | Date et heure de la dernière modification de la tâche.            | `date-time`    |
+| `plannedArrival`  | Heure d'arrivée prévue pour l'exécution de la tâche.              | `date-time`    |
+| `description`     | Une description textuelle de ce qui doit être fait.               | `string`       |
+| `status`          | Le statut actuel de la tâche (ex: `COMPLETED`, `ONGOING`).        | `string`       |
+| `priority`        | Le niveau de priorité de la tâche.                                | `number`       |
+| `customerId`      | L'identifiant du client associé à cette tâche.                    | `string`       |
+| `tags`            | Une liste d'étiquettes ou de mots-clés associés à la tâche.       | `array`        |
+
+### Entité `Round` (Tournée)
+
+| Champ    | Signification                                         | Type de Donnée |
+| -------- | ----------------------------------------------------- | -------------- |
+| `id`     | L'identifiant unique et technique de la tournée.      | `string`       |
+| `name`   | Le nom donné à la tournée pour l'identifier facilement. | `string`       |
+| `status` | Le statut actuel de la tournée (ex: `COMPLETED`).     | `string`       |
+| `date`   | La date à laquelle la tournée est prévue ou a eu lieu.  | `date-time`    |
