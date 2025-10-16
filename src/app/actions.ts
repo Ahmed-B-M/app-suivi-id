@@ -35,7 +35,7 @@ function transformTaskData(rawTask: any): Tache {
     livreur: rawTask.driver ? {
       prenom: rawTask.driver.firstName,
       nom: rawTask.driver.lastName,
-      idExterne: rawTask.driver.externalId, // Utilisation de externalId
+      idExterne: rawTask.driver.externalId,
     } : undefined,
 
     creneauHoraire: rawTask.timeWindow ? {
@@ -320,34 +320,35 @@ export async function runRoundExportAction(
     return { logs: [], jsonData: null, error: "Invalid input." };
   }
 
-  const { apiKey, from, to, status } = validatedFields.data;
+  const { apiKey, dateRange, status } = validatedFields.data;
+  const { from, to } = dateRange;
   const logs: string[] = [];
 
   try {
     logs.push(`🚀 Début de l'interrogation des tournées...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
-    // L'API 'round' ne supporte pas de filtre 'status' directement.
-    // On va donc récupérer toutes les tournées pour la période, puis filtrer manuellement.
     const baseParams = new URLSearchParams();
 
     const allRounds: any[] = [];
     logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tournées...`);
 
-    const fromString = from.toISOString().split("T")[0];
-    const toString = to.toISOString().split("T")[0];
+    const fromDate = from;
+    const toDate = to || from; // If 'to' is not set, use 'from' as the end date.
+
+    const fromString = fromDate.toISOString().split("T")[0];
+    const toString = toDate.toISOString().split("T")[0];
     logs.push(
-      `   - Période: ${fromString} à ${toString}`
+      `   - Période: ${fromString}${fromString !== toString ? ` à ${toString}` : ''}`
     );
 
-    // Boucle sur chaque jour pour récupérer les tournées.
-    const dateCursor = new Date(from);
-    while (dateCursor <= to) {
+    const dateCursor = new Date(fromDate);
+    while (dateCursor <= toDate) {
       const dateString = dateCursor.toISOString().split("T")[0];
       logs.push(`\n🗓️  Traitement du ${dateString}...`);
 
       const paramsForDay = new URLSearchParams(baseParams);
-      paramsForDay.append("date", dateString); // Le seul filtre API utilisé ici est la date.
+      paramsForDay.append("date", dateString);
 
       const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs);
       allRounds.push(...roundsForDay);
@@ -356,11 +357,8 @@ export async function runRoundExportAction(
     }
 
     let filteredRounds = allRounds;
-    // ** FILTRAGE CÔTÉ APPLICATION **
-    // Si un statut est sélectionné (et différent de 'tous'), on filtre le tableau 'allRounds'.
     if (status && status !== "all") {
       logs.push(`\n🔄 Filtrage des tournées par statut: ${status}`);
-      // La fonction .filter() de JavaScript crée un nouveau tableau avec seulement les éléments qui passent le test.
       filteredRounds = allRounds.filter((round) => round.status === status);
       logs.push(
         `   - ${allRounds.length - filteredRounds.length} tournées écartées.`

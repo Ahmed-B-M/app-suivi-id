@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DateRange } from "react-day-picker";
 
 export const exportFormSchema = z.object({
   apiKey: z.string().min(1, "API Key is required."),
@@ -18,16 +19,15 @@ export type ExportFormValues = z.infer<typeof exportFormSchema>;
 
 export const roundExportFormSchema = z.object({
   apiKey: z.string().min(1, "La clé d'API est requise."),
-  from: z.date({
-    required_error: "Une date de début est requise.",
-  }),
-  to: z.date({
-    required_error: "Une date de fin est requise.",
-  }),
+  dateRange: z.custom<DateRange>().refine(
+    (data) => !!data?.from,
+    { message: "Une date de début est requise." }
+  ),
   status: z.string().optional(),
 });
 
 export type RoundExportFormValues = z.infer<typeof roundExportFormSchema>;
+
 
 export const schedulerSchema = z.object({
   estimatedDataSize: z.coerce
