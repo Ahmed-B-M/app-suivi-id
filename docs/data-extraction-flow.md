@@ -105,8 +105,13 @@ C'est un point crucial pour comprendre comment l'application optimise les requê
 
 #### Niveau 1 : Filtrage Côté API (Le plus efficace)
 
--   Pour les filtres que l'API Urbantz comprend (ex: `progress` pour le statut, `taskId` pour l'ID de tâche, `round` pour l'ID de tournée, `date`), l'application les ajoute directement dans les paramètres de l'URL (`URLSearchParams`).
--   L'API ne renvoie alors que les données correspondantes. C'est la méthode la plus rapide.
+-   Pour les filtres que l'API Urbantz comprend, l'application les ajoute directement dans les paramètres de l'URL (`URLSearchParams`). L'API ne renvoie alors que les données correspondantes. C'est la méthode la plus rapide et la plus recommandée.
+-   **Exemples de filtres API utilisés dans l'application :**
+    -   `date` : Pour récupérer les éléments d'un jour spécifique.
+    -   `progress` : C'est le nom du paramètre API pour filtrer les **tâches** par leur statut (`COMPLETED`, `ONGOING`, etc.).
+    -   `taskId` : Pour récupérer une tâche par son identifiant unique.
+    -   `round` : Pour récupérer les tâches appartenant à un ID de tournée spécifique.
+    -   `unplanned` : Un booléen (`true`/`false`) pour ne récupérer que les tâches non planifiées.
 
 ```javascript
 // Ajoute le filtre de statut si il est présent
@@ -115,10 +120,10 @@ if (status && status !== "all") baseParams.append("progress", status);
 
 #### Niveau 2 : Filtrage Côté Application (Quand l'API ne peut pas le faire)
 
--   Parfois, l'API ne propose pas de filtre pour un certain champ (par exemple, le statut d'une tournée).
+-   Parfois, l'API ne propose pas de filtre pour un certain champ. C'est le cas pour le **statut des tournées (`Round`)**.
 -   Dans ce cas, l'application est obligée de :
-    1.  Récupérer **toutes** les données pour la période donnée.
-    2.  Utiliser la méthode `.filter()` de JavaScript sur le tableau de données pour ne garder que les éléments qui correspondent au critère.
+    1.  Récupérer **toutes** les tournées pour la période donnée (en filtrant uniquement par `date`).
+    2.  Une fois toutes les données reçues, utiliser la méthode `.filter()` de JavaScript sur le tableau de données pour ne garder que les éléments qui correspondent au critère de statut.
 
 C'est ce qui se passe dans `runRoundExportAction` :
 
@@ -131,33 +136,40 @@ if (status && status !== "all") {
   filteredRounds = allRounds.filter((round) => round.status === status);
 }
 ```
+Cette méthode est moins performante car elle demande plus de données que nécessaire à l'API, mais elle est indispensable quand l'API n'offre pas le filtre requis.
 
 ---
 
 ## Annexe : Signification des Données de l'API
 
-Voici une description des principaux champs de données que vous pouvez attendre de l'API, basée sur la configuration de votre application.
+Voici une description des principaux champs de données que vous pouvez attendre de l'API, basée sur la configuration et l'utilisation dans votre application. **Note :** l'API peut renvoyer bien plus de champs. La méthode la plus fiable pour tous les voir est d'utiliser la vue détaillée dans l'application.
 
 ### Entité `Task` (Tâche)
 
-| Champ             | Signification                                                     | Type de Donnée |
-| ----------------- | ----------------------------------------------------------------- | -------------- |
-| `id`              | L'identifiant unique et technique de la tâche.                    | `string`       |
-| `hubId`           | L'identifiant du centre (hub) auquel la tâche est rattachée.      | `string`       |
-| `createdAt`       | Date et heure de création de la tâche.                            | `date-time`    |
-| `updatedAt`       | Date et heure de la dernière modification de la tâche.            | `date-time`    |
-| `plannedArrival`  | Heure d'arrivée prévue pour l'exécution de la tâche.              | `date-time`    |
-| `description`     | Une description textuelle de ce qui doit être fait.               | `string`       |
-| `status`          | Le statut actuel de la tâche (ex: `COMPLETED`, `ONGOING`).        | `string`       |
-| `priority`        | Le niveau de priorité de la tâche.                                | `number`       |
-| `customerId`      | L'identifiant du client associé à cette tâche.                    | `string`       |
-| `tags`            | Une liste d'étiquettes ou de mots-clés associés à la tâche.       | `array`        |
+| Champ             | Signification                                                                                             | Type de Donnée |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | -------------- |
+| `id`              | L'identifiant unique et technique de la tâche.                                                            | `string`       |
+| `taskId`          | Un autre identifiant pour la tâche, souvent plus lisible ou utilisé dans les interfaces.                  | `string`       |
+| `hubId`           | L'identifiant du centre (hub) auquel la tâche est rattachée.                                              | `string`       |
+| `createdAt`       | Date et heure de création de la tâche.                                                                    | `date-time`    |
+| `updatedAt`       | Date et heure de la dernière modification de la tâche. **Important pour la synchronisation.**             | `date-time`    |
+| `plannedArrival`  | Heure d'arrivée prévue pour l'exécution de la tâche.                                                      | `date-time`    |
+| `description`     | Une description textuelle de ce qui doit être fait.                                                       | `string`       |
+| `status` / `progress` | Le statut actuel de la tâche (ex: `COMPLETED`, `ONGOING`, `ASSIGNED`). Le nom du champ peut varier.     | `string`       |
+| `priority`        | Le niveau de priorité de la tâche.                                                                        | `number`       |
+| `customerId`      | L'identifiant du client associé à cette tâche.                                                            | `string`       |
+| `tags`            | Une liste d'étiquettes ou de mots-clés associés à la tâche.                                               | `array`        |
+| `unplanned`       | Un indicateur (vrai/faux) précisant si la tâche est planifiée ou non.                                     | `boolean`      |
+| `round`           | Un objet ou un identifiant liant la tâche à une tournée (`Round`).                                         | `object/string`|
 
 ### Entité `Round` (Tournée)
 
-| Champ    | Signification                                         | Type de Donnée |
-| -------- | ----------------------------------------------------- | -------------- |
-| `id`     | L'identifiant unique et technique de la tournée.      | `string`       |
-| `name`   | Le nom donné à la tournée pour l'identifier facilement. | `string`       |
-| `status` | Le statut actuel de la tournée (ex: `COMPLETED`).     | `string`       |
-| `date`   | La date à laquelle la tournée est prévue ou a eu lieu.  | `date-time`    |
+| Champ    | Signification                                                                               | Type de Donnée |
+| -------- | ------------------------------------------------------------------------------------------- | -------------- |
+| `id`     | L'identifiant unique et technique de la tournée.                                            | `string`       |
+| `name`   | Le nom donné à la tournée pour l'identifier facilement.                                     | `string`       |
+| `status` | Le statut actuel de la tournée (ex: `COMPLETED`, `ONGOING`, `VALIDATED`, `PUBLISHED`).       | `string`       |
+| `date`   | La date à laquelle la tournée est prévue ou a eu lieu.                                        | `date-time`    |
+| `tasks`  | Une liste des identifiants de tâches (`Task`) incluses dans cette tournée.                      | `array`        |
+| `vehicle`| Des informations sur le véhicule assigné à la tournée.                                        | `object`       |
+| `driver` | Des informations sur le chauffeur assigné.                                                    | `object`       |
