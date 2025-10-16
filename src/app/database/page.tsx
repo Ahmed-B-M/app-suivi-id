@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FileSearch } from "lucide-react";
+import { Accordion } from "@/components/ui/accordion";
+import type { Task } from "@/lib/types";
 
 export default function DatabasePage() {
   const { firestore } = useFirebase();
@@ -28,13 +30,25 @@ export default function DatabasePage() {
     data: tasks,
     isLoading: isLoadingTasks,
     error: tasksError,
-  } = useCollection(tasksCollection);
+  } = useCollection<Task>(tasksCollection);
 
   const {
     data: rounds,
     isLoading: isLoadingRounds,
     error: roundsError,
   } = useCollection(roundsCollection);
+
+  const tasksByStatus = useMemo(() => {
+    if (!tasks) return {};
+    return tasks.reduce((acc, task) => {
+      const status = task.progress || "Unknown";
+      if (!acc[status]) {
+        acc[status] = [];
+      }
+      acc[status].push(task);
+      return acc;
+    }, {} as Record<string, Task[]>);
+  }, [tasks]);
 
   return (
     <main className="flex-1 container py-8">
@@ -57,7 +71,24 @@ export default function DatabasePage() {
               {tasksError && (
                 <p className="text-destructive">Erreur: {tasksError.message}</p>
               )}
-              {tasks && <TasksTable data={tasks} />}
+              {tasks && Object.keys(tasksByStatus).length > 0 ? (
+                 <Accordion type="multiple" className="w-full space-y-4">
+                  {Object.entries(tasksByStatus).map(([status, tasksInStatus]) => (
+                    <Card key={status}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          {status} ({tasksInStatus.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <TasksTable data={tasksInStatus} />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Accordion>
+              ) : (
+                !isLoadingTasks && <p>Aucune tâche trouvée.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
