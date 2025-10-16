@@ -56,13 +56,19 @@
           "type": "number",
           "description": "The rating given to a task, typically from 0 to 5."
         },
-        "notationLivreur": {
-          "type": "number",
-          "description": "The rating given by the delivery person."
-        },
-        "commentaireLivr": {
-          "type": "string",
-          "description": "Comments associated with the task, from the delivery person."
+        "metadata": {
+          "type": "object",
+          "description": "Contains additional metadata for the task.",
+          "properties": {
+            "notationLivreur": {
+              "type": "number",
+              "description": "The rating given by the delivery person."
+            },
+            "commentaireLivr": {
+              "type": "string",
+              "description": "Comments associated with the task, from the delivery person."
+            }
+          }
         }
       },
       "required": [

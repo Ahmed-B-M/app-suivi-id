@@ -9,6 +9,10 @@ export interface Task {
   rating?: number;
   notationLivreur?: number;
   commentaireLivr?: string;
+  metadata?: {
+    notationLivreur?: number;
+    commentaireLivr?: string;
+  };
   // Add other task properties as needed
   [key: string]: any;
 }

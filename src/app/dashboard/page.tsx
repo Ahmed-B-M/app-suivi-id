@@ -81,8 +81,8 @@ export default function DashboardPage() {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
     const ratedTasks = filteredData.tasks.map(t => {
-      // Dynamically find rating field, preferring 'notationLivreur'
-      const rating = t.notationLivreur ?? t.rating;
+      // Dynamically find rating field, preferring 'metadata.notationLivreur'
+      const rating = t.metadata?.notationLivreur ?? t.notationLivreur ?? t.rating;
       return typeof rating === 'number' ? rating : null;
     }).filter((r): r is number => r !== null);
     

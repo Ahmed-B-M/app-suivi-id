@@ -1,3 +1,4 @@
+
 "use client";
 import {
   Accordion,
@@ -18,7 +19,7 @@ export function TasksTable({ data }: { data: any[] }) {
   return (
     <Accordion type="single" collapsible className="w-full">
       {data.map((task) => {
-        const rating = task.notationLivreur ?? task.rating;
+        const rating = task.metadata?.notationLivreur ?? task.notationLivreur ?? task.rating;
         const hasRating = typeof rating === 'number';
 
         return (
