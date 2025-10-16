@@ -7,10 +7,13 @@ import { collection } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Calendar as CalendarIcon } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
+import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
+import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
 import type { Task, Round } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -57,8 +60,14 @@ export default function DashboardPage() {
 
     const filterByDate = (item: Task | Round) => {
       if (!from || !to) return true;
-      if (!item.date) return false;
-      const itemDate = new Date(item.date);
+      const itemDateString = item.date || item.createdAt || item.updatedAt;
+      if (!itemDateString) return false;
+      
+      const itemDate = new Date(itemDateString);
+      // Set hours to 0 to compare dates only
+      from.setHours(0,0,0,0);
+      to.setHours(23,59,59,999);
+
       return itemDate >= from && itemDate <= to;
     };
 
@@ -84,8 +93,11 @@ export default function DashboardPage() {
     const roundStats = filteredData.rounds
       ? {
           totalRounds: filteredData.rounds.length,
+           completedRounds: filteredData.rounds.filter(
+            (r) => r.status === "COMPLETED"
+          ).length,
         }
-      : { totalRounds: 0 };
+      : { totalRounds: 0, completedRounds: 0 };
 
     const tasksByStatus = filteredData.tasks
       ? filteredData.tasks.reduce((acc, task) => {
@@ -104,6 +116,23 @@ export default function DashboardPage() {
         }, {} as Record<string, number>)
       : {};
 
+    const roundsByStatus = filteredData.rounds
+      ? filteredData.rounds.reduce((acc, round) => {
+          const status = round.status || "Unknown";
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      : {};
+
+    const roundsOverTime = filteredData.rounds
+      ? filteredData.rounds.reduce((acc, round) => {
+          const date = round.date ? round.date.split("T")[0] : "Unknown";
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      : {};
+
+
     const hasData = filteredData.tasks.length > 0 || filteredData.rounds.length > 0;
 
     return {
@@ -114,6 +143,16 @@ export default function DashboardPage() {
         value,
       })),
       tasksOverTime: Object.entries(tasksOverTime)
+        .map(([date, count]) => ({
+          date,
+          count,
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+      roundsByStatus: Object.entries(roundsByStatus).map(([name, value]) => ({
+        name,
+        value,
+      })),
+      roundsOverTime: Object.entries(roundsOverTime)
         .map(([date, count]) => ({
           date,
           count,
@@ -171,7 +210,7 @@ export default function DashboardPage() {
 
       {isLoading && (
         <div className="space-y-6">
-          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-28 w-full" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Skeleton className="h-96 w-full" />
             <Skeleton className="h-96 w-full" />
@@ -200,30 +239,51 @@ export default function DashboardPage() {
       )}
 
       {!isLoading && !error && dashboardData && dashboardData.hasData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Aperçu des Données Sauvegardées</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <DashboardStats stats={dashboardData.stats} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {dashboardData.tasksByStatus.length > 0 ? (
-                <TasksByStatusChart data={dashboardData.tasksByStatus} />
-              ) : (
-                 <Card className="flex items-center justify-center h-96">
-                  <p className="text-muted-foreground">Aucune donnée de tâche par statut pour cette période.</p>
-                </Card>
-              )}
-               {dashboardData.tasksOverTime.length > 0 ? (
-                <TasksOverTimeChart data={dashboardData.tasksOverTime} />
-              ) : (
-                <Card className="flex items-center justify-center h-96">
-                  <p className="text-muted-foreground">Aucune donnée de tâche par jour pour cette période.</p>
-                </Card>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <DashboardStats stats={dashboardData.stats} />
+          <Tabs defaultValue="tasks" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="tasks">Analyse des Tâches</TabsTrigger>
+              <TabsTrigger value="rounds">Analyse des Tournées</TabsTrigger>
+            </TabsList>
+            <TabsContent value="tasks" className="mt-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {dashboardData.tasksByStatus.length > 0 ? (
+                  <TasksByStatusChart data={dashboardData.tasksByStatus} />
+                ) : (
+                   <Card className="flex items-center justify-center h-96">
+                    <p className="text-muted-foreground">Aucune donnée de tâche par statut pour cette période.</p>
+                  </Card>
+                )}
+                 {dashboardData.tasksOverTime.length > 0 ? (
+                  <TasksOverTimeChart data={dashboardData.tasksOverTime} />
+                ) : (
+                  <Card className="flex items-center justify-center h-96">
+                    <p className="text-muted-foreground">Aucune donnée de tâche par jour pour cette période.</p>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="rounds" className="mt-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {dashboardData.roundsByStatus.length > 0 ? (
+                  <RoundsByStatusChart data={dashboardData.roundsByStatus} />
+                ) : (
+                   <Card className="flex items-center justify-center h-96">
+                    <p className="text-muted-foreground">Aucune donnée de tournée par statut pour cette période.</p>
+                  </Card>
+                )}
+                 {dashboardData.roundsOverTime.length > 0 ? (
+                  <RoundsOverTimeChart data={dashboardData.roundsOverTime} />
+                ) : (
+                  <Card className="flex items-center justify-center h-96">
+                    <p className="text-muted-foreground">Aucune donnée de tournée par jour pour cette période.</p>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
 
       {!isLoading && !error && dashboardData && !dashboardData.hasData && (
