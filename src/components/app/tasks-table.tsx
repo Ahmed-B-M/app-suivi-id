@@ -9,6 +9,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { TaskDetails } from "./task-details";
 import { Star } from "lucide-react";
+import Link from "next/link";
+import { Button } from "../ui/button";
 
 export function TasksTable({ data }: { data: any[] }) {
 
@@ -19,15 +21,16 @@ export function TasksTable({ data }: { data: any[] }) {
   return (
     <Accordion type="single" collapsible className="w-full">
       {data.map((task) => {
-        const rating = task.metadata?.notationLivreur ?? task.notationLivreur ?? task.rating;
+        const rating = task.metadata?.notationLivreur;
         const hasRating = typeof rating === 'number';
+        const id = task.id || task._id;
 
         return (
-          <AccordionItem value={task.id || task._id} key={task.id || task._id}>
+          <AccordionItem value={id} key={id}>
             <AccordionTrigger>
               <div className="flex items-center gap-4 justify-between w-full pr-4">
                   <span className="font-mono text-sm truncate">Tâche: {task.taskId || 'N/A'}</span>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     {hasRating && (
                       <Badge variant="outline" className="flex items-center gap-1">
                         <Star className="h-3 w-3" />
@@ -37,11 +40,16 @@ export function TasksTable({ data }: { data: any[] }) {
                     <Badge variant={task.progress === 'COMPLETED' ? 'default' : 'secondary'}>
                         {task.progress}
                     </Badge>
+                     <Button variant="outline" size="sm" asChild>
+                       <Link href={`/task/${id}`}>
+                          Voir Détails
+                       </Link>
+                    </Button>
                   </div>
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <TaskDetails task={task} />
+              <TaskDetails taskData={task} />
             </AccordionContent>
           </AccordionItem>
         );

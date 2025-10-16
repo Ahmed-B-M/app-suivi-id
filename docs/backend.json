@@ -4,37 +4,36 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Task",
       "type": "object",
-      "description": "Represents a detailed task fetched from the Urbantz API.",
+      "description": "Represents a filtered task from the Urbantz API with only the user-specified fields.",
       "properties": {
-        "_id": { "type": "string", "description": "Unique database ID for the task." },
-        "taskId": { "type": ["string", "number"], "description": "Identifier for the task, often from the client." },
-        "type": { "type": "string", "description": "Type of task to be performed (e.g., delivery)." },
-        "date": { "type": "string", "format": "date-time", "description": "Planned date for task execution." },
-        "status": { "type": "string", "description": "Final status of the task (e.g., DELIVERED)." },
-        "progress": { "type": "string", "description": "Progress state of the task (e.g., COMPLETED)." },
-        "client": { "type": "string", "description": "Name of the end client for the delivery." },
-        "platformName": { "type": "string", "description": "Name of the platform managing the delivery." },
-        "when": { "type": "string", "format": "date-time", "description": "Timestamp of task creation." },
-        "closureDate": { "type": "string", "format": "date-time", "description": "Timestamp of task closure by the driver." },
-        "updated": { "type": "string", "format": "date-time", "description": "Timestamp of the last task update." },
-        "attempts": { "type": "number", "description": "Number of attempts made for this task." },
-        "completedBy": { "type": "string", "description": "Method of task completion (e.g., mobile, manual)." },
-        "hubName": { "type": "string", "description": "Name of the departure hub or distribution center." },
-        "roundName": { "type": "string", "description": "Name or number of the driver's round." },
-        "sequence": { "type": "number", "description": "Position of this delivery in the round sequence." },
+        "_id": { "type": "string" },
+        "taskId": { "type": ["string", "number"] },
+        "type": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "progress": { "type": "string" },
+        "client": { "type": "string" },
+        "platformName": { "type": "string" },
+        "when": { "type": "string", "format": "date-time" },
+        "closureDate": { "type": "string", "format": "date-time" },
+        "updated": { "type": "string", "format": "date-time" },
+        "attempts": { "type": "number" },
+        "completedBy": { "type": "string" },
+        "hubName": { "type": "string" },
+        "roundName": { "type": "string" },
+        "sequence": { "type": "number" },
+        "associatedName": { "type": "string" },
         "driver": {
           "type": "object",
           "properties": {
-            "firstName": { "type": "string", "description": "First name of the driver." },
-            "lastName": { "type": "string", "description": "Last name of the driver." }
+            "firstName": { "type": "string" },
+            "lastName": { "type": "string" }
           }
         },
-        "associatedName": { "type": "string", "description": "Name of the logistic partner or carrier." },
         "timeWindow": {
           "type": "object",
           "properties": {
-            "start": { "type": "string", "format": "date-time", "description": "Start of the promised delivery time window." },
-            "stop": { "type": "string", "format": "date-time", "description": "End of the promised delivery time window." }
+            "start": { "type": "string", "format": "date-time" },
+            "stop": { "type": "string", "format": "date-time" }
           }
         },
         "actualTime": {
@@ -43,8 +42,8 @@
             "arrive": {
               "type": "object",
               "properties": {
-                "when": { "type": "string", "format": "date-time", "description": "Actual arrival timestamp of the driver." },
-                "isCorrectAddress": { "type": "boolean", "description": "Indicates if the driver confirmed being at the correct address." }
+                "when": { "type": "string", "format": "date-time" },
+                "isCorrectAddress": { "type": "boolean" }
               }
             }
           }
@@ -52,26 +51,26 @@
         "realServiceTime": {
           "type": "object",
           "properties": {
-            "startTime": { "type": "string", "format": "date-time", "description": "Start timestamp of the service time." },
-            "endTime": { "type": "string", "format": "date-time", "description": "End timestamp of the service time." },
-            "serviceTime": { "type": "number", "description": "Total service duration on site, in seconds." }
+            "startTime": { "type": "string", "format": "date-time" },
+            "endTime": { "type": "string", "format": "date-time" },
+            "serviceTime": { "type": "number" }
           }
         },
-        "serviceTime": { "type": "number", "description": "Estimated service time in minutes." },
+        "serviceTime": { "type": "number" },
         "contact": {
           "type": "object",
           "properties": {
-            "person": { "type": "string", "description": "Name of the person to contact for the delivery." },
-            "phone": { "type": "string", "description": "Contact phone number." },
-            "email": { "type": "string", "description": "Contact email address." },
+            "person": { "type": "string" },
+            "phone": { "type": "string" },
+            "email": { "type": "string" },
             "buildingInfo": {
               "type": "object",
               "properties": {
-                "floor": { "type": "string", "description": "Delivery floor." },
-                "hasElevator": { "type": "boolean", "description": "Indicates if the building has an elevator." },
-                "digicode1": { "type": "string", "description": "Building access code." },
-                "hasInterphone": { "type": "boolean", "description": "Indicates if there is an interphone." },
-                "interphoneCode": { "type": "string", "description": "Name or code to use on the interphone." }
+                "floor": { "type": "string" },
+                "hasElevator": { "type": "boolean" },
+                "digicode1": { "type": "string" },
+                "hasInterphone": { "type": "boolean" },
+                "interphoneCode": { "type": "string" }
               }
             }
           }
@@ -79,43 +78,37 @@
         "location": {
           "type": "object",
           "properties": {
-            "address": { "type": "string", "description": "Full formatted delivery address." },
-            "street": { "type": "string", "description": "Street name." },
-            "number": { "type": "string", "description": "Street number." },
-            "zip": { "type": "string", "description": "Postal code." },
-            "city": { "type": "string", "description": "City." },
-            "countryCode": { "type": "string", "description": "Country code." },
-            "location": {
-              "type": "object",
-              "properties": {
-                "geometry": { "type": "array", "items": { "type": "number" }, "description": "GPS coordinates [Longitude, Latitude] of the planned address." }
-              }
-            }
+            "address": { "type": "string" },
+            "street": { "type": "string" },
+            "number": { "type": "string" },
+            "zip": { "type": "string" },
+            "city": { "type": "string" },
+            "countryCode": { "type": "string" },
+            "geometry": { "type": "array", "items": { "type": "number" } }
           }
         },
-        "instructions": { "type": "string", "description": "Special instructions left by the customer." },
+        "instructions": { "type": "string" },
         "dimensions": {
           "type": "object",
           "properties": {
-            "volume": { "type": "number", "description": "Total delivery volume in cubic meters (m3)." },
-            "bac": { "type": "number", "description": "Total number of bins or packages." },
-            "poids": { "type": "number", "description": "Total delivery weight in kilograms (kg)." }
+            "volume": { "type": "number" },
+            "bac": { "type": "number" },
+            "poids": { "type": "number" }
           }
         },
         "items": {
           "type": "array",
-          "description": "List of items/bins in the order.",
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string", "description": "Name or identifier of the item/bin." },
-              "status": { "type": "string", "description": "Status of this specific item." },
-              "barcode": { "type": "string", "description": "Barcode of the item." },
-              "type": { "type": "string", "description": "Category of the bin's content." },
+              "name": { "type": "string" },
+              "status": { "type": "string" },
+              "barcode": { "type": "string" },
+              "type": { "type": "string" },
               "dimensions": {
                 "type": "object",
                 "properties": {
-                  "poids": { "type": "number", "description": "Weight of this specific bin in kg." }
+                  "poids": { "type": "number" }
                 }
               },
               "log": {
@@ -134,29 +127,18 @@
         "execution": {
           "type": "object",
           "properties": {
-            "successPicture": { "type": "string", "description": "Filename of the proof of delivery photo." },
-            "position": {
-              "type": "object",
-              "properties": {
-                "latitude": { "type": "number" },
-                "longitude": { "type": "number" }
-              }
-            }
+            "contactless": { "type": "boolean" }
           }
         },
         "metadata": {
           "type": "object",
-          "description": "Contains additional metadata for the task.",
           "properties": {
-            "notationLivreur": { "type": "number", "description": "The rating given by the delivery person." },
-            "commentaireLivr": { "type": "string", "description": "Comments associated with the task, from the delivery person." },
-            "building": { "type": "string", "description": "Additional building information." },
-            "warehouseCode": { "type": "string", "description": "Origin warehouse code." }
+            "notationLivreur": { "type": "number" },
+            "commentaireLivr": { "type": "string" },
+            "building": { "type": "string" }
           }
-        },
-        "trackingId": { "type": "string", "description": "Unique tracking identifier for the task." }
-      },
-      "required": ["_id", "taskId", "status"]
+        }
+      }
     },
     "Round": {
       "$schema": "http://json-schema.org/draft-07/schema#",

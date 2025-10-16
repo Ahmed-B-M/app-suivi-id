@@ -7,6 +7,115 @@ import {
   schedulerSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
+import { Task } from "@/lib/types";
+
+/**
+ * Transforms a raw task object from the Urbantz API into the desired structure.
+ * @param rawTask - The raw task object from the API.
+ * @returns A new task object with only the specified fields.
+ */
+function transformTaskData(rawTask: any): Task {
+  return {
+    // Base fields
+    id: rawTask.id || rawTask._id,
+    _id: rawTask._id,
+    taskId: rawTask.taskId,
+    type: rawTask.type,
+    date: rawTask.date,
+    progress: rawTask.progress,
+    client: rawTask.client,
+    platformName: rawTask.platformName,
+    when: rawTask.when,
+    closureDate: rawTask.closureDate,
+    updated: rawTask.updated,
+    attempts: rawTask.attempts,
+    completedBy: rawTask.completedBy,
+    unplanned: rawTask.unplanned || false,
+    
+    // Round info
+    hubName: rawTask.hubName,
+    roundName: rawTask.roundName,
+    sequence: rawTask.sequence,
+    associatedName: rawTask.associatedName,
+    driver: rawTask.driver ? {
+      firstName: rawTask.driver.firstName,
+      lastName: rawTask.driver.lastName,
+    } : undefined,
+
+    // Time info
+    timeWindow: rawTask.timeWindow ? {
+      start: rawTask.timeWindow.start,
+      stop: rawTask.timeWindow.stop,
+    } : undefined,
+    actualTime: rawTask.actualTime ? {
+      arrive: rawTask.actualTime.arrive ? {
+        when: rawTask.actualTime.arrive.when,
+        isCorrectAddress: rawTask.actualTime.arrive.isCorrectAddress,
+      } : undefined,
+    } : undefined,
+    realServiceTime: rawTask.realServiceTime ? {
+      startTime: rawTask.realServiceTime.startTime,
+      endTime: rawTask.realServiceTime.endTime,
+      serviceTime: rawTask.realServiceTime.serviceTime,
+    } : undefined,
+    serviceTime: rawTask.serviceTime,
+
+    // Contact and location
+    contact: rawTask.contact ? {
+      person: rawTask.contact.person,
+      phone: rawTask.contact.phone,
+      email: rawTask.contact.email,
+      buildingInfo: rawTask.contact.buildingInfo ? {
+        floor: rawTask.contact.buildingInfo.floor,
+        hasElevator: rawTask.contact.buildingInfo.hasElevator,
+        digicode1: rawTask.contact.buildingInfo.digicode1,
+        hasInterphone: rawTask.contact.buildingInfo.hasInterphone,
+        interphoneCode: rawTask.contact.buildingInfo.interphoneCode,
+      } : undefined,
+    } : undefined,
+    location: rawTask.location ? {
+      address: rawTask.location.address,
+      street: rawTask.location.street,
+      number: rawTask.location.number,
+      zip: rawTask.location.zip,
+      city: rawTask.location.city,
+      countryCode: rawTask.location.countryCode,
+      geometry: rawTask.location.location?.geometry,
+    } : undefined,
+    instructions: rawTask.instructions,
+
+    // Order details
+    dimensions: rawTask.dimensions ? {
+      volume: rawTask.dimensions.volume,
+      bac: rawTask.dimensions.bac,
+      poids: rawTask.dimensions.poids,
+    } : undefined,
+    items: Array.isArray(rawTask.items) ? rawTask.items.map((item: any) => ({
+      name: item.name,
+      status: item.status,
+      barcode: item.barcode,
+      type: item.type,
+      dimensions: item.dimensions ? {
+        poids: item.dimensions.poids,
+      } : undefined,
+      log: Array.isArray(item.log) ? item.log.map((logEntry: any) => ({
+        when: logEntry.when,
+        to: logEntry.to,
+      })) : undefined,
+    })) : undefined,
+
+    // Execution & Metadata
+    execution: rawTask.execution ? {
+      contactless: rawTask.execution.contactless,
+    } : undefined,
+    metadata: rawTask.metadata ? {
+      notationLivreur: rawTask.metadata.notationLivreur,
+      commentaireLivr: rawTask.metadata.commentaireLivr,
+      building: rawTask.metadata.building,
+    } : undefined,
+  };
+}
+
 
 /**
  * Fonction générique pour interroger un endpoint de l'API Urbantz (task ou round).
@@ -94,7 +203,11 @@ async function fetchTasks(
   logs: string[]
 ) {
   // Appelle la fonction générique avec l'endpoint 'task'.
-  return fetchGeneric("task", apiKey, params, logs);
+  const rawTasks = await fetchGeneric("task", apiKey, params, logs);
+  logs.push(`\n🔄 Transformation de ${rawTasks.length} tâches brutes...`);
+  const transformedTasks = rawTasks.map(transformTaskData);
+  logs.push(`   - Transformation terminée.`);
+  return transformedTasks;
 }
 
 // --- Action d'Exportation des Tâches ---
@@ -168,9 +281,9 @@ export async function runExportAction(
       };
     }
 
-    logs.push(`\n✅ ${allTasks.length} tâches brutes récupérées au total.`);
+    logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
     logs.push(
-      `\n🔄 Sauvegarde des données brutes dans 'donnees_urbantz_tasks_filtrees.json'...`
+      `\n🔄 Sauvegarde des données dans 'donnees_urbantz_tasks_filtrees.json'...`
     );
     logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
     logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);

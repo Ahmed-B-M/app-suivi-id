@@ -1,28 +1,29 @@
-// A detailed representation of the Task object based on the full API schema
+// A detailed representation of the Task object based on the user's specified fields
 export interface Task {
   id: string;
   _id: string;
-  taskId?: string | number;
-  type?: string;
-  date?: string;
-  status?: string;
-  progress?: string;
-  client?: string;
-  platformName?: string;
-  when?: string;
-  closureDate?: string;
-  updated?: string;
+  taskId: string | number;
+  type: string;
+  date: string;
+  progress: string;
+  client: string;
+  platformName: string;
+  when: string;
+  closureDate: string;
+  updated: string;
+  attempts: number;
+  completedBy: string;
   unplanned: boolean;
-  attempts?: number;
-  completedBy?: string;
+
   hubName?: string;
   roundName?: string;
   sequence?: number;
+  associatedName?: string;
   driver?: {
     firstName?: string;
     lastName?: string;
   };
-  associatedName?: string;
+
   timeWindow?: {
     start?: string;
     stop?: string;
@@ -39,6 +40,7 @@ export interface Task {
     serviceTime?: number;
   };
   serviceTime?: number;
+
   contact?: {
     person?: string;
     phone?: string;
@@ -58,11 +60,10 @@ export interface Task {
     zip?: string;
     city?: string;
     countryCode?: string;
-    location?: {
-      geometry?: [number, number];
-    };
+    geometry?: [number, number];
   };
   instructions?: string;
+
   dimensions?: {
     volume?: number;
     bac?: number;
@@ -81,24 +82,18 @@ export interface Task {
       to?: string;
     }[];
   }[];
+  
   execution?: {
-    successPicture?: string;
-    position?: {
-      latitude?: number;
-      longitude?: number;
-    };
+    contactless?: boolean;
   };
+
   metadata?: {
     notationLivreur?: number;
     commentaireLivr?: string;
     building?: string;
-
-    warehouseCode?: string;
   };
-  trackingId?: string;
+  
   driverId?: string; // Kept for rating details functionality
-  // Allow any other properties for flexibility
-  [key: string]: any;
 }
 
 // A basic representation of the Round object based on schema
