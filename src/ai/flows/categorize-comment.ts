@@ -11,7 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const categories = [
+const categories = [
   'Attitude livreur',
   'Amabilité livreur',
   'Casse produit',
@@ -68,5 +68,3 @@ const categorizeCommentFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    

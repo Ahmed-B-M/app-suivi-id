@@ -35,7 +35,24 @@ import { Badge } from "@/components/ui/badge";
 import { BrainCircuit, MessageSquare, Star } from "lucide-react";
 import { getDriverFullName } from '@/lib/grouping';
 import { format } from 'date-fns';
-import { categories } from '@/ai/flows/categorize-comment';
+
+export const categories = [
+  'Attitude livreur',
+  'Amabilité livreur',
+  'Casse produit',
+  'Manquant produit',
+  'Manquant multiple',
+  'Manquant bac',
+  'Non livré',
+  'Erreur de préparation',
+  'Erreur de livraison',
+  'Livraison en avance',
+  'Livraison en retard',
+  'Rupture chaine de froid',
+  'Process',
+  'Non pertinent',
+  'Autre',
+] as const;
 
 export type CategorizedComment = {
   task: Tache;
@@ -151,5 +168,3 @@ export function CommentAnalysis({ data, onCategoryChange }: CommentAnalysisProps
     </Card>
   );
 }
-
-    
