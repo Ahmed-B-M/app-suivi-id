@@ -12,6 +12,7 @@ import {
   Hourglass,
   ListTodo,
   MapPinOff,
+  Megaphone,
   Repeat,
   Route,
   SearchX,
@@ -47,6 +48,7 @@ type DashboardStatsProps = {
     redeliveries: number;
     failedDeliveryRate: number | null;
     sensitiveDeliveries: number;
+    qualityAlerts: number;
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -58,6 +60,7 @@ type DashboardStatsProps = {
   onPartialDeliveredClick: () => void;
   onRedeliveryClick: () => void;
   onSensitiveDeliveriesClick: () => void;
+  onQualityAlertClick: () => void;
 };
 
 export function DashboardStats({ 
@@ -72,6 +75,7 @@ export function DashboardStats({
   onPartialDeliveredClick,
   onRedeliveryClick,
   onSensitiveDeliveriesClick,
+  onQualityAlertClick,
 }: DashboardStatsProps) {
   const gridCols = "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
 
@@ -161,6 +165,17 @@ export function DashboardStats({
         <CardContent>
           <div className="text-2xl font-bold">
             {stats.averageRating ? stats.averageRating.toFixed(2) : "N/A"}
+          </div>
+        </CardContent>
+      </Card>
+      <Card onClick={onQualityAlertClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Alerte qualité</CardTitle>
+          <Megaphone className="h-4 w-4 text-red-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-red-600">
+            {stats.qualityAlerts}
           </div>
         </CardContent>
       </Card>

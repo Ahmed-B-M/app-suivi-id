@@ -42,6 +42,7 @@ import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-de
 import { MissingBacsDetailsDialog } from "@/components/app/missing-bacs-details-dialog";
 import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dialog";
 import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
+import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -56,6 +57,7 @@ export default function DashboardPage() {
   const [isMissingBacsDetailsOpen, setIsMissingBacsDetailsOpen] = useState(false);
   const [isRedeliveryDetailsOpen, setIsRedeliveryDetailsOpen] = useState(false);
   const [isSensitiveDeliveriesOpen, setIsSensitiveDeliveriesOpen] = useState(false);
+  const [isQualityAlertOpen, setIsQualityAlertOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late';
     tasks: PunctualityTask[];
@@ -247,6 +249,10 @@ export default function DashboardPage() {
       return sensitiveKeywords.some(keyword => lowercasedInstructions.includes(keyword));
     });
 
+    const qualityAlertTasks = filteredData.tasks.filter(
+      (t) => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4
+    );
+
     const taskStats = {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
@@ -266,6 +272,7 @@ export default function DashboardPage() {
       redeliveries: redeliveriesList.length,
       failedDeliveryRate: failedDeliveryRate,
       sensitiveDeliveries: sensitiveDeliveriesList.length,
+      qualityAlerts: qualityAlertTasks.length,
     };
 
     const roundStats = filteredData.rounds
@@ -339,6 +346,7 @@ export default function DashboardPage() {
       partialDeliveredTasksList,
       redeliveriesList,
       sensitiveDeliveriesList,
+      qualityAlertTasks,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
         name,
         value,
@@ -406,6 +414,11 @@ export default function DashboardPage() {
         isOpen={isSensitiveDeliveriesOpen}
         onOpenChange={setIsSensitiveDeliveriesOpen}
         tasks={dashboardData?.sensitiveDeliveriesList || []}
+      />
+      <QualityAlertDialog
+        isOpen={isQualityAlertOpen}
+        onOpenChange={setIsQualityAlertOpen}
+        tasks={dashboardData?.qualityAlertTasks || []}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -521,6 +534,7 @@ export default function DashboardPage() {
             onPartialDeliveredClick={() => setStatusDetails({ status: 'PARTIAL_DELIVERED', tasks: dashboardData.partialDeliveredTasksList, type: 'status' })}
             onRedeliveryClick={() => setIsRedeliveryDetailsOpen(true)}
             onSensitiveDeliveriesClick={() => setIsSensitiveDeliveriesOpen(true)}
+            onQualityAlertClick={() => setIsQualityAlertOpen(true)}
           />
           
           <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
