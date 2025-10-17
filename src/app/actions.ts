@@ -115,7 +115,7 @@ function transformTaskData(rawTask: any): Tache {
  */
 function transformRoundData(rawRound: any): Tournee {
   return {
-    id: rawRound.id,
+    id: rawRound.id || rawRound._id,
     date: rawRound.date,
     dimensions: rawRound.dimensions,
     endLocation: rawRound.endLocation,
@@ -127,7 +127,7 @@ function transformRoundData(rawRound: any): Tournee {
       TempSURG_Chargement: rawRound.metadata.TempSURG_Chargement,
       TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
       Immatriculation: rawRound.metadata.Immatriculation,
-      TempSURG_Fin: rawRound.metadata.TempSURG_Fin, 
+      TempSURG_Fin: rawRound.metadata.TempSURG_Fin,
       TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
     } : undefined,
     name: rawRound.name,
