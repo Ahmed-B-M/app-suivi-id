@@ -98,7 +98,9 @@ function transformTaskData(rawTask: any): Tache {
     })) : undefined,
 
     execution: rawTask.execution ? {
-      sansContact: rawTask.execution.contactless,
+        sansContact: rawTask.execution.contactless ? {
+            forced: rawTask.execution.contactless.forced,
+        } : undefined,
     } : undefined,
     metaDonnees: rawTask.metadata ? {
       notationLivreur: rawTask.metadata.notationLivreur,
@@ -411,3 +413,5 @@ export async function getScheduleAction(
     };
   }
 }
+
+    
