@@ -21,13 +21,14 @@ export function TasksTable({ data }: { data: Tache[] }) {
 
   return (
     <Accordion type="single" collapsible className="w-full">
-      {data.map((task) => {
+      {data.map((task, index) => {
         const rating = task.metaDonnees?.notationLivreur;
         const hasRating = typeof rating === 'number';
         const id = task.tacheId;
+        const key = id ? `${id.toString()}-${index}` : index.toString();
 
         return (
-          <AccordionItem value={id.toString()} key={id.toString()}>
+          <AccordionItem value={key} key={key}>
             <AccordionTrigger>
               <div className="flex items-center gap-4 justify-between w-full pr-4">
                   <span className="font-mono text-sm truncate">Tâche: {task.tacheId || 'N/A'}</span>
