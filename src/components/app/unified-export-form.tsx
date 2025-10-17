@@ -50,7 +50,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFirebase } from "@/firebase";
+import { useFirebase, useUser } from "@/firebase";
 import { Tache, Tournee } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 
@@ -81,6 +81,7 @@ export function UnifiedExportForm({
 }: UnifiedExportFormProps) {
   const { toast } = useToast();
   const { firestore } = useFirebase();
+  const { isUserLoading } = useUser();
 
   const form = useForm<UnifiedExportFormValues>({
     resolver: zodResolver(unifiedExportFormSchema),
@@ -355,22 +356,22 @@ export function UnifiedExportForm({
             />
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-2">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || isUserLoading}>
               {isExporting ? <Loader2 className="animate-spin" /> : <Rocket />}
               {isExporting ? "Export en cours..." : "Lancer l'Export"}
             </Button>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={handleResetClick} disabled={isLoading}>
+              <Button type="button" variant="outline" onClick={handleResetClick} disabled={isLoading || isUserLoading}>
                 <RotateCcw/>Réinitialiser
               </Button>
-              <Button type="button" onClick={handleSaveToFirestore} disabled={!hasData || isLoading}>
+              <Button type="button" onClick={handleSaveToFirestore} disabled={!hasData || isLoading || isUserLoading}>
                 {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
                 {isSaving ? "Sauvegarde..." : "Sauvegarder"}
               </Button>
-              <Button type="button" onClick={() => handleDownload('tasks')} disabled={!taskJsonData || taskJsonData.length === 0}>
+              <Button type="button" onClick={() => handleDownload('tasks')} disabled={!taskJsonData || taskJsonData.length === 0 || isUserLoading}>
                 <Download />Tâches
               </Button>
-              <Button type="button" onClick={() => handleDownload('rounds')} disabled={!roundJsonData || roundJsonData.length === 0}>
+              <Button type="button" onClick={() => handleDownload('rounds')} disabled={!roundJsonData || roundJsonData.length === 0 || isUserLoading}>
                 <Download />Tournées
               </Button>
             </div>
@@ -380,5 +381,7 @@ export function UnifiedExportForm({
     </Card>
   );
 }
+
+    
 
     
