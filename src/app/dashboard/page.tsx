@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { format, subDays } from "date-fns";
+import { format, subDays, addMinutes, subMinutes } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
@@ -142,6 +142,29 @@ export default function DashboardPage() {
         ? ratedTasks.reduce((sum, rating) => sum + rating, 0) /
           ratedTasks.length
         : null;
+        
+    let punctualTasks = 0;
+    const completedTasksWithTime = filteredData.tasks.filter(
+        t => t.progression === "COMPLETED" && t.creneauHoraire?.fin && t.heureReelle?.arrivee?.date && t.creneauHoraire?.debut
+    );
+    
+    completedTasksWithTime.forEach(task => {
+        const arrivalTime = new Date(task.heureReelle!.arrivee!.date!);
+        const windowStart = new Date(task.creneauHoraire!.debut!);
+        const windowEnd = new Date(task.creneauHoraire!.fin!);
+
+        const lowerBound = subMinutes(windowStart, 15);
+        const upperBound = addMinutes(windowEnd, 15);
+
+        if (arrivalTime >= lowerBound && arrivalTime <= upperBound) {
+            punctualTasks++;
+        }
+    });
+
+    const punctualityRate = completedTasksWithTime.length > 0
+      ? (punctualTasks / completedTasksWithTime.length) * 100
+      : null;
+
 
     const taskStats = filteredData.tasks
       ? {
@@ -151,8 +174,9 @@ export default function DashboardPage() {
           ).length,
           unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
           averageRating: averageRating,
+          punctualityRate: punctualityRate,
         }
-      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null };
+      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null, punctualityRate: null };
 
     const roundStats = filteredData.rounds
       ? {
@@ -407,3 +431,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
