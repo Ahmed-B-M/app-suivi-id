@@ -42,14 +42,17 @@ import { useFilterContext } from "@/context/filter-context";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
-import { getHubCategory, getDepotFromHub } from "@/lib/grouping";
+import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
+import { BillingDashboard, BillingData } from "@/components/app/billing-dashboard";
 
-// Mock data for now - we will replace this with Firestore data later
-const mockBillingRules = [
-  { id: "1", type: "Prix par tournée", target: "Dépôt: Aix", price: "15.50" },
-  { id: "2", type: "Coût par tournée", target: "Transporteur: YEL'IN", price: "12.00" },
-  { id: "3", type: "Prix par tournée", target: "Entrepôt: Rungis FRAIS", price: "20.00" },
-];
+export interface BillingRule {
+  id: string;
+  type: 'Prix par tournée' | 'Coût par tournée';
+  targetType: 'Dépôt' | 'Entrepôt' | 'Transporteur';
+  targetValue: string;
+  price: number;
+}
+
 
 const billingRuleSchema = z.object({
   type: z.enum(["Prix par tournée", "Coût par tournée"]),
@@ -61,7 +64,12 @@ const billingRuleSchema = z.object({
 type BillingRuleFormValues = z.infer<typeof billingRuleSchema>;
 
 export default function BillingPage() {
-  const [rules, setRules] = useState(mockBillingRules);
+  const [rules, setRules] = useState<BillingRule[]>([
+    { id: "1", type: "Prix par tournée", targetType: "Dépôt", targetValue: "Aix", price: 15.50 },
+    { id: "2", type: "Coût par tournée", targetType: "Transporteur", targetValue: "YEL'IN", price: 12.00 },
+    { id: "3", type: "Prix par tournée", targetType: "Entrepôt", targetValue: "Rungis FRAIS", price: 20.00 },
+  ]);
+
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
 
@@ -84,7 +92,6 @@ export default function BillingPage() {
     let filteredTasks = tasks || [];
     let filteredRounds = rounds || [];
 
-    // Filter by date
     if (from) {
       const startOfDay = new Date(from);
       startOfDay.setHours(0,0,0,0);
@@ -103,21 +110,18 @@ export default function BillingPage() {
       filteredRounds = filteredRounds.filter(filterByDate);
     }
     
-    // Filter by type (depot/magasin)
     if (filterType !== 'tous') {
         const filterLogic = (item: Tache | Tournee) => getHubCategory(item.nomHub) === filterType;
         filteredTasks = filteredTasks.filter(filterLogic);
         filteredRounds = filteredRounds.filter(filterLogic);
     }
 
-    // Filter by specific depot
     if (selectedDepot !== "all") {
       const filterLogic = (item: Tache | Tournee) => getDepotFromHub(item.nomHub) === selectedDepot;
       filteredTasks = filteredTasks.filter(filterLogic);
       filteredRounds = filteredRounds.filter(filterLogic);
     }
     
-    // Filter by specific store
     if (selectedStore !== "all") {
       const filterLogic = (item: Tache | Tournee) => item.nomHub === selectedStore;
       filteredTasks = filteredTasks.filter(filterLogic);
@@ -126,6 +130,64 @@ export default function BillingPage() {
 
     return { tasks: filteredTasks, rounds: filteredRounds };
   }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
+
+
+  const billingData = useMemo((): BillingData | null => {
+    if (!filteredData.rounds) return null;
+
+    const detailedBilling: BillingData['details'] = [];
+    let totalPrice = 0;
+    let totalCost = 0;
+
+    for (const round of filteredData.rounds) {
+      const driverName = getDriverFullName(round);
+      const carrier = getCarrierFromDriver(driverName);
+      const depot = getDepotFromHub(round.nomHub);
+      const hubCategory = getHubCategory(round.nomHub);
+      const store = hubCategory === 'magasin' ? round.nomHub : undefined;
+
+      const priceRule = rules.find(rule => 
+        rule.type === 'Prix par tournée' &&
+        ((rule.targetType === 'Dépôt' && rule.targetValue === depot) ||
+         (rule.targetType === 'Entrepôt' && rule.targetValue === store) ||
+         (rule.targetType === 'Transporteur' && rule.targetValue === carrier))
+      );
+
+      const costRule = rules.find(rule => 
+        rule.type === 'Coût par tournée' &&
+        ((rule.targetType === 'Dépôt' && rule.targetValue === depot) ||
+         (rule.targetType === 'Entrepôt' && rule.targetValue === store) ||
+         (rule.targetType === 'Transporteur' && rule.targetValue === carrier))
+      );
+      
+      const price = priceRule?.price ?? 0;
+      const cost = costRule?.price ?? 0;
+
+      totalPrice += price;
+      totalCost += cost;
+
+      detailedBilling.push({
+        round,
+        carrier,
+        depot,
+        store,
+        priceRule,
+        costRule,
+        price,
+        cost,
+      });
+    }
+
+    return {
+      summary: {
+        totalPrice,
+        totalCost,
+        margin: totalPrice - totalCost,
+        totalRounds: filteredData.rounds.length,
+      },
+      details: detailedBilling.sort((a, b) => new Date(b.round.date!).getTime() - new Date(a.round.date!).getTime()),
+    };
+  }, [filteredData.rounds, rules]);
 
 
   const form = useForm<BillingRuleFormValues>({
@@ -139,11 +201,12 @@ export default function BillingPage() {
   });
 
   function onSubmit(values: BillingRuleFormValues) {
-    const newRule = {
+    const newRule: BillingRule = {
       id: (rules.length + 1).toString(),
       type: values.type,
-      target: `${values.targetType}: ${values.targetValue}`,
-      price: values.price.toFixed(2),
+      targetType: values.targetType,
+      targetValue: values.targetValue,
+      price: values.price,
     };
     setRules([...rules, newRule]);
     form.reset();
@@ -153,26 +216,14 @@ export default function BillingPage() {
     setRules(rules.filter(rule => rule.id !== id));
   }
 
-  // You can use filteredData.rounds for billing calculations
-  // For example:
-  const totalRounds = filteredData.rounds.length;
 
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Module de Facturation</h1>
       
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Données Actuelles</CardTitle>
-          <CardDescription>Données filtrées pour la facturation basées sur les filtres globaux.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Nombre de tournées correspondant aux filtres : <span className="font-bold text-2xl">{totalRounds}</span></p>
-        </CardContent>
-      </Card>
+      {billingData && <BillingDashboard data={billingData} />}
 
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
         <div className="md:col-span-1">
           <Card>
             <CardHeader>
@@ -276,6 +327,7 @@ export default function BillingPage() {
                   <TableRow>
                     <TableHead>Type</TableHead>
                     <TableHead>Cible</TableHead>
+                    <TableHead>Valeur Cible</TableHead>
                     <TableHead className="text-right">Prix / Coût</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -284,8 +336,9 @@ export default function BillingPage() {
                   {rules.map((rule) => (
                     <TableRow key={rule.id}>
                       <TableCell>{rule.type}</TableCell>
-                      <TableCell>{rule.target}</TableCell>
-                      <TableCell className="text-right font-medium">{rule.price} €</TableCell>
+                      <TableCell>{rule.targetType}</TableCell>
+                      <TableCell>{rule.targetValue}</TableCell>
+                      <TableCell className="text-right font-medium">{rule.price.toFixed(2)} €</TableCell>
                        <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => deleteRule(rule.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -295,7 +348,7 @@ export default function BillingPage() {
                   ))}
                    {rules.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                           Aucune règle de facturation définie.
                         </TableCell>
                       </TableRow>
@@ -309,3 +362,5 @@ export default function BillingPage() {
     </main>
   );
 }
+
+    
