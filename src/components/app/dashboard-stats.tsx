@@ -9,6 +9,8 @@ import {
   ListTodo,
   Route,
   Star,
+  TimerOff,
+  Timer,
   Trophy,
 } from "lucide-react";
 
@@ -21,13 +23,19 @@ type DashboardStatsProps = {
     punctualityRate: number | null;
     totalRounds: number;
     completedRounds: number;
+    earlyTasksCount: number;
+    lateTasksCount: number;
   };
   onRatingClick: () => void;
+  onEarlyClick: () => void;
+  onLateClick: () => void;
 };
 
-export function DashboardStats({ stats, onRatingClick }: DashboardStatsProps) {
+export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick }: DashboardStatsProps) {
+  const gridCols = "grid-cols-1 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9";
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+    <div className={`grid gap-4 ${gridCols}`}>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Tâches Totales</CardTitle>
@@ -55,6 +63,24 @@ export function DashboardStats({ stats, onRatingClick }: DashboardStatsProps) {
           <div className="text-2xl font-bold">
             {stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"}
           </div>
+        </CardContent>
+      </Card>
+       <Card onClick={onEarlyClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Tâches en Avance</CardTitle>
+          <Timer className="h-4 w-4 text-green-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-500">{stats.earlyTasksCount}</div>
+        </CardContent>
+      </Card>
+       <Card onClick={onLateClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Tâches en Retard</CardTitle>
+          <TimerOff className="h-4 w-4 text-red-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-red-500">{stats.lateTasksCount}</div>
         </CardContent>
       </Card>
       <Card onClick={onRatingClick} className="cursor-pointer hover:bg-muted">

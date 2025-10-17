@@ -30,11 +30,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { format, subDays, addMinutes, subMinutes } from "date-fns";
+import { format, subDays, addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
+import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -45,6 +46,10 @@ export default function DashboardPage() {
   const [selectedDepot, setSelectedDepot] = useState<string>("all");
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
+  const [punctualityDetails, setPunctualityDetails] = useState<{
+    type: 'early' | 'late';
+    tasks: PunctualityTask[];
+  } | null>(null);
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -144,19 +149,25 @@ export default function DashboardPage() {
         : null;
         
     let punctualTasks = 0;
+    const earlyTasks: PunctualityTask[] = [];
+    const lateTasks: PunctualityTask[] = [];
     const completedTasksWithTime = filteredData.tasks.filter(
-        t => t.progression === "COMPLETED" && t.creneauHoraire?.fin && t.heureReelle?.arrivee?.date && t.creneauHoraire?.debut
+        t => t.progression === "COMPLETED" && t.creneauHoraire?.debut && t.heureReelle?.arrivee?.date
     );
     
     completedTasksWithTime.forEach(task => {
         const arrivalTime = new Date(task.heureReelle!.arrivee!.date!);
         const windowStart = new Date(task.creneauHoraire!.debut!);
-        const windowEnd = new Date(task.creneauHoraire!.fin!);
+        const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120); // Default to 2h window if no end
 
         const lowerBound = subMinutes(windowStart, 15);
         const upperBound = addMinutes(windowEnd, 15);
 
-        if (arrivalTime >= lowerBound && arrivalTime <= upperBound) {
+        if (arrivalTime < lowerBound) {
+            earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, arrivalTime) });
+        } else if (arrivalTime > upperBound) {
+            lateTasks.push({ task, minutes: differenceInMinutes(arrivalTime, upperBound) });
+        } else {
             punctualTasks++;
         }
     });
@@ -175,8 +186,10 @@ export default function DashboardPage() {
           unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
           averageRating: averageRating,
           punctualityRate: punctualityRate,
+          earlyTasksCount: earlyTasks.length,
+          lateTasksCount: lateTasks.length,
         }
-      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null, punctualityRate: null };
+      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null, punctualityRate: null, earlyTasksCount: 0, lateTasksCount: 0 };
 
     const roundStats = filteredData.rounds
       ? {
@@ -236,6 +249,8 @@ export default function DashboardPage() {
     return {
       hasData,
       stats: { ...taskStats, ...roundStats },
+      earlyTasks,
+      lateTasks,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
         name,
         value,
@@ -269,6 +284,11 @@ export default function DashboardPage() {
         isOpen={isRatingDetailsOpen}
         onOpenChange={setIsRatingDetailsOpen}
         tasks={filteredData.tasks}
+      />
+      <PunctualityDetailsDialog
+        isOpen={!!punctualityDetails}
+        onOpenChange={() => setPunctualityDetails(null)}
+        details={punctualityDetails}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -372,7 +392,12 @@ export default function DashboardPage() {
 
       {!isLoading && !error && dashboardData && dashboardData.hasData && (
         <div className="space-y-6">
-          <DashboardStats stats={dashboardData.stats} onRatingClick={() => setIsRatingDetailsOpen(true)}/>
+          <DashboardStats 
+            stats={dashboardData.stats} 
+            onRatingClick={() => setIsRatingDetailsOpen(true)}
+            onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
+            onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
+          />
           
           <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
 
