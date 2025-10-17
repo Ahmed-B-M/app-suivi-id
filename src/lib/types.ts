@@ -12,7 +12,7 @@ export interface Tache {
   dateMiseAJour?: string;
   tentatives?: number;
   completePar?: string;
-  nonPlanifie?: boolean;
+  unplanned?: boolean;
 
   nomHub?: string;
   nomTournee?: string;
