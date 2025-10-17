@@ -34,7 +34,7 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <Sidebar collapsible="none">
+    <Sidebar collapsible="icon" variant="inset">
       <SidebarContent>
         <SidebarMenu>
           {links.map((link) => (

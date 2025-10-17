@@ -41,9 +41,8 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <FilterProvider>
             <SidebarProvider>
-              <div className="flex min-h-screen">
                 <SidebarNav />
-                <div className="flex flex-col w-full">
+                <SidebarInset>
                   <AppHeader />
                   <main className="flex-1">
                     {children}
@@ -54,8 +53,7 @@ export default function RootLayout({
                       ID-pilote
                     </div>
                   </footer>
-                </div>
-              </div>
+                </SidebarInset>
             </SidebarProvider>
           </FilterProvider>
         </FirebaseClientProvider>
