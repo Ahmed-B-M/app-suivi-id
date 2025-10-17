@@ -18,6 +18,7 @@ import type { Tache, Tournee } from "@/lib/types";
 import { addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName, getHubCategory } from "@/lib/grouping";
+import { calculateDriverScore, DriverStats } from "@/lib/scoring";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
@@ -237,32 +238,54 @@ export default function DashboardPage() {
       (t) => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4
     );
 
-    const driverStats: Record<string, { ratings: number[], fiveStarCount: number }> = {};
+    // Comprehensive driver stats calculation
+    const driverData: Record<string, { tasks: Tache[] }> = {};
     filteredData.tasks.forEach(task => {
-        const rating = task.metaDonnees?.notationLivreur;
-        if (typeof rating === 'number') {
-            const driverName = getDriverFullName(task);
-            if (driverName) {
-                if (!driverStats[driverName]) {
-                    driverStats[driverName] = { ratings: [], fiveStarCount: 0 };
-                }
-                driverStats[driverName].ratings.push(rating);
-                if (rating === 5) {
-                    driverStats[driverName].fiveStarCount++;
-                }
+        const driverName = getDriverFullName(task);
+        if (driverName) {
+            if (!driverData[driverName]) {
+                driverData[driverName] = { tasks: [] };
             }
+            driverData[driverName].tasks.push(task);
         }
     });
 
-    const sortedTopDrivers = Object.entries(driverStats)
-        .map(([name, data]) => ({
-            name,
-            count: data.fiveStarCount,
-            avgRating: data.ratings.reduce((a, b) => a + b, 0) / data.ratings.length,
-        }))
-        .filter(driver => driver.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 3);
+    const driverStats: DriverStats[] = Object.entries(driverData).map(([name, data]) => {
+      const completed = data.tasks.filter(t => t.progression === 'COMPLETED');
+      const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+      
+      const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+      let punctual = 0;
+      completedWithTime.forEach(t => {
+        const closure = new Date(t.dateCloture!);
+        const windowStart = new Date(t.creneauHoraire!.debut!);
+        const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+        if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
+          punctual++;
+        }
+      });
+      
+      return {
+        name,
+        totalTasks: data.tasks.length,
+        completedTasks: completed.length,
+        averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
+        punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
+        scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
+        forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
+        forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
+      };
+    });
+
+    const topDrivers = driverStats
+      .filter(d => d.completedTasks >= 5) // Minimum 5 completed tasks to be eligible
+      .map(d => ({
+        name: d.name,
+        score: calculateDriverScore(d),
+        avgRating: d.averageRating ?? 0,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
 
 
     const taskStats = {
@@ -287,7 +310,7 @@ export default function DashboardPage() {
       qualityAlerts: qualityAlertTasks.length,
       numberOfRatings: ratedTasks.length,
       ratingRate: ratingRate,
-      topDrivers: sortedTopDrivers,
+      topDrivers: topDrivers,
     };
 
     const roundStats = filteredData.rounds

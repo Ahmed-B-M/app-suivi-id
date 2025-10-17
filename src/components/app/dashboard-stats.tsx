@@ -25,6 +25,7 @@ import {
   User,
   XCircle,
   Clock1,
+  Award,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 
@@ -53,7 +54,7 @@ type DashboardStatsProps = {
     qualityAlerts: number;
     numberOfRatings: number;
     ratingRate: number | null;
-    topDrivers: { name: string; count: number; avgRating: number }[];
+    topDrivers: { name: string; score: number; avgRating: number }[];
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -193,7 +194,7 @@ export function DashboardStats({
       <SectionTitle>Performances des Livreurs</SectionTitle>
 
        <StatCard
-        title="Top 3 Livreurs (5★)"
+        title="Top 3 Livreurs"
         icon={<Crown className="h-4 w-4 text-yellow-500" />}
       >
         {stats.topDrivers.length > 0 ? (
@@ -205,19 +206,20 @@ export function DashboardStats({
                   <span className="font-medium truncate">{driver.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs px-1.5 py-0">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 flex items-center gap-1">
+                    <Star className="h-3 w-3" />
                     {driver.avgRating.toFixed(2)}
                   </Badge>
-                  <div className="font-bold flex items-center gap-1">
-                    {driver.count}
-                    <Star className="h-3 w-3 text-yellow-400 fill-yellow-400"/>
-                  </div>
+                  <Badge variant="secondary" className="font-bold flex items-center gap-1">
+                     <Award className="h-3 w-3" />
+                     {driver.score.toFixed(2)}
+                  </Badge>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Aucune note de 5★</p>
+          <p className="text-sm text-muted-foreground">Données insuffisantes</p>
         )}
       </StatCard>
       
