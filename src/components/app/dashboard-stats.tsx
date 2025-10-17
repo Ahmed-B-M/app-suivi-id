@@ -121,28 +121,7 @@ export function DashboardStats({
         icon={<Star className="h-4 w-4 text-muted-foreground" />} 
         onClick={onRatingClick}
       />
-      <StatCard
-        title="Alerte qualité"
-        value={stats.qualityAlerts}
-        icon={<Megaphone className="h-4 w-4 text-red-600" />}
-        onClick={onQualityAlertClick}
-      />
-      
-      <SectionTitle>Analyse de la Qualité</SectionTitle>
-
-      <StatCard 
-        title="Tâches en Avance" 
-        value={stats.earlyTasksCount} 
-        icon={<Timer className="h-4 w-4 text-green-500" />} 
-        onClick={onEarlyClick}
-      />
-      <StatCard 
-        title="Tâches en Retard" 
-        value={stats.lateTasksCount} 
-        icon={<TimerOff className="h-4 w-4 text-red-500" />} 
-        onClick={onLateClick}
-      />
-      <StatCard 
+       <StatCard 
         title="SCANBAC" 
         value={stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"} 
         icon={<Smartphone className="h-4 w-4 text-muted-foreground" />} 
@@ -156,6 +135,27 @@ export function DashboardStats({
         title="Commandes forcées" 
         value={stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"} 
         icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
+      />
+      
+      <SectionTitle>Analyse de la Qualité</SectionTitle>
+
+      <StatCard
+        title="Alerte qualité"
+        value={stats.qualityAlerts}
+        icon={<Megaphone className="h-4 w-4 text-red-600" />}
+        onClick={onQualityAlertClick}
+      />
+      <StatCard 
+        title="Tâches en Avance" 
+        value={stats.earlyTasksCount} 
+        icon={<Timer className="h-4 w-4 text-green-500" />} 
+        onClick={onEarlyClick}
+      />
+      <StatCard 
+        title="Tâches en Retard" 
+        value={stats.lateTasksCount} 
+        icon={<TimerOff className="h-4 w-4 text-red-500" />} 
+        onClick={onLateClick}
       />
      
       <SectionTitle>Anomalies et Suivi</SectionTitle>
