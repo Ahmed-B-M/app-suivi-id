@@ -26,7 +26,6 @@ import {
   User,
   XCircle,
 } from "lucide-react";
-import { Separator } from "../ui/separator";
 import { Badge } from "../ui/badge";
 
 type DashboardStatsProps = {
@@ -68,8 +67,13 @@ type DashboardStatsProps = {
   onQualityAlertClick: () => void;
 };
 
-const StatCard = ({ title, icon, onClick, children, "data-testid": dataTestId }: { title: string, icon: React.ReactNode, onClick?: () => void, children: React.ReactNode, "data-testid"?: string }) => {
+const StatCard = ({ title, icon, onClick, variant = 'default', children, "data-testid": dataTestId }: { title: string, icon: React.ReactNode, onClick?: () => void, variant?: 'default' | 'success' | 'warning' | 'danger', children: React.ReactNode, "data-testid"?: string }) => {
   const isClickable = !!onClick;
+  const valueColor = 
+    variant === 'success' ? 'text-green-600' : 
+    variant === 'danger' ? 'text-red-600' : 
+    variant === 'warning' ? 'text-orange-500' : '';
+
   return (
     <Card onClick={onClick} className={isClickable ? "cursor-pointer hover:bg-muted" : ""} data-testid={dataTestId}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -77,7 +81,9 @@ const StatCard = ({ title, icon, onClick, children, "data-testid": dataTestId }:
         {icon}
       </CardHeader>
       <CardContent>
-        {children}
+        <div className={`text-2xl font-bold ${valueColor}`}>
+          {children}
+        </div>
       </CardContent>
     </Card>
   )
@@ -103,6 +109,18 @@ export function DashboardStats({
   onQualityAlertClick,
 }: DashboardStatsProps) {
   const gridCols = "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+  
+  const getVariant = (value: number | null, thresholds: { success: number, warning: number, isHigherBetter: boolean }): 'success' | 'warning' | 'danger' => {
+    if (value === null) return 'danger';
+    if (thresholds.isHigherBetter) {
+      if (value > thresholds.success) return 'success';
+      if (value > thresholds.warning) return 'warning';
+    } else {
+      if (value < thresholds.success) return 'success';
+      if (value < thresholds.warning) return 'warning';
+    }
+    return 'danger';
+  }
 
   return (
     <div className={`grid gap-4 ${gridCols}`}>
@@ -111,23 +129,26 @@ export function DashboardStats({
       
       <StatCard 
         title="Taux d'échec" 
-        icon={<ShieldAlert className="h-4 w-4 text-destructive" />} 
+        icon={<ShieldAlert className="h-4 w-4 text-muted-foreground" />} 
         onClick={onFailedDeliveryClick}
+        variant={getVariant(stats.failedDeliveryRate, { success: 1, warning: 3, isHigherBetter: false })}
       >
-        <div className="text-2xl font-bold">{stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"}</div>
+        <span>{stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"}</span>
       </StatCard>
       <StatCard 
         title="Ponctualité" 
         icon={<Clock className="h-4 w-4 text-muted-foreground" />} 
+        variant={getVariant(stats.punctualityRate, { success: 95, warning: 90, isHigherBetter: true })}
       >
-        <div className="text-2xl font-bold">{stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"}</div>
+        <span>{stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"}</span>
       </StatCard>
        <StatCard 
         title="Note Moyenne" 
         icon={<Star className="h-4 w-4 text-muted-foreground" />} 
         onClick={onRatingClick}
+        variant={getVariant(stats.averageRating, { success: 4.79, warning: 4.5, isHigherBetter: true })}
       >
-        <div className="text-2xl font-bold flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2">
           {stats.averageRating ? stats.averageRating.toFixed(2) : "N/A"}
           {stats.numberOfRatings > 0 && stats.ratingRate !== null && (
             <span className="text-xs font-normal text-muted-foreground">
@@ -139,10 +160,28 @@ export function DashboardStats({
        <StatCard 
         title="SCANBAC" 
         icon={<Smartphone className="h-4 w-4 text-muted-foreground" />} 
+        variant={getVariant(stats.scanbacRate, { success: 90, warning: 80, isHigherBetter: true })}
       >
-        <div className="text-2xl font-bold">{stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"}</div>
+        <span>{stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"}</span>
       </StatCard>
-      <StatCard
+      <StatCard 
+        title="Sur place forcé" 
+        icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
+        variant={getVariant(stats.forcedAddressRate, { success: 10, warning: 20, isHigherBetter: false })}
+      >
+        <span>{stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"}</span>
+      </StatCard>
+      <StatCard 
+        title="Commandes forcées" 
+        icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
+         variant={getVariant(stats.forcedContactlessRate, { success: 10, warning: 20, isHigherBetter: false })}
+      >
+        <span>{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</span>
+      </StatCard>
+      
+      <SectionTitle>Performances des Livreurs</SectionTitle>
+
+       <StatCard
         title="Top 3 Livreurs (5★)"
         icon={<Crown className="h-4 w-4 text-yellow-500" />}
       >
@@ -246,18 +285,6 @@ export function DashboardStats({
       >
         <div className="text-2xl font-bold">{stats.sensitiveDeliveries}</div>
       </StatCard>
-      <StatCard 
-        title="Sur place forcé" 
-        icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
-      >
-        <div className="text-2xl font-bold">{stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"}</div>
-      </StatCard>
-      <StatCard 
-        title="Commandes forcées" 
-        icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
-      >
-        <div className="text-2xl font-bold">{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</div>
-      </StatCard>
 
 
        <SectionTitle>Vue d'Ensemble</SectionTitle>
@@ -277,5 +304,3 @@ export function DashboardStats({
     </div>
   );
 }
-
-    
