@@ -1,7 +1,7 @@
 
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { getHubCategory, getDepotFromHub, DEPOT_RULES } from '@/lib/grouping';
 import { useCollection, useMemoFirebase } from '@/firebase';
@@ -33,12 +33,14 @@ const FilterContext = createContext<FilterContextProps | undefined>(undefined);
 export function FilterProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const [filterType, setFilterType] = useState<FilterType>('tous');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
+
+  useEffect(() => {
+    // Initialize date range on the client to avoid hydration mismatch
+    setDateRange({ from: new Date(), to: new Date() });
+  }, []);
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
