@@ -28,6 +28,7 @@ import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dia
 import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 import { useFilterContext } from "@/context/filter-context";
+import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -251,7 +252,7 @@ export default function DashboardPage() {
         }
     });
 
-    const driverStats: DriverStats[] = Object.entries(driverData).map(([name, data]) => {
+    const driverPerformance: DriverStats[] = Object.entries(driverData).map(([name, data]) => {
       const completed = data.tasks.filter(t => t.progression === 'COMPLETED');
       const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
       
@@ -265,8 +266,8 @@ export default function DashboardPage() {
           punctual++;
         }
       });
-      
-      return {
+
+      const stats: DriverStats = {
         name,
         totalTasks: data.tasks.length,
         completedTasks: completed.length,
@@ -276,17 +277,12 @@ export default function DashboardPage() {
         forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
         forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
       };
-    });
-
-    const topDrivers = driverStats
-      .filter(d => d.completedTasks >= 5) // Minimum 5 completed tasks to be eligible
-      .map(d => ({
-        name: d.name,
-        score: calculateDriverScore(d),
-        avgRating: d.averageRating ?? 0,
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
+      
+      return {
+        ...stats,
+        score: calculateDriverScore(stats),
+      };
+    }).sort((a, b) => b.score - a.score);
 
 
     const taskStats = {
@@ -311,7 +307,6 @@ export default function DashboardPage() {
       qualityAlerts: qualityAlertTasks.length,
       numberOfRatings: ratedTasks.length,
       ratingRate: ratingRate,
-      topDrivers: topDrivers,
     };
 
     const roundStats = filteredData.rounds
@@ -365,6 +360,7 @@ export default function DashboardPage() {
     return {
       hasData,
       stats: { ...taskStats, ...roundStats },
+      driverPerformance,
       earlyTasks,
       lateTasks,
       lateTasksOver1h,
@@ -499,6 +495,9 @@ export default function DashboardPage() {
             onSensitiveDeliveriesClick={() => setIsSensitiveDeliveriesOpen(true)}
             onQualityAlertClick={() => setIsQualityAlertOpen(true)}
           />
+
+          <h3 className="col-span-full text-lg font-semibold mt-6 mb-2">Performances des Livreurs</h3>
+          <DriverPerformanceTable data={dashboardData.driverPerformance} />
           
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -570,5 +569,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    

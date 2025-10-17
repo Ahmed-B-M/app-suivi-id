@@ -55,7 +55,6 @@ type DashboardStatsProps = {
     qualityAlerts: number;
     numberOfRatings: number;
     ratingRate: number | null;
-    topDrivers: { name: string; score: number; avgRating: number }[];
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -192,38 +191,6 @@ export function DashboardStats({
         <span>{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</span>
       </StatCard>
       
-      <SectionTitle>Performances des Livreurs</SectionTitle>
-
-       <StatCard
-        title="Top 3 Livreurs"
-        icon={<Crown className="h-4 w-4 text-yellow-500" />}
-      >
-        {stats.topDrivers.length > 0 ? (
-           <div className="space-y-1 pt-1">
-            {stats.topDrivers.map((driver, index) => (
-              <div key={index} className="text-xs flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <User className="h-3 w-3 text-muted-foreground"/>
-                  <span className="font-medium truncate">{driver.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs px-1.5 py-0 flex items-center gap-1">
-                    <Star className="h-3 w-3" />
-                    {driver.avgRating.toFixed(2)}
-                  </Badge>
-                  <Badge variant="secondary" className="font-bold flex items-center gap-1">
-                     <Award className="h-3 w-3" />
-                     {driver.score.toFixed(2)}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Données insuffisantes</p>
-        )}
-      </StatCard>
-      
       <SectionTitle>Analyse de la Qualité</SectionTitle>
 
       <StatCard
@@ -318,5 +285,3 @@ export function DashboardStats({
     </div>
   );
 }
-
-    

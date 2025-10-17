@@ -8,6 +8,7 @@ export interface DriverStats {
   scanbacRate: number | null;
   forcedAddressRate: number | null;
   forcedContactlessRate: number | null;
+  score?: number; // Score is now part of the stats object
 }
 
 const WEIGHTS = {
@@ -24,8 +25,8 @@ const WEIGHTS = {
  * @param stats - The driver's performance statistics.
  * @returns A composite score from 0 to 100.
  */
-export function calculateDriverScore(stats: DriverStats): number {
-  if (stats.completedTasks === 0) {
+export function calculateDriverScore(stats: Omit<DriverStats, 'score'>): number {
+  if (stats.completedTasks < 5) { // Minimum 5 tasks to be scored
     return 0;
   }
 
@@ -69,5 +70,3 @@ export function calculateDriverScore(stats: DriverStats): number {
   
   return Math.max(0, Math.min(100, (totalScore / maxPossibleScore) * 100));
 }
-
-    
