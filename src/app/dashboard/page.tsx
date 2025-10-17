@@ -8,7 +8,7 @@ import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calendar as CalendarIcon, Warehouse } from "lucide-react";
+import { AlertCircle, Calendar as CalendarIcon, Truck, Warehouse } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
+import { getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
+import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -40,7 +42,8 @@ export default function DashboardPage() {
     from: subDays(new Date(), 29),
     to: new Date(),
   });
-  const [selectedHub, setSelectedHub] = useState<string>("all");
+  const [selectedDepot, setSelectedDepot] = useState<string>("all");
+  const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
 
   const tasksCollection = useMemoFirebase(() => {
@@ -65,16 +68,27 @@ export default function DashboardPage() {
     error: roundsError,
   } = useCollection<Tournee>(roundsCollection);
 
-  const hubNames = useMemo(() => {
-    if (!tasks) return [];
-    const hubs = new Set<string>();
-    tasks.forEach((task) => {
-      if (task.nomHub) {
-        hubs.add(task.nomHub);
-      }
+  const { depotNames, carrierNames } = useMemo(() => {
+    if (!tasks && !rounds) return { depotNames: [], carrierNames: [] };
+    const depots = new Set<string>();
+    const carriers = new Set<string>();
+
+    (tasks || []).forEach((task) => {
+      depots.add(getDepotFromHub(task.nomHub));
+      carriers.add(getCarrierFromDriver(getDriverFullName(task)));
     });
-    return Array.from(hubs).sort();
-  }, [tasks]);
+    (rounds || []).forEach((round) => {
+      // Note: Rounds don't have hub names directly, we derive it from associated tasks.
+      // This is handled in the filtering logic.
+      carriers.add(getCarrierFromDriver(getDriverFullName(round)));
+    });
+
+    return { 
+      depotNames: Array.from(depots).sort(),
+      carrierNames: Array.from(carriers).sort()
+    };
+  }, [tasks, rounds]);
+
 
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
@@ -98,18 +112,22 @@ export default function DashboardPage() {
       filteredRounds = filteredRounds.filter(filterByDate);
     }
     
-    // Filter by hub
-    if (selectedHub !== "all") {
-      filteredTasks = filteredTasks.filter(t => t.nomHub === selectedHub);
+    // Filter by depot
+    if (selectedDepot !== "all") {
+      filteredTasks = filteredTasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
       
-      // Filter rounds that have at least one task in the selected hub
-      const roundIdsInHub = new Set(filteredTasks.map(t => t.nomTournee));
-      filteredRounds = filteredRounds.filter(r => roundIdsInHub.has(r.name));
+      const roundNamesInDepot = new Set(filteredTasks.map(t => t.nomTournee));
+      filteredRounds = filteredRounds.filter(r => roundNamesInDepot.has(r.name));
     }
 
+    // Filter by carrier
+    if (selectedCarrier !== "all") {
+      filteredTasks = filteredTasks.filter(t => getCarrierFromDriver(getDriverFullName(t)) === selectedCarrier);
+      filteredRounds = filteredRounds.filter(r => getCarrierFromDriver(getDriverFullName(r)) === selectedCarrier);
+    }
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, selectedHub]);
+  }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier]);
 
   const dashboardData = useMemo(() => {
     if (!filteredData.tasks && !filteredData.rounds) return null;
@@ -178,6 +196,16 @@ export default function DashboardPage() {
         }, {} as Record<string, number>)
       : {};
 
+    const unassignedDrivers = new Set<string>();
+    if (selectedCarrier === 'Inconnu' || selectedCarrier === 'all') {
+        const allItems = [...filteredData.tasks, ...filteredData.rounds];
+        allItems.forEach(item => {
+            const driverName = getDriverFullName(item);
+            if (getCarrierFromDriver(driverName) === 'Inconnu' && driverName) {
+                unassignedDrivers.add(driverName);
+            }
+        });
+    }
 
     const hasData = filteredData.tasks.length > 0 || filteredData.rounds.length > 0;
 
@@ -204,6 +232,7 @@ export default function DashboardPage() {
           count,
         }))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      unassignedDrivers: Array.from(unassignedDrivers),
     };
   }, [filteredData]);
 
@@ -219,17 +248,31 @@ export default function DashboardPage() {
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
-        <div className="flex items-center gap-2">
-           <Select value={selectedHub} onValueChange={setSelectedHub}>
-            <SelectTrigger className="w-[240px]">
+        <div className="flex flex-wrap items-center gap-2">
+           <Select value={selectedDepot} onValueChange={setSelectedDepot}>
+            <SelectTrigger className="w-full sm:w-[200px]">
               <Warehouse className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filtrer par entrepôt" />
+              <SelectValue placeholder="Filtrer par dépôt" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les entrepôts</SelectItem>
-              {hubNames.map((hub) => (
-                <SelectItem key={hub} value={hub}>
-                  {hub}
+              <SelectItem value="all">Tous les dépôts</SelectItem>
+              {depotNames.map((depot) => (
+                <SelectItem key={depot} value={depot}>
+                  {depot}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+           <Select value={selectedCarrier} onValueChange={setSelectedCarrier}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <Truck className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filtrer par transporteur" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les transporteurs</SelectItem>
+              {carrierNames.map((carrier) => (
+                <SelectItem key={carrier} value={carrier}>
+                  {carrier}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -240,7 +283,7 @@ export default function DashboardPage() {
                 id="date"
                 variant={"outline"}
                 className={cn(
-                  "w-[300px] justify-start text-left font-normal",
+                  "w-full sm:w-[300px] justify-start text-left font-normal",
                   !dateRange && "text-muted-foreground"
                 )}
               >
@@ -306,6 +349,9 @@ export default function DashboardPage() {
       {!isLoading && !error && dashboardData && dashboardData.hasData && (
         <div className="space-y-6">
           <DashboardStats stats={dashboardData.stats} onRatingClick={() => setIsRatingDetailsOpen(true)}/>
+          
+          <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
+
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="tasks">Analyse des Tâches</TabsTrigger>
@@ -354,12 +400,10 @@ export default function DashboardPage() {
       {!isLoading && !error && dashboardData && !dashboardData.hasData && (
           <Card>
               <CardContent className="pt-6">
-                  <p className="text-muted-foreground">Aucune donnée trouvée dans la base de données pour la période sélectionnée. Veuillez ajuster les dates ou exporter de nouvelles données.</p>
+                  <p className="text-muted-foreground">Aucune donnée trouvée dans la base de données pour la période sélectionnée. Veuillez ajuster les filtres ou exporter de nouvelles données.</p>
               </CardContent>
           </Card>
       )}
     </main>
   );
 }
-
-    
