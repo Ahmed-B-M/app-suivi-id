@@ -1,3 +1,4 @@
+
 "use client";
 
 import { TrendingUp } from "lucide-react";
@@ -19,6 +20,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
+import { useCallback } from "react";
 
 const COLORS = [
   "hsl(var(--chart-1))",
@@ -28,8 +30,13 @@ const COLORS = [
   "hsl(var(--chart-5))",
 ];
 
+type TasksByStatusChartProps = {
+  data: { name: string; value: number }[];
+  onStatusClick: (status: string) => void;
+};
 
-export function TasksByStatusChart({ data }: { data: {name: string, value: number}[] }) {
+
+export function TasksByStatusChart({ data, onStatusClick }: TasksByStatusChartProps) {
     
   const chartConfig = data.reduce((acc, item, index) => {
     acc[item.name] = {
@@ -40,6 +47,13 @@ export function TasksByStatusChart({ data }: { data: {name: string, value: numbe
   }, {} as ChartConfig);
 
   const totalTasks = data.reduce((acc, curr) => acc + curr.value, 0);
+
+  const handlePieClick = useCallback((pieData: any) => {
+    if (pieData && pieData.name) {
+      onStatusClick(pieData.name);
+    }
+  }, [onStatusClick]);
+
 
   return (
     <Card className="flex flex-col">
@@ -65,6 +79,8 @@ export function TasksByStatusChart({ data }: { data: {name: string, value: numbe
               nameKey="name"
               innerRadius="50%"
               strokeWidth={5}
+              onClick={handlePieClick}
+              className="cursor-pointer"
             >
                 {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -83,9 +99,11 @@ export function TasksByStatusChart({ data }: { data: {name: string, value: numbe
           <TrendingUp className="h-4 w-4" />
         </div>
         <div className="leading-none text-muted-foreground">
-          Montre la distribution des statuts de tâches
+          Cliquez sur un statut pour voir les détails
         </div>
       </CardFooter>
     </Card>
   );
 }
+
+    

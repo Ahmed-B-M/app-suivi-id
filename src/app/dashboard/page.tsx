@@ -36,6 +36,7 @@ import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
+import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -50,6 +51,8 @@ export default function DashboardPage() {
     type: 'early' | 'late';
     tasks: PunctualityTask[];
   } | null>(null);
+  const [statusDetails, setStatusDetails] = useState<{ status: string; tasks: Tache[] } | null>(null);
+
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -133,6 +136,17 @@ export default function DashboardPage() {
 
     return { tasks: filteredTasks, rounds: filteredRounds };
   }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier]);
+
+  const handleStatusClick = (status: string) => {
+    const tasksForStatus = filteredData.tasks.filter(task => {
+        const round = filteredData.rounds.find(r => r.name === task.nomTournee);
+        if (!round) return false;
+        const stop = round.stops?.find(s => s.taskId === task.tacheId);
+        return stop?.status === status;
+    });
+    setStatusDetails({ status, tasks: tasksForStatus });
+  };
+
 
   const dashboardData = useMemo(() => {
     if (!filteredData.tasks && !filteredData.rounds) return null;
@@ -311,6 +325,11 @@ export default function DashboardPage() {
         onOpenChange={() => setPunctualityDetails(null)}
         details={punctualityDetails}
       />
+       <StatusDetailsDialog
+        isOpen={!!statusDetails}
+        onOpenChange={() => setStatusDetails(null)}
+        details={statusDetails}
+      />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -430,7 +449,10 @@ export default function DashboardPage() {
             <TabsContent value="tasks" className="mt-4">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {dashboardData.tasksByStatus.length > 0 ? (
-                  <TasksByStatusChart data={dashboardData.tasksByStatus} />
+                  <TasksByStatusChart 
+                    data={dashboardData.tasksByStatus} 
+                    onStatusClick={handleStatusClick}
+                  />
                 ) : (
                    <Card className="flex items-center justify-center h-96">
                     <p className="text-muted-foreground">Aucune donnée de tâche par statut pour cette période.</p>
@@ -477,3 +499,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
