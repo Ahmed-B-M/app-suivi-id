@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Calendar as CalendarIcon, Truck, Warehouse } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
+import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
 import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
 import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
 import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
@@ -51,7 +52,7 @@ export default function DashboardPage() {
     type: 'early' | 'late';
     tasks: PunctualityTask[];
   } | null>(null);
-  const [statusDetails, setStatusDetails] = useState<{ status: string; tasks: Tache[] } | null>(null);
+  const [statusDetails, setStatusDetails] = useState<{ status: string; tasks: Tache[], type: 'status' | 'progression' } | null>(null);
 
 
   const tasksCollection = useMemoFirebase(() => {
@@ -138,19 +139,13 @@ export default function DashboardPage() {
   }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier]);
 
   const handleStatusClick = (status: string) => {
-    const tasksForStatus = filteredData.tasks.filter(task => {
-        const round = filteredData.rounds.find(r => r.name === task.nomTournee);
-        if (!round) return false;
-        const stop = round.stops?.find(s => s.taskId === task.tacheId);
-        
-        // This is the fix: handle the "Unknown" case.
-        if (status === 'Unknown') {
-            return !stop?.status; // Match if status is null, undefined, or empty string
-        }
-        
-        return stop?.status === status;
-    });
-    setStatusDetails({ status, tasks: tasksForStatus });
+    const tasksForStatus = filteredData.tasks.filter(task => (task.status || "Unknown") === status);
+    setStatusDetails({ status, tasks: tasksForStatus, type: 'status' });
+  };
+
+  const handleProgressionClick = (progression: string) => {
+    const tasksForProgression = filteredData.tasks.filter(task => (task.progression || "Unknown") === progression);
+    setStatusDetails({ status: progression, tasks: tasksForProgression, type: 'progression' });
   };
 
 
@@ -241,11 +236,15 @@ export default function DashboardPage() {
         }
       : { totalRounds: 0, completedRounds: 0 };
 
-    const tasksByStatus = filteredData.rounds?.reduce((acc, round) => {
-      round.stops?.forEach(stop => {
-        const status = stop.status || "Unknown";
-        acc[status] = (acc[status] || 0) + 1;
-      });
+    const tasksByStatus = filteredData.tasks?.reduce((acc, task) => {
+      const status = task.status || "Unknown";
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>) || {};
+
+    const tasksByProgression = filteredData.tasks?.reduce((acc, task) => {
+      const progression = task.progression || "Unknown";
+      acc[progression] = (acc[progression] || 0) + 1;
       return acc;
     }, {} as Record<string, number>) || {};
 
@@ -293,6 +292,10 @@ export default function DashboardPage() {
       earlyTasks,
       lateTasks,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
+        name,
+        value,
+      })),
+      tasksByProgression: Object.entries(tasksByProgression).map(([name, value]) => ({
         name,
         value,
       })),
@@ -452,7 +455,7 @@ export default function DashboardPage() {
               <TabsTrigger value="tasks">Analyse des Tâches</TabsTrigger>
               <TabsTrigger value="rounds">Analyse des Tournées</TabsTrigger>
             </TabsList>
-            <TabsContent value="tasks" className="mt-4">
+            <TabsContent value="tasks" className="mt-4 space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {dashboardData.tasksByStatus.length > 0 ? (
                   <TasksByStatusChart 
@@ -464,6 +467,18 @@ export default function DashboardPage() {
                     <p className="text-muted-foreground">Aucune donnée de tâche par statut pour cette période.</p>
                   </Card>
                 )}
+                 {dashboardData.tasksByProgression.length > 0 ? (
+                  <TasksByProgressionChart 
+                    data={dashboardData.tasksByProgression} 
+                    onProgressionClick={handleProgressionClick}
+                  />
+                ) : (
+                  <Card className="flex items-center justify-center h-96">
+                    <p className="text-muted-foreground">Aucune donnée de tâche par progression pour cette période.</p>
+                  </Card>
+                )}
+              </div>
+              <div className="grid grid-cols-1">
                  {dashboardData.tasksOverTime.length > 0 ? (
                   <TasksOverTimeChart data={dashboardData.tasksOverTime} />
                 ) : (

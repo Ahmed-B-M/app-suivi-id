@@ -23,20 +23,19 @@ import {
 import { useCallback } from "react";
 
 const COLORS = [
-  "hsl(var(--chart-1))",
   "hsl(var(--chart-2))",
   "hsl(var(--chart-3))",
   "hsl(var(--chart-4))",
   "hsl(var(--chart-5))",
+  "hsl(var(--chart-1))",
 ];
 
-type TasksByStatusChartProps = {
+type TasksByProgressionChartProps = {
   data: { name: string; value: number }[];
-  onStatusClick: (status: string) => void;
+  onProgressionClick: (status: string) => void;
 };
 
-
-export function TasksByStatusChart({ data, onStatusClick }: TasksByStatusChartProps) {
+export function TasksByProgressionChart({ data, onProgressionClick }: TasksByProgressionChartProps) {
     
   const chartConfig = data.reduce((acc, item, index) => {
     acc[item.name] = {
@@ -50,17 +49,16 @@ export function TasksByStatusChart({ data, onStatusClick }: TasksByStatusChartPr
 
   const handlePieClick = useCallback((pieData: any) => {
     if (pieData && pieData.name) {
-      onStatusClick(pieData.name);
+      onProgressionClick(pieData.name);
     }
-  }, [onStatusClick]);
-
+  }, [onProgressionClick]);
 
   return (
     <Card className="flex flex-col">
       <CardHeader>
-        <CardTitle>Tâches par Statut</CardTitle>
+        <CardTitle>Tâches par Progression</CardTitle>
         <CardDescription>
-          Répartition des tâches par leur statut final (API)
+          Répartition des tâches par leur état de progression (API)
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
@@ -99,7 +97,7 @@ export function TasksByStatusChart({ data, onStatusClick }: TasksByStatusChartPr
           <TrendingUp className="h-4 w-4" />
         </div>
         <div className="leading-none text-muted-foreground">
-          Cliquez sur un statut pour voir les détails
+          Cliquez sur une progression pour voir les détails
         </div>
       </CardFooter>
     </Card>

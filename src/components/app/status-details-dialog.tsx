@@ -18,6 +18,7 @@ type StatusDetailsDialogProps = {
   details: {
     status: string;
     tasks: Tache[];
+    type: 'status' | 'progression';
   } | null;
 };
 
@@ -28,9 +29,9 @@ export function StatusDetailsDialog({
 }: StatusDetailsDialogProps) {
   if (!details) return null;
 
-  const { status, tasks } = details;
-  const title = `Détail des Tâches: ${status}`;
-  const description = `Voici la liste des ${tasks.length} tâches ayant le statut "${status}".`;
+  const { status, tasks, type } = details;
+  const title = `Détail - ${type === 'status' ? 'Statut' : 'Progression'}: ${status}`;
+  const description = `Voici la liste des ${tasks.length} tâches ayant le ${type} "${status}".`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -45,7 +46,7 @@ export function StatusDetailsDialog({
               <TasksTable data={tasks} />
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                Aucune tâche à afficher pour ce statut.
+                Aucune tâche à afficher pour cette sélection.
               </p>
             )}
           </div>
@@ -54,5 +55,3 @@ export function StatusDetailsDialog({
     </Dialog>
   );
 }
-
-    
