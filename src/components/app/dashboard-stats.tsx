@@ -103,7 +103,6 @@ export function DashboardStats({
 
       <SectionTitle>Performance Clé</SectionTitle>
       
-      <StatCard title="Tâches Terminées" value={stats.completedTasks} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
       <StatCard 
         title="Taux d'échec" 
         value={stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"} 
@@ -205,6 +204,7 @@ export function DashboardStats({
 
        <SectionTitle>Vue d'Ensemble</SectionTitle>
       <StatCard title="Tâches Totales" value={stats.totalTasks} icon={<ListTodo className="h-4 w-4 text-muted-foreground" />} />
+      <StatCard title="Tâches Terminées" value={stats.completedTasks} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
       <StatCard title="Tournées Totales" value={stats.totalRounds} icon={<Route className="h-4 w-4 text-muted-foreground" />} />
       <StatCard title="Tournées Terminées" value={stats.completedRounds} icon={<Trophy className="h-4 w-4 text-muted-foreground" />} />
 
