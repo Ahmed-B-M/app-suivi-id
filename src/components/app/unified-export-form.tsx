@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
@@ -93,10 +93,7 @@ export function UnifiedExportForm({
     resolver: zodResolver(unifiedExportFormSchema),
     defaultValues: {
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
-      dateRange: {
-        from: new Date(),
-        to: new Date(),
-      },
+      dateRange: undefined,
       taskStatus: "all",
       roundStatus: "all",
       taskId: "",
@@ -104,6 +101,15 @@ export function UnifiedExportForm({
       unplanned: false,
     },
   });
+
+  useEffect(() => {
+    // Set default date range on the client to avoid hydration mismatch
+    form.setValue("dateRange", {
+      from: new Date(),
+      to: new Date(),
+    });
+  }, [form]);
+
 
   const onSubmit = async (values: UnifiedExportFormValues) => {
     onExportStart();
@@ -279,7 +285,15 @@ export function UnifiedExportForm({
 
 
   const handleResetClick = () => {
-    form.reset();
+    form.reset({
+        apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
+        dateRange: { from: new Date(), to: new Date() },
+        taskStatus: "all",
+        roundStatus: "all",
+        taskId: "",
+        roundId: "",
+        unplanned: false,
+    });
     onReset();
   }
 
