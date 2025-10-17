@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -23,9 +24,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Star, Building, Truck, User, MessageSquare, AlertTriangle, Percent, Hash } from "lucide-react";
+import { Star, Building, Truck, User, MessageSquare, AlertTriangle, Percent, Hash, Search } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { format } from "date-fns";
+import { Input } from "../ui/input";
 
 // Data structures
 interface Rating {
@@ -73,6 +75,8 @@ export interface QualityData {
 interface QualityDashboardProps {
   data: QualityData | null;
   isLoading: boolean;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
 // Components
@@ -92,7 +96,40 @@ const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, 
 };
 
 
-export function QualityDashboard({ data, isLoading }: QualityDashboardProps) {
+export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange }: QualityDashboardProps) {
+  const filteredDetails = useMemo(() => {
+    if (!data?.details) return [];
+    if (!searchQuery) return data.details;
+
+    const lowerCaseQuery = searchQuery.toLowerCase();
+
+    return data.details.map(depot => {
+        const filteredCarriers = depot.carriers.map(carrier => {
+            const filteredDrivers = carrier.drivers.filter(driver => 
+                driver.name.toLowerCase().includes(lowerCaseQuery)
+            );
+            
+            if (filteredDrivers.length > 0) {
+                return { ...carrier, drivers: filteredDrivers };
+            }
+            if (carrier.name.toLowerCase().includes(lowerCaseQuery)) {
+                return carrier; // Keep carrier if it matches, even with no matching drivers
+            }
+            return null;
+        }).filter((c): c is CarrierQuality => c !== null);
+
+        if (filteredCarriers.length > 0) {
+            return { ...depot, carriers: filteredCarriers };
+        }
+        if (depot.name.toLowerCase().includes(lowerCaseQuery)) {
+            return depot; // Keep depot if it matches
+        }
+        return null;
+    }).filter((d): d is DepotQuality => d !== null);
+
+  }, [data, searchQuery]);
+
+
   if (isLoading) {
     return (
        <div className="space-y-6">
@@ -117,7 +154,7 @@ export function QualityDashboard({ data, isLoading }: QualityDashboardProps) {
     );
   }
 
-  const { summary, details } = data;
+  const { summary } = data;
 
   return (
     <div className="space-y-8">
@@ -154,8 +191,18 @@ export function QualityDashboard({ data, isLoading }: QualityDashboardProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Rechercher par dépôt, transporteur, livreur..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
           <Accordion type="multiple" className="w-full space-y-4">
-            {details.map((depot) => (
+            {filteredDetails.map((depot) => (
               <AccordionItem value={`depot-${depot.name}`} key={depot.name} className="border-b-0">
                 <Card>
                   <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
@@ -239,6 +286,11 @@ export function QualityDashboard({ data, isLoading }: QualityDashboardProps) {
                 </Card>
               </AccordionItem>
             ))}
+             {filteredDetails.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                    Aucun résultat pour "{searchQuery}"
+                </div>
+             )}
           </Accordion>
         </CardContent>
       </Card>

@@ -8,6 +8,7 @@ import {
   BoxSelect,
   CheckCircle,
   Clock,
+  Crown,
   Hourglass,
   ListTodo,
   MapPinOff,
@@ -22,6 +23,7 @@ import {
   Timer,
   TimerOff,
   Trophy,
+  User,
   XCircle,
 } from "lucide-react";
 import { Separator } from "../ui/separator";
@@ -50,6 +52,7 @@ type DashboardStatsProps = {
     qualityAlerts: number;
     numberOfRatings: number;
     ratingRate: number | null;
+    topDrivers: { name: string; count: number }[];
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -138,17 +141,28 @@ export function DashboardStats({
       >
         <div className="text-2xl font-bold">{stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"}</div>
       </StatCard>
-      <StatCard 
-        title="Sur place forcé" 
-        icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
+      <StatCard
+        title="Top 3 Livreurs (5★)"
+        icon={<Crown className="h-4 w-4 text-yellow-500" />}
       >
-        <div className="text-2xl font-bold">{stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"}</div>
-      </StatCard>
-      <StatCard 
-        title="Commandes forcées" 
-        icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
-      >
-        <div className="text-2xl font-bold">{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</div>
+        {stats.topDrivers.length > 0 ? (
+           <div className="space-y-1 pt-1">
+            {stats.topDrivers.map((driver, index) => (
+              <div key={index} className="text-xs flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <User className="h-3 w-3 text-muted-foreground"/>
+                  <span className="font-medium truncate">{driver.name}</span>
+                </div>
+                <div className="font-bold flex items-center gap-1">
+                  {driver.count}
+                  <Star className="h-3 w-3 text-yellow-400 fill-yellow-400"/>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Aucune note de 5★</p>
+        )}
       </StatCard>
       
       <SectionTitle>Analyse de la Qualité</SectionTitle>
@@ -226,6 +240,19 @@ export function DashboardStats({
       >
         <div className="text-2xl font-bold">{stats.sensitiveDeliveries}</div>
       </StatCard>
+      <StatCard 
+        title="Sur place forcé" 
+        icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
+      >
+        <div className="text-2xl font-bold">{stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
+      <StatCard 
+        title="Commandes forcées" 
+        icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
+      >
+        <div className="text-2xl font-bold">{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
+
 
        <SectionTitle>Vue d'Ensemble</SectionTitle>
       <StatCard title="Tâches Totales" icon={<ListTodo className="h-4 w-4 text-muted-foreground" />}>

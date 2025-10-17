@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
@@ -12,6 +12,7 @@ import { QualityDashboard, type QualityData } from "@/components/app/quality-das
 export default function QualityPage() {
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -144,8 +145,15 @@ export default function QualityPage() {
 
   return (
     <main className="flex-1 container py-8">
-      <h1 className="text-3xl font-bold mb-8">Analyse de la Qualité</h1>
-      <QualityDashboard data={qualityData} isLoading={isLoading} />
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <h1 className="text-3xl font-bold">Analyse de la Qualité</h1>
+      </div>
+      <QualityDashboard 
+        data={qualityData} 
+        isLoading={isLoading} 
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
     </main>
   );
 }

@@ -233,6 +233,22 @@ export default function DashboardPage() {
       (t) => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4
     );
 
+    const topDrivers = filteredData.tasks
+        .filter(t => t.metaDonnees?.notationLivreur === 5)
+        .reduce((acc, task) => {
+            const driverName = getDriverFullName(task);
+            if (driverName) {
+                acc[driverName] = (acc[driverName] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+    
+    const sortedTopDrivers = Object.entries(topDrivers)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name, count]) => ({ name, count }));
+
+
     const taskStats = {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
@@ -254,6 +270,7 @@ export default function DashboardPage() {
       qualityAlerts: qualityAlertTasks.length,
       numberOfRatings: ratedTasks.length,
       ratingRate: ratingRate,
+      topDrivers: sortedTopDrivers,
     };
 
     const roundStats = filteredData.rounds
