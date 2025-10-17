@@ -10,14 +10,14 @@ import { TasksTable } from "@/components/app/tasks-table";
 import { RoundsTable } from "@/components/app/rounds-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileSearch } from "lucide-react";
-import type { Tache, Round } from "@/lib/types";
+import type { Tache, Tournee } from "@/lib/types";
 
 export default function Home() {
   const [taskLogs, setTaskLogs] = useState<string[]>([]);
   const [taskJsonData, setTaskJsonData] = useState<Tache[] | null>(null);
 
   const [roundLogs, setRoundLogs] = useState<string[]>([]);
-  const [roundJsonData, setRoundJsonData] = useState<Round[] | null>(null);
+  const [roundJsonData, setRoundJsonData] = useState<Tournee[] | null>(null);
 
   const handleTaskExportComplete = (newLogs: string[], data: any[] | null) => {
     setTaskLogs(prev => [...prev, ...newLogs]);
@@ -34,7 +34,7 @@ export default function Home() {
   const handleRoundExportComplete = (newLogs: string[], data: any[] | null) => {
     setRoundLogs(prev => [...prev, ...newLogs]);
     if (data) {
-      setRoundJsonData(data as Round[]);
+      setRoundJsonData(data as Tournee[]);
     }
   };
 

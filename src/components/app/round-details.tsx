@@ -7,6 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tournee } from "@/lib/types";
 
 const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -81,7 +82,7 @@ const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
 };
 
 
-export function RoundDetails({ round }: { round: any }) {
+export function RoundDetails({ round }: { round: Tournee }) {
   if (!round) return null;
 
   return (

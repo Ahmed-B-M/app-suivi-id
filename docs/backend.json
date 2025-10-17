@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Tache": {
@@ -141,6 +142,143 @@
       },
       "required": ["tacheId"]
     },
+    "Tournee": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Tournee",
+      "type": "object",
+      "description": "Représente une tournée épurée de l'API Urbantz avec des champs personnalisés.",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "poids": { "type": "number" },
+            "bac": { "type": "number" },
+            "volume": { "type": "number" }
+          }
+        },
+        "endLocation": { "type": "string" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "labelsAndSkills": { "type": "array" },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "codePostalMaitre": { "type": "string" },
+            "TempsDepassementPlanifie": { "type": "number" },
+            "TempSURG_Chargement": { "type": "string" },
+            "TempsFRAIS_Chargement": { "type": "string" },
+            "Immatriculation": { "type": "string" },
+            "TempSURG_Fin": { "type": "string" },
+            "TempsFRAIS_Fin": { "type": "string" }
+          }
+        },
+        "name": { "type": "string" },
+        "orderCount": { "type": "number" },
+        "realInfo": {
+          "type": "object",
+          "properties": {
+            "hasPrepared": { "type": "string", "format": "date-time" },
+            "hasStarted": { "type": "string", "format": "date-time" },
+            "hasFinished": { "type": ["string", "null"], "format": "date-time" },
+            "preparationTime": { "type": "number" },
+            "hasLasted": { "type": ["number", "null"] }
+          }
+        },
+        "reloads": { "type": "array" },
+        "senders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "count": { "type": "number" }
+            }
+          }
+        },
+        "startLocation": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" },
+        "stops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+                "coordinates": { "type": "array", "items": { "type": "number" } },
+                "taskId": { "type": "string" },
+                "progress": { "type": "string" },
+                "status": { "type": "string" },
+                "sequence": { "type": "number" },
+                "stopSequence": { "type": "number" },
+                "travelDistance": { "type": "number" },
+                "arriveTime": { "type": "string", "format": "date-time" },
+                "departTime": { "type": "string", "format": "date-time" },
+                "travelTime": { "type": "number" },
+                "serviceTime": { "type": "number" },
+                "waitTime": { "type": "number" },
+                "violationTime": { "type": "number" },
+                "closureDate": { "type": ["string", "null"], "format": "date-time" }
+            }
+          }
+        },
+        "totalDistance": { "type": "number" },
+        "totalOrderServiceTime": { "type": "number" },
+        "totalTime": { "type": "number" },
+        "totalTravelTime": { "type": "number" },
+        "totalViolationTime": { "type": "number" },
+        "totalWaitTime": { "type": "number" },
+        "updated": { "type": "string", "format": "date-time" },
+        "validated": { "type": "boolean" },
+        "driver": {
+          "type": "object",
+          "properties": {
+            "externalId": { "type": "string" },
+            "firstName": { "type": "string" },
+            "lastName": { "type": "string" }
+          }
+        },
+        "delay": {
+          "type": "object",
+          "properties": {
+            "time": { "type": "number" },
+            "when": { "type": "string", "format": "date-time" }
+          }
+        },
+        "orderDone": { "type": "number" },
+        "vehicle": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "dimensions": {
+                "type": "object",
+                "properties": {
+                    "poids": { "type": "number" },
+                    "bac": { "type": "number" },
+                    "volume": { "type": "number" }
+                }
+            },
+            "accelerationTime": { "type": "number" },
+            "maxOrders": { "type": "number" },
+            "maxDistance": { "type": "number" },
+            "maxDuration": { "type": "number" },
+            "fixedCost": { "type": "number" },
+            "costPerUnitTime": { "type": "number" },
+            "costPerUnitDistance": { "type": "number" },
+            "type": { "type": "string" },
+            "reloading": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "time": { "type": "number" }
+              }
+            },
+            "breaks": { "type": "boolean" },
+            "labels": { "type": "array" }
+          }
+        }
+      },
+      "required": ["id"]
+    },
     "Round": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Round",
@@ -200,9 +338,9 @@
       {
         "path": "/rounds/{roundId}",
         "definition": {
-          "entityName": "Round",
+          "entityName": "Tournee",
           "schema": {
-            "$ref": "#/backend/entities/Round"
+            "$ref": "#/backend/entities/Tournee"
           },
           "description": "Stores round data fetched from the Urbantz API.",
           "params": [

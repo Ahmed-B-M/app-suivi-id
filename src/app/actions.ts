@@ -7,7 +7,7 @@ import {
   schedulerSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { Tache } from "@/lib/types";
+import { Tache, Tournee } from "@/lib/types";
 
 /**
  * Transforms a raw task object from the Urbantz API into the desired French structure.
@@ -104,6 +104,89 @@ function transformTaskData(rawTask: any): Tache {
       notationLivreur: rawTask.metadata.notationLivreur,
       commentaireLivreur: rawTask.metadata.commentaireLivr,
       immeuble: rawTask.metadata.building,
+    } : undefined,
+  };
+}
+
+/**
+ * Transforms a raw round object from the Urbantz API into the desired clean structure.
+ * @param rawRound - The raw round object from the API.
+ * @returns A new, filtered and structured round object.
+ */
+function transformRoundData(rawRound: any): Tournee {
+  return {
+    id: rawRound.id,
+    date: rawRound.date,
+    dimensions: rawRound.dimensions,
+    endLocation: rawRound.endLocation,
+    endTime: rawRound.endTime,
+    labelsAndSkills: rawRound.labelsAndSkills,
+    metadata: rawRound.metadata ? {
+      codePostalMaitre: rawRound.metadata.codePostalMaitre,
+      TempsDepassementPlanifie: rawRound.metadata.TempsDepassementPlanifie,
+      TempSURG_Chargement: rawRound.metadata.TempSURG_Chargement,
+      TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
+      Immatriculation: rawRound.metadata.Immatriculation,
+      // These fields are not in the source, you might need to handle them if they appear
+      TempSURG_Fin: rawRound.metadata.TempSURG_Fin, 
+      TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
+    } : undefined,
+    name: rawRound.name,
+    orderCount: rawRound.orderCount,
+    realInfo: rawRound.realInfo,
+    reloads: rawRound.reloads,
+    senders: Array.isArray(rawRound.senders) ? rawRound.senders.map((sender: any) => ({
+      name: sender.name,
+      count: sender.count,
+    })) : [],
+    startLocation: rawRound.startLocation,
+    startTime: rawRound.startTime,
+    status: rawRound.status,
+    stops: Array.isArray(rawRound.stops) ? rawRound.stops.map((stop: any) => ({
+      coordinates: stop.coordinates,
+      taskId: stop.taskId,
+      progress: stop.progress,
+      status: stop.status,
+      sequence: stop.sequence,
+      stopSequence: stop.stopSequence,
+      travelDistance: stop.travelDistance,
+      arriveTime: stop.arriveTime,
+      departTime: stop.departTime,
+      travelTime: stop.travelTime,
+      serviceTime: stop.serviceTime,
+      waitTime: stop.waitTime,
+      violationTime: stop.violationTime,
+      closureDate: stop.closureDate,
+    })) : [],
+    totalDistance: rawRound.totalDistance,
+    totalOrderServiceTime: rawRound.totalOrderServiceTime,
+    totalTime: rawRound.totalTime,
+    totalTravelTime: rawRound.totalTravelTime,
+    totalViolationTime: rawRound.totalViolationTime,
+    totalWaitTime: rawRound.totalWaitTime,
+    updated: rawRound.updated,
+    validated: rawRound.validated,
+    driver: rawRound.driver ? {
+      externalId: rawRound.driver.externalId,
+      firstName: rawRound.driver.firstName,
+      lastName: rawRound.driver.lastName,
+    } : undefined,
+    delay: rawRound.delay,
+    orderDone: rawRound.orderDone,
+    vehicle: rawRound.vehicle ? {
+      name: rawRound.vehicle.name,
+      dimensions: rawRound.vehicle.dimensions,
+      accelerationTime: rawRound.vehicle.accelerationTime,
+      maxOrders: rawRound.vehicle.maxOrders,
+      maxDistance: rawRound.vehicle.maxDistance,
+      maxDuration: rawRound.vehicle.maxDuration,
+      fixedCost: rawRound.vehicle.fixedCost,
+      costPerUnitTime: rawRound.vehicle.costPerUnitTime,
+      costPerUnitDistance: rawRound.vehicle.costPerUnitDistance,
+      type: rawRound.vehicle.type,
+      reloading: rawRound.vehicle.reloading,
+      breaks: rawRound.vehicle.breaks,
+      labels: rawRound.vehicle.labels,
     } : undefined,
   };
 }
@@ -306,9 +389,12 @@ async function fetchRounds(
   apiKey: string,
   params: URLSearchParams,
   logs: string[]
-) {
-  // Appelle la fonction générique avec l'endpoint 'round'.
-  return fetchGeneric("round", apiKey, params, logs);
+): Promise<Tournee[]> {
+  const rawRounds = await fetchGeneric("round", apiKey, params, logs);
+  logs.push(`\n🔄 Transformation de ${rawRounds.length} tournées brutes...`);
+  const transformedRounds = rawRounds.map(transformRoundData);
+  logs.push(`   - Transformation terminée.`);
+  return transformedRounds;
 }
 
 // --- Action d'Exportation des Tournées ---

@@ -14,7 +14,7 @@ import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
 import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
 import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
-import type { Tache, Round } from "@/lib/types";
+import type { Tache, Tournee } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,12 +55,12 @@ export default function DashboardPage() {
     data: rounds,
     isLoading: isLoadingRounds,
     error: roundsError,
-  } = useCollection<Round>(roundsCollection);
+  } = useCollection<Tournee>(roundsCollection);
 
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
 
-    const filterByDate = (item: Tache | Round) => {
+    const filterByDate = (item: Tache | Tournee) => {
       if (!from || !to) return true;
       const itemDateString = item.date || item.dateCreation;
       if (!itemDateString) return false;

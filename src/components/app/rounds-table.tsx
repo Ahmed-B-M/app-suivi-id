@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { RoundDetails } from "./round-details";
+import { Tournee } from "@/lib/types";
 
-export function RoundsTable({ data }: { data: any[] }) {
+export function RoundsTable({ data }: { data: Tournee[] }) {
   if (!data || data.length === 0) {
     return <p>Aucune tournée trouvée.</p>;
   }
@@ -16,7 +17,7 @@ export function RoundsTable({ data }: { data: any[] }) {
   return (
     <Accordion type="single" collapsible className="w-full">
       {data.map((round) => (
-        <AccordionItem value={round.id || round._id} key={round.id || round._id}>
+        <AccordionItem value={round.id} key={round.id}>
           <AccordionTrigger>
             <div className="flex items-center gap-4 justify-between w-full pr-4">
               <span className="font-mono text-sm">
