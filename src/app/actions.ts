@@ -115,14 +115,16 @@ function transformTaskData(rawTask: any): Tache {
 /**
  * Transforms a raw round object from the Urbantz API into the desired clean structure.
  * @param rawRound - The raw round object from the API.
+ * @param hubIdToNameMap - A map to find hub names by their ID.
  * @returns A new, filtered and structured round object.
  */
-function transformRoundData(rawRound: any): Tournee {
+function transformRoundData(rawRound: any, hubIdToNameMap: Map<string, string>): Tournee {
+  const nomHub = rawRound.hub ? hubIdToNameMap.get(rawRound.hub) : undefined;
   return {
     id: rawRound.id || rawRound._id,
     date: rawRound.date,
     hub: rawRound.hub,
-    nomHub: rawRound.hubName,
+    nomHub: nomHub,
     dimensions: rawRound.dimensions,
     endLocation: rawRound.endLocation,
     endTime: rawRound.endTime,
@@ -278,11 +280,12 @@ async function fetchTasks(
 async function fetchRounds(
   apiKey: string,
   params: URLSearchParams,
-  logs: string[]
+  logs: string[],
+  hubIdToNameMap: Map<string, string>
 ): Promise<Tournee[]> {
   const rawRounds = await fetchGeneric("round", apiKey, params, logs);
   logs.push(`\n🔄 Transformation de ${rawRounds.length} tournées brutes...`);
-  const transformedRounds = rawRounds.map(transformRoundData);
+  const transformedRounds = rawRounds.map(round => transformRoundData(round, hubIdToNameMap));
   logs.push(`   - Transformation des tournées terminée.`);
   return transformedRounds;
 }
@@ -343,6 +346,16 @@ export async function runUnifiedExportAction(
     }
     logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
     
+    // --- Create Hub ID to Name Map ---
+    logs.push("\n🗺️  Création de la table de correspondance des hubs...");
+    const hubIdToNameMap = new Map<string, string>();
+    allTasks.forEach(task => {
+      if (task.hub && task.nomHub && !hubIdToNameMap.has(task.hub)) {
+        hubIdToNameMap.set(task.hub, task.nomHub);
+      }
+    });
+    logs.push(`   - ${hubIdToNameMap.size} hubs uniques identifiés.`);
+
 
     // --- FETCH ROUNDS ---
     logs.push(`\n\n🛰️  Interrogation de l'API pour les TOURNÉES...`);
@@ -355,7 +368,7 @@ export async function runUnifiedExportAction(
       logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
       const paramsForDay = new URLSearchParams(roundParams);
       paramsForDay.append("date", dateString);
-      const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs);
+      const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs, hubIdToNameMap);
       allRounds.push(...roundsForDay);
       dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
     }
@@ -421,3 +434,4 @@ export async function getScheduleAction(
     
 
     
+

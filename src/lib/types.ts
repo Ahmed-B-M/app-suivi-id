@@ -1,4 +1,5 @@
 
+
 // Définition de la structure d'une Tâche avec les champs en français
 export interface Tache {
   tacheId: string;
@@ -216,3 +217,4 @@ export interface Round {
     
 
     
+
