@@ -195,14 +195,26 @@ export default function QualityPage() {
         }
     }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
+    // --- SUMMARY CALCULATION ---
     const allDrivers = Object.values(driverStats);
     const summary = calculateAverageStats(allDrivers);
-    const totalNumberOfRatings = allDrivers.reduce((sum, d) => sum + d.tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number').length, 0);
-    const totalAlerts = allDrivers.reduce((sum, d) => sum + d.tasks.filter(t => t.metaDonnees?.notationLivreur && t.metaDonnees.notationLivreur < 4).length, 0);
+    
+    // Correct calculation for global average rating
+    const allRatedTasks = filteredTasks
+      .map(t => t.metaDonnees?.notationLivreur)
+      .filter((r): r is number => typeof r === 'number');
+    
+    const globalAverageRating = allRatedTasks.length > 0
+        ? allRatedTasks.reduce((sum, rating) => sum + rating, 0) / allRatedTasks.length
+        : null;
+
+    const totalNumberOfRatings = allRatedTasks.length;
+    const totalAlerts = allRatedTasks.filter(r => r < 4).length;
 
     return {
       summary: {
         ...summary,
+        averageRating: globalAverageRating, // Use the direct average
         totalRatings: totalNumberOfRatings,
         totalAlerts: totalAlerts,
         alertRate: totalNumberOfRatings > 0 ? (totalAlerts / totalNumberOfRatings * 100) : 0,
@@ -217,7 +229,7 @@ export default function QualityPage() {
         return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, score: 0 };
     }
 
-    const calculateWeightedAvg = (key: keyof Omit<DriverStats, 'name' | 'totalTasks' | 'score'>) => {
+    const calculateWeightedAvg = (key: keyof Omit<DriverStats, 'name' | 'totalTasks' | 'score' | 'averageRating'>) => {
         const totalWeight = drivers.reduce((sum, driver) => sum + driver.completedTasks, 0);
         if (totalWeight === 0) return null;
         const weightedSum = drivers.reduce((sum, driver) => {
@@ -232,9 +244,20 @@ export default function QualityPage() {
     
     const totalScore = drivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0);
 
+    const totalRatedTasksWeight = drivers.reduce((sum, driver) => {
+        return driver.averageRating !== null ? sum + driver.completedTasks : sum;
+    }, 0);
+    const weightedRatingSum = drivers.reduce((sum, driver) => {
+        if (driver.averageRating !== null) {
+            return sum + (driver.averageRating * driver.completedTasks);
+        }
+        return sum;
+    }, 0);
+    const averageRating = totalRatedTasksWeight > 0 ? weightedRatingSum / totalRatedTasksWeight : null;
+
     return {
         score: totalScore / drivers.length,
-        averageRating: calculateWeightedAvg('averageRating'),
+        averageRating: averageRating,
         punctualityRate: calculateWeightedAvg('punctualityRate'),
         scanbacRate: calculateWeightedAvg('scanbacRate'),
         forcedAddressRate: calculateWeightedAvg('forcedAddressRate'),
