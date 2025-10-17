@@ -8,65 +8,49 @@ export interface DriverStats {
   scanbacRate: number | null;
   forcedAddressRate: number | null;
   forcedContactlessRate: number | null;
-  score?: number; // Score is now part of the stats object
+  score?: number;
 }
 
-const WEIGHTS = {
-  RATING: 0.4,
-  PUNCTUALITY: 0.25,
-  SCANBAC: 0.15,
-  TASK_VOLUME_BONUS: 0.1,
-  FORCED_ADDRESS: 0.05,
-  FORCED_CONTACTLESS: 0.05,
-};
-
 /**
- * Calculates a composite score for a driver based on multiple performance metrics.
+ * Calculates a composite score for a driver based on a custom formula.
  * @param stats - The driver's performance statistics.
- * @returns A composite score from 0 to 100.
+ * @param maxCompletedTasks - The maximum number of tasks completed by any single driver in the period.
+ * @returns A composite score.
  */
-export function calculateDriverScore(stats: Omit<DriverStats, 'score'>): number {
-  if (stats.completedTasks < 5) { // Minimum 5 tasks to be scored
-    return 0;
+export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompletedTasks: number): number {
+  if (stats.completedTasks < 5) {
+    return 0; // Minimum 5 tasks to be scored
   }
 
-  // --- Normalize each metric to a 0-1 scale ---
+  // 1. Rating term (coeff 3)
+  const ratingPct = stats.averageRating ? (stats.averageRating / 5) * 100 : 0;
+  const ratingTerm = ratingPct * 3;
 
-  // Rating: Scale 1-5 to 0-1
-  const ratingScore = stats.averageRating ? (stats.averageRating - 1) / 4 : 0;
+  // 2. Punctuality term (coeff 2)
+  const punctualityPct = stats.punctualityRate ?? 0;
+  const punctualityTerm = punctualityPct * 2;
 
-  // Punctuality: Percentage to 0-1
-  const punctualityScore = stats.punctualityRate !== null ? stats.punctualityRate / 100 : 0;
+  // 3. Scanbac term (coeff 1)
+  const scanbacPct = stats.scanbacRate ?? 0;
 
-  // Scanbac: Percentage to 0-1
-  const scanbacScore = stats.scanbacRate !== null ? stats.scanbacRate / 100 : 0;
+  // 4. Forced Address term (inverted)
+  const forcedAddressInvertedPct = 100 - (stats.forcedAddressRate ?? 0);
 
-  // Forced Rates (lower is better): Invert the percentage
-  const forcedAddressScore = stats.forcedAddressRate !== null ? 1 - (stats.forcedAddressRate / 100) : 1;
-  const forcedContactlessScore = stats.forcedContactlessRate !== null ? 1 - (stats.forcedContactlessRate / 100) : 1;
+  // 5. Forced Contactless term (inverted)
+  const forcedContactlessInvertedPct = 100 - (stats.forcedContactlessRate ?? 0);
   
-  // --- Apply weights ---
+  // 6. Task volume term
+  const volumePct = maxCompletedTasks > 0 ? (stats.completedTasks / maxCompletedTasks) * 100 : 0;
 
-  let totalScore = 
-      ratingScore * WEIGHTS.RATING +
-      punctualityScore * WEIGHTS.PUNCTUALITY +
-      scanbacScore * WEIGHTS.SCANBAC +
-      forcedAddressScore * WEIGHTS.FORCED_ADDRESS +
-      forcedContactlessScore * WEIGHTS.FORCED_CONTACTLESS;
+  const numerator = 
+      ratingTerm + 
+      punctualityTerm + 
+      scanbacPct + 
+      forcedAddressInvertedPct + 
+      forcedContactlessInvertedPct + 
+      volumePct;
+      
+  const score = numerator / 9;
 
-  // --- Apply a bonus for volume, capped to prevent overpowering other metrics ---
-  // The bonus gives a slight edge to more experienced drivers.
-  // Using Math.log helps to flatten the curve, so the bonus for going from 10 to 100 tasks
-  // is greater than going from 900 to 1000 tasks.
-  const volumeBonus = Math.min(
-    (Math.log(stats.completedTasks + 1) / Math.log(100)) * WEIGHTS.TASK_VOLUME_BONUS,
-    WEIGHTS.TASK_VOLUME_BONUS
-  );
-
-  totalScore += volumeBonus;
-
-  // Normalize the final score to be out of 100
-  const maxPossibleScore = Object.values(WEIGHTS).reduce((sum, weight) => sum + weight, 0);
-  
-  return Math.max(0, Math.min(100, (totalScore / maxPossibleScore) * 100));
+  return Math.max(0, Math.min(100, score));
 }

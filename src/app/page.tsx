@@ -251,8 +251,8 @@ export default function DashboardPage() {
             driverData[driverName].tasks.push(task);
         }
     });
-
-    const driverPerformance: DriverStats[] = Object.entries(driverData).map(([name, data]) => {
+    
+    const rawDriverStats: Omit<DriverStats, 'score'>[] = Object.entries(driverData).map(([name, data]) => {
       const completed = data.tasks.filter(t => t.progression === 'COMPLETED');
       const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
       
@@ -267,7 +267,7 @@ export default function DashboardPage() {
         }
       });
 
-      const stats: DriverStats = {
+      return {
         name,
         totalTasks: data.tasks.length,
         completedTasks: completed.length,
@@ -277,12 +277,14 @@ export default function DashboardPage() {
         forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
         forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
       };
-      
-      return {
-        ...stats,
-        score: calculateDriverScore(stats),
-      };
-    }).sort((a, b) => b.score - a.score);
+    });
+
+    const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
+
+    const driverPerformance: DriverStats[] = rawDriverStats.map(stats => ({
+      ...stats,
+      score: calculateDriverScore(stats, maxCompletedTasks),
+    })).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
 
     const taskStats = {
