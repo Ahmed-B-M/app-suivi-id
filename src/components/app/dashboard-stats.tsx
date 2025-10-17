@@ -37,9 +37,10 @@ type DashboardStatsProps = {
   onRatingClick: () => void;
   onEarlyClick: () => void;
   onLateClick: () => void;
+  onFailedDeliveryClick: () => void;
 };
 
-export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick }: DashboardStatsProps) {
+export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick, onFailedDeliveryClick }: DashboardStatsProps) {
   const gridCols = "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
 
   return (
@@ -62,7 +63,7 @@ export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick
           <div className="text-2xl font-bold">{stats.completedTasks}</div>
         </CardContent>
       </Card>
-      <Card>
+      <Card onClick={onFailedDeliveryClick} className="cursor-pointer hover:bg-muted">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Échecs Livraison</CardTitle>
           <XCircle className="h-4 w-4 text-destructive" />
@@ -176,5 +177,3 @@ export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick
     </div>
   );
 }
-
-    

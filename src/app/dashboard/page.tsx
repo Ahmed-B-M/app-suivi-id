@@ -38,6 +38,7 @@ import { getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
+import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -48,6 +49,7 @@ export default function DashboardPage() {
   const [selectedDepot, setSelectedDepot] = useState<string>("all");
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
+  const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late';
     tasks: PunctualityTask[];
@@ -215,15 +217,16 @@ export default function DashboardPage() {
     const forcedContactless = completedTasksList.filter(t => t.execution?.sansContact?.forced === true).length;
     const forcedContactlessRate = totalCompletedTasks > 0 ? (forcedContactless / totalCompletedTasks) * 100 : 0;
     
-    const failedTasks = completedTasksList.filter(
+    const failedTasksList = completedTasksList.filter(
       (t) => t.status === "NOT_DELIVERED"
-    ).length;
+    );
+    const failedTasksCount = failedTasksList.length;
 
 
     const taskStats = {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
-      failedTasks: failedTasks,
+      failedTasks: failedTasksCount,
       unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
       averageRating: averageRating,
       punctualityRate: punctualityRate,
@@ -298,6 +301,7 @@ export default function DashboardPage() {
       stats: { ...taskStats, ...roundStats },
       earlyTasks,
       lateTasks,
+      failedTasksList,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
         name,
         value,
@@ -345,6 +349,11 @@ export default function DashboardPage() {
         isOpen={!!statusDetails}
         onOpenChange={() => setStatusDetails(null)}
         details={statusDetails}
+      />
+       <FailedDeliveryDetailsDialog
+        isOpen={isFailedDeliveryDetailsOpen}
+        onOpenChange={setIsFailedDeliveryDetailsOpen}
+        tasks={dashboardData?.failedTasksList || []}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -453,6 +462,7 @@ export default function DashboardPage() {
             onRatingClick={() => setIsRatingDetailsOpen(true)}
             onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
             onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
+            onFailedDeliveryClick={() => setIsFailedDeliveryDetailsOpen(true)}
           />
           
           <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
@@ -527,5 +537,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
