@@ -50,13 +50,29 @@ export default function DatabasePage() {
     }, {} as Record<string, Tache[]>);
   }, [tasks]);
 
+  const roundsByDate = useMemo(() => {
+    if (!rounds) return {};
+    return rounds.reduce((acc, round) => {
+      const date = round.date ? round.date.split("T")[0] : "Sans date";
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(round);
+      return acc;
+    }, {} as Record<string, Tournee[]>);
+  }, [rounds]);
+
+  const sortedRoundDates = useMemo(() => {
+    return Object.keys(roundsByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  }, [roundsByDate]);
+
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Base de Données Firestore</h1>
       <Tabs defaultValue="tasks">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="tasks">Tâches</TabsTrigger>
-          <TabsTrigger value="rounds">Tournées</TabsTrigger>
+          <TabsTrigger value="tasks">Tâches ({tasks?.length || 0})</TabsTrigger>
+          <TabsTrigger value="rounds">Tournées ({rounds?.length || 0})</TabsTrigger>
         </TabsList>
         <TabsContent value="tasks" className="mt-4">
           <Card>
@@ -76,8 +92,8 @@ export default function DatabasePage() {
                   {Object.entries(tasksByStatus).map(([status, tasksInStatus]) => (
                     <Card key={status}>
                       <CardHeader>
-                        <CardTitle className="text-lg">
-                          {status} ({tasksInStatus.length})
+                        <CardTitle className="text-lg capitalize">
+                          {status.toLowerCase()} ({tasksInStatus.length})
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -87,7 +103,7 @@ export default function DatabasePage() {
                   ))}
                 </Accordion>
               ) : (
-                !isLoadingTasks && <p>Aucune tâche trouvée.</p>
+                !isLoadingTasks && <p className="text-muted-foreground p-4 text-center">Aucune tâche trouvée dans la base de données.</p>
               )}
             </CardContent>
           </Card>
@@ -107,7 +123,24 @@ export default function DatabasePage() {
                   Erreur: {roundsError.message}
                 </p>
               )}
-              {rounds && <RoundsTable data={rounds} />}
+              {rounds && sortedRoundDates.length > 0 ? (
+                 <Accordion type="multiple" className="w-full space-y-4">
+                  {sortedRoundDates.map((date) => (
+                    <Card key={date}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          {date} ({roundsByDate[date].length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <RoundsTable data={roundsByDate[date]} />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Accordion>
+              ) : (
+                !isLoadingRounds && <p className="text-muted-foreground p-4 text-center">Aucune tournée trouvée dans la base de données.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

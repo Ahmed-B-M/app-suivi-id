@@ -42,7 +42,7 @@ export function TasksTable({ data }: { data: Tache[] }) {
                     <Badge variant={task.progression === 'COMPLETED' ? 'default' : 'secondary'}>
                         {task.progression}
                     </Badge>
-                     <Button variant="outline" size="sm" asChild>
+                     <Button variant="outline" size="sm" asChild onClick={(e) => e.stopPropagation()}>
                        <Link href={`/task/${id}`}>
                           Voir Détails
                        </Link>

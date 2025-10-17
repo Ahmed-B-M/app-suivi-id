@@ -99,7 +99,7 @@ export default function DashboardPage() {
           completedTasks: filteredData.tasks.filter(
             (t) => t.progression === "COMPLETED"
           ).length,
-          unplannedTasks: filteredData.tasks.filter((t) => t.nonPlanifie).length,
+          unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
           averageRating: averageRating,
         }
       : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null };
@@ -124,7 +124,7 @@ export default function DashboardPage() {
     const tasksOverTime = filteredData.tasks
       ? filteredData.tasks.reduce((acc, task) => {
           const date = task.date ? task.date.split("T")[0] : "Non planifiée";
-          if (date === "Non planifiée" && !task.nonPlanifie) return acc;
+          if (date === "Non planifiée" && !task.unplanned) return acc;
           acc[date] = (acc[date] || 0) + 1;
           return acc;
         }, {} as Record<string, number>)
@@ -171,7 +171,7 @@ export default function DashboardPage() {
           date,
           count,
         }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     };
   }, [filteredData]);
 
