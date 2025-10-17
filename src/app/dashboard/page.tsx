@@ -41,6 +41,7 @@ import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
 import { MissingBacsDetailsDialog } from "@/components/app/missing-bacs-details-dialog";
 import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dialog";
+import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -54,6 +55,7 @@ export default function DashboardPage() {
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
   const [isMissingBacsDetailsOpen, setIsMissingBacsDetailsOpen] = useState(false);
   const [isRedeliveryDetailsOpen, setIsRedeliveryDetailsOpen] = useState(false);
+  const [isSensitiveDeliveriesOpen, setIsSensitiveDeliveriesOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late';
     tasks: PunctualityTask[];
@@ -238,6 +240,13 @@ export default function DashboardPage() {
       task.articles && task.articles.some(article => article.statut === 'MISSING')
     );
 
+    const sensitiveKeywords = ['pièce', 'identité', 'gendarmerie', 'caserne', 'police', 'militaire'];
+    const sensitiveDeliveriesList = filteredData.tasks.filter(t => {
+      if (!t.instructions) return false;
+      const lowercasedInstructions = t.instructions.toLowerCase();
+      return sensitiveKeywords.some(keyword => lowercasedInstructions.includes(keyword));
+    });
+
     const taskStats = {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
@@ -256,6 +265,7 @@ export default function DashboardPage() {
       partialDeliveredTasks: partialDeliveredTasksList.length,
       redeliveries: redeliveriesList.length,
       failedDeliveryRate: failedDeliveryRate,
+      sensitiveDeliveries: sensitiveDeliveriesList.length,
     };
 
     const roundStats = filteredData.rounds
@@ -328,6 +338,7 @@ export default function DashboardPage() {
       tasksWithMissingBacs,
       partialDeliveredTasksList,
       redeliveriesList,
+      sensitiveDeliveriesList,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
         name,
         value,
@@ -390,6 +401,11 @@ export default function DashboardPage() {
         isOpen={isRedeliveryDetailsOpen}
         onOpenChange={setIsRedeliveryDetailsOpen}
         tasks={dashboardData?.redeliveriesList || []}
+      />
+      <SensitiveDeliveriesDialog
+        isOpen={isSensitiveDeliveriesOpen}
+        onOpenChange={setIsSensitiveDeliveriesOpen}
+        tasks={dashboardData?.sensitiveDeliveriesList || []}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -504,6 +520,7 @@ export default function DashboardPage() {
             onMissingBacsClick={() => setIsMissingBacsDetailsOpen(true)}
             onPartialDeliveredClick={() => setStatusDetails({ status: 'PARTIAL_DELIVERED', tasks: dashboardData.partialDeliveredTasksList, type: 'status' })}
             onRedeliveryClick={() => setIsRedeliveryDetailsOpen(true)}
+            onSensitiveDeliveriesClick={() => setIsSensitiveDeliveriesOpen(true)}
           />
           
           <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
@@ -578,3 +595,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    

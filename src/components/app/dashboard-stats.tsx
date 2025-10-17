@@ -16,6 +16,7 @@ import {
   Route,
   SearchX,
   ShieldAlert,
+  Siren,
   Smartphone,
   Star,
   Timer,
@@ -45,6 +46,7 @@ type DashboardStatsProps = {
     partialDeliveredTasks: number;
     redeliveries: number;
     failedDeliveryRate: number | null;
+    sensitiveDeliveries: number;
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -55,6 +57,7 @@ type DashboardStatsProps = {
   onMissingBacsClick: () => void;
   onPartialDeliveredClick: () => void;
   onRedeliveryClick: () => void;
+  onSensitiveDeliveriesClick: () => void;
 };
 
 export function DashboardStats({ 
@@ -68,6 +71,7 @@ export function DashboardStats({
   onMissingBacsClick,
   onPartialDeliveredClick,
   onRedeliveryClick,
+  onSensitiveDeliveriesClick,
 }: DashboardStatsProps) {
   const gridCols = "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
 
@@ -193,6 +197,15 @@ export function DashboardStats({
           </div>
         </CardContent>
       </Card>
+      <Card onClick={onSensitiveDeliveriesClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Livraisons Sensibles</CardTitle>
+          <Siren className="h-4 w-4 text-red-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-red-600">{stats.sensitiveDeliveries}</div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
@@ -261,3 +274,5 @@ export function DashboardStats({
     </div>
   );
 }
+
+    
