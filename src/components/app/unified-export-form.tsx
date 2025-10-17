@@ -17,7 +17,6 @@ import {
   writeBatch,
   collection,
   doc,
-  setDoc,
 } from "firebase/firestore";
 
 import { unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
@@ -54,7 +53,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Tache, Tournee } from "@/lib/types";
-import { DateRange } from "react-day-picker";
 
 type UnifiedExportFormProps = {
   onExportStart: () => void;
@@ -174,29 +172,31 @@ export function UnifiedExportForm({
         
         onLogUpdate([`      - ${itemsToSave.length} documents à créer ou mettre à jour.`]);
 
-        const promises = itemsToSave.map(item => {
+        const batchSize = 500;
+        for (let i = 0; i < itemsToSave.length; i += batchSize) {
+          const batchData = itemsToSave.slice(i, i + batchSize);
+          const batch = writeBatch(firestore);
+          
+          batchData.forEach(item => {
             const docId = item[idKey].toString();
             const docRef = doc(collectionRef, docId);
-            return setDoc(docRef, item, { merge: true }).catch(e => {
-                console.log(`Échec de la sauvegarde du document ${collectionName}/${docId}`, item);
-                const permissionError = new FirestorePermissionError({
-                    path: `${collectionName}/${docId}`,
-                    operation: 'write',
-                    requestResourceData: item,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw e; // Rethrow to mark promise as rejected
-            });
-        });
+            batch.set(docRef, item, { merge: true });
+          });
 
-        const results = await Promise.allSettled(promises);
-        
-        const failedSaves = results.filter(r => r.status === 'rejected');
-        if (failedSaves.length > 0) {
+          try {
+            await batch.commit();
+            onLogUpdate([`      - ✅ Lot ${i / batchSize + 1} sauvegardé avec succès.`]);
+          } catch (e) {
             anyError = true;
-            onLogUpdate([`      - ❌ ${failedSaves.length} documents de type '${collectionName}' n'ont pas pu être sauvegardés.`]);
-        } else {
-            onLogUpdate([`      - ✅ ${itemsToSave.length} documents de type '${collectionName}' sauvegardés avec succès.`]);
+            onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${i / batchSize + 1}.`]);
+            console.error(`Échec de la sauvegarde du lot ${collectionName}`, e);
+            const permissionError = new FirestorePermissionError({
+                path: `${collectionName}`,
+                operation: 'write',
+                requestResourceData: batchData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          }
         }
     }
   };
@@ -269,7 +269,7 @@ export function UnifiedExportForm({
                         initialFocus
                         mode="range"
                         defaultMonth={field.value?.from}
-                        selected={field.value}
+                        selected={field.value as DateRange}
                         onSelect={field.onChange}
                         numberOfMonths={2}
                       />
@@ -384,5 +384,3 @@ export function UnifiedExportForm({
     </Card>
   );
 }
-
-    

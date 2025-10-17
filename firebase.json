@@ -1,0 +1,45 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "dataconnect": {
+    "source": "dataconnect"
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": "8090"
+    },
+    "database": {
+      "host": "127.0.0.1",
+      "port": "9010"
+    },
+    "storage": {
+      "host": "127.0.0.1",
+      "port": "9190"
+    },
+    "dataconnect": {
+      "host": "127.0.0.1",
+      "port": "9390"
+    },
+    "hub": {
+      "host": "127.0.0.1",
+      "port": "4410"
+    },
+    "ui": {
+      "host": "127.0.0.1",
+      "port": "4010"
+    },
+    "logging": {
+      "host": "127.0.0.1",
+      "port": "4510"
+    }
+  }
+}

@@ -1,50 +1,8 @@
-/**
- * @fileoverview Firestore Security Rules for Urbantz API Data.
- *
- * Core Philosophy:
- * This ruleset allows public read access to all task and round data,
- * but restricts write access completely. This is suitable for a
- * read-only data mirror of the Urbantz API.
- *
- * Data Structure:
- * - /tasks/{taskId}: Stores task data.
- * - /rounds/{roundId}: Stores round data.
- *
- * Key Security Decisions:
- * - Public read access is granted for both tasks and rounds.
- * - All write operations (create, update, delete) are explicitly denied.
- * - There is no authorization based on user identity in this initial configuration.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * @description Allows public read access to tasks, but denies all write operations.
-     * @path /tasks/{taskId}
-     * @allow get, list: Any user can read any task.
-     * @deny create, update, delete: No user can create, update, or delete tasks.
-     * @principle Allows public read, restricts all writes.
-     */
-    match /tasks/{taskId} {
-      allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /**
-     * @description Allows public read access to rounds, but denies all write operations.
-     * @path /rounds/{roundId}
-     * @allow get, list: Any user can read any round.
-     * @deny create, update, delete: No user can create, update, or delete rounds.
-     * @principle Allows public read, restricts all writes.
-     */
-    match /rounds/{roundId} {
-      allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
