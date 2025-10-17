@@ -152,21 +152,21 @@ export default function DashboardPage() {
     const earlyTasks: PunctualityTask[] = [];
     const lateTasks: PunctualityTask[] = [];
     const completedTasksWithTime = filteredData.tasks.filter(
-        t => t.progression === "COMPLETED" && t.creneauHoraire?.debut && t.heureReelle?.arrivee?.date
+        t => t.progression === "COMPLETED" && t.creneauHoraire?.debut && t.dateCloture
     );
     
     completedTasksWithTime.forEach(task => {
-        const arrivalTime = new Date(task.heureReelle!.arrivee!.date!);
+        const closureTime = new Date(task.dateCloture!);
         const windowStart = new Date(task.creneauHoraire!.debut!);
         const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120); // Default to 2h window if no end
 
         const lowerBound = subMinutes(windowStart, 15);
         const upperBound = addMinutes(windowEnd, 15);
 
-        if (arrivalTime < lowerBound) {
-            earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, arrivalTime) });
-        } else if (arrivalTime > upperBound) {
-            lateTasks.push({ task, minutes: differenceInMinutes(arrivalTime, upperBound) });
+        if (closureTime < lowerBound) {
+            earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, closureTime) });
+        } else if (closureTime > upperBound) {
+            lateTasks.push({ task, minutes: differenceInMinutes(closureTime, upperBound) });
         } else {
             punctualTasks++;
         }
