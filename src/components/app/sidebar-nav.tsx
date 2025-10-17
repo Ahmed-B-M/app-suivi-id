@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck } from "lucide-react";
 
 const links = [
   {
@@ -22,6 +22,11 @@ const links = [
     href: "/billing",
     label: "Facturation",
     icon: <CreditCard />,
+  },
+  {
+    href: "/quality",
+    label: "Qualité",
+    icon: <ShieldCheck />,
   },
   {
     href: "/settings",
