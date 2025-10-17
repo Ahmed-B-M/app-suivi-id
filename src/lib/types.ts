@@ -106,6 +106,7 @@ export interface Tournee {
   id: string;
   date?: string;
   hub?: any;
+  nomHub?: string;
   dimensions?: {
     poids?: number;
     bac?: number;
@@ -209,7 +210,6 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
-
     
     
 

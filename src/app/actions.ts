@@ -122,6 +122,7 @@ function transformRoundData(rawRound: any): Tournee {
     id: rawRound.id || rawRound._id,
     date: rawRound.date,
     hub: rawRound.hub,
+    nomHub: rawRound.hubName,
     dimensions: rawRound.dimensions,
     endLocation: rawRound.endLocation,
     endTime: rawRound.endTime,
