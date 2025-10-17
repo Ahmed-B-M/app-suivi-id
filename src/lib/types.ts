@@ -5,6 +5,7 @@ export interface Tache {
   type?: string;
   date?: string;
   progression?: string;
+  status?: string;
   client?: string;
   nomPlateforme?: string;
   dateCreation?: string;
