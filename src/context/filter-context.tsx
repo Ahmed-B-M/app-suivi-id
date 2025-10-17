@@ -24,6 +24,8 @@ interface FilterContextProps {
   availableStores: string[];
   selectedStore: string;
   setSelectedStore: (store: string) => void;
+
+  lastUpdateTime: Date | null;
 }
 
 const FilterContext = createContext<FilterContextProps | undefined>(undefined);
@@ -51,10 +53,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: tasks } = useCollection<Tache>(tasksCollection);
   const { data: rounds } = useCollection<Tournee>(roundsCollection);
 
-  const { availableDepots, availableStores } = useMemo(() => {
+  const { availableDepots, availableStores, lastUpdateTime } = useMemo(() => {
     const allItems: (Tache | Tournee)[] = [...(tasks || []), ...(rounds || [])];
     const depotSet = new Set<string>();
     const storeSet = new Set<string>();
+    let maxDate: Date | null = null;
 
     allItems.forEach(item => {
       const hub = item.nomHub;
@@ -65,6 +68,14 @@ export function FilterProvider({ children }: { children: ReactNode }) {
           storeSet.add(hub);
         }
       }
+
+      const updateDateStr = item.dateMiseAJour || item.updated;
+      if (updateDateStr) {
+        const updateDate = new Date(updateDateStr);
+        if (!maxDate || updateDate > maxDate) {
+          maxDate = updateDate;
+        }
+      }
     });
 
     const depots = DEPOT_RULES.map(r => r.name);
@@ -72,6 +83,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return {
       availableDepots: Array.from(depots).sort(),
       availableStores: Array.from(storeSet).sort(),
+      lastUpdateTime: maxDate,
     };
   }, [tasks, rounds]);
 
@@ -86,6 +98,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     availableStores,
     selectedStore,
     setSelectedStore,
+    lastUpdateTime,
   };
 
   return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
