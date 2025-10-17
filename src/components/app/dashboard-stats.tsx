@@ -56,6 +56,7 @@ type DashboardStatsProps = {
     numberOfRatings: number;
     ratingRate: number | null;
   };
+  top5StarDrivers: { name: string; fiveStarCount: number }[];
   onRatingClick: () => void;
   onEarlyClick: () => void;
   onLateClick: () => void;
@@ -98,7 +99,8 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 
 
 export function DashboardStats({ 
-  stats, 
+  stats,
+  top5StarDrivers,
   onRatingClick, 
   onEarlyClick, 
   onLateClick,
@@ -214,6 +216,28 @@ export function DashboardStats({
       >
         <div className="text-2xl font-bold">{stats.lateTasksCount}</div>
       </StatCard>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Top Livreurs (5★)</CardTitle>
+            <Crown className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            {top5StarDrivers.length > 0 ? (
+                <ol className="space-y-1 text-sm">
+                    {top5StarDrivers.map((driver, index) => (
+                        <li key={driver.name} className="flex items-center justify-between">
+                            <span className="font-medium">{index + 1}. {driver.name}</span>
+                            <Badge variant="default" className="flex items-center gap-1">
+                                {driver.fiveStarCount} <Star className="h-3 w-3"/>
+                            </Badge>
+                        </li>
+                    ))}
+                </ol>
+            ) : (
+                <p className="text-sm text-muted-foreground">Aucune note 5 étoiles.</p>
+            )}
+        </CardContent>
+      </Card>
      
       <SectionTitle>Anomalies et Suivi</SectionTitle>
       
@@ -285,3 +309,5 @@ export function DashboardStats({
     </div>
   );
 }
+
+    

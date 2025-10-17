@@ -287,6 +287,14 @@ export default function DashboardPage() {
     })).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
 
+     const top5StarDrivers = Object.entries(driverData).map(([name, data]) => {
+      const fiveStarCount = data.tasks.filter(t => t.metaDonnees?.notationLivreur === 5).length;
+      return { name, fiveStarCount };
+    }).filter(d => d.fiveStarCount > 0)
+    .sort((a, b) => b.fiveStarCount - a.fiveStarCount)
+    .slice(0, 3);
+
+
     const taskStats = {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
@@ -363,6 +371,7 @@ export default function DashboardPage() {
       hasData,
       stats: { ...taskStats, ...roundStats },
       driverPerformance,
+      top5StarDrivers,
       earlyTasks,
       lateTasks,
       lateTasksOver1h,
@@ -483,7 +492,8 @@ export default function DashboardPage() {
       {!isLoading && !error && dashboardData && dashboardData.hasData && (
         <div className="space-y-6">
           <DashboardStats 
-            stats={dashboardData.stats} 
+            stats={dashboardData.stats}
+            top5StarDrivers={dashboardData.top5StarDrivers}
             onRatingClick={() => setIsRatingDetailsOpen(true)}
             onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
             onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
@@ -571,3 +581,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
