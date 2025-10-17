@@ -20,7 +20,7 @@ function transformTaskData(rawTask: any): Tache {
     type: rawTask.type,
     date: rawTask.date,
     progression: rawTask.progress,
-    status: rawTask.progress,
+    status: rawTask.status,
     client: rawTask.client,
     nomPlateforme: rawTask.platformName,
     dateCreation: rawTask.when,
