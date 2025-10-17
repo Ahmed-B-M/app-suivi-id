@@ -221,13 +221,13 @@ export default function DashboardPage() {
         }
       : { totalRounds: 0, completedRounds: 0 };
 
-    const tasksByStatus = filteredData.tasks
-      ? filteredData.tasks.reduce((acc, task) => {
-          const status = task.progression || "Unknown";
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      : {};
+    const tasksByStatus = filteredData.rounds?.reduce((acc, round) => {
+      round.stops?.forEach(stop => {
+        const status = stop.status || "Unknown";
+        acc[status] = (acc[status] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>) || {};
 
     const tasksOverTime = filteredData.tasks
       ? filteredData.tasks.reduce((acc, task) => {
@@ -477,5 +477,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
