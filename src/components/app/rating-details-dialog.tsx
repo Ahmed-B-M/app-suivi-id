@@ -30,6 +30,7 @@ type RatingDetailsDialogProps = {
 
 type RatingByDriver = {
   driverId: string;
+  driverName: string;
   ratings: { rating: number; taskId: string | number }[];
   average: number;
 };
@@ -40,15 +41,22 @@ export function RatingDetailsDialog({
   tasks,
 }: RatingDetailsDialogProps) {
   const ratingsByDriver = useMemo(() => {
-    const driversData: Record<string, { ratings: { rating: number; taskId: string | number }[] }> = {};
+    const driversData: Record<
+      string,
+      { driverName: string; ratings: { rating: number; taskId: string | number }[] }
+    > = {};
 
     tasks.forEach((task) => {
       const rating = task.metaDonnees?.notationLivreur;
-      const driverId = task.livreur?.idExterne || 'Non assigné';
+      const driverId = task.livreur?.idExterne || "Non assigné";
+      const driverName =
+        driverId !== "Non assigné"
+          ? `${task.livreur?.prenom || ""} ${task.livreur?.nom || ""}`.trim()
+          : "Non assigné";
 
       if (typeof rating === "number") {
         if (!driversData[driverId]) {
-          driversData[driverId] = { ratings: [] };
+          driversData[driverId] = { driverName, ratings: [] };
         }
         driversData[driverId].ratings.push({ rating, taskId: task.tacheId });
       }
@@ -59,7 +67,7 @@ export function RatingDetailsDialog({
         const average =
           data.ratings.reduce((sum, item) => sum + item.rating, 0) /
           data.ratings.length;
-        return { driverId, ratings: data.ratings, average };
+        return { driverId, driverName: data.driverName, ratings: data.ratings, average };
       })
       .sort((a, b) => b.average - a.average);
   }, [tasks]);
@@ -77,11 +85,11 @@ export function RatingDetailsDialog({
         <ScrollArea className="max-h-[60vh]">
           <div className="space-y-4 pr-6">
             {ratingsByDriver.length > 0 ? (
-              ratingsByDriver.map(({ driverId, ratings, average }) => (
+              ratingsByDriver.map(({ driverId, driverName, ratings, average }) => (
                 <div key={driverId} className="rounded-lg border p-4">
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="font-semibold">
-                      Livreur: <span className="font-mono">{driverId}</span>
+                      Livreur: <span className="font-normal">{driverName}</span>
                     </h3>
                     <Badge variant="outline" className="flex items-center gap-1 text-base">
                       Moyenne: {average.toFixed(2)}
