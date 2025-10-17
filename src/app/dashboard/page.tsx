@@ -138,11 +138,16 @@ export default function DashboardPage() {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
     const totalTasks = filteredData.tasks.length;
+    const completedTasksList = filteredData.tasks.filter(
+      (t) => t.progression === "COMPLETED"
+    );
+    const totalCompletedTasks = completedTasksList.length;
+
     if (totalTasks === 0 && filteredData.rounds.length === 0) {
       return { hasData: false };
     }
 
-    const ratedTasks = filteredData.tasks.map(t => {
+    const ratedTasks = completedTasksList.map(t => {
       const rating = t.metaDonnees?.notationLivreur;
       return typeof rating === 'number' ? rating : null;
     }).filter((r): r is number => r !== null);
@@ -156,8 +161,8 @@ export default function DashboardPage() {
     let punctualTasks = 0;
     const earlyTasks: PunctualityTask[] = [];
     const lateTasks: PunctualityTask[] = [];
-    const completedTasksWithTime = filteredData.tasks.filter(
-        t => t.progression === "COMPLETED" && t.creneauHoraire?.debut && t.dateCloture
+    const completedTasksWithTime = completedTasksList.filter(
+        t => t.creneauHoraire?.debut && t.dateCloture
     );
     
     completedTasksWithTime.forEach(task => {
@@ -181,21 +186,18 @@ export default function DashboardPage() {
       ? (punctualTasks / completedTasksWithTime.length) * 100
       : null;
 
-    const mobileValidations = filteredData.tasks.filter(t => t.completePar === 'mobile').length;
-    const scanbacRate = totalTasks > 0 ? (mobileValidations / totalTasks) * 100 : 0;
+    const mobileValidations = completedTasksList.filter(t => t.completePar === 'mobile').length;
+    const scanbacRate = totalCompletedTasks > 0 ? (mobileValidations / totalCompletedTasks) * 100 : 0;
 
-    const incorrectAddresses = filteredData.tasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length;
-    const forcedAddressRate = totalTasks > 0 ? (incorrectAddresses / totalTasks) * 100 : 0;
+    const incorrectAddresses = completedTasksList.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length;
+    const forcedAddressRate = totalCompletedTasks > 0 ? (incorrectAddresses / totalCompletedTasks) * 100 : 0;
     
-    const forcedContactless = filteredData.tasks.filter(t => t.execution?.sansContact?.forced === true).length;
-    const forcedContactlessRate = totalTasks > 0 ? (forcedContactless / totalTasks) * 100 : 0;
-
+    const forcedContactless = completedTasksList.filter(t => t.execution?.sansContact?.forced === true).length;
+    const forcedContactlessRate = totalCompletedTasks > 0 ? (forcedContactless / totalCompletedTasks) * 100 : 0;
 
     const taskStats = {
       totalTasks: totalTasks,
-      completedTasks: filteredData.tasks.filter(
-        (t) => t.progression === "COMPLETED"
-      ).length,
+      completedTasks: totalCompletedTasks,
       unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
       averageRating: averageRating,
       punctualityRate: punctualityRate,
