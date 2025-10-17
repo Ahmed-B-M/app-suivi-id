@@ -114,7 +114,6 @@ export interface Tournee {
     TempSURG_Chargement?: string;
     TempsFRAIS_Chargement?: string;
     Immatriculation?: string;
-    TempSURG_Fin?: string;
     TempsFRAIS_Fin?: string;
   };
   name?: string;
@@ -203,3 +202,4 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
+
