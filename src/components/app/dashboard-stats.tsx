@@ -15,12 +15,14 @@ import {
   Timer,
   TimerOff,
   Trophy,
+  XCircle,
 } from "lucide-react";
 
 type DashboardStatsProps = {
   stats: {
     totalTasks: number;
     completedTasks: number;
+    failedTasks: number;
     unplannedTasks: number;
     averageRating: number | null;
     punctualityRate: number | null;
@@ -58,6 +60,15 @@ export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats.completedTasks}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Échecs Livraison</CardTitle>
+          <XCircle className="h-4 w-4 text-destructive" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-destructive">{stats.failedTasks}</div>
         </CardContent>
       </Card>
        <Card>

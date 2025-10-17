@@ -294,6 +294,7 @@ export function UnifiedExportForm({
                         <SelectItem value="ONGOING">En cours</SelectItem>
                         <SelectItem value="ASSIGNED">Assignée</SelectItem>
                         <SelectItem value="UNPLANNED">Non planifiée</SelectItem>
+                        <SelectItem value="FAILED">Échouée</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -384,3 +385,5 @@ export function UnifiedExportForm({
     </Card>
   );
 }
+
+    

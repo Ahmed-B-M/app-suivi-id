@@ -194,10 +194,14 @@ export default function DashboardPage() {
     
     const forcedContactless = completedTasksList.filter(t => t.execution?.sansContact?.forced === true).length;
     const forcedContactlessRate = totalCompletedTasks > 0 ? (forcedContactless / totalCompletedTasks) * 100 : 0;
+    
+    const failedTasks = filteredData.tasks.filter((t) => t.progression === "FAILED").length;
+
 
     const taskStats = {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
+      failedTasks: failedTasks,
       unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
       averageRating: averageRating,
       punctualityRate: punctualityRate,
