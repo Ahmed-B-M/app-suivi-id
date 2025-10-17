@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -50,7 +51,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFirebase, useUser } from "@/firebase";
+import { useFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Tache, Tournee } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 
@@ -156,7 +157,6 @@ export function UnifiedExportForm({
         toast({ title: "Succès", description: "Les données ont été sauvegardées dans Firestore." });
     } else {
         onLogUpdate([`\n❌ Sauvegarde terminée avec des erreurs.`]);
-        toast({ title: "Erreur", description: "Certaines données n'ont pas pu être sauvegardées.", variant: "destructive" });
     }
 
 
@@ -177,22 +177,32 @@ export function UnifiedExportForm({
         for (let i = 0; i < itemsToSave.length; i += batchSize) {
             const chunk = itemsToSave.slice(i, i + batchSize);
             const currentBatchIndex = (i / batchSize) + 1;
-            onLogUpdate([`      - Traitement du lot ${currentBatchIndex} sur ${Math.ceil(itemsToSave.length / batchSize)}...`]);
+            const totalBatches = Math.ceil(itemsToSave.length / batchSize);
+            onLogUpdate([`      - Traitement du lot ${currentBatchIndex} sur ${totalBatches}...`]);
             try {
                 const batch = writeBatch(firestore);
                 chunk.forEach((item) => {
                     const docId = item[idKey];
-                    // Utilise set avec merge:true pour créer ou mettre à jour efficacement.
-                    // Cela ne consomme qu'une opération d'écriture par document.
                     batch.set(doc(collectionRef, docId.toString()), item, { merge: true });
                 });
                 await batch.commit();
                 onLogUpdate([`      - Lot de ${chunk.length} ${collectionName} sauvegardé avec succès.`]);
                 await delay(100);
             } catch (e) {
-                const errorMsg = `      - ❌ Erreur lors de la sauvegarde du lot de ${collectionName}.`;
+                 const errorMsg = `      - ❌ Erreur lors de la sauvegarde du lot de ${collectionName}.`;
                 onLogUpdate([errorMsg, e instanceof Error ? e.message : "Erreur inconnue"]);
                 anyError = true;
+
+                // Create and emit a detailed error for each failed document in the batch
+                chunk.forEach(item => {
+                    const docId = item[idKey];
+                    const permissionError = new FirestorePermissionError({
+                        path: `${collectionName}/${docId}`,
+                        operation: 'write',
+                        requestResourceData: item,
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                });
             }
         }
     }
@@ -381,7 +391,3 @@ export function UnifiedExportForm({
     </Card>
   );
 }
-
-    
-
-    
