@@ -8,11 +8,19 @@ import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
 import { QualityDashboard, type QualityData } from "@/components/app/quality-dashboard";
+import { categorizeCommentsAction } from "@/app/actions";
+import { Button } from "@/components/ui/button";
+import { BrainCircuit, Loader2 } from "lucide-react";
+import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
+import { useToast } from "@/hooks/use-toast";
 
 export default function QualityPage() {
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<CategorizedComment[] | null>(null);
+  const { toast } = useToast();
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -141,19 +149,69 @@ export default function QualityPage() {
     };
   }, [filteredTasks]);
 
+  const tasksToAnalyze = useMemo(() => {
+    return filteredTasks.filter(task =>
+      typeof task.metaDonnees?.notationLivreur === 'number' &&
+      task.metaDonnees.notationLivreur < 4 &&
+      task.metaDonnees.commentaireLivreur
+    );
+  }, [filteredTasks]);
+
+  const handleAnalyzeComments = async () => {
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+
+    toast({
+      title: "Analyse en cours...",
+      description: `Analyse de ${tasksToAnalyze.length} commentaires. Cela peut prendre quelques instants.`,
+    });
+
+    const result = await categorizeCommentsAction(tasksToAnalyze);
+    setIsAnalyzing(false);
+
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur d'analyse",
+        description: result.error,
+      });
+    } else {
+      setAnalysisResult(result.data);
+       toast({
+        title: "Analyse terminée !",
+        description: `${result.data?.length} commentaires ont été classés avec succès.`,
+      });
+    }
+  };
+
+
   const isLoading = isLoadingTasks || isLoadingRounds;
 
   return (
     <main className="flex-1 container py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Analyse de la Qualité</h1>
+        <Button
+          onClick={handleAnalyzeComments}
+          disabled={isAnalyzing || tasksToAnalyze.length === 0}
+        >
+          {isAnalyzing ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <BrainCircuit className="mr-2 h-4 w-4" />
+          )}
+          Analyser les Commentaires ({tasksToAnalyze.length})
+        </Button>
       </div>
-      <QualityDashboard 
-        data={qualityData} 
-        isLoading={isLoading} 
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-      />
+      <div className="space-y-8">
+        <QualityDashboard 
+          data={qualityData} 
+          isLoading={isLoading} 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+        {analysisResult && <CommentAnalysis data={analysisResult} />}
+      </div>
     </main>
   );
 }

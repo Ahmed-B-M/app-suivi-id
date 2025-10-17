@@ -8,6 +8,7 @@ import {
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee } from "@/lib/types";
+import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 
 /**
  * Transforms a raw task object from the Urbantz API into the desired French structure.
@@ -430,8 +431,27 @@ export async function getScheduleAction(
     };
   }
 }
-    
-    
 
+// --- AI Comment Categorization Action ---
+export async function categorizeCommentsAction(tasks: Tache[]) {
+  try {
+    const promises = tasks.map(async (task) => {
+      const result = await categorizeComment({ comment: task.metaDonnees.commentaireLivreur! });
+      return {
+        task: task,
+        category: result.category,
+      };
+    });
     
+    const categorizedComments = await Promise.all(promises);
 
+    return { data: categorizedComments, error: null };
+  } catch (error) {
+    console.error("AI comment categorization failed:", error);
+    return {
+      data: null,
+      error:
+        "Failed to categorize comments with AI. Please check the server logs.",
+    };
+  }
+}
