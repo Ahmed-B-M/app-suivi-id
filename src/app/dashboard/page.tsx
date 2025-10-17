@@ -257,7 +257,6 @@ export default function DashboardPage() {
       totalTasks: totalTasks,
       completedTasks: totalCompletedTasks,
       failedTasks: failedTasksCount,
-      unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
       averageRating: averageRating,
       punctualityRate: punctualityRate,
       earlyTasksCount: earlyTasks.length,
@@ -609,5 +608,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
