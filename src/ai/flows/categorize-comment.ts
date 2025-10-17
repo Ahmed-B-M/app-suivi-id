@@ -29,12 +29,12 @@ const categories = [
   'Autre',
 ] as const;
 
-export const CategorizeCommentInputSchema = z.object({
+const CategorizeCommentInputSchema = z.object({
   comment: z.string().describe('The customer comment to categorize.'),
 });
 export type CategorizeCommentInput = z.infer<typeof CategorizeCommentInputSchema>;
 
-export const CategorizeCommentOutputSchema = z.object({
+const CategorizeCommentOutputSchema = z.object({
   category: z.enum(categories).describe('The determined category for the comment.'),
 });
 export type CategorizeCommentOutput = z.infer<typeof CategorizeCommentOutputSchema>;
