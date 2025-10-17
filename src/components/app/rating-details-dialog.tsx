@@ -36,7 +36,7 @@ type RatingInfo = {
   hubName?: string;
   roundName?: string;
   sequence?: number;
-  instructions?: string;
+  comment?: string;
 };
 
 type RatingByDriver = {
@@ -76,7 +76,7 @@ export function RatingDetailsDialog({
           hubName: task.nomHub,
           roundName: task.nomTournee,
           sequence: task.sequence,
-          instructions: task.instructions,
+          comment: task.metaDonnees?.commentaireLivreur,
         });
       }
     });
@@ -145,10 +145,10 @@ export function RatingDetailsDialog({
                                     <Hash className="h-3.5 w-3.5 text-muted-foreground"/>
                                     <span>Séquence: {ratingInfo.sequence ?? 'N/A'}</span>
                                 </div>
-                                {ratingInfo.instructions && (
+                                {ratingInfo.comment && (
                                      <div className="flex items-start gap-2 col-span-2 mt-1">
                                         <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0"/>
-                                        <span className="text-muted-foreground italic">"{ratingInfo.instructions}"</span>
+                                        <span className="text-muted-foreground italic">"{ratingInfo.comment}"</span>
                                     </div>
                                 )}
                             </div>
