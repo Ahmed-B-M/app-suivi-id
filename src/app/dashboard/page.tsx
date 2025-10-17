@@ -142,6 +142,12 @@ export default function DashboardPage() {
         const round = filteredData.rounds.find(r => r.name === task.nomTournee);
         if (!round) return false;
         const stop = round.stops?.find(s => s.taskId === task.tacheId);
+        
+        // This is the fix: handle the "Unknown" case.
+        if (status === 'Unknown') {
+            return !stop?.status; // Match if status is null, undefined, or empty string
+        }
+        
         return stop?.status === status;
     });
     setStatusDetails({ status, tasks: tasksForStatus });
@@ -499,5 +505,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
