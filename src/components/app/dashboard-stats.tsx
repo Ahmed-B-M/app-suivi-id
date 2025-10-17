@@ -15,6 +15,7 @@ import {
   Repeat,
   Route,
   SearchX,
+  ShieldAlert,
   Smartphone,
   Star,
   Timer,
@@ -43,6 +44,7 @@ type DashboardStatsProps = {
     missingBacs: number;
     partialDeliveredTasks: number;
     redeliveries: number;
+    failedDeliveryRate: number | null;
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -96,6 +98,17 @@ export function DashboardStats({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-destructive">{stats.failedTasks}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Taux d'échec</CardTitle>
+          <ShieldAlert className="h-4 w-4 text-destructive" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-destructive">
+            {stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"}
+          </div>
         </CardContent>
       </Card>
       <Card onClick={onRedeliveryClick} className="cursor-pointer hover:bg-muted">

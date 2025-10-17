@@ -226,7 +226,9 @@ export default function DashboardPage() {
     );
     const failedTasksCount = failedTasksList.length;
 
-    const redeliveriesList = filteredData.tasks.filter(t => (t.tentatives ?? 0) >= 2 && t.status !== 'DELIVERED');
+    const failedDeliveryRate = totalCompletedTasks > 0 ? (failedTasksCount / totalCompletedTasks) * 100 : null;
+
+    const redeliveriesList = filteredData.tasks.filter(t => (t.tentatives ?? 1) >= 2 && t.status !== 'DELIVERED');
 
     const pendingTasksList = filteredData.tasks.filter(t => t.status === "PENDING");
     const missingTasksList = filteredData.tasks.filter(t => t.status === "MISSING");
@@ -253,6 +255,7 @@ export default function DashboardPage() {
       missingBacs: tasksWithMissingBacs.length,
       partialDeliveredTasks: partialDeliveredTasksList.length,
       redeliveries: redeliveriesList.length,
+      failedDeliveryRate: failedDeliveryRate,
     };
 
     const roundStats = filteredData.rounds
@@ -264,7 +267,7 @@ export default function DashboardPage() {
         }
       : { totalRounds: 0, completedRounds: 0 };
 
-    const tasksByStatus = filteredData.tasks.reduce((acc, task) => {
+     const tasksByStatus = filteredData.tasks.reduce((acc, task) => {
       const status = task.status || "Unknown";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
@@ -575,5 +578,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
