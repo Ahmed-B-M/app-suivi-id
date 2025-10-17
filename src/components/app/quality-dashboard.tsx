@@ -24,40 +24,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Star, Building, Truck, User, MessageSquare, AlertTriangle, Percent, Hash, Search } from "lucide-react";
+import { Star, Building, Truck, User, AlertTriangle, Percent, Hash, Search, Award, Clock, Smartphone, MapPinOff, Ban, ListTodo } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
-import { format } from "date-fns";
 import { Input } from "../ui/input";
+import { DriverStats } from "@/lib/scoring";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Data structures
-interface Rating {
-  rating: number;
-  comment: string | null;
-  date?: string;
-  taskId: string;
+interface DriverQuality extends DriverStats {
+  score: number;
 }
 
-interface DriverQuality {
+interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
   name: string;
   totalRatings: number;
   totalAlerts: number;
-  avgRating: number;
-  ratings: Rating[];
-}
-
-interface CarrierQuality {
-  name: string;
-  totalRatings: number;
-  totalAlerts: number;
-  avgRating: number;
+  score: number;
   drivers: DriverQuality[];
 }
 
-interface DepotQuality {
+interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
   name: string;
   totalRatings: number;
   totalAlerts: number;
-  avgRating: number;
+  score: number;
   carriers: CarrierQuality[];
 }
 
@@ -65,8 +55,13 @@ export interface QualityData {
   summary: {
     totalRatings: number;
     totalAlerts: number;
-    avgRating: number;
     alertRate: number;
+    averageRating: number | null;
+    punctualityRate: number | null;
+    scanbacRate: number | null;
+    forcedAddressRate: number | null;
+    forcedContactlessRate: number | null;
+    score: number;
   };
   details: DepotQuality[];
 }
@@ -80,8 +75,11 @@ interface QualityDashboardProps {
 }
 
 // Components
-const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, value: string, icon: React.ReactNode, variant?: 'default' | 'success' | 'danger' }) => {
-    const valueColor = variant === 'success' ? 'text-green-600' : variant === 'danger' ? 'text-red-600' : '';
+const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, value: string, icon: React.ReactNode, variant?: 'default' | 'success' | 'danger' | 'warning' }) => {
+    const valueColor = 
+      variant === 'success' ? 'text-green-600' : 
+      variant === 'danger' ? 'text-red-600' : 
+      variant === 'warning' ? 'text-orange-500' : '';
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -94,6 +92,44 @@ const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, 
         </Card>
     )
 };
+
+const StatBadge = ({ value, icon, tooltipText, isRate=true, isLowerBetter=false }: { value: number | null, icon: React.ReactNode, tooltipText: string, isRate?: boolean, isLowerBetter?: boolean }) => {
+  let variant: 'default' | 'secondary' | 'destructive' = 'secondary';
+  if (value !== null) {
+      if (isRate) {
+          if (isLowerBetter) {
+              if (value < 5) variant = 'default';
+              else if (value < 15) variant = 'secondary';
+              else variant = 'destructive';
+          } else {
+              if (value > 95) variant = 'default';
+              else if (value > 85) variant = 'secondary';
+              else variant = 'destructive';
+          }
+      } else { // For ratings
+          if (value > 4.79) variant = 'default';
+          else if (value > 4.5) variant = 'secondary';
+          else variant = 'destructive';
+      }
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+            <Badge variant={variant} className="flex gap-1.5 min-w-[70px] justify-center">
+              {icon} 
+              {value !== null ? value.toFixed(isRate ? 1 : 2) : 'N/A'}
+              {isRate && '%'}
+            </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
 
 
 export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange }: QualityDashboardProps) {
@@ -113,7 +149,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                 return { ...carrier, drivers: filteredDrivers };
             }
             if (carrier.name.toLowerCase().includes(lowerCaseQuery)) {
-                return carrier; // Keep carrier if it matches, even with no matching drivers
+                return carrier;
             }
             return null;
         }).filter((c): c is CarrierQuality => c !== null);
@@ -122,7 +158,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
             return { ...depot, carriers: filteredCarriers };
         }
         if (depot.name.toLowerCase().includes(lowerCaseQuery)) {
-            return depot; // Keep depot if it matches
+            return depot;
         }
         return null;
     }).filter((d): d is DepotQuality => d !== null);
@@ -148,13 +184,25 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
     return (
       <Card className="flex items-center justify-center h-64">
         <CardContent className="pt-6 text-center text-muted-foreground">
-          <p>Aucune note trouvée pour la période et les filtres sélectionnés.</p>
+          <p>Aucune donnée de qualité à afficher pour la période sélectionnée.</p>
         </CardContent>
       </Card>
     );
   }
 
   const { summary } = data;
+  
+  const getVariant = (value: number | null, thresholds: { success: number, warning: number, isHigherBetter: boolean }): 'success' | 'warning' | 'danger' => {
+    if (value === null) return 'danger';
+    if (thresholds.isHigherBetter) {
+      if (value >= thresholds.success) return 'success';
+      if (value >= thresholds.warning) return 'warning';
+    } else {
+      if (value <= thresholds.success) return 'success';
+      if (value <= thresholds.warning) return 'warning';
+    }
+    return 'danger';
+  }
 
   return (
     <div className="space-y-8">
@@ -165,21 +213,22 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                 icon={<Hash className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard 
-                title="Note moyenne" 
-                value={summary.avgRating.toFixed(2)} 
+                title="Note moyenne globale" 
+                value={summary.averageRating?.toFixed(2) ?? 'N/A'}
                 icon={<Star className="h-4 w-4 text-muted-foreground" />}
+                variant={getVariant(summary.averageRating, {success: 4.8, warning: 4.5, isHigherBetter: true})}
             />
             <StatCard 
-                title="Alertes Qualité (<4)" 
-                value={summary.totalAlerts.toString()} 
+                title="Score moyen global" 
+                value={summary.score?.toFixed(1) ?? 'N/A'}
+                icon={<Award className="h-4 w-4 text-muted-foreground" />}
+                 variant={getVariant(summary.score, {success: 80, warning: 60, isHigherBetter: true})}
+            />
+            <StatCard 
+                title="Taux d'alerte (< 4★)" 
+                value={`${summary.alertRate.toFixed(1)} %`} 
                 icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
-                variant={summary.totalAlerts > 0 ? 'danger' : 'default'}
-            />
-            <StatCard 
-                title="Taux d'alerte" 
-                value={`${summary.alertRate.toFixed(2)} %`} 
-                icon={<Percent className="h-4 w-4 text-muted-foreground" />}
-                variant={summary.alertRate > 5 ? 'danger' : (summary.alertRate > 2 ? 'default' : 'success')}
+                variant={getVariant(summary.alertRate, {success: 5, warning: 10, isHigherBetter: false})}
             />
        </div>
 
@@ -208,10 +257,13 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                   <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
                       <div className="w-full flex justify-between items-center">
                           <span className="flex items-center gap-3"><Building />{depot.name}</span>
-                          <div className="flex items-center gap-4 text-sm font-medium">
-                              <Badge variant={depot.avgRating >= 4.5 ? 'default' : 'destructive'} className="flex gap-2"><Star className="h-4 w-4"/> {depot.avgRating.toFixed(2)}</Badge>
-                              <span>{depot.totalRatings} notes</span>
-                              <span className="text-destructive">{depot.totalAlerts} alertes</span>
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                              <StatBadge value={depot.score} icon={<Award />} tooltipText="Score Moyen" isRate={false}/>
+                              <StatBadge value={depot.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
+                              <StatBadge value={depot.punctualityRate} icon={<Clock />} tooltipText="Ponctualité" />
+                              <StatBadge value={depot.scanbacRate} icon={<Smartphone />} tooltipText="SCANBAC" />
+                              <StatBadge value={depot.forcedAddressRate} icon={<MapPinOff />} tooltipText="Sur Place Forcé" isLowerBetter={true} />
+                              <StatBadge value={depot.forcedContactlessRate} icon={<Ban />} tooltipText="Cmd. Forcées" isLowerBetter={true} />
                           </div>
                       </div>
                   </AccordionTrigger>
@@ -224,57 +276,44 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                   <AccordionTrigger className="p-3 hover:no-underline font-semibold">
                                      <div className="w-full flex justify-between items-center">
                                           <span className="flex items-center gap-3"><Truck />{carrier.name}</span>
-                                          <div className="flex items-center gap-4 text-sm font-medium">
-                                               <Badge variant={carrier.avgRating >= 4.5 ? 'secondary' : 'destructive'} className="flex gap-2"><Star className="h-4 w-4"/> {carrier.avgRating.toFixed(2)}</Badge>
-                                              <span>{carrier.totalRatings} notes</span>
-                                              <span className="text-destructive">{carrier.totalAlerts} alertes</span>
+                                          <div className="flex items-center gap-2 text-sm font-medium">
+                                              <StatBadge value={carrier.score} icon={<Award />} tooltipText="Score Moyen" isRate={false}/>
+                                              <StatBadge value={carrier.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
+                                              <StatBadge value={carrier.punctualityRate} icon={<Clock />} tooltipText="Ponctualité" />
+                                              <StatBadge value={carrier.scanbacRate} icon={<Smartphone />} tooltipText="SCANBAC" />
                                           </div>
                                       </div>
                                   </AccordionTrigger>
                                   <AccordionContent className="p-0 pt-0">
                                      <div className="p-3 bg-muted/20">
-                                        <Accordion type="multiple" className="w-full space-y-2">
-                                          {carrier.drivers.map(driver => (
-                                             <AccordionItem value={`driver-${driver.name}`} key={driver.name} className="border-b-0">
-                                                 <Card className="bg-background">
-                                                    <AccordionTrigger className="p-2 hover:no-underline text-sm font-medium">
-                                                       <div className="w-full flex justify-between items-center">
-                                                            <span className="flex items-center gap-2"><User />{driver.name}</span>
-                                                            <div className="flex items-center gap-3 text-xs font-medium">
-                                                                <Badge variant={driver.avgRating >= 4.5 ? 'outline' : 'destructive'} className="flex gap-1.5"><Star className="h-3 w-3"/> {driver.avgRating.toFixed(2)}</Badge>
-                                                                <span>{driver.totalRatings} notes</span>
-                                                                <span className="text-destructive">{driver.totalAlerts} alertes</span>
-                                                            </div>
-                                                        </div>
-                                                    </AccordionTrigger>
-                                                    <AccordionContent className="p-2">
-                                                        <Table>
-                                                          <TableHeader>
-                                                            <TableRow>
-                                                              <TableHead className="w-[100px]">Date</TableHead>
-                                                              <TableHead className="w-[80px]">Note</TableHead>
-                                                              <TableHead>Commentaire</TableHead>
-                                                            </TableRow>
-                                                          </TableHeader>
-                                                          <TableBody>
-                                                            {driver.ratings.map(r => (
-                                                              <TableRow key={r.taskId}>
-                                                                <TableCell>{r.date ? format(new Date(r.date), 'dd/MM/yy') : 'N/A'}</TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant={r.rating < 4 ? 'destructive' : 'default'} className="text-base">{r.rating}</Badge>
-                                                                </TableCell>
-                                                                <TableCell className="text-muted-foreground italic">
-                                                                    {r.comment ? `"${r.comment}"` : "Aucun commentaire"}
-                                                                </TableCell>
-                                                              </TableRow>
-                                                            ))}
-                                                          </TableBody>
-                                                        </Table>
-                                                    </AccordionContent>
-                                                 </Card>
-                                             </AccordionItem>
-                                          ))}
-                                        </Accordion>
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead><User className="h-4 w-4 inline-block mr-1"/>Livreur</TableHead>
+                                              <TableHead className="text-right"><Award className="h-4 w-4 inline-block mr-1"/>Score</TableHead>
+                                              <TableHead className="text-right"><Star className="h-4 w-4 inline-block mr-1"/>Note Moy.</TableHead>
+                                              <TableHead className="text-right"><Clock className="h-4 w-4 inline-block mr-1"/>Ponctualité</TableHead>
+                                              <TableHead className="text-right"><Smartphone className="h-4 w-4 inline-block mr-1"/>SCANBAC</TableHead>
+                                              <TableHead className="text-right"><MapPinOff className="h-4 w-4 inline-block mr-1"/>Sur Place Forcé</TableHead>
+                                              <TableHead className="text-right"><Ban className="h-4 w-4 inline-block mr-1"/>Cmd. Forcées</TableHead>
+                                              <TableHead className="text-right"><ListTodo className="h-4 w-4 inline-block mr-1"/>Tâches</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {carrier.drivers.map(driver => (
+                                              <TableRow key={driver.name}>
+                                                <TableCell className="font-medium">{driver.name}</TableCell>
+                                                <TableCell className="text-right font-bold">{driver.score.toFixed(1)}</TableCell>
+                                                <TableCell className="text-right">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
+                                                <TableCell className="text-right">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                <TableCell className="text-right">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                <TableCell className="text-right">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                <TableCell className="text-right">{driver.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                <TableCell className="text-right">{driver.completedTasks}</TableCell>
+                                              </TableRow>
+                                            ))}
+                                          </TableBody>
+                                        </Table>
                                       </div>
                                   </AccordionContent>
                                 </Card>
