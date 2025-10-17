@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +24,7 @@ import {
   Trophy,
   User,
   XCircle,
+  Clock1,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 
@@ -39,6 +39,7 @@ type DashboardStatsProps = {
     completedRounds: number;
     earlyTasksCount: number;
     lateTasksCount: number;
+    lateOver1hRate: number | null;
     scanbacRate: number | null;
     forcedAddressRate: number | null;
     forcedContactlessRate: number | null;
@@ -57,6 +58,7 @@ type DashboardStatsProps = {
   onRatingClick: () => void;
   onEarlyClick: () => void;
   onLateClick: () => void;
+  onLateOver1hClick: () => void;
   onFailedDeliveryClick: () => void;
   onPendingClick: () => void;
   onMissingClick: () => void;
@@ -98,7 +100,8 @@ export function DashboardStats({
   stats, 
   onRatingClick, 
   onEarlyClick, 
-  onLateClick, 
+  onLateClick,
+  onLateOver1hClick,
   onFailedDeliveryClick,
   onPendingClick,
   onMissingClick,
@@ -113,11 +116,11 @@ export function DashboardStats({
   const getVariant = (value: number | null, thresholds: { success: number, warning: number, isHigherBetter: boolean }): 'success' | 'warning' | 'danger' => {
     if (value === null) return 'danger';
     if (thresholds.isHigherBetter) {
-      if (value > thresholds.success) return 'success';
-      if (value > thresholds.warning) return 'warning';
+      if (value >= thresholds.success) return 'success';
+      if (value >= thresholds.warning) return 'warning';
     } else {
-      if (value < thresholds.success) return 'success';
-      if (value < thresholds.warning) return 'warning';
+      if (value <= thresholds.success) return 'success';
+      if (value <= thresholds.warning) return 'warning';
     }
     return 'danger';
   }
@@ -142,6 +145,14 @@ export function DashboardStats({
       >
         <span>{stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"}</span>
       </StatCard>
+      <StatCard
+        title="Taux de retard > 1h"
+        icon={<Clock1 className="h-4 w-4 text-muted-foreground" />}
+        onClick={onLateOver1hClick}
+        variant={getVariant(stats.lateOver1hRate, { success: 1, warning: 2, isHigherBetter: false })}
+      >
+        <span>{stats.lateOver1hRate !== null ? `${stats.lateOver1hRate.toFixed(2)}%` : "N/A"}</span>
+      </StatCard>
        <StatCard 
         title="Note Moyenne" 
         icon={<Star className="h-4 w-4 text-muted-foreground" />} 
@@ -160,7 +171,7 @@ export function DashboardStats({
        <StatCard 
         title="SCANBAC" 
         icon={<Smartphone className="h-4 w-4 text-muted-foreground" />} 
-        variant={getVariant(stats.scanbacRate, { success: 90, warning: 80, isHigherBetter: true })}
+        variant={getVariant(stats.scanbacRate, { success: 95, warning: 90, isHigherBetter: true })}
       >
         <span>{stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"}</span>
       </StatCard>

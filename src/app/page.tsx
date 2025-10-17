@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -44,7 +43,7 @@ export default function DashboardPage() {
   const [isSensitiveDeliveriesOpen, setIsSensitiveDeliveriesOpen] = useState(false);
   const [isQualityAlertOpen, setIsQualityAlertOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
-    type: 'early' | 'late';
+    type: 'early' | 'late' | 'late_over_1h';
     tasks: PunctualityTask[];
   } | null>(null);
   const [statusDetails, setStatusDetails] = useState<{ status: string; tasks: Tache[], type: 'status' | 'progression' } | null>(null);
@@ -196,6 +195,11 @@ export default function DashboardPage() {
       ? (punctualTasks / completedTasksWithTime.length) * 100
       : null;
 
+    const lateTasksOver1h = lateTasks.filter(t => t.minutes > 60);
+    const lateOver1hRate = completedTasksWithTime.length > 0
+        ? (lateTasksOver1h.length / completedTasksWithTime.length) * 100
+        : null;
+
     const mobileValidations = completedTasksList.filter(t => t.completePar === 'mobile').length;
     const scanbacRate = totalCompletedTasks > 0 ? (mobileValidations / totalCompletedTasks) * 100 : 0;
 
@@ -269,6 +273,7 @@ export default function DashboardPage() {
       punctualityRate: punctualityRate,
       earlyTasksCount: earlyTasks.length,
       lateTasksCount: lateTasks.length,
+      lateOver1hRate: lateOver1hRate,
       scanbacRate: scanbacRate,
       forcedAddressRate: forcedAddressRate,
       forcedContactlessRate: forcedContactlessRate,
@@ -338,6 +343,7 @@ export default function DashboardPage() {
       stats: { ...taskStats, ...roundStats },
       earlyTasks,
       lateTasks,
+      lateTasksOver1h,
       failedTasksList,
       pendingTasksList,
       missingTasksList,
@@ -459,6 +465,7 @@ export default function DashboardPage() {
             onRatingClick={() => setIsRatingDetailsOpen(true)}
             onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
             onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
+            onLateOver1hClick={() => setPunctualityDetails({ type: 'late_over_1h', tasks: dashboardData.lateTasksOver1h })}
             onFailedDeliveryClick={() => setIsFailedDeliveryDetailsOpen(true)}
             onPendingClick={() => setStatusDetails({ status: 'PENDING', tasks: dashboardData.pendingTasksList, type: 'status' })}
             onMissingClick={() => setStatusDetails({ status: 'MISSING', tasks: dashboardData.missingTasksList, type: 'status' })}
@@ -539,5 +546,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    

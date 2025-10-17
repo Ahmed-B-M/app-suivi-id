@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Tache } from "@/lib/types";
@@ -30,7 +29,7 @@ type PunctualityDetailsDialogProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   details: {
-    type: 'early' | 'late';
+    type: 'early' | 'late' | 'late_over_1h';
     tasks: PunctualityTask[];
   } | null;
 };
@@ -50,9 +49,28 @@ export function PunctualityDetailsDialog({
   if (!details) return null;
 
   const { type, tasks } = details;
-  const title = type === 'early' ? "Détail des Tâches en Avance" : "Détail des Tâches en Retard";
-  const description = `Voici la liste des tâches terminées en ${type === 'early' ? 'avance' : 'retard'} par rapport à la fenêtre de ponctualité.`;
-  const timeColumnTitle = type === 'early' ? "Avance (min)" : "Retard (min)";
+
+  const titles = {
+    early: "Détail des Tâches en Avance",
+    late: "Détail des Tâches en Retard",
+    late_over_1h: "Détail des Tâches en Retard de plus d'1h",
+  }
+
+  const descriptions = {
+    early: "Voici la liste des tâches terminées en avance par rapport à la fenêtre de ponctualité.",
+    late: "Voici la liste des tâches terminées en retard par rapport à la fenêtre de ponctualité.",
+    late_over_1h: "Voici la liste des tâches terminées avec plus de 60 minutes de retard."
+  }
+
+  const timeColumnTitles = {
+    early: "Avance (min)",
+    late: "Retard (min)",
+    late_over_1h: "Retard (min)",
+  }
+
+  const title = titles[type];
+  const description = descriptions[type];
+  const timeColumnTitle = timeColumnTitles[type];
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -105,5 +123,3 @@ export function PunctualityDetailsDialog({
     </Dialog>
   );
 }
-
-    
