@@ -29,6 +29,7 @@ function transformTaskData(rawTask: any): Tache {
     tentatives: rawTask.attempts,
     completePar: rawTask.completedBy,
     
+    hub: rawTask.hub,
     nomHub: rawTask.hubName,
     nomTournee: rawTask.roundName,
     sequence: rawTask.sequence,
@@ -120,6 +121,7 @@ function transformRoundData(rawRound: any): Tournee {
   return {
     id: rawRound.id || rawRound._id,
     date: rawRound.date,
+    hub: rawRound.hub,
     dimensions: rawRound.dimensions,
     endLocation: rawRound.endLocation,
     endTime: rawRound.endTime,
@@ -414,6 +416,7 @@ export async function getScheduleAction(
     };
   }
 }
-
     
+    
+
     

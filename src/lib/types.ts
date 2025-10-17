@@ -15,6 +15,7 @@ export interface Tache {
   completePar?: string;
   unplanned?: boolean;
 
+  hub?: any;
   nomHub?: string;
   nomTournee?: string;
   sequence?: number;
@@ -104,6 +105,7 @@ export interface Tache {
 export interface Tournee {
   id: string;
   date?: string;
+  hub?: any;
   dimensions?: {
     poids?: number;
     bac?: number;
@@ -209,6 +211,8 @@ export interface Round {
 }
 
     
+    
+
     
 
     
