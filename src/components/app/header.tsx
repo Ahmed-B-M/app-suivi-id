@@ -10,7 +10,7 @@ export function AppHeader() {
           <Link href="/" className="flex items-center">
             <Layers className="h-6 w-6 mr-3 text-primary" />
             <span className="font-bold text-lg text-primary">
-              EXport API Urbantz
+              ID-pilote
             </span>
           </Link>
         </div>
