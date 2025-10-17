@@ -40,6 +40,7 @@ import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punc
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
 import { MissingBacsDetailsDialog } from "@/components/app/missing-bacs-details-dialog";
+import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -52,6 +53,7 @@ export default function DashboardPage() {
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
   const [isMissingBacsDetailsOpen, setIsMissingBacsDetailsOpen] = useState(false);
+  const [isRedeliveryDetailsOpen, setIsRedeliveryDetailsOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late';
     tasks: PunctualityTask[];
@@ -224,6 +226,8 @@ export default function DashboardPage() {
     );
     const failedTasksCount = failedTasksList.length;
 
+    const redeliveriesList = failedTasksList.filter(t => (t.tentatives ?? 0) >= 2);
+
     const pendingTasksList = filteredData.tasks.filter(t => t.status === "PENDING");
     const missingTasksList = filteredData.tasks.filter(t => t.status === "MISSING");
     const partialDeliveredTasksList = filteredData.tasks.filter(t => t.status === "PARTIAL_DELIVERED");
@@ -248,6 +252,7 @@ export default function DashboardPage() {
       missingTasks: missingTasksList.length,
       missingBacs: tasksWithMissingBacs.length,
       partialDeliveredTasks: partialDeliveredTasksList.length,
+      redeliveries: redeliveriesList.length,
     };
 
     const roundStats = filteredData.rounds
@@ -319,6 +324,7 @@ export default function DashboardPage() {
       missingTasksList,
       tasksWithMissingBacs,
       partialDeliveredTasksList,
+      redeliveriesList,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
         name,
         value,
@@ -376,6 +382,11 @@ export default function DashboardPage() {
         isOpen={isMissingBacsDetailsOpen}
         onOpenChange={setIsMissingBacsDetailsOpen}
         tasks={dashboardData?.tasksWithMissingBacs || []}
+      />
+      <RedeliveryDetailsDialog
+        isOpen={isRedeliveryDetailsOpen}
+        onOpenChange={setIsRedeliveryDetailsOpen}
+        tasks={dashboardData?.redeliveriesList || []}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -489,6 +500,7 @@ export default function DashboardPage() {
             onMissingClick={() => setStatusDetails({ status: 'MISSING', tasks: dashboardData.missingTasksList, type: 'status' })}
             onMissingBacsClick={() => setIsMissingBacsDetailsOpen(true)}
             onPartialDeliveredClick={() => setStatusDetails({ status: 'PARTIAL_DELIVERED', tasks: dashboardData.partialDeliveredTasksList, type: 'status' })}
+            onRedeliveryClick={() => setIsRedeliveryDetailsOpen(true)}
           />
           
           <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
@@ -563,5 +575,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
