@@ -1,3 +1,4 @@
+
 export interface DriverStats {
   name: string;
   totalTasks: number;
@@ -68,3 +69,5 @@ export function calculateDriverScore(stats: DriverStats): number {
   
   return Math.max(0, Math.min(100, (totalScore / maxPossibleScore) * 100));
 }
+
+    

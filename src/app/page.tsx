@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -18,7 +19,7 @@ import type { Tache, Tournee } from "@/lib/types";
 import { addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName, getHubCategory } from "@/lib/grouping";
-import { calculateDriverScore, DriverStats } from "@/lib/scoring";
+import { calculateDriverScore, type DriverStats } from "@/lib/scoring";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
@@ -569,3 +570,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
