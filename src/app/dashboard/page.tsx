@@ -8,7 +8,7 @@ import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calendar as CalendarIcon } from "lucide-react";
+import { AlertCircle, Calendar as CalendarIcon, Warehouse } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
@@ -22,6 +22,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -33,6 +40,7 @@ export default function DashboardPage() {
     from: subDays(new Date(), 29),
     to: new Date(),
   });
+  const [selectedHub, setSelectedHub] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
 
   const tasksCollection = useMemoFirebase(() => {
@@ -57,27 +65,51 @@ export default function DashboardPage() {
     error: roundsError,
   } = useCollection<Tournee>(roundsCollection);
 
+  const hubNames = useMemo(() => {
+    if (!tasks) return [];
+    const hubs = new Set<string>();
+    tasks.forEach((task) => {
+      if (task.nomHub) {
+        hubs.add(task.nomHub);
+      }
+    });
+    return Array.from(hubs).sort();
+  }, [tasks]);
+
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
 
-    const filterByDate = (item: Tache | Tournee) => {
-      if (!from || !to) return true;
-      const itemDateString = item.date || item.dateCreation;
-      if (!itemDateString) return false;
-      
-      const itemDate = new Date(itemDateString);
-      // Set hours to 0 to compare dates only
+    let filteredTasks = tasks || [];
+    let filteredRounds = rounds || [];
+
+    // Filter by date
+    if (from && to) {
       from.setHours(0,0,0,0);
       to.setHours(23,59,59,999);
+      
+      const filterByDate = (item: Tache | Tournee) => {
+        const itemDateString = item.date || item.dateCreation;
+        if (!itemDateString) return false;
+        const itemDate = new Date(itemDateString);
+        return itemDate >= from && itemDate <= to;
+      };
 
-      return itemDate >= from && itemDate <= to;
-    };
+      filteredTasks = filteredTasks.filter(filterByDate);
+      filteredRounds = filteredRounds.filter(filterByDate);
+    }
+    
+    // Filter by hub
+    if (selectedHub !== "all") {
+      filteredTasks = filteredTasks.filter(t => t.nomHub === selectedHub);
+      
+      // Filter rounds that have at least one task in the selected hub
+      const roundIdsInHub = new Set(filteredTasks.map(t => t.nomTournee));
+      filteredRounds = filteredRounds.filter(r => roundIdsInHub.has(r.name));
+    }
 
-    const filteredTasks = tasks?.filter(filterByDate) || [];
-    const filteredRounds = rounds?.filter(filterByDate) || [];
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange]);
+  }, [tasks, rounds, dateRange, selectedHub]);
 
   const dashboardData = useMemo(() => {
     if (!filteredData.tasks && !filteredData.rounds) return null;
@@ -188,6 +220,20 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
         <div className="flex items-center gap-2">
+           <Select value={selectedHub} onValueChange={setSelectedHub}>
+            <SelectTrigger className="w-[240px]">
+              <Warehouse className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filtrer par entrepôt" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les entrepôts</SelectItem>
+              {hubNames.map((hub) => (
+                <SelectItem key={hub} value={hub}>
+                  {hub}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -315,3 +361,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
