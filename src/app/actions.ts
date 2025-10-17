@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -127,8 +128,6 @@ function transformRoundData(rawRound: any): Tournee {
       TempSURG_Chargement: rawRound.metadata.TempSURG_Chargement,
       TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
       Immatriculation: rawRound.metadata.Immatriculation,
-      TempSURG_Fin: rawRound.metadata.TempSURG_Fin,
-      TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
     } : undefined,
     name: rawRound.name,
     orderCount: rawRound.orderCount,
@@ -501,3 +500,5 @@ export async function getScheduleAction(
     };
   }
 }
+
+    
