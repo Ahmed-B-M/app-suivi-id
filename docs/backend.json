@@ -169,7 +169,8 @@
             "TempSURG_Chargement": { "type": "string" },
             "TempsFRAIS_Chargement": { "type": "string" },
             "Immatriculation": { "type": "string" },
-            "TempsFRAIS_Fin": { "type": "string" }
+            "TempsFRAIS_Fin": { "type": "string" },
+            "TempSURG_Fin": { "type": "string" }
           }
         },
         "name": { "type": "string" },

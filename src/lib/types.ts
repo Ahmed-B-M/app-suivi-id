@@ -115,6 +115,7 @@ export interface Tournee {
     TempsFRAIS_Chargement?: string;
     Immatriculation?: string;
     TempsFRAIS_Fin?: string;
+    TempSURG_Fin?: string;
   };
   name?: string;
   orderCount?: number;
