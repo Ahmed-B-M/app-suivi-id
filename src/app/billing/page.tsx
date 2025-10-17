@@ -43,7 +43,7 @@ import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
-import { BillingDashboard, BillingData, DetailedBillingInfo } from "@/components/app/billing-dashboard";
+import { BillingDashboard, type AggregatedData } from "@/components/app/billing-dashboard";
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 import { exportToCsv } from "@/lib/csv-export";
 
@@ -134,44 +134,48 @@ export default function BillingPage() {
   }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
 
 
-  const billingData = useMemo((): BillingData | null => {
+  const billingData = useMemo((): AggregatedData | null => {
     if (!filteredData.rounds) return null;
 
-    const detailedBilling: DetailedBillingInfo[] = [];
     let totalPrice = 0;
     let totalCost = 0;
-    
-    const roundsByEntity: Record<string, number> = {};
-    const roundsByCarrier: Record<string, number> = {};
     const unassignedDrivers = new Set<string>();
 
+    const aggregation: Record<string, {
+        totalPrice: number;
+        totalCost: number;
+        totalRounds: number;
+        byCarrier: Record<string, {
+            totalPrice: number;
+            totalCost: number;
+            totalRounds: number;
+        }>;
+    }> = {};
 
     for (const round of filteredData.rounds) {
       const driverName = getDriverFullName(round);
       const carrier = getCarrierFromDriver(driverName);
       const depot = getDepotFromHub(round.nomHub);
       const hubCategory = getHubCategory(round.nomHub);
-      const store = hubCategory === 'magasin' ? round.nomHub : undefined;
-      const entityName = store || depot;
+      const entityName = hubCategory === 'magasin' ? round.nomHub : depot;
 
-      if(entityName) roundsByEntity[entityName] = (roundsByEntity[entityName] || 0) + 1;
-      roundsByCarrier[carrier] = (roundsByCarrier[carrier] || 0) + 1;
+      if (!entityName) continue;
+
       if (carrier === 'Inconnu' && driverName) {
         unassignedDrivers.add(driverName);
       }
 
-
       const priceRule = rules.find(rule => 
         rule.type === 'Prix par tournée' &&
         ((rule.targetType === 'Dépôt' && rule.targetValue === depot) ||
-         (rule.targetType === 'Entrepôt' && rule.targetValue === store) ||
+         (rule.targetType === 'Entrepôt' && rule.targetValue === round.nomHub) ||
          (rule.targetType === 'Transporteur' && rule.targetValue === carrier))
       );
 
       const costRule = rules.find(rule => 
         rule.type === 'Coût par tournée' &&
         ((rule.targetType === 'Dépôt' && rule.targetValue === depot) ||
-         (rule.targetType === 'Entrepôt' && rule.targetValue === store) ||
+         (rule.targetType === 'Entrepôt' && rule.targetValue === round.nomHub) ||
          (rule.targetType === 'Transporteur' && rule.targetValue === carrier))
       );
       
@@ -181,17 +185,29 @@ export default function BillingPage() {
       totalPrice += price;
       totalCost += cost;
 
-      detailedBilling.push({
-        round,
-        carrier,
-        depot,
-        store,
-        priceRule,
-        costRule,
-        price,
-        cost,
-      });
+      if (!aggregation[entityName]) {
+        aggregation[entityName] = { totalPrice: 0, totalCost: 0, totalRounds: 0, byCarrier: {} };
+      }
+      if (!aggregation[entityName].byCarrier[carrier]) {
+          aggregation[entityName].byCarrier[carrier] = { totalPrice: 0, totalCost: 0, totalRounds: 0 };
+      }
+
+      aggregation[entityName].totalPrice += price;
+      aggregation[entityName].totalCost += cost;
+      aggregation[entityName].totalRounds += 1;
+
+      aggregation[entityName].byCarrier[carrier].totalPrice += price;
+      aggregation[entityName].byCarrier[carrier].totalCost += cost;
+      aggregation[entityName].byCarrier[carrier].totalRounds += 1;
     }
+    
+    const roundsByCarrier = Object.values(aggregation).reduce((acc, entity) => {
+        Object.entries(entity.byCarrier).forEach(([carrierName, carrierData]) => {
+            if (!acc[carrierName]) acc[carrierName] = 0;
+            acc[carrierName] += carrierData.totalRounds;
+        });
+        return acc;
+    }, {} as Record<string, number>);
 
     const totalRounds = filteredData.rounds.length;
 
@@ -202,11 +218,20 @@ export default function BillingPage() {
         margin: totalPrice - totalCost,
         totalRounds,
         averageMarginPerRound: totalRounds > 0 ? (totalPrice - totalCost) / totalRounds : 0,
-        roundsByEntity: Object.entries(roundsByEntity).sort((a,b) => b[1] - a[1]),
+        roundsByEntity: Object.entries(aggregation).map(([name, data]) => ([name, data.totalRounds])).sort((a,b) => b[1] - a[1]),
         roundsByCarrier: Object.entries(roundsByCarrier).sort((a,b) => b[1] - a[1]),
         unassignedDrivers: Array.from(unassignedDrivers),
       },
-      details: detailedBilling.sort((a, b) => new Date(b.round.date!).getTime() - new Date(a.round.date!).getTime()),
+      details: Object.entries(aggregation).map(([entityName, entityData]) => ({
+          name: entityName,
+          ...entityData,
+          margin: entityData.totalPrice - entityData.totalCost,
+          byCarrier: Object.entries(entityData.byCarrier).map(([carrierName, carrierData]) => ({
+              name: carrierName,
+              ...carrierData,
+              margin: carrierData.totalPrice - carrierData.totalCost
+          })).sort((a,b) => b.totalRounds - a.totalRounds)
+      })).sort((a,b) => b.totalRounds - a.totalRounds)
     };
   }, [filteredData.rounds, rules]);
 
@@ -239,6 +264,7 @@ export default function BillingPage() {
 
   function handleExport() {
     if (billingData) {
+      // @ts-ignore - a refactor is needed to support this
       exportToCsv(billingData.details, 'facturation.csv');
     }
   }

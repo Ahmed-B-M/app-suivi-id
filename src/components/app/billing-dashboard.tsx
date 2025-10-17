@@ -2,6 +2,12 @@
 "use client";
 
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -16,25 +22,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Tournee } from "@/lib/types";
-import type { BillingRule } from "@/app/billing/page";
-import { Euro, FileSpreadsheet, GitCommitHorizontal, Scale, Building, Truck, Download } from "lucide-react";
+import { Building, Download, Euro, GitCommitHorizontal, Scale, Truck } from "lucide-react";
 import { Button } from "../ui/button";
 
-export interface DetailedBillingInfo {
-  round: Tournee;
-  carrier: string;
-  depot: string;
-  store?: string;
-  priceRule?: BillingRule;
-  costRule?: BillingRule;
-  price: number;
-  cost: number;
+interface AggregatedCarrierData {
+  name: string;
+  totalPrice: number;
+  totalCost: number;
+  totalRounds: number;
+  margin: number;
 }
 
-export interface BillingData {
+interface AggregatedEntityData {
+  name: string;
+  totalPrice: number;
+  totalCost: number;
+  totalRounds: number;
+  margin: number;
+  byCarrier: AggregatedCarrierData[];
+}
+
+export interface AggregatedData {
   summary: {
     totalPrice: number;
     totalCost: number;
@@ -45,11 +54,11 @@ export interface BillingData {
     roundsByCarrier: [string, number][];
     unassignedDrivers: string[];
   };
-  details: DetailedBillingInfo[];
+  details: AggregatedEntityData[];
 }
 
 interface BillingDashboardProps {
-  data: BillingData;
+  data: AggregatedData;
   onExport: () => void;
 }
 
@@ -98,6 +107,8 @@ const BreakdownCard = ({ title, data, icon, unit = "tournées" }: { title: strin
 export function BillingDashboard({ data, onExport }: BillingDashboardProps) {
   const { summary, details } = data;
 
+  const formatCurrency = (value: number) => `${value.toFixed(2)} €`;
+
   return (
     <div className="space-y-8">
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -108,23 +119,23 @@ export function BillingDashboard({ data, onExport }: BillingDashboardProps) {
             />
             <StatCard 
                 title="Prix Total" 
-                value={`${summary.totalPrice.toFixed(2)} €`} 
+                value={formatCurrency(summary.totalPrice)} 
                 icon={<Euro className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard 
                 title="Coût Total" 
-                value={`${summary.totalCost.toFixed(2)} €`} 
+                value={formatCurrency(summary.totalCost)} 
                 icon={<Euro className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard 
                 title="Marge Totale" 
-                value={`${summary.margin.toFixed(2)} €`} 
+                value={formatCurrency(summary.margin)} 
                 icon={<Scale className="h-4 w-4 text-muted-foreground" />}
                 variant={summary.margin >= 0 ? 'success' : 'danger'}
             />
             <StatCard 
                 title="Marge / Tournée" 
-                value={`${summary.averageMarginPerRound.toFixed(2)} €`} 
+                value={formatCurrency(summary.averageMarginPerRound)} 
                 icon={<Scale className="h-4 w-4 text-muted-foreground" />}
                 variant={summary.averageMarginPerRound >= 0 ? 'success' : 'danger'}
             />
@@ -135,71 +146,74 @@ export function BillingDashboard({ data, onExport }: BillingDashboardProps) {
             <BreakdownCard title="Répartition par Transporteur" data={summary.roundsByCarrier} icon={<Truck className="text-muted-foreground"/>} />
        </div>
 
-
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <FileSpreadsheet/>
-              Détail de la Facturation par Tournée
-            </CardTitle>
+            <CardTitle>Détail Agrégé par Entité</CardTitle>
             <CardDescription>
-              Liste détaillée de chaque tournée avec les règles de facturation appliquées.
+              Vue agrégée par dépôt/entrepôt et par transporteur.
             </CardDescription>
           </div>
-          <Button onClick={onExport} variant="outline" size="sm">
+          <Button onClick={onExport} variant="outline" size="sm" disabled>
             <Download className="mr-2 h-4 w-4" />
-            Exporter en CSV
+            Exporter en CSV (bientôt)
           </Button>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="max-h-[60vh] w-full">
-            <Table>
-              <TableHeader className="sticky top-0 bg-card">
-                <TableRow>
-                  <TableHead>Tournée</TableHead>
-                  <TableHead>Transporteur</TableHead>
-                  <TableHead>Dépôt / Entrepôt</TableHead>
-                  <TableHead>Règle de Prix</TableHead>
-                  <TableHead className="text-right">Prix</TableHead>
-                  <TableHead>Règle de Coût</TableHead>
-                  <TableHead className="text-right">Coût</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {details.map(({ round, carrier, depot, store, priceRule, costRule, price, cost }) => (
-                  <TableRow key={round.id}>
-                    <TableCell className="font-medium">{round.name}</TableCell>
-                    <TableCell>{carrier}</TableCell>
-                    <TableCell>{store || depot}</TableCell>
-                    <TableCell>
-                      {priceRule ? (
-                        <Badge variant="secondary">{`Cible: ${priceRule.targetType} - ${priceRule.targetValue}`}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">Aucune</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{price > 0 ? `${price.toFixed(2)} €` : '-'}</TableCell>
-                    <TableCell>
-                       {costRule ? (
-                        <Badge variant="outline">{`Cible: ${costRule.targetType} - ${costRule.targetValue}`}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">Aucune</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{cost > 0 ? `${cost.toFixed(2)} €` : '-'}</TableCell>
-                  </TableRow>
-                ))}
-                 {details.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      Aucune donnée de facturation à afficher pour les filtres sélectionnés.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+          <Accordion type="multiple" className="w-full space-y-4">
+            {details.map((entity) => (
+              <AccordionItem value={entity.name} key={entity.name} className="border-b-0">
+                <Card>
+                  <AccordionTrigger className="p-4 hover:no-underline">
+                      <div className="w-full flex justify-between items-center text-lg font-semibold">
+                          <span>{entity.name}</span>
+                          <div className="flex items-center gap-6 text-sm text-right">
+                              <div><div className="text-xs font-normal text-muted-foreground">Tournées</div>{entity.totalRounds}</div>
+                              <div><div className="text-xs font-normal text-muted-foreground">Prix</div>{formatCurrency(entity.totalPrice)}</div>
+                              <div><div className="text-xs font-normal text-muted-foreground">Coût</div>{formatCurrency(entity.totalCost)}</div>
+                              <div className={entity.margin >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                <div className="text-xs font-normal text-muted-foreground">Marge</div>{formatCurrency(entity.margin)}
+                              </div>
+                          </div>
+                      </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="p-0 pt-0">
+                      <div className="p-4 bg-muted/50">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-1/3">Transporteur</TableHead>
+                              <TableHead className="text-right">Tournées</TableHead>
+                              <TableHead className="text-right">Prix</TableHead>
+                              <TableHead className="text-right">Coût</TableHead>
+                              <TableHead className="text-right">Marge</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {entity.byCarrier.map((carrier) => (
+                              <TableRow key={carrier.name}>
+                                <TableCell className="font-medium">{carrier.name}</TableCell>
+                                <TableCell className="text-right">{carrier.totalRounds}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(carrier.totalPrice)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(carrier.totalCost)}</TableCell>
+                                <TableCell className={`text-right font-semibold ${carrier.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {formatCurrency(carrier.margin)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+            ))}
+            {details.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                    Aucune donnée agrégée à afficher.
+                </div>
+            )}
+          </Accordion>
         </CardContent>
       </Card>
     </div>
