@@ -104,9 +104,10 @@ export function UnifiedExportForm({
 
   useEffect(() => {
     // Set default date range on the client to avoid hydration mismatch
+    const today = new Date();
     form.setValue("dateRange", {
-      from: new Date(),
-      to: new Date(),
+      from: today,
+      to: today,
     });
   }, [form]);
 
@@ -285,9 +286,10 @@ export function UnifiedExportForm({
 
 
   const handleResetClick = () => {
+    const today = new Date();
     form.reset({
         apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
-        dateRange: { from: new Date(), to: new Date() },
+        dateRange: { from: today, to: today },
         taskStatus: "all",
         roundStatus: "all",
         taskId: "",
