@@ -198,13 +198,14 @@ export default function QualityPage() {
     const allDrivers = Object.values(driverStats);
     const summary = calculateAverageStats(allDrivers);
     const totalNumberOfRatings = allDrivers.reduce((sum, d) => sum + d.tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number').length, 0);
-    
+    const totalAlerts = allDrivers.reduce((sum, d) => sum + d.tasks.filter(t => t.metaDonnees?.notationLivreur && t.metaDonnees.notationLivreur < 4).length, 0);
+
     return {
       summary: {
         ...summary,
         totalRatings: totalNumberOfRatings,
-        totalAlerts: allDrivers.reduce((sum, d) => sum + d.tasks.filter(t => t.metaDonnees?.notationLivreur && t.metaDonnees.notationLivreur < 4).length, 0),
-        alertRate: totalNumberOfRatings > 0 ? (allDrivers.reduce((sum, d) => sum + d.tasks.filter(t => t.metaDonnees?.notationLivreur && t.metaDonnees.notationLivreur < 4).length, 0) / totalNumberOfRatings * 100) : 0,
+        totalAlerts: totalAlerts,
+        alertRate: totalNumberOfRatings > 0 ? (totalAlerts / totalNumberOfRatings * 100) : 0,
       },
       details,
     };
