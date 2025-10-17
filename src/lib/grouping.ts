@@ -15,14 +15,54 @@ export const DEPOT_RULES: { name: string; prefixes: string[] }[] = [
   { name: "Vitry", prefixes: ["Vitr"] },
 ];
 
+export const DEPOTS_LIST = DEPOT_RULES.map(rule => rule.name);
+
+/**
+ * Determines if a hub is a main depot.
+ * @param hubName - The name of the hub.
+ * @returns True if the hub is a depot, false otherwise.
+ */
+function isDepot(hubName: string): boolean {
+    if (!hubName) return false;
+    return DEPOT_RULES.some(rule => 
+        rule.prefixes.some(prefix => 
+            hubName.toLowerCase().startsWith(prefix.toLowerCase())
+        )
+    );
+}
+
+/**
+ * Determines the category ('depot' or 'magasin') of a hub.
+ * @param hubName - The name of the hub.
+ * @returns 'depot' or 'magasin'.
+ */
+export function getHubCategory(hubName: string | undefined | null): 'depot' | 'magasin' {
+  if (!hubName) {
+    return "magasin";
+  }
+  
+  if (isDepot(hubName)) {
+    return "depot";
+  }
+
+  // Specific rules for stores
+  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour')) {
+    return 'magasin';
+  }
+
+  // By default, if it's not a depot, it's a store
+  return "magasin";
+}
+
+
 /**
  * Determines the depot name from a hub name based on predefined rules.
  * @param hubName - The name of the hub.
- * @returns The name of the depot.
+ * @returns The name of the depot or a classification.
  */
 export function getDepotFromHub(hubName: string | undefined | null): string {
   if (!hubName) {
-    return "Magasins";
+    return "Magasin";
   }
 
   for (const rule of DEPOT_RULES) {
@@ -33,7 +73,12 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
     }
   }
 
-  return hubName.split(" ")[0] || "Magasins";
+  // Specific rules for stores
+  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour')) {
+    return 'Magasin';
+  }
+
+  return hubName.split(" ")[0] || "Autre";
 }
 
 

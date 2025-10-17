@@ -1,9 +1,11 @@
+
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { FirebaseClientProvider } from "@/firebase";
 import { AppHeader } from "@/components/app/header";
+import { FilterProvider } from "@/context/filter-context";
 
 export const metadata: Metadata = {
   title: "ID-pilote",
@@ -35,16 +37,18 @@ export default function RootLayout({
       </head>
       <body className={cn("font-body antialiased min-h-screen bg-background")}>
         <FirebaseClientProvider>
-          <div className="flex flex-col min-h-screen">
-            <AppHeader />
-            {children}
-            <Toaster />
-            <footer className="py-6 border-t mt-8">
-              <div className="container text-center text-sm text-muted-foreground">
-                ID-pilote
-              </div>
-            </footer>
-          </div>
+          <FilterProvider>
+            <div className="flex flex-col min-h-screen">
+              <AppHeader />
+              {children}
+              <Toaster />
+              <footer className="py-6 border-t mt-8">
+                <div className="container text-center text-sm text-muted-foreground">
+                  ID-pilote
+                </div>
+              </footer>
+            </div>
+          </FilterProvider>
         </FirebaseClientProvider>
       </body>
     </html>

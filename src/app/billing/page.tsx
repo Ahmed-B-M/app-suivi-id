@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,6 +38,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Trash2 } from "lucide-react";
+import { useFilterContext } from "@/context/filter-context";
+import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Tache, Tournee } from "@/lib/types";
+import { getHubCategory, getDepotFromHub } from "@/lib/grouping";
 
 // Mock data for now - we will replace this with Firestore data later
 const mockBillingRules = [
@@ -57,6 +62,71 @@ type BillingRuleFormValues = z.infer<typeof billingRuleSchema>;
 
 export default function BillingPage() {
   const [rules, setRules] = useState(mockBillingRules);
+  const { firestore } = useFirebase();
+  const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
+
+  const tasksCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "tasks");
+  }, [firestore]);
+
+  const roundsCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "rounds");
+  }, [firestore]);
+
+  const { data: tasks } = useCollection<Tache>(tasksCollection);
+  const { data: rounds } = useCollection<Tournee>(roundsCollection);
+
+  const filteredData = useMemo(() => {
+    const { from, to } = dateRange || {};
+
+    let filteredTasks = tasks || [];
+    let filteredRounds = rounds || [];
+
+    // Filter by date
+    if (from) {
+      const startOfDay = new Date(from);
+      startOfDay.setHours(0,0,0,0);
+      
+      const endOfDay = to ? new Date(to) : new Date(from);
+      endOfDay.setHours(23,59,59,999);
+      
+      const filterByDate = (item: Tache | Tournee) => {
+        const itemDateString = item.date || item.dateCreation;
+        if (!itemDateString) return false;
+        const itemDate = new Date(itemDateString);
+        return itemDate >= startOfDay && itemDate <= endOfDay;
+      };
+
+      filteredTasks = filteredTasks.filter(filterByDate);
+      filteredRounds = filteredRounds.filter(filterByDate);
+    }
+    
+    // Filter by type (depot/magasin)
+    if (filterType !== 'tous') {
+        const filterLogic = (item: Tache | Tournee) => getHubCategory(item.nomHub) === filterType;
+        filteredTasks = filteredTasks.filter(filterLogic);
+        filteredRounds = filteredRounds.filter(filterLogic);
+    }
+
+    // Filter by specific depot
+    if (selectedDepot !== "all") {
+      const filterLogic = (item: Tache | Tournee) => getDepotFromHub(item.nomHub) === selectedDepot;
+      filteredTasks = filteredTasks.filter(filterLogic);
+      filteredRounds = filteredRounds.filter(filterLogic);
+    }
+    
+    // Filter by specific store
+    if (selectedStore !== "all") {
+      const filterLogic = (item: Tache | Tournee) => item.nomHub === selectedStore;
+      filteredTasks = filteredTasks.filter(filterLogic);
+      filteredRounds = filteredRounds.filter(filterLogic);
+    }
+
+    return { tasks: filteredTasks, rounds: filteredRounds };
+  }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
+
 
   const form = useForm<BillingRuleFormValues>({
     resolver: zodResolver(billingRuleSchema),
@@ -83,9 +153,24 @@ export default function BillingPage() {
     setRules(rules.filter(rule => rule.id !== id));
   }
 
+  // You can use filteredData.rounds for billing calculations
+  // For example:
+  const totalRounds = filteredData.rounds.length;
+
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Module de Facturation</h1>
+      
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Données Actuelles</CardTitle>
+          <CardDescription>Données filtrées pour la facturation basées sur les filtres globaux.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p>Nombre de tournées correspondant aux filtres : <span className="font-bold text-2xl">{totalRounds}</span></p>
+        </CardContent>
+      </Card>
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1">

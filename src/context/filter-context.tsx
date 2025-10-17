@@ -1,0 +1,100 @@
+
+"use client";
+
+import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import type { DateRange } from 'react-day-picker';
+import { getHubCategory, getDepotFromHub, DEPOT_RULES } from '@/lib/grouping';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { useFirebase } from '@/firebase/provider';
+import type { Tache, Tournee } from '@/lib/types';
+
+type FilterType = 'tous' | 'depot' | 'magasin';
+
+interface FilterContextProps {
+  filterType: FilterType;
+  setFilterType: (type: FilterType) => void;
+  dateRange: DateRange | undefined;
+  setDateRange: (range: DateRange | undefined) => void;
+  
+  availableDepots: string[];
+  selectedDepot: string;
+  setSelectedDepot: (depot: string) => void;
+
+  availableStores: string[];
+  selectedStore: string;
+  setSelectedStore: (store: string) => void;
+}
+
+const FilterContext = createContext<FilterContextProps | undefined>(undefined);
+
+export function FilterProvider({ children }: { children: ReactNode }) {
+  const { firestore } = useFirebase();
+  const [filterType, setFilterType] = useState<FilterType>('tous');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
+  const [selectedDepot, setSelectedDepot] = useState('all');
+  const [selectedStore, setSelectedStore] = useState('all');
+
+  const tasksCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "tasks");
+  }, [firestore]);
+
+  const roundsCollection = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "rounds");
+  }, [firestore]);
+
+  const { data: tasks } = useCollection<Tache>(tasksCollection);
+  const { data: rounds } = useCollection<Tournee>(roundsCollection);
+
+  const { availableDepots, availableStores } = useMemo(() => {
+    const allItems: (Tache | Tournee)[] = [...(tasks || []), ...(rounds || [])];
+    const depotSet = new Set<string>();
+    const storeSet = new Set<string>();
+
+    allItems.forEach(item => {
+      const hub = item.nomHub;
+      if (hub) {
+        if (getHubCategory(hub) === 'depot') {
+          depotSet.add(getDepotFromHub(hub));
+        } else {
+          storeSet.add(hub);
+        }
+      }
+    });
+
+    const depots = DEPOT_RULES.map(r => r.name);
+    
+    return {
+      availableDepots: Array.from(depots).sort(),
+      availableStores: Array.from(storeSet).sort(),
+    };
+  }, [tasks, rounds]);
+
+  const value = {
+    filterType,
+    setFilterType,
+    dateRange,
+    setDateRange,
+    availableDepots,
+    selectedDepot,
+    setSelectedDepot,
+    availableStores,
+    selectedStore,
+    setSelectedStore,
+  };
+
+  return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
+}
+
+export function useFilterContext() {
+  const context = useContext(FilterContext);
+  if (context === undefined) {
+    throw new Error('useFilterContext must be used within a FilterProvider');
+  }
+  return context;
+}
