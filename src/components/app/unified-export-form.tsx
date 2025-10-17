@@ -133,7 +133,7 @@ export function UnifiedExportForm({
     document.body.removeChild(link);
   };
   
-  const handleSaveToFirestore = async () => {
+  const handleSaveToFirestore = () => {
     if ((!taskJsonData || taskJsonData.length === 0) && (!roundJsonData || roundJsonData.length === 0)) {
         toast({ title: "Aucune donnée", description: "Aucune donnée à sauvegarder.", variant: "destructive" });
         return;
@@ -143,42 +143,55 @@ export function UnifiedExportForm({
       return;
     }
 
-    onSavingChange(true);
-    onLogUpdate([`\n💾 Début de la sauvegarde intelligente dans Firestore...`]);
+    toast({
+      title: "Lancement de la sauvegarde",
+      description: "La sauvegarde des données dans Firestore a commencé en arrière-plan.",
+    });
 
-    let anyError = false;
+    // Run the save operation asynchronously
+    saveData().then(anyError => {
+        if (!anyError) {
+            onLogUpdate([`\n🎉 Sauvegarde terminée !`]);
+            toast({ title: "Succès", description: "Les données ont été synchronisées avec Firestore." });
+        } else {
+            onLogUpdate([`\n❌ Sauvegarde terminée avec des erreurs.`]);
+             toast({ title: "Erreurs de Sauvegarde", description: "Certaines données n'ont pas pu être sauvegardées. Vérifiez les logs.", variant: "destructive" });
+        }
+    });
 
-    if (taskJsonData && taskJsonData.length > 0) {
-        await saveCollection('tasks', taskJsonData, 'tacheId');
+    async function saveData() {
+        onSavingChange(true);
+        onLogUpdate([`\n💾 Début de la sauvegarde intelligente dans Firestore...`]);
+
+        let anyError = false;
+
+        if (taskJsonData && taskJsonData.length > 0) {
+            anyError = !(await saveCollection('tasks', taskJsonData, 'tacheId')) || anyError;
+        }
+        if (roundJsonData && roundJsonData.length > 0) {
+            anyError = !(await saveCollection('rounds', roundJsonData, 'id')) || anyError;
+        }
+
+        onSavingChange(false);
+        return anyError;
     }
-    if (roundJsonData && roundJsonData.length > 0) {
-        await saveCollection('rounds', roundJsonData, 'id');
-    }
-
-    onSavingChange(false);
-
-    if(!anyError) {
-        onLogUpdate([`\n🎉 Sauvegarde terminée !`]);
-        toast({ title: "Succès", description: "Les données ont été synchronisées avec Firestore." });
-    } else {
-        onLogUpdate([`\n❌ Sauvegarde terminée avec des erreurs.`]);
-    }
 
 
-    async function saveCollection(collectionName: 'tasks' | 'rounds', data: any[], idKey: string) {
+    async function saveCollection(collectionName: 'tasks' | 'rounds', data: any[], idKey: string): Promise<boolean> {
         onLogUpdate([`\n   -> Analyse de ${data.length} ${collectionName}...`]);
         const collectionRef = collection(firestore, collectionName);
+        let success = true;
         
         const itemsWithId = data.filter(item => item[idKey]);
         const itemIds = itemsWithId.map(item => item[idKey].toString());
 
         if (itemIds.length === 0) {
             onLogUpdate([`      - ✅ Aucun document avec un ID valide à analyser.`]);
-            return;
+            return true;
         }
 
         // Fetch existing documents from Firestore for comparison
-        onLogUpdate([`      - Fetching ${itemIds.length} existing document(s) for comparison...`]);
+        onLogUpdate([`      - Récupération de ${itemIds.length} document(s) existant(s) pour comparaison...`]);
         const existingDocsMap = new Map<string, any>();
         
         // Firestore 'in' query supports up to 30 elements. We need to chunk it.
@@ -195,8 +208,8 @@ export function UnifiedExportForm({
                     existingDocsMap.set(doc.id, doc.data());
                 });
             } catch (e) {
-                 anyError = true;
-                 onLogUpdate([`      - ❌ Error fetching existing documents: ${(e as Error).message}`]);
+                 success = false;
+                 onLogUpdate([`      - ❌ Erreur lors de la récupération des documents : ${(e as Error).message}`]);
                  // Continue with empty map, will try to write all docs
             }
         }
@@ -228,7 +241,7 @@ export function UnifiedExportForm({
         
         if (itemsToUpdate.length === 0) {
             onLogUpdate([`      - ✅ Aucune mise à jour nécessaire.`]);
-            return;
+            return true;
         }
         
         onLogUpdate([`      - ${itemsToUpdate.length} documents à créer ou mettre à jour.`]);
@@ -249,7 +262,7 @@ export function UnifiedExportForm({
             await batch.commit();
             onLogUpdate([`      - ✅ Lot ${i / batchSize + 1} sauvegardé avec succès.`]);
           } catch (e) {
-            anyError = true;
+            success = false;
             onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${i / batchSize + 1}.`]);
             console.error(`Échec de la sauvegarde du lot ${collectionName}`, e);
             const permissionError = new FirestorePermissionError({
@@ -260,6 +273,7 @@ export function UnifiedExportForm({
             errorEmitter.emit('permission-error', permissionError);
           }
         }
+        return success;
     }
   };
 
