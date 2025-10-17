@@ -1,103 +1,106 @@
 "use client";
 
 import { useState } from "react";
-import { ExportForm } from "@/components/app/export-form";
+import { UnifiedExportForm } from "@/components/app/unified-export-form";
 import { Scheduler } from "@/components/app/scheduler";
 import { LogDisplay } from "@/components/app/log-display";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RoundExportForm } from "@/components/app/round-export-form";
 import { TasksTable } from "@/components/app/tasks-table";
 import { RoundsTable } from "@/components/app/rounds-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileSearch } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Home() {
-  const [taskLogs, setTaskLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [taskJsonData, setTaskJsonData] = useState<Tache[] | null>(null);
-
-  const [roundLogs, setRoundLogs] = useState<string[]>([]);
   const [roundJsonData, setRoundJsonData] = useState<Tournee[] | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleTaskExportComplete = (newLogs: string[], data: any[] | null) => {
-    setTaskLogs(prev => [...prev, ...newLogs]);
-    if (data) {
-      setTaskJsonData(data as Tache[]);
-    }
-  };
 
-  const handleTaskReset = () => {
-    setTaskLogs([]);
+  const handleExportStart = () => {
+    setLogs([]);
     setTaskJsonData(null);
-  };
+    setRoundJsonData(null);
+    setIsExporting(true);
+  }
 
-  const handleRoundExportComplete = (newLogs: string[], data: any[] | null) => {
-    setRoundLogs(prev => [...prev, ...newLogs]);
+  const handleExportComplete = (newLogs: string[], data: { tasks: Tache[], rounds: Tournee[] } | null) => {
+    setLogs(prev => [...prev, ...newLogs]);
     if (data) {
-      setRoundJsonData(data as Tournee[]);
+      setTaskJsonData(data.tasks);
+      setRoundJsonData(data.rounds);
     }
+    setIsExporting(false);
   };
 
-  const handleRoundReset = () => {
-    setRoundLogs([]);
+  const handleLogUpdate = (newLogs: string[]) => {
+    setLogs(prev => [...prev, ...newLogs]);
+  }
+
+  const handleSavingChange = (saving: boolean) => {
+    setIsSaving(saving);
+  }
+
+  const handleReset = () => {
+    setLogs([]);
+    setTaskJsonData(null);
     setRoundJsonData(null);
   };
   
+  const showResults = (taskJsonData && taskJsonData.length > 0) || (roundJsonData && roundJsonData.length > 0);
+
   return (
     <main className="flex-1 container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
         <div className="lg:col-span-3 flex flex-col gap-8">
-          <Tabs defaultValue="tasks">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="tasks">Tâches</TabsTrigger>
-              <TabsTrigger value="rounds">Tournées</TabsTrigger>
-            </TabsList>
-            <TabsContent value="tasks" className="mt-4 space-y-8">
-              <ExportForm
-                onExportComplete={handleTaskExportComplete}
-                onReset={handleTaskReset}
-                jsonData={taskJsonData}
-              />
-            </TabsContent>
-            <TabsContent value="rounds" className="mt-4 space-y-8">
-              <RoundExportForm
-                onExportComplete={handleRoundExportComplete}
-                onReset={handleRoundReset}
-                jsonData={roundJsonData}
-              />
-            </TabsContent>
-          </Tabs>
+          <UnifiedExportForm
+            onExportStart={handleExportStart}
+            onExportComplete={handleExportComplete}
+            onReset={handleReset}
+            onLogUpdate={handleLogUpdate}
+            onSavingChange={handleSavingChange}
+            taskJsonData={taskJsonData}
+            roundJsonData={roundJsonData}
+            isExporting={isExporting}
+            isSaving={isSaving}
+          />
 
-          {taskJsonData && (
-            <Card>
+          {showResults && (
+             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileSearch />
-                  Données de Tâches Extraites
+                  Données Extraites
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TasksTable data={taskJsonData} />
+                <Tabs defaultValue="tasks">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="tasks">
+                      Tâches ({taskJsonData?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="rounds">
+                      Tournées ({roundJsonData?.length || 0})
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="tasks" className="mt-4">
+                    {taskJsonData && taskJsonData.length > 0 ? (
+                      <TasksTable data={taskJsonData} />
+                    ) : <p className="text-muted-foreground text-center p-4">Aucune tâche extraite.</p>}
+                  </TabsContent>
+                  <TabsContent value="rounds" className="mt-4">
+                     {roundJsonData && roundJsonData.length > 0 ? (
+                      <RoundsTable data={roundJsonData} />
+                    ) : <p className="text-muted-foreground text-center p-4">Aucune tournée extraite.</p>}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}
 
-          {roundJsonData && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileSearch />
-                  Données de Tournées Extraites
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RoundsTable data={roundJsonData} />
-              </CardContent>
-            </Card>
-          )}
-
-          {taskLogs.length > 0 && <LogDisplay logs={taskLogs} />}
-          {roundLogs.length > 0 && <LogDisplay logs={roundLogs} />}
+          {logs.length > 0 && <LogDisplay logs={logs} />}
           
         </div>
         <div className="lg:col-span-2">

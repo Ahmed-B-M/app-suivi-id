@@ -3,9 +3,8 @@
 
 import { z } from "zod";
 import {
-  exportFormSchema,
-  roundExportFormSchema,
   schedulerSchema,
+  unifiedExportFormSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee } from "@/lib/types";
@@ -129,7 +128,7 @@ function transformRoundData(rawRound: any): Tournee {
       TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
       Immatriculation: rawRound.metadata.Immatriculation,
       TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
-      TempSURG_Fin: rawRound.metadata.TempSURG_Fin
+      TempsSURG_Fin: rawRound.metadata.TempSURG_Fin
     } : undefined,
     name: rawRound.name,
     orderCount: rawRound.orderCount,
@@ -193,13 +192,13 @@ function transformRoundData(rawRound: any): Tournee {
 
 
 /**
- * Fonction générique pour interroger un endpoint de l'API Urbantz (task ou round).
- * Gère la pagination pour récupérer toutes les données.
- * @param endpoint - Le nom de l'endpoint à appeler ('task' ou 'round').
- * @param apiKey - La clé API pour l'authentification.
- * @param params - Les paramètres de requête (filtres) à envoyer à l'API.
- * @param logs - Un tableau pour enregistrer les messages de log du processus.
- * @returns Un tableau contenant tous les éléments récupérés après pagination.
+ * Generic function to query an Urbantz API endpoint (task or round).
+ * Manages pagination to retrieve all data.
+ * @param endpoint - The endpoint to call ('task' or 'round').
+ * @param apiKey - The API key for authentication.
+ * @param params - The query parameters (filters) to send to the API.
+ * @param logs - An array to record log messages of the process.
+ * @returns An array containing all items retrieved after pagination.
  */
 async function fetchGeneric(
     endpoint: 'task' | 'round',
@@ -207,184 +206,69 @@ async function fetchGeneric(
     params: URLSearchParams,
     logs: string[]
 ) {
-    // L'API Urbantz renvoie les données par pages. On définit une taille de page.
     const pageSize = 500;
     let page = 0;
     let hasMoreData = true;
     const allItems: any[] = [];
     const itemName = endpoint;
 
-    // Boucle 'tant que' il y a des données à récupérer.
     while (hasMoreData) {
         const basePath = 'v2';
         const url = new URL(`https://api.urbantz.com/${basePath}/${endpoint}`);
         
-        // Ajoute les paramètres de filtrage (reçus du formulaire) à l'URL.
         params.forEach((value, key) => url.searchParams.append(key, value));
         
-        // Ajoute les paramètres de pagination à l'URL.
         url.searchParams.append("page", page.toString());
         url.searchParams.append("pageSize", pageSize.toString());
 
         logs.push(
-            `    - Récupération de la page ${
+            `    - [${itemName.toUpperCase()}] Récupération de la page ${
                 page + 1
-            } avec les paramètres: ${params.toString()}`
+            }...`
         );
 
-        // Exécute la requête 'fetch' vers l'API Urbantz.
         const response = await fetch(url.toString(), {
-            headers: {
-                // La clé API est passée dans l'en-tête pour l'authentification.
-                "x-api-key": apiKey,
-            },
+            headers: { "x-api-key": apiKey },
         });
 
         if (!response.ok) {
             const errorText = await response.text();
             logs.push(
-                `    - ❌ Erreur API: ${response.status} ${response.statusText}. ${errorText}`
+                `    - ❌ [${itemName.toUpperCase()}] Erreur API: ${response.status} ${response.statusText}. ${errorText}`
             );
-            hasMoreData = false; // Arrête la boucle en cas d'erreur.
-            continue;
+            throw new Error(`API error for ${itemName}: ${response.status} ${response.statusText}`);
         }
 
-        // Convertit la réponse en JSON.
         const items = await response.json();
-        logs.push(`    - ${items.length} ${itemName}s bruts récupérés.`);
+        logs.push(`    - [${itemName.toUpperCase()}] ${items.length} éléments bruts récupérés.`);
 
-        // Si la page contient des données, on les ajoute au tableau principal.
         if (items.length > 0) {
             allItems.push(...items);
-            page++; // On passe à la page suivante pour la prochaine itération.
+            page++;
         } else {
-            // Si la page est vide, c'est qu'il n'y a plus de données à récupérer.
             hasMoreData = false;
             if (page === 0) {
                 logs.push(`    - Aucun ${itemName} trouvé pour ces paramètres.`);
-            } else {
-                logs.push(`    - Fin des données pour ces paramètres.`);
             }
         }
     }
     return allItems;
 }
 
-
-// --- Logique de récupération des Tâches ---
+// --- Task Fetching Logic ---
 async function fetchTasks(
   apiKey: string,
   params: URLSearchParams,
   logs: string[]
 ) {
-  // Appelle la fonction générique avec l'endpoint 'task'.
   const rawTasks = await fetchGeneric("task", apiKey, params, logs);
   logs.push(`\n🔄 Transformation de ${rawTasks.length} tâches brutes...`);
-  // Applique la transformation pour ne garder que les champs spécifiés.
   const transformedTasks = rawTasks.map(transformTaskData);
-  logs.push(`   - Transformation terminée.`);
+  logs.push(`   - Transformation des tâches terminée.`);
   return transformedTasks;
 }
 
-// --- Action d'Exportation des Tâches ---
-// C'est la fonction principale appelée par le formulaire des tâches.
-export async function runExportAction(
-  values: z.infer<typeof exportFormSchema>
-) {
-  // Valide les données du formulaire.
-  const validatedFields = exportFormSchema.safeParse(values);
-  if (!validatedFields.success) {
-    return { logs: [], jsonData: null, error: "Invalid input." };
-  }
-  
-  const { apiKey, from, to, status, taskId, roundId, unplanned } =
-    validatedFields.data;
-  const logs: string[] = [];
-
-  try {
-    logs.push(`🚀 Début de l'interrogation des tâches...`);
-    logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
-
-    // Crée un objet pour les paramètres de base.
-    // Ces filtres sont supportés directement par l'API Urbantz.
-    const baseParams = new URLSearchParams();
-    if (status && status !== "all") baseParams.append("progress", status); // 'progress' est le nom du paramètre pour le statut dans l'API.
-    if (taskId) baseParams.append("taskId", taskId);
-    if (roundId) baseParams.append("round", roundId);
-    if (unplanned) baseParams.append("unplanned", "true");
-
-    logs.push(`   - Filtres API: ${baseParams.toString() || "Aucun"}`);
-
-    const allTasks: any[] = [];
-    logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tâches...`);
-    
-    // Cas spécial pour les tâches non planifiées, qui n'ont pas de date.
-    if (unplanned) {
-        logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
-        const unplannedTasks = await fetchTasks(apiKey, baseParams, logs);
-        allTasks.push(...unplannedTasks);
-    } else {
-        // Pour les tâches planifiées, on doit boucler sur chaque jour de la période sélectionnée.
-        const fromString = from.toISOString().split("T")[0];
-        const toString = to.toISOString().split("T")[0];
-        logs.push(
-            `   - Période: ${fromString} à ${toString}`
-        );
-        const dateCursor = new Date(from);
-        while (dateCursor <= to) {
-            const dateString = dateCursor.toISOString().split("T")[0];
-            logs.push(`\n🗓️  Traitement du ${dateString}...`);
-
-            // Pour chaque jour, on crée une nouvelle requête avec le paramètre 'date'.
-            const paramsForDay = new URLSearchParams(baseParams);
-            paramsForDay.append("date", dateString);
-
-            const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
-            allTasks.push(...tasksForDay);
-
-            dateCursor.setDate(dateCursor.getDate() + 1);
-        }
-    }
-
-    if (allTasks.length === 0) {
-      logs.push(
-        `\n⚠️ Aucune tâche récupérée pour les filtres sélectionnés.`
-      );
-      return {
-        logs,
-        jsonData: [],
-        error: null,
-      };
-    }
-
-    logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
-    logs.push(
-      `\n🔄 Sauvegarde des données dans 'donnees_urbantz_tasks_filtrees.json'...`
-    );
-    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
-
-    // Renvoie les logs et les données JSON au client.
-    return {
-      logs,
-      jsonData: allTasks,
-      error: null,
-    };
-  } catch (e) {
-    const errorMsg = "❌ Une erreur inattendue est survenue.";
-    logs.push(errorMsg);
-    if (e instanceof Error) {
-      logs.push(e.message);
-    }
-    return {
-      logs,
-      jsonData: null,
-      error: errorMsg,
-    };
-  }
-}
-
-// --- Logique de récupération des Tournées ---
+// --- Round Fetching Logic ---
 async function fetchRounds(
   apiKey: string,
   params: URLSearchParams,
@@ -393,95 +277,120 @@ async function fetchRounds(
   const rawRounds = await fetchGeneric("round", apiKey, params, logs);
   logs.push(`\n🔄 Transformation de ${rawRounds.length} tournées brutes...`);
   const transformedRounds = rawRounds.map(transformRoundData);
-  logs.push(`   - Transformation terminée.`);
+  logs.push(`   - Transformation des tournées terminée.`);
   return transformedRounds;
 }
 
-// --- Action d'Exportation des Tournées ---
-export async function runRoundExportAction(
-  values: z.infer<typeof roundExportFormSchema>
+// --- Unified Export Action ---
+export async function runUnifiedExportAction(
+  values: z.infer<typeof unifiedExportFormSchema>
 ) {
-  const validatedFields = roundExportFormSchema.safeParse(values);
+  const validatedFields = unifiedExportFormSchema.safeParse(values);
   if (!validatedFields.success) {
-    return { logs: [], jsonData: null, error: "Invalid input." };
+    return { logs: [], data: null, error: "Invalid input." };
   }
-
-  const { apiKey, dateRange, status } = validatedFields.data;
+  
+  const { apiKey, dateRange, taskStatus, roundStatus, taskId, roundId, unplanned } =
+    validatedFields.data;
   const { from, to } = dateRange;
   const logs: string[] = [];
 
   try {
-    logs.push(`🚀 Début de l'interrogation des tournées...`);
+    logs.push(`🚀 Début de l'exportation unifiée...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
-    const baseParams = new URLSearchParams();
-
-    const allRounds: any[] = [];
-    logs.push(`\n🛰️  Interrogation de l'API Urbantz pour les tournées...`);
-
     const fromDate = from;
-    const toDate = to || from; // If 'to' is not set, use 'from' as the end date.
-
+    const toDate = to || from;
+    
     const fromString = fromDate.toISOString().split("T")[0];
     const toString = toDate.toISOString().split("T")[0];
     logs.push(
-      `   - Période: ${fromString}${fromString !== toString ? ` à ${toString}` : ''}`
+      `   - Période sélectionnée: ${fromString}${fromString !== toString ? ` à ${toString}` : ''}`
     );
 
-    const dateCursor = new Date(fromDate);
-    while (dateCursor <= toDate) {
-      const dateString = dateCursor.toISOString().split("T")[0];
-      logs.push(`\n🗓️  Traitement du ${dateString}...`);
+    // --- FETCH TASKS ---
+    logs.push(`\n\n🛰️  Interrogation de l'API pour les TÂCHES...`);
+    const taskParams = new URLSearchParams();
+    if (taskStatus && taskStatus !== "all") taskParams.append("progress", taskStatus);
+    if (taskId) taskParams.append("taskId", taskId);
+    if (roundId) taskParams.append("round", roundId);
+    if (unplanned) taskParams.append("unplanned", "true");
+    
+    logs.push(`   - Filtres Tâches: ${taskParams.toString() || "Aucun"}`);
+    
+    let allTasks: Tache[] = [];
+    if (unplanned) {
+        logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
+        const unplannedTasks = await fetchTasks(apiKey, taskParams, logs);
+        allTasks.push(...unplannedTasks);
+    } else {
+        const dateCursor = new Date(fromDate);
+        while (dateCursor <= toDate) {
+            const dateString = dateCursor.toISOString().split("T")[0];
+            logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
+            const paramsForDay = new URLSearchParams(taskParams);
+            paramsForDay.append("date", dateString);
+            const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
+            allTasks.push(...tasksForDay);
+            dateCursor.setDate(dateCursor.getDate() + 1);
+        }
+    }
+    logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
+    
 
-      const paramsForDay = new URLSearchParams(baseParams);
+    // --- FETCH ROUNDS ---
+    logs.push(`\n\n🛰️  Interrogation de l'API pour les TOURNÉES...`);
+    const roundParams = new URLSearchParams();
+    
+    let allRounds: Tournee[] = [];
+    const dateCursorRounds = new Date(fromDate);
+     while (dateCursorRounds <= toDate) {
+      const dateString = dateCursorRounds.toISOString().split("T")[0];
+      logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
+      const paramsForDay = new URLSearchParams(roundParams);
       paramsForDay.append("date", dateString);
-
       const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs);
       allRounds.push(...roundsForDay);
-
-      dateCursor.setDate(dateCursor.getDate() + 1);
+      dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
     }
 
+    // Manual filtering for round status
     let filteredRounds = allRounds;
-    if (status && status !== "all") {
-      logs.push(`\n🔄 Filtrage des tournées par statut: ${status}`);
-      filteredRounds = allRounds.filter((round) => round.status === status);
+    if (roundStatus && roundStatus !== "all") {
+      logs.push(`\n🔄 Filtrage manuel des tournées par statut: ${roundStatus}`);
+      filteredRounds = allRounds.filter((round) => round.status === roundStatus);
       logs.push(
         `   - ${allRounds.length - filteredRounds.length} tournées écartées.`
       );
     }
+     logs.push(`\n✅ ${filteredRounds.length} tournées épurées récupérées au total.`);
 
-    if (filteredRounds.length === 0) {
-      logs.push(
-        `\n⚠️ Aucune donnée de tournée récupérée pour les filtres sélectionnés.`
-      );
-      return { logs, jsonData: [], error: null };
-    }
-
-    logs.push(`\n✅ ${filteredRounds.length} tournées récupérées au total.`);
-    
-    logs.push(
-      `\n🔄 Sauvegarde des données dans 'donnees_urbantz_rounds_filtrees.json'...`
-    );
-    logs.push(`\n🎉 Fichier prêt à être téléchargé!`);
-    logs.push(`\n✨ Cliquez sur 'Sauvegarder dans Firestore' pour enregistrer les données.`);
+    logs.push(`\n\n🎉 Exportation terminée !`);
+    logs.push(`   - ${allTasks.length} tâches et ${filteredRounds.length} tournées prêtes.`);
+    logs.push(`✨ Les données sont affichées ci-dessous. Vous pouvez maintenant les télécharger ou les sauvegarder.`);
 
     return {
       logs,
-      jsonData: filteredRounds,
+      data: { tasks: allTasks, rounds: filteredRounds },
       error: null,
     };
+
   } catch (e) {
-    const errorMsg = "❌ Une erreur inattendue est survenue.";
+    const errorMsg = "❌ Une erreur inattendue est survenue durant l'exportation.";
     logs.push(errorMsg);
     if (e instanceof Error) {
       logs.push(e.message);
     }
-    return { logs, jsonData: null, error: errorMsg };
+    return {
+      logs,
+      data: null,
+      error: errorMsg,
+    };
   }
 }
 
-// --- Action du Planificateur IA ---
+
+// --- AI Scheduler Action ---
 export async function getScheduleAction(
   values: z.infer<typeof schedulerSchema>
 ) {
@@ -502,5 +411,3 @@ export async function getScheduleAction(
     };
   }
 }
-
-    
