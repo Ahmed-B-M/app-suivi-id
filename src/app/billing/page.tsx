@@ -44,6 +44,7 @@ import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { BillingDashboard, BillingData } from "@/components/app/billing-dashboard";
+import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 
 export interface BillingRule {
   id: string;
@@ -138,6 +139,11 @@ export default function BillingPage() {
     const detailedBilling: BillingData['details'] = [];
     let totalPrice = 0;
     let totalCost = 0;
+    
+    const roundsByEntity: Record<string, number> = {};
+    const roundsByCarrier: Record<string, number> = {};
+    const unassignedDrivers = new Set<string>();
+
 
     for (const round of filteredData.rounds) {
       const driverName = getDriverFullName(round);
@@ -145,6 +151,14 @@ export default function BillingPage() {
       const depot = getDepotFromHub(round.nomHub);
       const hubCategory = getHubCategory(round.nomHub);
       const store = hubCategory === 'magasin' ? round.nomHub : undefined;
+      const entityName = store || depot;
+
+      if(entityName) roundsByEntity[entityName] = (roundsByEntity[entityName] || 0) + 1;
+      roundsByCarrier[carrier] = (roundsByCarrier[carrier] || 0) + 1;
+      if (carrier === 'Inconnu' && driverName) {
+        unassignedDrivers.add(driverName);
+      }
+
 
       const priceRule = rules.find(rule => 
         rule.type === 'Prix par tournée' &&
@@ -178,12 +192,18 @@ export default function BillingPage() {
       });
     }
 
+    const totalRounds = filteredData.rounds.length;
+
     return {
       summary: {
         totalPrice,
         totalCost,
         margin: totalPrice - totalCost,
-        totalRounds: filteredData.rounds.length,
+        totalRounds,
+        averageMarginPerRound: totalRounds > 0 ? (totalPrice - totalCost) / totalRounds : 0,
+        roundsByEntity: Object.entries(roundsByEntity).sort((a,b) => b[1] - a[1]),
+        roundsByCarrier: Object.entries(roundsByCarrier).sort((a,b) => b[1] - a[1]),
+        unassignedDrivers: Array.from(unassignedDrivers),
       },
       details: detailedBilling.sort((a, b) => new Date(b.round.date!).getTime() - new Date(a.round.date!).getTime()),
     };
@@ -222,6 +242,11 @@ export default function BillingPage() {
       <h1 className="text-3xl font-bold mb-8">Module de Facturation</h1>
       
       {billingData && <BillingDashboard data={billingData} />}
+      
+      {billingData?.summary.unassignedDrivers && billingData.summary.unassignedDrivers.length > 0 && (
+          <UnassignedDriversAlert unassignedDrivers={billingData.summary.unassignedDrivers} />
+      )}
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
         <div className="md:col-span-1">
@@ -362,5 +387,3 @@ export default function BillingPage() {
     </main>
   );
 }
-
-    

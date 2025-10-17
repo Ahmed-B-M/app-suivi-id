@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Tournee } from "@/lib/types";
 import type { BillingRule } from "@/app/billing/page";
-import { Euro, FileSpreadsheet, GitCommitHorizontal, Scale } from "lucide-react";
+import { Euro, FileSpreadsheet, GitCommitHorizontal, Scale, Building, Truck } from "lucide-react";
 
 interface DetailedBillingInfo {
   round: Tournee;
@@ -39,6 +39,10 @@ export interface BillingData {
     totalCost: number;
     margin: number;
     totalRounds: number;
+    averageMarginPerRound: number;
+    roundsByEntity: [string, number][];
+    roundsByCarrier: [string, number][];
+    unassignedDrivers: string[];
   };
   details: DetailedBillingInfo[];
 }
@@ -62,13 +66,39 @@ const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, 
     )
 };
 
+const BreakdownCard = ({ title, data, icon, unit = "tournées" }: { title: string; data: [string, number][]; icon: React.ReactNode, unit?:string }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          {icon}
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-40">
+          <ul className="space-y-2">
+            {data.map(([name, count]) => (
+              <li key={name} className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">{name}</span>
+                <span className="font-semibold">{count} {unit}</span>
+              </li>
+            ))}
+            {data.length === 0 && <li className="text-center text-muted-foreground">Aucune donnée</li>}
+          </ul>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 export function BillingDashboard({ data }: BillingDashboardProps) {
   const { summary, details } = data;
 
   return (
     <div className="space-y-8">
-       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <StatCard 
                 title="Tournées Facturées" 
                 value={summary.totalRounds.toString()} 
@@ -85,12 +115,24 @@ export function BillingDashboard({ data }: BillingDashboardProps) {
                 icon={<Euro className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard 
-                title="Marge" 
+                title="Marge Totale" 
                 value={`${summary.margin.toFixed(2)} €`} 
                 icon={<Scale className="h-4 w-4 text-muted-foreground" />}
                 variant={summary.margin >= 0 ? 'success' : 'danger'}
             />
+            <StatCard 
+                title="Marge / Tournée" 
+                value={`${summary.averageMarginPerRound.toFixed(2)} €`} 
+                icon={<Scale className="h-4 w-4 text-muted-foreground" />}
+                variant={summary.averageMarginPerRound >= 0 ? 'success' : 'danger'}
+            />
        </div>
+
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <BreakdownCard title="Répartition par Entité" data={summary.roundsByEntity} icon={<Building className="text-muted-foreground"/>} />
+            <BreakdownCard title="Répartition par Transporteur" data={summary.roundsByCarrier} icon={<Truck className="text-muted-foreground"/>} />
+       </div>
+
 
       <Card>
         <CardHeader>
@@ -155,5 +197,3 @@ export function BillingDashboard({ data }: BillingDashboardProps) {
     </div>
   );
 }
-
-    
