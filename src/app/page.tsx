@@ -233,20 +233,32 @@ export default function DashboardPage() {
       (t) => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4
     );
 
-    const topDrivers = filteredData.tasks
-        .filter(t => t.metaDonnees?.notationLivreur === 5)
-        .reduce((acc, task) => {
+    const driverStats: Record<string, { ratings: number[], fiveStarCount: number }> = {};
+    filteredData.tasks.forEach(task => {
+        const rating = task.metaDonnees?.notationLivreur;
+        if (typeof rating === 'number') {
             const driverName = getDriverFullName(task);
             if (driverName) {
-                acc[driverName] = (acc[driverName] || 0) + 1;
+                if (!driverStats[driverName]) {
+                    driverStats[driverName] = { ratings: [], fiveStarCount: 0 };
+                }
+                driverStats[driverName].ratings.push(rating);
+                if (rating === 5) {
+                    driverStats[driverName].fiveStarCount++;
+                }
             }
-            return acc;
-        }, {} as Record<string, number>);
-    
-    const sortedTopDrivers = Object.entries(topDrivers)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([name, count]) => ({ name, count }));
+        }
+    });
+
+    const sortedTopDrivers = Object.entries(driverStats)
+        .map(([name, data]) => ({
+            name,
+            count: data.fiveStarCount,
+            avgRating: data.ratings.reduce((a, b) => a + b, 0) / data.ratings.length,
+        }))
+        .filter(driver => driver.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
 
 
     const taskStats = {

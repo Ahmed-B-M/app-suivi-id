@@ -27,6 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Separator } from "../ui/separator";
+import { Badge } from "../ui/badge";
 
 type DashboardStatsProps = {
   stats: {
@@ -52,7 +53,7 @@ type DashboardStatsProps = {
     qualityAlerts: number;
     numberOfRatings: number;
     ratingRate: number | null;
-    topDrivers: { name: string; count: number }[];
+    topDrivers: { name: string; count: number; avgRating: number }[];
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -153,9 +154,14 @@ export function DashboardStats({
                   <User className="h-3 w-3 text-muted-foreground"/>
                   <span className="font-medium truncate">{driver.name}</span>
                 </div>
-                <div className="font-bold flex items-center gap-1">
-                  {driver.count}
-                  <Star className="h-3 w-3 text-yellow-400 fill-yellow-400"/>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0">
+                    {driver.avgRating.toFixed(2)}
+                  </Badge>
+                  <div className="font-bold flex items-center gap-1">
+                    {driver.count}
+                    <Star className="h-3 w-3 text-yellow-400 fill-yellow-400"/>
+                  </div>
                 </div>
               </div>
             ))}
@@ -271,3 +277,5 @@ export function DashboardStats({
     </div>
   );
 }
+
+    
