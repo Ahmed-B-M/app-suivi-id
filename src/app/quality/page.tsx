@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
-import { getHubCategory, getDepotFromHub, getDriverFullName } from "@/lib/grouping";
+import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
 import { QualityDashboard, type QualityData } from "@/components/app/quality-dashboard";
 import { categorizeCommentsAction, saveCategorizedCommentsAction } from "@/app/actions";
@@ -273,5 +273,3 @@ export default function QualityPage() {
     </main>
   );
 }
-
-    
