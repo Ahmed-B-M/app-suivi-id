@@ -179,7 +179,12 @@ export default function DashboardPage() {
         if (closureTime < lowerBound) {
             earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, closureTime) });
         } else if (closureTime > upperBound) {
-            lateTasks.push({ task, minutes: differenceInMinutes(closureTime, upperBound) });
+            const minutesLate = differenceInMinutes(closureTime, upperBound);
+            if (minutesLate > 0) {
+              lateTasks.push({ task, minutes: minutesLate });
+            } else {
+              punctualTasks++;
+            }
         } else {
             punctualTasks++;
         }
