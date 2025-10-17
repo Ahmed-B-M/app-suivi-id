@@ -14,8 +14,8 @@ export interface DriverStats {
 const WEIGHTS = {
   RATING: 0.4,
   PUNCTUALITY: 0.25,
-  TASK_VOLUME_BONUS: 0.15,
-  SCANBAC: 0.1,
+  SCANBAC: 0.15,
+  TASK_VOLUME_BONUS: 0.1,
   FORCED_ADDRESS: 0.05,
   FORCED_CONTACTLESS: 0.05,
 };
