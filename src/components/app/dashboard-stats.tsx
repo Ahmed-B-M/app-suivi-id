@@ -4,12 +4,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertTriangle,
+  ArchiveX,
   Ban,
+  BoxSelect,
   CheckCircle,
   Clock,
+  Hourglass,
   ListTodo,
   MapPinOff,
   Route,
+  SearchX,
   Smartphone,
   Star,
   Timer,
@@ -33,15 +37,33 @@ type DashboardStatsProps = {
     scanbacRate: number | null;
     forcedAddressRate: number | null;
     forcedContactlessRate: number | null;
+    pendingTasks: number;
+    missingTasks: number;
+    missingBacs: number;
+    partialDeliveredTasks: number;
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
   onLateClick: () => void;
   onFailedDeliveryClick: () => void;
+  onPendingClick: () => void;
+  onMissingClick: () => void;
+  onMissingBacsClick: () => void;
+  onPartialDeliveredClick: () => void;
 };
 
-export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick, onFailedDeliveryClick }: DashboardStatsProps) {
-  const gridCols = "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
+export function DashboardStats({ 
+  stats, 
+  onRatingClick, 
+  onEarlyClick, 
+  onLateClick, 
+  onFailedDeliveryClick,
+  onPendingClick,
+  onMissingClick,
+  onMissingBacsClick,
+  onPartialDeliveredClick
+}: DashboardStatsProps) {
+  const gridCols = "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
 
   return (
     <div className={`grid gap-4 ${gridCols}`}>
@@ -156,6 +178,42 @@ export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick
           <div className="text-2xl font-bold">{stats.unplannedTasks}</div>
         </CardContent>
       </Card>
+      <Card onClick={onPendingClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Tâches en attente</CardTitle>
+          <Hourglass className="h-4 w-4 text-blue-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-500">{stats.pendingTasks}</div>
+        </CardContent>
+      </Card>
+       <Card onClick={onMissingClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Tâches manquantes</CardTitle>
+          <SearchX className="h-4 w-4 text-orange-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-orange-500">{stats.missingTasks}</div>
+        </CardContent>
+      </Card>
+      <Card onClick={onMissingBacsClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Bacs manquants</CardTitle>
+          <ArchiveX className="h-4 w-4 text-amber-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-amber-600">{stats.missingBacs}</div>
+        </CardContent>
+      </Card>
+      <Card onClick={onPartialDeliveredClick} className="cursor-pointer hover:bg-muted">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Livraisons partielles</CardTitle>
+          <BoxSelect className="h-4 w-4 text-indigo-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-indigo-500">{stats.partialDeliveredTasks}</div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Tournées Totales</CardTitle>
@@ -177,3 +235,5 @@ export function DashboardStats({ stats, onRatingClick, onEarlyClick, onLateClick
     </div>
   );
 }
+
+    

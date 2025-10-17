@@ -39,6 +39,7 @@ import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-aler
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
+import { MissingBacsDetailsDialog } from "@/components/app/missing-bacs-details-dialog";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -50,6 +51,7 @@ export default function DashboardPage() {
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
+  const [isMissingBacsDetailsOpen, setIsMissingBacsDetailsOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late';
     tasks: PunctualityTask[];
@@ -217,11 +219,18 @@ export default function DashboardPage() {
     const forcedContactless = completedTasksList.filter(t => t.execution?.sansContact?.forced === true).length;
     const forcedContactlessRate = totalCompletedTasks > 0 ? (forcedContactless / totalCompletedTasks) * 100 : 0;
     
-    const failedTasksList = completedTasksList.filter(
-      (t) => t.status === "NOT_DELIVERED"
+    const failedTasksList = filteredData.tasks.filter(
+      (t) => t.progression === "COMPLETED" && t.status === "NOT_DELIVERED"
     );
     const failedTasksCount = failedTasksList.length;
 
+    const pendingTasksList = filteredData.tasks.filter(t => t.status === "PENDING");
+    const missingTasksList = filteredData.tasks.filter(t => t.status === "MISSING");
+    const partialDeliveredTasksList = filteredData.tasks.filter(t => t.status === "PARTIAL_DELIVERED");
+    
+    const tasksWithMissingBacs = filteredData.tasks.filter(task => 
+      task.articles && task.articles.some(article => article.statut === 'MISSING')
+    );
 
     const taskStats = {
       totalTasks: totalTasks,
@@ -235,6 +244,10 @@ export default function DashboardPage() {
       scanbacRate: scanbacRate,
       forcedAddressRate: forcedAddressRate,
       forcedContactlessRate: forcedContactlessRate,
+      pendingTasks: pendingTasksList.length,
+      missingTasks: missingTasksList.length,
+      missingBacs: tasksWithMissingBacs.length,
+      partialDeliveredTasks: partialDeliveredTasksList.length,
     };
 
     const roundStats = filteredData.rounds
@@ -246,17 +259,17 @@ export default function DashboardPage() {
         }
       : { totalRounds: 0, completedRounds: 0 };
 
-    const tasksByStatus = filteredData.tasks?.reduce((acc, task) => {
+    const tasksByStatus = filteredData.tasks.reduce((acc, task) => {
       const status = task.status || "Unknown";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>) || {};
+    }, {} as Record<string, number>);
 
-    const tasksByProgression = filteredData.tasks?.reduce((acc, task) => {
+    const tasksByProgression = filteredData.tasks.reduce((acc, task) => {
       const progression = task.progression || "Unknown";
       acc[progression] = (acc[progression] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>) || {};
+    }, {} as Record<string, number>);
 
     const tasksOverTime = filteredData.tasks
       ? filteredData.tasks.reduce((acc, task) => {
@@ -302,6 +315,10 @@ export default function DashboardPage() {
       earlyTasks,
       lateTasks,
       failedTasksList,
+      pendingTasksList,
+      missingTasksList,
+      tasksWithMissingBacs,
+      partialDeliveredTasksList,
       tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
         name,
         value,
@@ -354,6 +371,11 @@ export default function DashboardPage() {
         isOpen={isFailedDeliveryDetailsOpen}
         onOpenChange={setIsFailedDeliveryDetailsOpen}
         tasks={dashboardData?.failedTasksList || []}
+      />
+      <MissingBacsDetailsDialog
+        isOpen={isMissingBacsDetailsOpen}
+        onOpenChange={setIsMissingBacsDetailsOpen}
+        tasks={dashboardData?.tasksWithMissingBacs || []}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -463,6 +485,10 @@ export default function DashboardPage() {
             onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
             onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
             onFailedDeliveryClick={() => setIsFailedDeliveryDetailsOpen(true)}
+            onPendingClick={() => setStatusDetails({ status: 'PENDING', tasks: dashboardData.pendingTasksList, type: 'status' })}
+            onMissingClick={() => setStatusDetails({ status: 'MISSING', tasks: dashboardData.missingTasksList, type: 'status' })}
+            onMissingBacsClick={() => setIsMissingBacsDetailsOpen(true)}
+            onPartialDeliveredClick={() => setStatusDetails({ status: 'PARTIAL_DELIVERED', tasks: dashboardData.partialDeliveredTasksList, type: 'status' })}
           />
           
           <UnassignedDriversAlert unassignedDrivers={dashboardData.unassignedDrivers} />
@@ -537,3 +563,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
