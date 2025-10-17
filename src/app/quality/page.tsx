@@ -16,6 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import { calculateDriverScore, DriverStats } from "@/lib/scoring";
 
+interface ExtendedDriverStats extends DriverStats {
+  tasks: Tache[];
+}
+
 export default function QualityPage() {
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
@@ -89,7 +93,7 @@ export default function QualityPage() {
     // 2. Calculate raw stats for each driver
     const maxCompletedTasks = Math.max(0, ...Object.values(driverTasks).map(tasks => tasks.filter(t => t.progression === 'COMPLETED').length));
 
-    const driverStats: Record<string, DriverStats> = {};
+    const driverStats: Record<string, ExtendedDriverStats> = {};
     Object.entries(driverTasks).forEach(([name, tasks]) => {
         const completed = tasks.filter(t => t.progression === 'COMPLETED');
         const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
@@ -117,7 +121,8 @@ export default function QualityPage() {
         };
         driverStats[name] = {
             ...rawStats,
-            score: calculateDriverScore(rawStats, maxCompletedTasks)
+            score: calculateDriverScore(rawStats, maxCompletedTasks),
+            tasks: tasks,
         };
     });
 
@@ -358,3 +363,5 @@ export default function QualityPage() {
     </main>
   );
 }
+
+    
