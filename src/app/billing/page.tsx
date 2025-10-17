@@ -43,8 +43,9 @@ import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
-import { BillingDashboard, BillingData } from "@/components/app/billing-dashboard";
+import { BillingDashboard, BillingData, DetailedBillingInfo } from "@/components/app/billing-dashboard";
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
+import { exportToCsv } from "@/lib/csv-export";
 
 export interface BillingRule {
   id: string;
@@ -136,7 +137,7 @@ export default function BillingPage() {
   const billingData = useMemo((): BillingData | null => {
     if (!filteredData.rounds) return null;
 
-    const detailedBilling: BillingData['details'] = [];
+    const detailedBilling: DetailedBillingInfo[] = [];
     let totalPrice = 0;
     let totalCost = 0;
     
@@ -236,12 +237,18 @@ export default function BillingPage() {
     setRules(rules.filter(rule => rule.id !== id));
   }
 
+  function handleExport() {
+    if (billingData) {
+      exportToCsv(billingData.details, 'facturation.csv');
+    }
+  }
+
 
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Module de Facturation</h1>
       
-      {billingData && <BillingDashboard data={billingData} />}
+      {billingData && <BillingDashboard data={billingData} onExport={handleExport} />}
       
       {billingData?.summary.unassignedDrivers && billingData.summary.unassignedDrivers.length > 0 && (
           <UnassignedDriversAlert unassignedDrivers={billingData.summary.unassignedDrivers} />

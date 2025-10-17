@@ -20,9 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Tournee } from "@/lib/types";
 import type { BillingRule } from "@/app/billing/page";
-import { Euro, FileSpreadsheet, GitCommitHorizontal, Scale, Building, Truck } from "lucide-react";
+import { Euro, FileSpreadsheet, GitCommitHorizontal, Scale, Building, Truck, Download } from "lucide-react";
+import { Button } from "../ui/button";
 
-interface DetailedBillingInfo {
+export interface DetailedBillingInfo {
   round: Tournee;
   carrier: string;
   depot: string;
@@ -49,6 +50,7 @@ export interface BillingData {
 
 interface BillingDashboardProps {
   data: BillingData;
+  onExport: () => void;
 }
 
 const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, value: string, icon: React.ReactNode, variant?: 'default' | 'success' | 'danger' }) => {
@@ -93,7 +95,7 @@ const BreakdownCard = ({ title, data, icon, unit = "tournées" }: { title: strin
 };
 
 
-export function BillingDashboard({ data }: BillingDashboardProps) {
+export function BillingDashboard({ data, onExport }: BillingDashboardProps) {
   const { summary, details } = data;
 
   return (
@@ -135,14 +137,20 @@ export function BillingDashboard({ data }: BillingDashboardProps) {
 
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet/>
-            Détail de la Facturation par Tournée
-          </CardTitle>
-          <CardDescription>
-            Liste détaillée de chaque tournée avec les règles de facturation appliquées.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet/>
+              Détail de la Facturation par Tournée
+            </CardTitle>
+            <CardDescription>
+              Liste détaillée de chaque tournée avec les règles de facturation appliquées.
+            </CardDescription>
+          </div>
+          <Button onClick={onExport} variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Exporter en CSV
+          </Button>
         </CardHeader>
         <CardContent>
           <ScrollArea className="max-h-[60vh] w-full">
