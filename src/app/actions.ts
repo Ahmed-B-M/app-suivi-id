@@ -16,7 +16,7 @@ import { Tache, Tournee } from "@/lib/types";
  */
 function transformTaskData(rawTask: any): Tache {
   return {
-    tacheId: rawTask.taskId,
+    tacheId: rawTask.taskId?.toString(),
     type: rawTask.type,
     date: rawTask.date,
     progression: rawTask.progress,
@@ -414,4 +414,5 @@ export async function getScheduleAction(
   }
 }
 
+    
     

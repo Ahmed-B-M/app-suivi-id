@@ -1,7 +1,7 @@
 
 // Définition de la structure d'une Tâche avec les champs en français
 export interface Tache {
-  tacheId: string | number;
+  tacheId: string;
   type?: string;
   date?: string;
   progression?: string;
@@ -207,4 +207,5 @@ export interface Round {
   [key: string]: any;
 }
 
+    
     

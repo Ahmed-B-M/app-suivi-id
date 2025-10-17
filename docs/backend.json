@@ -7,7 +7,7 @@
       "type": "object",
       "description": "Représente une tâche filtrée de l'API Urbantz avec des champs en français.",
       "properties": {
-        "tacheId": { "type": ["string", "number"] },
+        "tacheId": { "type": "string" },
         "type": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "progression": { "type": "string" },
@@ -360,3 +360,5 @@
     "reasoning": "The Firestore data structure is designed to store data fetched from the Urbantz API, focusing on Tasks and Rounds. A top-level collection for each entity is used. This design prioritizes simplicity for data retrieval and avoids nested collections, which simplifies querying and rule creation.\n\nAuthorization Independence is achieved because there is no authorization specified on this data. If authorization was needed, for example, if some tasks are private to certain users. The `tasks` collection would need to include denormalized authorization data (like a `members` map or `ownerId`) to avoid `get()` calls in security rules.\n\nQAPs (Rules are not Filters): The flat structure of each collection ensures secure list operations. Security rules can be applied to each collection based on the properties within the documents, without requiring filtering based on parent document data."
   }
 }
+
+    
