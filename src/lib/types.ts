@@ -1,3 +1,4 @@
+
 // Définition de la structure d'une Tâche avec les champs en français
 export interface Tache {
   tacheId: string | number;
@@ -45,7 +46,7 @@ export interface Tache {
     telephone?: string;
     email?: string;
     infoImmeuble?: {
-      etage?: string;
+      etage?: string | number;
       ascenseur?: boolean;
       digicode1?: string;
       interphone?: boolean;
@@ -205,3 +206,5 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
+
+    
