@@ -48,6 +48,8 @@ type DashboardStatsProps = {
     failedDeliveryRate: number | null;
     sensitiveDeliveries: number;
     qualityAlerts: number;
+    numberOfRatings: number;
+    ratingRate: number | null;
   };
   onRatingClick: () => void;
   onEarlyClick: () => void;
@@ -62,7 +64,7 @@ type DashboardStatsProps = {
   onQualityAlertClick: () => void;
 };
 
-const StatCard = ({ title, value, icon, onClick, "data-testid": dataTestId }: { title: string, value: string | number, icon: React.ReactNode, onClick?: () => void, "data-testid"?: string }) => {
+const StatCard = ({ title, icon, onClick, children, "data-testid": dataTestId }: { title: string, icon: React.ReactNode, onClick?: () => void, children: React.ReactNode, "data-testid"?: string }) => {
   const isClickable = !!onClick;
   return (
     <Card onClick={onClick} className={isClickable ? "cursor-pointer hover:bg-muted" : ""} data-testid={dataTestId}>
@@ -71,7 +73,7 @@ const StatCard = ({ title, value, icon, onClick, "data-testid": dataTestId }: { 
         {icon}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        {children}
       </CardContent>
     </Card>
   )
@@ -105,108 +107,139 @@ export function DashboardStats({
       
       <StatCard 
         title="Taux d'échec" 
-        value={stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"} 
         icon={<ShieldAlert className="h-4 w-4 text-destructive" />} 
         onClick={onFailedDeliveryClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
       <StatCard 
         title="Ponctualité" 
-        value={stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"} 
         icon={<Clock className="h-4 w-4 text-muted-foreground" />} 
-      />
+      >
+        <div className="text-2xl font-bold">{stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
        <StatCard 
         title="Note Moyenne" 
-        value={stats.averageRating ? stats.averageRating.toFixed(2) : "N/A"} 
         icon={<Star className="h-4 w-4 text-muted-foreground" />} 
         onClick={onRatingClick}
-      />
+      >
+        <div className="text-2xl font-bold flex items-baseline gap-2">
+          {stats.averageRating ? stats.averageRating.toFixed(2) : "N/A"}
+          {stats.numberOfRatings > 0 && stats.ratingRate !== null && (
+            <span className="text-xs font-normal text-muted-foreground">
+              ({stats.numberOfRatings} notes, {stats.ratingRate.toFixed(0)}%)
+            </span>
+          )}
+        </div>
+      </StatCard>
        <StatCard 
         title="SCANBAC" 
-        value={stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"} 
         icon={<Smartphone className="h-4 w-4 text-muted-foreground" />} 
-      />
+      >
+        <div className="text-2xl font-bold">{stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
       <StatCard 
         title="Sur place forcé" 
-        value={stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"} 
         icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
-      />
+      >
+        <div className="text-2xl font-bold">{stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
       <StatCard 
         title="Commandes forcées" 
-        value={stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"} 
         icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
-      />
+      >
+        <div className="text-2xl font-bold">{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</div>
+      </StatCard>
       
       <SectionTitle>Analyse de la Qualité</SectionTitle>
 
       <StatCard
         title="Alerte qualité"
-        value={stats.qualityAlerts}
         icon={<Megaphone className="h-4 w-4 text-red-600" />}
         onClick={onQualityAlertClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.qualityAlerts}</div>
+      </StatCard>
       <StatCard 
         title="Tâches en Avance" 
-        value={stats.earlyTasksCount} 
         icon={<Timer className="h-4 w-4 text-green-500" />} 
         onClick={onEarlyClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.earlyTasksCount}</div>
+      </StatCard>
       <StatCard 
         title="Tâches en Retard" 
-        value={stats.lateTasksCount} 
         icon={<TimerOff className="h-4 w-4 text-red-500" />} 
         onClick={onLateClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.lateTasksCount}</div>
+      </StatCard>
      
       <SectionTitle>Anomalies et Suivi</SectionTitle>
       
       <StatCard 
         title="Échecs Livraison" 
-        value={stats.failedTasks} 
         icon={<XCircle className="h-4 w-4 text-destructive" />} 
         onClick={onFailedDeliveryClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.failedTasks}</div>
+      </StatCard>
        <StatCard 
         title="Relivraisons" 
-        value={stats.redeliveries} 
         icon={<Repeat className="h-4 w-4 text-orange-500" />} 
         onClick={onRedeliveryClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.redeliveries}</div>
+      </StatCard>
        <StatCard 
         title="Tâches en attente" 
-        value={stats.pendingTasks} 
         icon={<Hourglass className="h-4 w-4 text-blue-500" />} 
         onClick={onPendingClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.pendingTasks}</div>
+      </StatCard>
        <StatCard 
         title="Tâches manquantes" 
-        value={stats.missingTasks} 
         icon={<SearchX className="h-4 w-4 text-orange-500" />} 
         onClick={onMissingClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.missingTasks}</div>
+      </StatCard>
        <StatCard 
         title="Bacs manquants" 
-        value={stats.missingBacs} 
         icon={<ArchiveX className="h-4 w-4 text-amber-600" />} 
         onClick={onMissingBacsClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.missingBacs}</div>
+      </StatCard>
       <StatCard 
         title="Livraisons partielles" 
-        value={stats.partialDeliveredTasks} 
         icon={<BoxSelect className="h-4 w-4 text-indigo-500" />} 
         onClick={onPartialDeliveredClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.partialDeliveredTasks}</div>
+      </StatCard>
       <StatCard 
         title="Livraisons Sensibles" 
-        value={stats.sensitiveDeliveries} 
         icon={<Siren className="h-4 w-4 text-red-600" />} 
         onClick={onSensitiveDeliveriesClick}
-      />
+      >
+        <div className="text-2xl font-bold">{stats.sensitiveDeliveries}</div>
+      </StatCard>
 
        <SectionTitle>Vue d'Ensemble</SectionTitle>
-      <StatCard title="Tâches Totales" value={stats.totalTasks} icon={<ListTodo className="h-4 w-4 text-muted-foreground" />} />
-      <StatCard title="Tâches Terminées" value={stats.completedTasks} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
-      <StatCard title="Tournées Totales" value={stats.totalRounds} icon={<Route className="h-4 w-4 text-muted-foreground" />} />
-      <StatCard title="Tournées Terminées" value={stats.completedRounds} icon={<Trophy className="h-4 w-4 text-muted-foreground" />} />
+      <StatCard title="Tâches Totales" icon={<ListTodo className="h-4 w-4 text-muted-foreground" />}>
+        <div className="text-2xl font-bold">{stats.totalTasks}</div>
+      </StatCard>
+      <StatCard title="Tâches Terminées" icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}>
+        <div className="text-2xl font-bold">{stats.completedTasks}</div>
+      </StatCard>
+      <StatCard title="Tournées Totales" icon={<Route className="h-4 w-4 text-muted-foreground" />}>
+        <div className="text-2xl font-bold">{stats.totalRounds}</div>
+      </StatCard>
+      <StatCard title="Tournées Terminées" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
+        <div className="text-2xl font-bold">{stats.completedRounds}</div>
+      </StatCard>
 
     </div>
   );

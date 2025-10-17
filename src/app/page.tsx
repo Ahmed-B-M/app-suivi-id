@@ -161,6 +161,8 @@ export default function DashboardPage() {
           ratedTasks.length
         : null;
         
+    const ratingRate = totalCompletedTasks > 0 ? (ratedTasks.length / totalCompletedTasks) * 100 : null;
+
     let punctualTasks = 0;
     const earlyTasks: PunctualityTask[] = [];
     const lateTasks: PunctualityTask[] = [];
@@ -250,6 +252,8 @@ export default function DashboardPage() {
       failedDeliveryRate: failedDeliveryRate,
       sensitiveDeliveries: sensitiveDeliveriesList.length,
       qualityAlerts: qualityAlertTasks.length,
+      numberOfRatings: ratedTasks.length,
+      ratingRate: ratingRate,
     };
 
     const roundStats = filteredData.rounds
