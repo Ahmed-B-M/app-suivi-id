@@ -1,4 +1,4 @@
-import { Layers, Settings, LayoutDashboard } from "lucide-react";
+import { Layers, Settings, LayoutDashboard, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
 
@@ -19,6 +19,12 @@ export function AppHeader() {
             <Link href="/" className="flex items-center gap-2">
               <LayoutDashboard />
               Tableau de bord
+            </Link>
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link href="/billing" className="flex items-center gap-2">
+              <CreditCard />
+              Facturation
             </Link>
           </Button>
           <Button variant="ghost" asChild>
