@@ -127,7 +127,6 @@ function transformRoundData(rawRound: any): Tournee {
       TempSURG_Chargement: rawRound.metadata.TempSURG_Chargement,
       TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
       Immatriculation: rawRound.metadata.Immatriculation,
-      // These fields are not in the source, you might need to handle them if they appear
       TempSURG_Fin: rawRound.metadata.TempSURG_Fin, 
       TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
     } : undefined,
