@@ -128,7 +128,7 @@ function transformRoundData(rawRound: any): Tournee {
       TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
       Immatriculation: rawRound.metadata.Immatriculation,
       TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
-      TempsSURG_Fin: rawRound.metadata.TempSURG_Fin
+      TempsSURG_Fin: rawRound.metadata.TempsSURG_Fin
     } : undefined,
     name: rawRound.name,
     orderCount: rawRound.orderCount,

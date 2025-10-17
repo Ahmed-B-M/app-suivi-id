@@ -83,7 +83,9 @@ export interface Tache {
   }[];
   
   execution?: {
-    sansContact?: boolean;
+    sansContact?: {
+      forced?: boolean;
+    };
   };
 
   metaDonnees?: {
@@ -115,7 +117,7 @@ export interface Tournee {
     TempsFRAIS_Chargement?: string;
     Immatriculation?: string;
     TempsFRAIS_Fin?: string;
-    TempSURG_Fin?: string;
+    TempsSURG_Fin?: string;
   };
   name?: string;
   orderCount?: number;
@@ -203,4 +205,3 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
-
