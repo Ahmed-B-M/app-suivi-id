@@ -7,7 +7,7 @@ import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calendar as CalendarIcon, Truck, Warehouse } from "lucide-react";
+import { AlertCircle, Calendar as CalendarIcon, Truck, User, Warehouse } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
@@ -46,11 +46,12 @@ import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 export default function DashboardPage() {
   const { firestore } = useFirebase();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 29),
+    from: new Date(),
     to: new Date(),
   });
   const [selectedDepot, setSelectedDepot] = useState<string>("all");
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
+  const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
   const [isMissingBacsDetailsOpen, setIsMissingBacsDetailsOpen] = useState(false);
@@ -86,24 +87,31 @@ export default function DashboardPage() {
     error: roundsError,
   } = useCollection<Tournee>(roundsCollection);
 
-  const { depotNames, carrierNames } = useMemo(() => {
-    if (!tasks && !rounds) return { depotNames: [], carrierNames: [] };
+  const { depotNames, carrierNames, driverNames } = useMemo(() => {
+    if (!tasks && !rounds) return { depotNames: [], carrierNames: [], driverNames: [] };
     const depots = new Set<string>();
     const carriers = new Set<string>();
+    const drivers = new Set<string>();
+    
+    const allItems: (Tache | Tournee)[] = [...(tasks || []), ...(rounds || [])];
 
-    (tasks || []).forEach((task) => {
-      depots.add(getDepotFromHub(task.nomHub));
-      carriers.add(getCarrierFromDriver(getDriverFullName(task)));
-    });
-    (rounds || []).forEach((round) => {
-      // Note: Rounds don't have hub names directly, we derive it from associated tasks.
-      // This is handled in the filtering logic.
-      carriers.add(getCarrierFromDriver(getDriverFullName(round)));
+    allItems.forEach((item) => {
+      if ('nomHub' in item && item.nomHub) {
+        depots.add(getDepotFromHub(item.nomHub));
+      }
+      const driverName = getDriverFullName(item);
+      if (driverName) {
+        drivers.add(driverName);
+        carriers.add(getCarrierFromDriver(driverName));
+      } else {
+        carriers.add("Inconnu");
+      }
     });
 
     return { 
       depotNames: Array.from(depots).sort(),
-      carrierNames: Array.from(carriers).sort()
+      carrierNames: Array.from(carriers).sort(),
+      driverNames: Array.from(drivers).sort(),
     };
   }, [tasks, rounds]);
 
@@ -115,15 +123,18 @@ export default function DashboardPage() {
     let filteredRounds = rounds || [];
 
     // Filter by date
-    if (from && to) {
-      from.setHours(0,0,0,0);
-      to.setHours(23,59,59,999);
+    if (from) {
+      const startOfDay = new Date(from);
+      startOfDay.setHours(0,0,0,0);
+      
+      const endOfDay = to ? new Date(to) : new Date(from);
+      endOfDay.setHours(23,59,59,999);
       
       const filterByDate = (item: Tache | Tournee) => {
         const itemDateString = item.date || item.dateCreation;
         if (!itemDateString) return false;
         const itemDate = new Date(itemDateString);
-        return itemDate >= from && itemDate <= to;
+        return itemDate >= startOfDay && itemDate <= endOfDay;
       };
 
       filteredTasks = filteredTasks.filter(filterByDate);
@@ -135,7 +146,7 @@ export default function DashboardPage() {
       filteredTasks = filteredTasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
       
       const roundNamesInDepot = new Set(filteredTasks.map(t => t.nomTournee));
-      filteredRounds = filteredRounds.filter(r => roundNamesInDepot.has(r.name));
+      filteredRounds = filteredRounds.filter(r => r.name && roundNamesInDepot.has(r.name));
     }
 
     // Filter by carrier
@@ -143,9 +154,15 @@ export default function DashboardPage() {
       filteredTasks = filteredTasks.filter(t => getCarrierFromDriver(getDriverFullName(t)) === selectedCarrier);
       filteredRounds = filteredRounds.filter(r => getCarrierFromDriver(getDriverFullName(r)) === selectedCarrier);
     }
+    
+    // Filter by driver
+    if (selectedDriver !== "all") {
+      filteredTasks = filteredTasks.filter(t => getDriverFullName(t) === selectedDriver);
+      filteredRounds = filteredRounds.filter(r => getDriverFullName(r) === selectedDriver);
+    }
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier]);
+  }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier, selectedDriver]);
 
   const handleStatusClick = (status: string) => {
       const tasksForStatus = filteredData.tasks.filter(task => {
@@ -422,12 +439,12 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
         <div className="flex flex-wrap items-center gap-2">
            <Select value={selectedDepot} onValueChange={setSelectedDepot}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filtrer par dépôt" />
+              <SelectValue placeholder="Filtrer par entrepôt" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les dépôts</SelectItem>
+              <SelectItem value="all">Tous les entrepôts</SelectItem>
               {depotNames.map((depot) => (
                 <SelectItem key={depot} value={depot}>
                   {depot}
@@ -436,7 +453,7 @@ export default function DashboardPage() {
             </SelectContent>
           </Select>
            <Select value={selectedCarrier} onValueChange={setSelectedCarrier}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <Truck className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par transporteur" />
             </SelectTrigger>
@@ -445,6 +462,20 @@ export default function DashboardPage() {
               {carrierNames.map((carrier) => (
                 <SelectItem key={carrier} value={carrier}>
                   {carrier}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <User className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filtrer par livreur" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les livreurs</SelectItem>
+              {driverNames.map((driver) => (
+                <SelectItem key={driver} value={driver}>
+                  {driver}
                 </SelectItem>
               ))}
             </SelectContent>
