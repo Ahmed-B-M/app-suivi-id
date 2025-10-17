@@ -22,7 +22,7 @@ import {
   where,
   documentId,
 } from "firebase/firestore";
-import equal from "deep-equal";
+import equal = require("deep-equal");
 
 import { unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
 import { runUnifiedExportAction } from "@/app/actions";
