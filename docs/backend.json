@@ -314,6 +314,21 @@
         "status",
         "date"
       ]
+    },
+     "CategorizedComment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CategorizedComment",
+      "type": "object",
+      "description": "Represents a customer comment that has been categorized by AI or manually.",
+      "properties": {
+        "taskId": { "type": "string" },
+        "comment": { "type": "string" },
+        "rating": { "type": "number" },
+        "category": { "type": "string" },
+        "taskDate": { "type": "string", "format": "date-time" },
+        "driverName": { "type": "string" }
+      },
+      "required": ["taskId", "comment", "rating", "category", "taskDate"]
     }
   },
   "auth": {
@@ -352,6 +367,20 @@
             {
               "name": "roundId",
               "description": "Unique identifier for the round."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/categorized_comments/{taskId}",
+        "definition": {
+          "entityName": "CategorizedComment",
+          "schema": { "$ref": "#/backend/entities/CategorizedComment" },
+          "description": "Stores categorized customer comments. The document ID is the same as the task ID to ensure uniqueness.",
+          "params": [
+            {
+              "name": "taskId",
+              "description": "The unique identifier for the task this comment belongs to."
             }
           ]
         }

@@ -24,10 +24,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { BrainCircuit, MessageSquare, Star } from "lucide-react";
 import { getDriverFullName } from '@/lib/grouping';
 import { format } from 'date-fns';
+import { categories } from '@/ai/flows/categorize-comment';
 
 export type CategorizedComment = {
   task: Tache;
@@ -36,9 +44,10 @@ export type CategorizedComment = {
 
 interface CommentAnalysisProps {
   data: CategorizedComment[];
+  onCategoryChange: (taskId: string, newCategory: string) => void;
 }
 
-export function CommentAnalysis({ data }: CommentAnalysisProps) {
+export function CommentAnalysis({ data, onCategoryChange }: CommentAnalysisProps) {
   const commentsByCategory = useMemo(() => {
     return data.reduce((acc, item) => {
       const category = item.category || 'Autre';
@@ -64,7 +73,7 @@ export function CommentAnalysis({ data }: CommentAnalysisProps) {
           Analyse des Commentaires par IA
         </CardTitle>
         <CardDescription>
-          Voici les {data.length} commentaires négatifs classés par catégorie.
+          Voici les {data.length} commentaires négatifs classés par catégorie. Vous pouvez modifier la catégorie avant de sauvegarder.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -84,14 +93,15 @@ export function CommentAnalysis({ data }: CommentAnalysisProps) {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="w-1/4">Livreur</TableHead>
+                                            <TableHead className="w-1/5">Livreur</TableHead>
                                             <TableHead className="w-[120px]">Date</TableHead>
                                             <TableHead className="text-center w-[80px]">Note</TableHead>
-                                            <TableHead>Commentaire</TableHead>
+                                            <TableHead className="w-2/5">Commentaire</TableHead>
+                                            <TableHead className="w-1/4">Catégorie</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {commentsByCategory[category].map(({ task }) => (
+                                        {commentsByCategory[category].map(({ task, category: currentCategory }) => (
                                             <TableRow key={task.tacheId}>
                                                 <TableCell>{getDriverFullName(task) || 'N/A'}</TableCell>
                                                 <TableCell>{task.date ? format(new Date(task.date), "dd/MM/yy") : 'N/A'}</TableCell>
@@ -106,6 +116,21 @@ export function CommentAnalysis({ data }: CommentAnalysisProps) {
                                                         <MessageSquare className="h-4 w-4 mt-1 shrink-0" />
                                                         <span>"{task.metaDonnees?.commentaireLivreur}"</span>
                                                     </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                  <Select
+                                                    value={currentCategory}
+                                                    onValueChange={(newCategory) => onCategoryChange(task.tacheId, newCategory)}
+                                                  >
+                                                    <SelectTrigger>
+                                                      <SelectValue placeholder="Choisir une catégorie" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      {categories.map(cat => (
+                                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -126,3 +151,5 @@ export function CommentAnalysis({ data }: CommentAnalysisProps) {
     </Card>
   );
 }
+
+    

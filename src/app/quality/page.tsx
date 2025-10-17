@@ -5,12 +5,12 @@ import { useMemo, useState } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
-import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
+import { getHubCategory, getDepotFromHub, getDriverFullName } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
 import { QualityDashboard, type QualityData } from "@/components/app/quality-dashboard";
-import { categorizeCommentsAction } from "@/app/actions";
+import { categorizeCommentsAction, saveCategorizedCommentsAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, Loader2 } from "lucide-react";
+import { BrainCircuit, Loader2, Save } from "lucide-react";
 import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +19,7 @@ export default function QualityPage() {
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<CategorizedComment[] | null>(null);
   const { toast } = useToast();
 
@@ -184,6 +185,48 @@ export default function QualityPage() {
     }
   };
 
+  const handleSave = async () => {
+    if (!analysisResult) return;
+    setIsSaving(true);
+    toast({
+      title: "Sauvegarde en cours...",
+      description: `Sauvegarde de ${analysisResult.length} catégories dans la base de données.`
+    });
+
+    const commentsToSave = analysisResult.map(item => ({
+      taskId: item.task.tacheId,
+      comment: item.task.metaDonnees?.commentaireLivreur || "",
+      rating: item.task.metaDonnees?.notationLivreur || 0,
+      category: item.category,
+      taskDate: item.task.date,
+      driverName: getDriverFullName(item.task),
+    }));
+
+    const result = await saveCategorizedCommentsAction(commentsToSave);
+    setIsSaving(false);
+
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur de sauvegarde",
+        description: result.error,
+      });
+    } else {
+      toast({
+        title: "Sauvegarde réussie !",
+        description: "Les catégories ont été enregistrées dans la base de données.",
+      });
+    }
+  };
+
+  const handleCategoryChange = (taskId: string, newCategory: string) => {
+    setAnalysisResult(prev => 
+      prev!.map(item => 
+        item.task.tacheId === taskId ? { ...item, category: newCategory } : item
+      )
+    );
+  };
+
 
   const isLoading = isLoadingTasks || isLoadingRounds;
 
@@ -191,17 +234,32 @@ export default function QualityPage() {
     <main className="flex-1 container py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Analyse de la Qualité</h1>
-        <Button
-          onClick={handleAnalyzeComments}
-          disabled={isAnalyzing || tasksToAnalyze.length === 0}
-        >
-          {isAnalyzing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <BrainCircuit className="mr-2 h-4 w-4" />
+        <div className="flex gap-2">
+          <Button
+            onClick={handleAnalyzeComments}
+            disabled={isAnalyzing || tasksToAnalyze.length === 0}
+          >
+            {isAnalyzing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <BrainCircuit className="mr-2 h-4 w-4" />
+            )}
+            Analyser les Commentaires ({tasksToAnalyze.length})
+          </Button>
+          {analysisResult && (
+             <Button
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Sauvegarder les Catégories
+            </Button>
           )}
-          Analyser les Commentaires ({tasksToAnalyze.length})
-        </Button>
+        </div>
       </div>
       <div className="space-y-8">
         <QualityDashboard 
@@ -210,8 +268,10 @@ export default function QualityPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
-        {analysisResult && <CommentAnalysis data={analysisResult} />}
+        {analysisResult && <CommentAnalysis data={analysisResult} onCategoryChange={handleCategoryChange} />}
       </div>
     </main>
   );
 }
+
+    

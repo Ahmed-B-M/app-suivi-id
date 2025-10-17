@@ -9,6 +9,8 @@ import {
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee } from "@/lib/types";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
+import { initializeFirebaseOnServer } from "@/firebase/server-init";
+import { getDriverFullName } from "@/lib/grouping";
 
 /**
  * Transforms a raw task object from the Urbantz API into the desired French structure.
@@ -435,8 +437,10 @@ export async function getScheduleAction(
 // --- AI Comment Categorization Action ---
 export async function categorizeCommentsAction(tasks: Tache[]) {
   try {
-    const promises = tasks.map(async (task) => {
-      const result = await categorizeComment({ comment: task.metaDonnees.commentaireLivreur! });
+    const promises = tasks
+     .filter(task => task.metaDonnees?.commentaireLivreur) // Ensure comment exists
+     .map(async (task) => {
+      const result = await categorizeComment({ comment: task.metaDonnees!.commentaireLivreur! });
       return {
         task: task,
         category: result.category,
@@ -455,3 +459,36 @@ export async function categorizeCommentsAction(tasks: Tache[]) {
     };
   }
 }
+
+// --- Save Categorized Comments to Firestore ---
+export async function saveCategorizedCommentsAction(
+  categorizedComments: {
+    taskId: string;
+    comment: string;
+    rating: number;
+    category: string;
+    taskDate?: string;
+    driverName?: string;
+  }[]
+) {
+  try {
+    const { firestore } = await initializeFirebaseOnServer();
+    const batch = firestore.batch();
+    
+    categorizedComments.forEach(comment => {
+      const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
+      batch.set(docRef, comment, { merge: true });
+    });
+
+    await batch.commit();
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error saving categorized comments:", error);
+    return {
+      success: false,
+      error: "Failed to save categorized comments to Firestore.",
+    };
+  }
+}
+
+    
