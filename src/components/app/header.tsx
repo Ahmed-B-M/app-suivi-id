@@ -51,7 +51,7 @@ export function AppHeader() {
 
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+    <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-14 items-center justify-between">
         <div className="mr-4 flex items-center">
           <Link href="/" className="flex items-center">
@@ -75,7 +75,7 @@ export function AppHeader() {
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="magasin" id="magasin" />
-              <Label htmlFor="magasin">Magasins</Label>
+              <Label htmlFor="magasin">Entrepôts</Label>
             </div>
           </RadioGroup>
 
@@ -134,10 +134,10 @@ export function AppHeader() {
           <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'depot'}>
             <SelectTrigger className="w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filtrer par magasin" />
+              <SelectValue placeholder="Filtrer par entrepôt" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les magasins</SelectItem>
+              <SelectItem value="all">Tous les entrepôts</SelectItem>
               {availableStores.map((store) => (
                 <SelectItem key={store} value={store}>
                   {store}
@@ -146,21 +146,6 @@ export function AppHeader() {
             </SelectContent>
           </Select>
 
-          <Button variant="ghost" asChild>
-            <Link href="/" className="flex items-center gap-2">
-              <LayoutDashboard />
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/billing" className="flex items-center gap-2">
-              <CreditCard />
-            </Link>
-          </Button>
-          <Button variant="ghost" asChild>
-            <Link href="/settings" className="flex items-center gap-2">
-              <Settings />
-            </Link>
-          </Button>
         </nav>
       </div>
     </header>

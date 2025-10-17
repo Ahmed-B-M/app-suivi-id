@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { FirebaseClientProvider } from "@/firebase";
 import { AppHeader } from "@/components/app/header";
 import { FilterProvider } from "@/context/filter-context";
+import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarNav } from "@/components/app/sidebar-nav";
 
 export const metadata: Metadata = {
   title: "ID-pilote",
@@ -38,16 +40,23 @@ export default function RootLayout({
       <body className={cn("font-body antialiased min-h-screen bg-background")}>
         <FirebaseClientProvider>
           <FilterProvider>
-            <div className="flex flex-col min-h-screen">
-              <AppHeader />
-              {children}
-              <Toaster />
-              <footer className="py-6 border-t mt-8">
-                <div className="container text-center text-sm text-muted-foreground">
-                  ID-pilote
+            <SidebarProvider>
+              <div className="flex min-h-screen">
+                <SidebarNav />
+                <div className="flex flex-col w-full">
+                  <AppHeader />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <Toaster />
+                   <footer className="py-6 border-t mt-8">
+                    <div className="container text-center text-sm text-muted-foreground">
+                      ID-pilote
+                    </div>
+                  </footer>
                 </div>
-              </footer>
-            </div>
+              </div>
+            </SidebarProvider>
           </FilterProvider>
         </FirebaseClientProvider>
       </body>
