@@ -17,7 +17,12 @@ import {
   writeBatch,
   collection,
   doc,
+  getDocs,
+  query,
+  where,
+  documentId,
 } from "firebase/firestore";
+import equal from "deep-equal";
 
 import { unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
 import { runUnifiedExportAction } from "@/app/actions";
@@ -138,7 +143,7 @@ export function UnifiedExportForm({
     }
 
     onSavingChange(true);
-    onLogUpdate([`\n💾 Début de la sauvegarde dans Firestore...`]);
+    onLogUpdate([`\n💾 Début de la sauvegarde intelligente dans Firestore...`]);
 
     let anyError = false;
 
@@ -153,28 +158,83 @@ export function UnifiedExportForm({
 
     if(!anyError) {
         onLogUpdate([`\n🎉 Sauvegarde terminée !`]);
-        toast({ title: "Succès", description: "Les données ont été sauvegardées dans Firestore." });
+        toast({ title: "Succès", description: "Les données ont été synchronisées avec Firestore." });
     } else {
         onLogUpdate([`\n❌ Sauvegarde terminée avec des erreurs.`]);
     }
 
 
     async function saveCollection(collectionName: 'tasks' | 'rounds', data: any[], idKey: string) {
-        onLogUpdate([`\n   -> Sauvegarde de ${data.length} ${collectionName}...`]);
+        onLogUpdate([`\n   -> Analyse de ${data.length} ${collectionName}...`]);
         const collectionRef = collection(firestore, collectionName);
         
-        const itemsToSave = data.filter(item => item[idKey]);
+        const itemsWithId = data.filter(item => item[idKey]);
+        const itemIds = itemsWithId.map(item => item[idKey].toString());
 
-        if (itemsToSave.length === 0) {
-            onLogUpdate([`      - ✅ Aucun document avec un ID valide à sauvegarder.`]);
+        if (itemIds.length === 0) {
+            onLogUpdate([`      - ✅ Aucun document avec un ID valide à analyser.`]);
+            return;
+        }
+
+        // Fetch existing documents from Firestore for comparison
+        onLogUpdate([`      - Fetching ${itemIds.length} existing document(s) for comparison...`]);
+        const existingDocsMap = new Map<string, any>();
+        
+        // Firestore 'in' query supports up to 30 elements. We need to chunk it.
+        const idChunks: string[][] = [];
+        for (let i = 0; i < itemIds.length; i += 30) {
+          idChunks.push(itemIds.slice(i, i + 30));
+        }
+        
+        for (const chunk of idChunks) {
+            const q = query(collectionRef, where(documentId(), "in", chunk));
+            try {
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach(doc => {
+                    existingDocsMap.set(doc.id, doc.data());
+                });
+            } catch (e) {
+                 anyError = true;
+                 onLogUpdate([`      - ❌ Error fetching existing documents: ${(e as Error).message}`]);
+                 // Continue with empty map, will try to write all docs
+            }
+        }
+        onLogUpdate([`      - ${existingDocsMap.size} documents existants récupérés.`]);
+
+
+        let addedCount = 0;
+        let updatedCount = 0;
+        let unchangedCount = 0;
+        const itemsToUpdate: any[] = [];
+        
+        itemsWithId.forEach(item => {
+            const docId = item[idKey].toString();
+            const existingDoc = existingDocsMap.get(docId);
+            if (!existingDoc) {
+                itemsToUpdate.push(item);
+                addedCount++;
+            } else {
+                if (!equal(existingDoc, item)) {
+                    itemsToUpdate.push(item);
+                    updatedCount++;
+                } else {
+                    unchangedCount++;
+                }
+            }
+        });
+        
+        onLogUpdate([`      - Nouveaux: ${addedCount}, Modifiés: ${updatedCount}, Inchangés: ${unchangedCount}`]);
+        
+        if (itemsToUpdate.length === 0) {
+            onLogUpdate([`      - ✅ Aucune mise à jour nécessaire.`]);
             return;
         }
         
-        onLogUpdate([`      - ${itemsToSave.length} documents à créer ou mettre à jour.`]);
+        onLogUpdate([`      - ${itemsToUpdate.length} documents à créer ou mettre à jour.`]);
 
         const batchSize = 500;
-        for (let i = 0; i < itemsToSave.length; i += batchSize) {
-          const batchData = itemsToSave.slice(i, i + batchSize);
+        for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
+          const batchData = itemsToUpdate.slice(i, i + batchSize);
           const batch = writeBatch(firestore);
           
           batchData.forEach(item => {
@@ -385,5 +445,3 @@ export function UnifiedExportForm({
     </Card>
   );
 }
-
-    
