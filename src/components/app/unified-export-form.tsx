@@ -58,6 +58,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Tache, Tournee } from "@/lib/types";
+import { DateRange } from "react-day-picker";
 
 type UnifiedExportFormProps = {
   onExportStart: () => void;
@@ -232,6 +233,7 @@ export function UnifiedExportForm({
         
         onLogUpdate([`      - ${itemsToUpdate.length} documents à créer ou mettre à jour.`]);
 
+        // Firestore batch writes are limited to 500 operations.
         const batchSize = 500;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
           const batchData = itemsToUpdate.slice(i, i + batchSize);
