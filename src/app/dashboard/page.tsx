@@ -226,7 +226,7 @@ export default function DashboardPage() {
     );
     const failedTasksCount = failedTasksList.length;
 
-    const redeliveriesList = failedTasksList.filter(t => (t.tentatives ?? 0) >= 2);
+    const redeliveriesList = filteredData.tasks.filter(t => (t.tentatives ?? 0) >= 2 && t.status !== 'DELIVERED');
 
     const pendingTasksList = filteredData.tasks.filter(t => t.status === "PENDING");
     const missingTasksList = filteredData.tasks.filter(t => t.status === "MISSING");
@@ -575,3 +575,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
