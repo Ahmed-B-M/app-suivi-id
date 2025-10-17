@@ -16,7 +16,6 @@ import {
   writeBatch,
   collection,
   doc,
-  getDocs,
 } from "firebase/firestore";
 
 import { unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
@@ -116,7 +115,7 @@ export function UnifiedExportForm({
   const handleDownload = (type: 'tasks' | 'rounds') => {
     const data = type === 'tasks' ? taskJsonData : roundJsonData;
     if (!data) return;
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+    const jsonString = `data:text/json;charset=utf-t,${encodeURIComponent(
       JSON.stringify(data, null, 2)
     )}`;
     const link = document.createElement("a");
@@ -143,10 +142,10 @@ export function UnifiedExportForm({
     let anyError = false;
 
     if (taskJsonData && taskJsonData.length > 0) {
-        await saveCollection('tasks', taskJsonData, 'tacheId', 'dateMiseAJour');
+        await saveCollection('tasks', taskJsonData, 'tacheId');
     }
     if (roundJsonData && roundJsonData.length > 0) {
-        await saveCollection('rounds', roundJsonData, 'id', 'updated');
+        await saveCollection('rounds', roundJsonData, 'id');
     }
 
     onSavingChange(false);
@@ -160,52 +159,31 @@ export function UnifiedExportForm({
     }
 
 
-    async function saveCollection(collectionName: 'tasks' | 'rounds', data: any[], idKey: string, dateKey: string) {
+    async function saveCollection(collectionName: 'tasks' | 'rounds', data: any[], idKey: string) {
         onLogUpdate([`\n   -> Sauvegarde de ${data.length} ${collectionName}...`]);
         const collectionRef = collection(firestore, collectionName);
-        let itemsToSave = [];
-
-        try {
-            onLogUpdate(["      - Récupération des documents existants pour comparaison..."]);
-            const existingDocsSnapshot = await getDocs(collectionRef);
-            const existingDocsMap = new Map();
-            existingDocsSnapshot.forEach(doc => {
-                existingDocsMap.set(doc.id, doc.data()[dateKey]);
-            });
-            onLogUpdate([`      - ${existingDocsMap.size} documents existants trouvés.`]);
-
-            for (const item of data) {
-                const docId = item[idKey];
-                if (!docId) continue;
-                const existingTimestamp = existingDocsMap.get(docId.toString());
-                const newTimestamp = item[dateKey];
-                if (!existingTimestamp || (newTimestamp && new Date(newTimestamp) > new Date(existingTimestamp))) {
-                    itemsToSave.push(item);
-                }
-            }
-            onLogUpdate([`      - ${itemsToSave.length} nouveaux éléments ou éléments mis à jour à sauvegarder.`]);
-        } catch (e) {
-            const errorMsg = "      - ❌ Erreur lors de la récupération des données existantes.";
-            onLogUpdate([errorMsg, e instanceof Error ? e.message : "Erreur inconnue"]);
-            anyError = true;
-            return;
-        }
+        
+        const itemsToSave = data.filter(item => item[idKey]);
 
         if (itemsToSave.length === 0) {
-            onLogUpdate(["      - ✅ Aucune nouvelle donnée à sauvegarder."]);
+            onLogUpdate([`      - ✅ Aucun document avec un ID valide à sauvegarder.`]);
             return;
         }
+        
+        onLogUpdate([`      - ${itemsToSave.length} documents à créer ou mettre à jour.`]);
 
         const batchSize = 450;
         for (let i = 0; i < itemsToSave.length; i += batchSize) {
             const chunk = itemsToSave.slice(i, i + batchSize);
             const currentBatchIndex = (i / batchSize) + 1;
-            onLogUpdate([`      - Traitement du lot ${currentBatchIndex}...`]);
+            onLogUpdate([`      - Traitement du lot ${currentBatchIndex} sur ${Math.ceil(itemsToSave.length / batchSize)}...`]);
             try {
                 const batch = writeBatch(firestore);
                 chunk.forEach((item) => {
                     const docId = item[idKey];
-                    if (docId) batch.set(doc(collectionRef, docId.toString()), item, { merge: true });
+                    // Utilise set avec merge:true pour créer ou mettre à jour efficacement.
+                    // Cela ne consomme qu'une opération d'écriture par document.
+                    batch.set(doc(collectionRef, docId.toString()), item, { merge: true });
                 });
                 await batch.commit();
                 onLogUpdate([`      - Lot de ${chunk.length} ${collectionName} sauvegardé avec succès.`]);
@@ -402,3 +380,5 @@ export function UnifiedExportForm({
     </Card>
   );
 }
+
+    
