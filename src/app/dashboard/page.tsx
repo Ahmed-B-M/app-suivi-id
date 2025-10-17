@@ -137,6 +137,11 @@ export default function DashboardPage() {
   const dashboardData = useMemo(() => {
     if (!filteredData.tasks && !filteredData.rounds) return null;
 
+    const totalTasks = filteredData.tasks.length;
+    if (totalTasks === 0 && filteredData.rounds.length === 0) {
+      return { hasData: false };
+    }
+
     const ratedTasks = filteredData.tasks.map(t => {
       const rating = t.metaDonnees?.notationLivreur;
       return typeof rating === 'number' ? rating : null;
@@ -176,20 +181,30 @@ export default function DashboardPage() {
       ? (punctualTasks / completedTasksWithTime.length) * 100
       : null;
 
+    const mobileValidations = filteredData.tasks.filter(t => t.completePar === 'mobile').length;
+    const scanbacRate = totalTasks > 0 ? (mobileValidations / totalTasks) * 100 : 0;
 
-    const taskStats = filteredData.tasks
-      ? {
-          totalTasks: filteredData.tasks.length,
-          completedTasks: filteredData.tasks.filter(
-            (t) => t.progression === "COMPLETED"
-          ).length,
-          unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
-          averageRating: averageRating,
-          punctualityRate: punctualityRate,
-          earlyTasksCount: earlyTasks.length,
-          lateTasksCount: lateTasks.length,
-        }
-      : { totalTasks: 0, completedTasks: 0, unplannedTasks: 0, averageRating: null, punctualityRate: null, earlyTasksCount: 0, lateTasksCount: 0 };
+    const incorrectAddresses = filteredData.tasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length;
+    const forcedAddressRate = totalTasks > 0 ? (incorrectAddresses / totalTasks) * 100 : 0;
+    
+    const forcedContactless = filteredData.tasks.filter(t => t.execution?.sansContact?.forced === true).length;
+    const forcedContactlessRate = totalTasks > 0 ? (forcedContactless / totalTasks) * 100 : 0;
+
+
+    const taskStats = {
+      totalTasks: totalTasks,
+      completedTasks: filteredData.tasks.filter(
+        (t) => t.progression === "COMPLETED"
+      ).length,
+      unplannedTasks: filteredData.tasks.filter((t) => t.unplanned).length,
+      averageRating: averageRating,
+      punctualityRate: punctualityRate,
+      earlyTasksCount: earlyTasks.length,
+      lateTasksCount: lateTasks.length,
+      scanbacRate: scanbacRate,
+      forcedAddressRate: forcedAddressRate,
+      forcedContactlessRate: forcedContactlessRate,
+    };
 
     const roundStats = filteredData.rounds
       ? {
@@ -362,7 +377,7 @@ export default function DashboardPage() {
 
       {isLoading && (
         <div className="space-y-6">
-          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-40 w-full" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Skeleton className="h-96 w-full" />
             <Skeleton className="h-96 w-full" />
