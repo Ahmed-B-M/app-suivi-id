@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -7,7 +8,7 @@ import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calendar as CalendarIcon, Truck, User, Warehouse } from "lucide-react";
+import { AlertCircle, Calendar as CalendarIcon, Truck, User, Warehouse, Building } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
@@ -50,6 +51,7 @@ export default function DashboardPage() {
     to: new Date(),
   });
   const [selectedDepot, setSelectedDepot] = useState<string>("all");
+  const [selectedEntrepots, setSelectedEntrepots] = useState<string>("all");
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
   const [selectedDriver, setSelectedDriver] = useState<string>("all");
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
@@ -87,9 +89,10 @@ export default function DashboardPage() {
     error: roundsError,
   } = useCollection<Tournee>(roundsCollection);
 
-  const { depotNames, carrierNames, driverNames } = useMemo(() => {
-    if (!tasks && !rounds) return { depotNames: [], carrierNames: [], driverNames: [] };
+  const { depotNames, entrepotNames, carrierNames, driverNames } = useMemo(() => {
+    if (!tasks && !rounds) return { depotNames: [], entrepotNames: [], carrierNames: [], driverNames: [] };
     const depots = new Set<string>();
+    const entrepots = new Set<string>();
     const carriers = new Set<string>();
     const drivers = new Set<string>();
     
@@ -98,6 +101,7 @@ export default function DashboardPage() {
     allItems.forEach((item) => {
       if ('nomHub' in item && item.nomHub) {
         depots.add(getDepotFromHub(item.nomHub));
+        entrepots.add(item.nomHub);
       }
       const driverName = getDriverFullName(item);
       if (driverName) {
@@ -110,6 +114,7 @@ export default function DashboardPage() {
 
     return { 
       depotNames: Array.from(depots).sort(),
+      entrepotNames: Array.from(entrepots).sort(),
       carrierNames: Array.from(carriers).sort(),
       driverNames: Array.from(drivers).sort(),
     };
@@ -143,10 +148,16 @@ export default function DashboardPage() {
     
     // Filter by depot
     if (selectedDepot !== "all") {
-      filteredTasks = filteredTasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
-      
-      const roundNamesInDepot = new Set(filteredTasks.map(t => t.nomTournee));
-      filteredRounds = filteredRounds.filter(r => r.name && roundNamesInDepot.has(r.name));
+      const filterLogic = (item: Tache | Tournee) => 'nomHub' in item && getDepotFromHub(item.nomHub) === selectedDepot;
+      filteredTasks = filteredTasks.filter(filterLogic);
+      filteredRounds = filteredRounds.filter(filterLogic);
+    }
+    
+    // Filter by entrepot (hubName)
+    if (selectedEntrepots !== "all") {
+      const filterLogic = (item: Tache | Tournee) => 'nomHub' in item && item.nomHub === selectedEntrepots;
+      filteredTasks = filteredTasks.filter(filterLogic);
+      filteredRounds = filteredRounds.filter(filterLogic);
     }
 
     // Filter by carrier
@@ -162,7 +173,7 @@ export default function DashboardPage() {
     }
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier, selectedDriver]);
+  }, [tasks, rounds, dateRange, selectedDepot, selectedEntrepots, selectedCarrier, selectedDriver]);
 
   const handleStatusClick = (status: string) => {
       const tasksForStatus = filteredData.tasks.filter(task => {
@@ -440,14 +451,28 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2">
            <Select value={selectedDepot} onValueChange={setSelectedDepot}>
             <SelectTrigger className="w-full sm:w-[180px]">
+              <Building className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Filtrer par dépôt" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les dépôts</SelectItem>
+              {depotNames.map((depot) => (
+                <SelectItem key={depot} value={depot}>
+                  {depot}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+           <Select value={selectedEntrepots} onValueChange={setSelectedEntrepots}>
+            <SelectTrigger className="w-full sm:w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par entrepôt" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les entrepôts</SelectItem>
-              {depotNames.map((depot) => (
-                <SelectItem key={depot} value={depot}>
-                  {depot}
+              {entrepotNames.map((entrepot) => (
+                <SelectItem key={entrepot} value={entrepot}>
+                  {entrepot}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -638,3 +663,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
