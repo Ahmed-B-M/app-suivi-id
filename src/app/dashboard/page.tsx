@@ -139,9 +139,14 @@ export default function DashboardPage() {
   }, [tasks, rounds, dateRange, selectedDepot, selectedCarrier]);
 
   const handleStatusClick = (status: string) => {
-    const tasksForStatus = filteredData.tasks.filter(task => (task.status || "Unknown") === status);
-    setStatusDetails({ status, tasks: tasksForStatus, type: 'status' });
-  };
+      const tasksForStatus = filteredData.tasks.filter(task => {
+        if (status === 'Unknown') {
+          return !task.status || task.status === 'Unknown';
+        }
+        return (task.status || "Unknown") === status;
+      });
+      setStatusDetails({ status, tasks: tasksForStatus, type: 'status' });
+    };
 
   const handleProgressionClick = (progression: string) => {
     const tasksForProgression = filteredData.tasks.filter(task => (task.progression || "Unknown") === progression);
@@ -210,7 +215,9 @@ export default function DashboardPage() {
     const forcedContactless = completedTasksList.filter(t => t.execution?.sansContact?.forced === true).length;
     const forcedContactlessRate = totalCompletedTasks > 0 ? (forcedContactless / totalCompletedTasks) * 100 : 0;
     
-    const failedTasks = filteredData.tasks.filter((t) => t.progression === "FAILED").length;
+    const failedTasks = completedTasksList.filter(
+      (t) => t.status === "NOT_DELIVERED"
+    ).length;
 
 
     const taskStats = {
@@ -520,3 +527,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
