@@ -1,32 +1,60 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Tache, Tournee } from "@/lib/types";
-import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
+import type { Tache } from "@/lib/types";
+import { getHubCategory, getDepotFromHub, getDriverFullName } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
 import { QualityDashboard, type QualityData } from "@/components/app/quality-dashboard";
-import { categorizeCommentsAction, saveCategorizedCommentsAction } from "@/app/actions";
+import { categorizeComment, saveCategorizedCommentsAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { BrainCircuit, Loader2, Save } from "lucide-react";
-import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
+import { CommentAnalysis, type CategorizedComment, categories } from "@/components/app/comment-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
+import { addMinutes, subMinutes } from "date-fns";
 import { calculateDriverScore, DriverStats } from "@/lib/scoring";
 
 interface ExtendedDriverStats extends DriverStats {
   tasks: Tache[];
 }
 
+const keywordCategories: Record<typeof categories[number], string[]> = {
+  'Attitude livreur': ['agressif', 'impoli', 'pas aimable', 'désagréable'],
+  'Amabilité livreur': ['souriant', 'courtois', 'aimable', 'gentil', 'professionnel'], // also positive for context
+  'Casse produit': ['casse', 'cassé', 'abimé', 'endommagé', 'produit abîmé'],
+  'Manquant produit': ['manquant', 'manque', 'oubli', 'pas reçu', 'produit manquant'],
+  'Manquant multiple': ['plusieurs manquants', 'nombreux oublis'],
+  'Manquant bac': ['bac manquant', 'caisse manquante'],
+  'Non livré': ['non livré', 'pas livré', 'jamais reçu'],
+  'Erreur de préparation': ['erreur prepa', 'mauvais produit', 'erreur de commande'],
+  'Erreur de livraison': ['mauvaise adresse', 'erreur livraison', 'pas le bon client'],
+  'Livraison en avance': ['en avance', 'trop tôt'],
+  'Livraison en retard': ['en retard', 'trop tard', 'attente'],
+  'Rupture chaine de froid': ['chaîne du froid', 'produits chauds', 'pas frais'],
+  'Process': ['processus', 'application', 'site web', 'service client'],
+  'Non pertinent': ['test', 'ras', 'ok', 'rien a signaler'],
+  'Autre': [],
+};
+
+const getCategoryFromKeywords = (comment: string): typeof categories[number] => {
+    const lowerCaseComment = comment.toLowerCase();
+    for (const [category, keywords] of Object.entries(keywordCategories)) {
+        if (keywords.some(keyword => lowerCaseComment.includes(keyword))) {
+            return category as typeof categories[number];
+        }
+    }
+    return 'Autre';
+}
+
+
 export default function QualityPage() {
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<CategorizedComment[] | null>(null);
+  const [categorizedComments, setCategorizedComments] = useState<CategorizedComment[]>([]);
   const { toast } = useToast();
 
   const tasksCollection = useMemoFirebase(() => {
@@ -75,6 +103,24 @@ export default function QualityPage() {
 
     return filtered;
   }, [tasks, dateRange, filterType, selectedDepot, selectedStore]);
+
+
+   useEffect(() => {
+    const commentsToCategorize = filteredTasks.filter(task =>
+      typeof task.metaDonnees?.notationLivreur === 'number' &&
+      task.metaDonnees.notationLivreur < 4 &&
+      task.metaDonnees.commentaireLivreur
+    );
+
+    const initialCategorization = commentsToCategorize.map(task => ({
+      task: task,
+      category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+      isAnalyzing: false,
+    }));
+
+    setCategorizedComments(initialCategorization);
+
+  }, [filteredTasks]);
 
 
   const qualityData = useMemo((): QualityData | null => {
@@ -155,10 +201,10 @@ export default function QualityPage() {
 
     // 4. Calculate final averages and scores
     const details = Object.values(aggregated).map((depot: any) => {
-        const avgDepotStats = calculateAverageStats(depot.tasks);
+        const avgDepotStats = calculateAverageStats(depot.tasks, Object.fromEntries(Object.values(driverStats).map(d => [d.name, d])));
 
         const carriers = Object.values(depot.carriers).map((carrier: any) => {
-            const avgCarrierStats = calculateAverageStats(carrier.tasks);
+            const avgCarrierStats = calculateAverageStats(carrier.tasks, Object.fromEntries(Object.values(driverStats).map(d => [d.name, d])));
             const carrierDrivers = Array.from(carrier.drivers as Set<string>).map(name => driverStats[name]).filter(Boolean);
             
             return {
@@ -182,19 +228,12 @@ export default function QualityPage() {
         ? scoredDrivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0) / scoredDrivers.length
         : 0;
 
-    const summary = calculateAverageStats(filteredTasks);
+    const summary = calculateAverageStats(filteredTasks, Object.fromEntries(Object.values(driverStats).map(d => [d.name, d])));
 
-    const allRatedTasks = filteredTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-    const allAlerts = allRatedTasks.filter(r => r < 4);
-    
     return {
       summary: {
         ...summary,
-        averageRating: allRatedTasks.length > 0 ? allRatedTasks.reduce((a, b) => a + b, 0) / allRatedTasks.length : null,
         score: globalAverageScore,
-        totalRatings: allRatedTasks.length,
-        totalAlerts: allAlerts.length,
-        alertRate: allRatedTasks.length > 0 ? (allAlerts.length / allRatedTasks.length) * 100 : 0,
       },
       details,
     };
@@ -202,94 +241,77 @@ export default function QualityPage() {
   }, [filteredTasks, isLoadingTasks]);
 
   function calculateAverageStats(
-      entityTasks: Tache[], 
-  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks' | 'score'> & { totalRatings: number, totalAlerts: number, alertRate: number | null } {
-    if (entityTasks.length === 0) {
-      return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, totalRatings: 0, totalAlerts: 0, alertRate: null };
-    }
-
-    const completedTasks = entityTasks.filter(t => t.progression === 'COMPLETED');
-    const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-    const averageRating = ratedTasks.length > 0 ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length : null;
-
-    const completedWithTime = completedTasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-    let punctual = 0;
-    completedWithTime.forEach(t => {
-      const closure = new Date(t.dateCloture!);
-      const windowStart = new Date(t.creneauHoraire!.debut!);
-      const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-      if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
-        punctual++;
+    entityTasks: Tache[],
+    driverStatsMap: Record<string, DriverStats>
+  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks'> & { totalRatings: number, totalAlerts: number, alertRate: number | null } {
+      if (entityTasks.length === 0) {
+          return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, score: 0, totalRatings: 0, totalAlerts: 0, alertRate: null };
       }
-    });
-    
-    const punctualityRate = completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null;
-    const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
-    const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
-    const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
-    
-    const totalAlerts = ratedTasks.filter(r => r < 4).length;
-    
-    return {
-        averageRating,
-        punctualityRate,
-        scanbacRate,
-        forcedAddressRate,
-        forcedContactlessRate,
-        totalRatings: ratedTasks.length,
-        totalAlerts: totalAlerts,
-        alertRate: ratedTasks.length > 0 ? (totalAlerts / ratedTasks.length) * 100 : null,
-    };
-}
+  
+      const completedTasks = entityTasks.filter(t => t.progression === 'COMPLETED');
+      const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+      const averageRating = ratedTasks.length > 0 ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length : null;
+  
+      const completedWithTime = completedTasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+      let punctual = 0;
+      completedWithTime.forEach(t => {
+          const closure = new Date(t.dateCloture!);
+          const windowStart = new Date(t.creneauHoraire!.debut!);
+          const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+          if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
+              punctual++;
+          }
+      });
+  
+      const punctualityRate = completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null;
+      const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
+      const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
+      const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
+      
+      const totalAlerts = ratedTasks.filter(r => r < 4).length;
+      
+      const driversInEntity = [...new Set(entityTasks.map(t => getDriverFullName(t)).filter(Boolean))];
+      const scoredDrivers = driversInEntity.map(name => driverStatsMap[name]).filter(d => d && d.score && d.score > 0);
+      const averageScore = scoredDrivers.length > 0 ? scoredDrivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0) / scoredDrivers.length : 0;
+  
+      return {
+          averageRating,
+          punctualityRate,
+          scanbacRate,
+          forcedAddressRate,
+          forcedContactlessRate,
+          score: averageScore,
+          totalRatings: ratedTasks.length,
+          totalAlerts,
+          alertRate: ratedTasks.length > 0 ? (totalAlerts / ratedTasks.length) * 100 : 0,
+      };
+  }
 
-  const tasksToAnalyze = useMemo(() => {
-    return filteredTasks.filter(task =>
-      typeof task.metaDonnees?.notationLivreur === 'number' &&
-      task.metaDonnees.notationLivreur < 4 &&
-      task.metaDonnees.commentaireLivreur
+  const handleAnalyzeOneComment = useCallback(async (taskId: string) => {
+    const commentToAnalyze = categorizedComments.find(c => c.task.tacheId === taskId);
+    if (!commentToAnalyze || !commentToAnalyze.task.metaDonnees?.commentaireLivreur) return;
+
+    setCategorizedComments(prev =>
+      prev.map(c => c.task.tacheId === taskId ? { ...c, isAnalyzing: true } : c)
     );
-  }, [filteredTasks]);
 
-  const handleAnalyzeComments = async () => {
-    setIsAnalyzing(true);
-    setAnalysisResult(null);
+    const result = await categorizeComment({ comment: commentToAnalyze.task.metaDonnees.commentaireLivreur });
 
-    toast({
-      title: "Analyse en cours...",
-      description: `Analyse de ${tasksToAnalyze.length} commentaires. Cela peut prendre quelques instants.`,
-    });
+    setCategorizedComments(prev =>
+      prev.map(c => c.task.tacheId === taskId ? { ...c, category: result.category, isAnalyzing: false } : c)
+    );
+  }, [categorizedComments]);
 
-    const result = await categorizeCommentsAction(tasksToAnalyze);
-    setIsAnalyzing(false);
-
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur d'analyse",
-        description: result.error,
-      });
-    } else if (result.data) {
-      const categorizedData = result.data.map(item => ({
-        task: item.task,
-        category: item.category,
-      }))
-      setAnalysisResult(categorizedData);
-       toast({
-        title: "Analyse terminée !",
-        description: `${result.data?.length} commentaires ont été classés avec succès.`,
-      });
-    }
-  };
 
   const handleSave = async () => {
-    if (!analysisResult) return;
+    if (categorizedComments.length === 0) return;
     setIsSaving(true);
     toast({
       title: "Sauvegarde en cours...",
-      description: `Sauvegarde de ${analysisResult.length} catégories dans la base de données.`
+      description: `Sauvegarde de ${categorizedComments.length} catégories dans la base de données.`
     });
 
-    const commentsToSave = analysisResult.map(item => ({
+    const commentsToSave = categorizedComments.map(item => ({
       taskId: item.task.tacheId,
       comment: item.task.metaDonnees?.commentaireLivreur || "",
       rating: item.task.metaDonnees?.notationLivreur || 0,
@@ -316,7 +338,7 @@ export default function QualityPage() {
   };
 
   const handleCategoryChange = (taskId: string, newCategory: string) => {
-    setAnalysisResult(prev => 
+    setCategorizedComments(prev => 
       prev!.map(item => 
         item.task.tacheId === taskId ? { ...item, category: newCategory as (typeof item.category) } : item
       )
@@ -331,18 +353,7 @@ export default function QualityPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Analyse de la Qualité</h1>
         <div className="flex gap-2">
-          <Button
-            onClick={handleAnalyzeComments}
-            disabled={isAnalyzing || tasksToAnalyze.length === 0}
-          >
-            {isAnalyzing ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <BrainCircuit className="mr-2 h-4 w-4" />
-            )}
-            Analyser les Commentaires ({tasksToAnalyze.length})
-          </Button>
-          {analysisResult && (
+          {categorizedComments.length > 0 && (
              <Button
               onClick={handleSave}
               disabled={isSaving}
@@ -352,7 +363,7 @@ export default function QualityPage() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Sauvegarder les Catégories
+              Sauvegarder les Catégories ({categorizedComments.length})
             </Button>
           )}
         </div>
@@ -364,10 +375,12 @@ export default function QualityPage() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
-        {analysisResult && <CommentAnalysis data={analysisResult} onCategoryChange={handleCategoryChange} />}
+        <CommentAnalysis 
+          data={categorizedComments} 
+          onCategoryChange={handleCategoryChange} 
+          onAnalyzeComment={handleAnalyzeOneComment}
+        />
       </div>
     </main>
   );
 }
-
-    
