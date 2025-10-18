@@ -17,6 +17,13 @@ export const unifiedExportFormSchema = z.object({
 export type UnifiedExportFormValues = z.infer<typeof unifiedExportFormSchema>;
 
 
+// Schema for the server action, which will receive dates as strings
+export const serverExportSchema = unifiedExportFormSchema.extend({
+    from: z.string(),
+    to: z.string(),
+}).omit({ dateRange: true });
+
+
 // --- Legacy Schemas (can be removed if no longer used) ---
 
 export const exportFormSchema = z.object({

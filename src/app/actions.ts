@@ -4,7 +4,7 @@
 import { z } from "zod";
 import {
   schedulerSchema,
-  unifiedExportFormSchema,
+  serverExportSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee } from "@/lib/types";
@@ -295,42 +295,26 @@ async function fetchRounds(
   return transformedRounds;
 }
 
-/**
- * Formats a Date object into a YYYY-MM-DD string, reliably respecting the user's local date.
- * @param date The date to format.
- * @returns A string in YYYY-MM-DD format.
- */
-const toISODateString = (date: Date) => {
-    // This uses date-fns format function, which is better at handling timezones
-    // than toISOString() by default for this purpose.
-    return format(date, 'yyyy-MM-dd');
-};
-
 // --- Unified Export Action ---
 export async function runUnifiedExportAction(
-  values: z.infer<typeof unifiedExportFormSchema>
+  values: z.infer<typeof serverExportSchema>
 ) {
-  const validatedFields = unifiedExportFormSchema.safeParse(values);
+  const validatedFields = serverExportSchema.safeParse(values);
   if (!validatedFields.success) {
     return { logs: [], data: null, error: "Invalid input." };
   }
   
-  const { apiKey, dateRange, taskStatus, roundStatus, taskId, roundId, unplanned } =
+  const { apiKey, from, to, taskStatus, roundStatus, taskId, roundId, unplanned } =
     validatedFields.data;
-  const { from, to } = dateRange;
+  
   const logs: string[] = [];
 
   try {
     logs.push(`🚀 Début de l'exportation unifiée...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
 
-    const fromDate = from;
-    const toDate = to || from;
-    
-    const fromString = toISODateString(fromDate);
-    const toString = toISODateString(toDate);
     logs.push(
-      `   - Période sélectionnée: ${fromString}${fromString !== toString ? ` à ${toString}` : ''}`
+      `   - Période sélectionnée: ${from}${from !== to ? ` à ${to}` : ''}`
     );
 
     // --- FETCH TASKS ---
@@ -349,11 +333,12 @@ export async function runUnifiedExportAction(
         const unplannedTasks = await fetchTasks(apiKey, taskParams, logs);
         allTasks.push(...unplannedTasks);
     } else {
-        const dateCursor = new Date(fromDate);
-        const finalToDate = new Date(toDate);
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
+        const dateCursor = fromDate;
 
-        while (dateCursor <= finalToDate) {
-            const dateString = toISODateString(dateCursor);
+        while (dateCursor <= toDate) {
+            const dateString = format(dateCursor, 'yyyy-MM-dd');
             logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
             const paramsForDay = new URLSearchParams(taskParams);
             paramsForDay.append("date", dateString);
@@ -380,11 +365,12 @@ export async function runUnifiedExportAction(
     const roundParams = new URLSearchParams();
     
     let allRounds: Tournee[] = [];
-    const dateCursorRounds = new Date(fromDate);
-    const finalToDateRounds = new Date(toDate);
+    const fromDateRounds = new Date(from);
+    const toDateRounds = new Date(to);
+    const dateCursorRounds = fromDateRounds;
 
-     while (dateCursorRounds <= finalToDateRounds) {
-      const dateString = toISODateString(dateCursorRounds);
+     while (dateCursorRounds <= toDateRounds) {
+      const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
       logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
       const paramsForDay = new URLSearchParams(roundParams);
       paramsForDay.append("date", dateString);
@@ -456,33 +442,6 @@ export async function categorizeSingleCommentAction(comment: string): Promise<Ca
   return await categorizeComment({ comment });
 }
 
-
-// --- AI Comment Categorization Action (Bulk - Deprecated by UI change) ---
-export async function categorizeCommentsAction(tasks: Tache[]) {
-  try {
-    const promises = tasks
-     .filter(task => task.metaDonnees?.commentaireLivreur) // Ensure comment exists
-     .map(async (task) => {
-      const result = await categorizeComment({ comment: task.metaDonnees!.commentaireLivreur! });
-      return {
-        task: task,
-        category: result.category,
-      };
-    });
-    
-    const categorizedComments = await Promise.all(promises);
-
-    return { data: categorizedComments, error: null };
-  } catch (error) {
-    console.error("AI comment categorization failed:", error);
-    return {
-      data: null,
-      error:
-        "Failed to categorize comments with AI. Please check the server logs.",
-    };
-  }
-}
-
 // --- Save Categorized Comments to Firestore ---
 export async function saveCategorizedCommentsAction(
   categorizedComments: {
@@ -515,7 +474,3 @@ export async function saveCategorizedCommentsAction(
     };
   }
 }
-
-    
-
-      

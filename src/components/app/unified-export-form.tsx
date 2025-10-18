@@ -24,7 +24,7 @@ import {
 } from "firebase/firestore";
 import equal = require("deep-equal");
 
-import { unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
+import { serverExportSchema, unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
 import { runUnifiedExportAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
@@ -114,7 +114,18 @@ export function UnifiedExportForm({
 
   const onSubmit = async (values: UnifiedExportFormValues) => {
     onExportStart();
-    const result = await runUnifiedExportAction(values);
+    
+    // Convert dates to YYYY-MM-DD strings before sending to the server
+    const fromString = values.dateRange?.from ? format(values.dateRange.from, 'yyyy-MM-dd') : '';
+    const toString = values.dateRange?.to ? format(values.dateRange.to, 'yyyy-MM-dd') : fromString;
+
+    const serverValues = {
+      ...values,
+      from: fromString,
+      to: toString,
+    };
+    
+    const result = await runUnifiedExportAction(serverValues);
     onExportComplete(result.logs, result.data);
 
     if (result.error) {
