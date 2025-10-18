@@ -258,7 +258,6 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                       <div className="w-full flex justify-between items-center">
                           <span className="flex items-center gap-3"><Building />{depot.name}</span>
                           <div className="flex items-center gap-2 text-sm font-medium">
-                              <StatBadge value={depot.score} icon={<Award />} tooltipText="Score Moyen" isRate={false}/>
                               <StatBadge value={depot.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
                               <StatBadge value={depot.punctualityRate} icon={<Clock />} tooltipText="Ponctualité" />
                               <StatBadge value={depot.scanbacRate} icon={<Smartphone />} tooltipText="SCANBAC" />
@@ -277,7 +276,6 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                      <div className="w-full flex justify-between items-center">
                                           <span className="flex items-center gap-3"><Truck />{carrier.name}</span>
                                           <div className="flex items-center gap-2 text-sm font-medium">
-                                              <StatBadge value={carrier.score} icon={<Award />} tooltipText="Score Moyen" isRate={false}/>
                                               <StatBadge value={carrier.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
                                               <StatBadge value={carrier.punctualityRate} icon={<Clock />} tooltipText="Ponctualité" />
                                               <StatBadge value={carrier.scanbacRate} icon={<Smartphone />} tooltipText="SCANBAC" />
