@@ -279,18 +279,18 @@ export default function SummaryPage() {
     }
     
     const depots = new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)).filter(Boolean));
-    const warehouses = new Set(filteredTasks.map(t => t.nomHub).filter(h => h && getHubCategory(h) === 'magasin'));
+    const stores = new Set(filteredTasks.map(t => t.nomHub).filter(h => h && getHubCategory(h) === 'magasin'));
 
     const depotMetrics = Array.from(depots).map(depotName => calculateMetricsForEntity(depotName, 'depot', filteredTasks, filteredRounds));
     
     const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
-    for (const whName of warehouses) {
-        if(!whName) continue;
-        const depotName = getDepotFromHub(whName) || "Autre";
+    for (const storeName of stores) {
+        if(!storeName) continue;
+        const depotName = getDepotFromHub(storeName) || "Autre";
         if (!warehouseSummaryByDepot.has(depotName)) {
             warehouseSummaryByDepot.set(depotName, []);
         }
-        const metrics = calculateMetricsForEntity(whName, 'warehouse', filteredTasks, filteredRounds);
+        const metrics = calculateMetricsForEntity(storeName, 'warehouse', filteredTasks, filteredRounds);
         warehouseSummaryByDepot.get(depotName)!.push(metrics);
     }
     
@@ -346,7 +346,7 @@ export default function SummaryPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Récapitulatif par Dépôt</CardTitle>
-                <CardDescription>Vue d'ensemble des indicateurs de performance clés par dépôt et par entrepôt.</CardDescription>
+                <CardDescription>Vue d'ensemble des indicateurs de performance clés par dépôt et par entrepôt/magasin.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -384,7 +384,7 @@ export default function SummaryPage() {
                                  {(warehouseSummaryByDepot.get(depotData.name) || []).length === 0 && (
                                      <TableRow>
                                          <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4">
-                                             Aucun entrepôt de type "magasin" associé à ce dépôt pour la période sélectionnée.
+                                             Aucun magasin associé à ce dépôt pour la période sélectionnée.
                                          </TableCell>
                                      </TableRow>
                                  )}
