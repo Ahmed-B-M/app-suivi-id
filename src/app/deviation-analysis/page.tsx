@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Building, Scale, Warehouse } from "lucide-react";
+import { AlertCircle, Building, Percent, Scale, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
 import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
@@ -36,10 +36,9 @@ interface Deviation {
 
 interface DeviationSummary {
     name: string;
-    deviationPercentage: number;
-    totalWeight: number;
-    totalCapacity: number;
+    overloadRate: number;
     totalRounds: number;
+    overweightRounds: number;
 }
 
 const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: DeviationSummary[], icon: React.ReactNode }) => {
@@ -56,7 +55,7 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
                     <TableHeader>
                         <TableRow>
                             <TableHead>Nom</TableHead>
-                            <TableHead className="text-right">Écart Moyen</TableHead>
+                            <TableHead className="text-right">Taux de Surcharge</TableHead>
                             <TableHead className="text-right">Tournées</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -65,11 +64,11 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
                             <TableRow key={item.name}>
                                 <TableCell className="font-medium">{item.name}</TableCell>
                                 <TableCell className={`text-right font-bold ${
-                                    item.deviationPercentage > 5 ? 'text-destructive' :
-                                    item.deviationPercentage > 0 ? 'text-orange-500' :
+                                    item.overloadRate > 10 ? 'text-destructive' :
+                                    item.overloadRate > 5 ? 'text-orange-500' :
                                     'text-green-600'
                                 }`}>
-                                    {item.deviationPercentage > 0 ? '+' : ''}{item.deviationPercentage.toFixed(2)}%
+                                    {item.overloadRate.toFixed(2)}%
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground">{item.totalRounds}</TableCell>
                             </TableRow>
@@ -154,8 +153,8 @@ export default function DeviationAnalysisPage() {
     }
     
     const results: Deviation[] = [];
-    const depotAggregation: Record<string, { totalCapacity: number, totalWeight: number, totalRounds: number }> = {};
-    const warehouseAggregation: Record<string, { totalCapacity: number, totalWeight: number, totalRounds: number }> = {};
+    const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
+    const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
 
 
     for (const round of filteredRounds) {
@@ -167,26 +166,25 @@ export default function DeviationAnalysisPage() {
       
       const roundKey = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
       const totalWeight = tasksWeightByRound.get(roundKey) || 0;
+      const isOverweight = totalWeight > roundCapacity;
 
       // Aggregation logic
       const depot = getDepotFromHub(round.nomHub);
       const warehouse = round.nomHub;
 
       if (depot) {
-          if (!depotAggregation[depot]) depotAggregation[depot] = { totalCapacity: 0, totalWeight: 0, totalRounds: 0 };
-          depotAggregation[depot].totalCapacity += roundCapacity;
-          depotAggregation[depot].totalWeight += totalWeight;
+          if (!depotAggregation[depot]) depotAggregation[depot] = { totalRounds: 0, overweightRounds: 0 };
           depotAggregation[depot].totalRounds += 1;
+          if (isOverweight) depotAggregation[depot].overweightRounds += 1;
       }
       if (warehouse) {
-          if (!warehouseAggregation[warehouse]) warehouseAggregation[warehouse] = { totalCapacity: 0, totalWeight: 0, totalRounds: 0 };
-          warehouseAggregation[warehouse].totalCapacity += roundCapacity;
-          warehouseAggregation[warehouse].totalWeight += totalWeight;
+          if (!warehouseAggregation[warehouse]) warehouseAggregation[warehouse] = { totalRounds: 0, overweightRounds: 0 };
           warehouseAggregation[warehouse].totalRounds += 1;
+          if (isOverweight) warehouseAggregation[warehouse].overweightRounds += 1;
       }
 
       // Deviation logic for individual rounds
-      if (totalWeight > roundCapacity) {
+      if (isOverweight) {
         results.push({
           round,
           totalWeight,
@@ -199,11 +197,10 @@ export default function DeviationAnalysisPage() {
     const calculateSummary = (aggregation: Record<string, any>): DeviationSummary[] => {
         return Object.entries(aggregation).map(([name, data]) => ({
             name,
-            deviationPercentage: data.totalCapacity > 0 ? ((data.totalWeight - data.totalCapacity) / data.totalCapacity) * 100 : 0,
-            totalWeight: data.totalWeight,
-            totalCapacity: data.totalCapacity,
+            overloadRate: data.totalRounds > 0 ? (data.overweightRounds / data.totalRounds) * 100 : 0,
             totalRounds: data.totalRounds,
-        })).sort((a, b) => b.deviationPercentage - a.deviationPercentage);
+            overweightRounds: data.overweightRounds,
+        })).sort((a, b) => b.overloadRate - a.overloadRate);
     }
 
     return {
