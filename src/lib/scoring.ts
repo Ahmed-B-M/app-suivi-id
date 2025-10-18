@@ -65,8 +65,8 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
  * @returns A composite score.
  */
 export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompletedTasks: number): number {
-  if (stats.completedTasks < 5 || stats.totalRatings < 1) {
-    return 0; // Minimum 5 tasks and 1 rating to be scored
+  if (stats.completedTasks < 1 || stats.totalRatings < 1) {
+    return 0;
   }
 
   // 1. Rating term (coeff 3)
@@ -80,24 +80,29 @@ export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompl
   // 3. Scanbac term (coeff 1)
   const scanbacPct = stats.scanbacRate ?? 0;
 
-  // 4. Forced Address term (inverted)
+  // 4. Forced Address term (inverted, coeff 1)
   const forcedAddressInvertedPct = 100 - (stats.forcedAddressRate ?? 0);
 
-  // 5. Forced Contactless term (inverted)
+  // 5. Forced Contactless term (inverted, coeff 1)
   const forcedContactlessInvertedPct = 100 - (stats.forcedContactlessRate ?? 0);
   
-  // 6. Task volume term
-  const volumePct = maxCompletedTasks > 0 ? (stats.completedTasks / maxCompletedTasks) * 100 : 0;
-
-  const numerator = 
+  const qualityNumerator = 
       ratingTerm + 
       punctualityTerm + 
       scanbacPct + 
       forcedAddressInvertedPct + 
-      forcedContactlessInvertedPct + 
-      volumePct;
+      forcedContactlessInvertedPct;
       
-  const score = numerator / 9;
+  const qualityScore = qualityNumerator / 8; // (3+2+1+1+1)
+
+  // Volume weighting factor: starts low and scales up to 1.
+  // This means a driver with few tasks can still get a good score based on quality,
+  // but the score is more "trusted" for drivers with more tasks.
+  // Using a soft-cap approach: Math.min(stats.completedTasks, 50) / 50
+  const volumeWeight = Math.min(stats.completedTasks, 50) / 50;
+
+  // Final score is a mix of quality and volume confidence
+  const score = qualityScore * volumeWeight;
 
   return Math.max(0, Math.min(100, score));
 }
