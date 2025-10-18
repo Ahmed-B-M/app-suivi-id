@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useMemo } from "react";
@@ -140,3 +139,125 @@ const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = fa
     </TooltipProvider>
   )
 }
+
+const getScoreVariant = (score: number) => {
+    if (score >= 90) return 'success';
+    if (score >= 75) return 'default';
+    if (score >= 60) return 'warning';
+    return 'danger';
+}
+
+const Row = ({ name, data, icon, children }: { name: string, data: any, icon: React.ReactNode, children: React.ReactNode }) => {
+    return (
+        <AccordionItem value={name} className="border-none">
+            <Card>
+                <AccordionTrigger className="p-0 hover:no-underline">
+                    <div className="flex items-center w-full p-2">
+                        <div className="flex-1 flex items-center gap-2 font-semibold">
+                            {icon} {name}
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <StatBadge value={data.score} icon={<Award />} tooltipText="Score Qualité" isRate={false} />
+                           <StatBadge value={data.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
+                           <StatBadge value={data.alertRate} icon={<AlertTriangle />} tooltipText="Taux d'Alertes" isLowerBetter />
+                           <StatBadge value={data.punctualityRate} icon={<Clock />} tooltipText="Taux de Ponctualité" />
+                           <StatBadge value={data.scanbacRate} icon={<Smartphone />} tooltipText="Taux de SCANBAC" />
+                           <StatBadge value={data.forcedAddressRate} icon={<MapPinOff />} tooltipText="Taux 'Sur Place Forcé'" isLowerBetter />
+                           <StatBadge value={data.forcedContactlessRate} icon={<Ban />} tooltipText="Taux 'Cmd. Forcées'" isLowerBetter />
+                           <Badge variant="outline" className="h-7">{data.totalRatings} notes</Badge>
+                        </div>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                    {children}
+                </AccordionContent>
+            </Card>
+        </AccordionItem>
+    );
+};
+
+export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange }: QualityDashboardProps) {
+
+    if (isLoading) {
+        return <Skeleton className="h-96 w-full" />;
+    }
+
+    if (!data || data.details.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Synthèse de la Qualité</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground text-center py-8">Aucune donnée de qualité à analyser pour cette période.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Synthèse de la Qualité</CardTitle>
+                <CardDescription>Vue d'ensemble des indicateurs de performance qualité, agrégés par dépôt et transporteur.</CardDescription>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4 pt-4">
+                    <StatCard title="Score Qualité Global" value={data.summary.score.toFixed(1)} icon={<Award />} variant={getScoreVariant(data.summary.score)} />
+                    <StatCard title="Note Moyenne" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getScoreVariant((data.summary.averageRating ?? 0) * 20)} />
+                    <StatCard title="Taux d'Alertes" value={`${data.summary.alertRate.toFixed(1)}%`} icon={<AlertTriangle />} variant={getScoreVariant(100-data.summary.alertRate*5)} />
+                    <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getScoreVariant(data.summary.punctualityRate ?? 0)} />
+                    <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getScoreVariant(data.summary.scanbacRate ?? 0)} />
+                    <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getScoreVariant(100 - (data.summary.forcedAddressRate ?? 0)*10)} />
+                    <StatCard title="Forçage Sans Contact" value={`${data.summary.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%`} icon={<Ban />} variant={getScoreVariant(100 - (data.summary.forcedContactlessRate ?? 0)*10)} />
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Accordion type="multiple" className="w-full space-y-4">
+                    {data.details.map(depot => (
+                        <Row key={depot.name} name={depot.name} data={depot} icon={<Building />}>
+                            <Accordion type="multiple" className="w-full space-y-2 px-4 pb-2">
+                                {depot.carriers.map(carrier => (
+                                     <Row key={carrier.name} name={carrier.name} data={carrier} icon={<Truck />}>
+                                        <div className="px-4 py-2">
+                                            <Table>
+                                                 <TableHeader>
+                                                     <TableRow>
+                                                        <TableHead>Livreur</TableHead>
+                                                        <TableHead className="text-right">Score</TableHead>
+                                                        <TableHead className="text-right">Note Moy.</TableHead>
+                                                        <TableHead className="text-right">Taux Alerte</TableHead>
+                                                        <TableHead className="text-right">Ponctualité</TableHead>
+                                                        <TableHead className="text-right">SCANBAC</TableHead>
+                                                        <TableHead className="text-right">Forçage Adr.</TableHead>
+                                                        <TableHead className="text-right">Forçage Cmd.</TableHead>
+                                                        <TableHead className="text-right">Notes</TableHead>
+                                                     </TableRow>
+                                                 </TableHeader>
+                                                 <TableBody>
+                                                     {carrier.drivers.map(driver => (
+                                                        <TableRow key={driver.name}>
+                                                            <TableCell className="font-medium">{driver.name}</TableCell>
+                                                            <TableCell className="text-right font-bold"><Badge variant={getScoreVariant(driver.score ?? 0)}>{driver.score?.toFixed(1)}</Badge></TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.totalRatings > 0 ? `${((driver.totalTasks - driver.completedTasks) / driver.totalRatings * 100).toFixed(1)}%` : 'N/A'}</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.totalRatings}</TableCell>
+                                                        </TableRow>
+                                                     ))}
+                                                 </TableBody>
+                                            </Table>
+                                        </div>
+                                     </Row>
+                                ))}
+                            </Accordion>
+                        </Row>
+                    ))}
+                </Accordion>
+            </CardContent>
+        </Card>
+    );
+}
+
+    
