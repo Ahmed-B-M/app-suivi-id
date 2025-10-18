@@ -27,6 +27,9 @@ import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 import { useFilterContext } from "@/context/filter-context";
 import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
+import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
+import { getDriverFullName, getHubCategory, getDepotFromHub } from "@/lib/grouping";
+
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -548,12 +551,7 @@ const calculatePunctuality = (tasks: Tache[]) => {
       if (closureTime < lowerBound) {
         earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, closureTime) });
       } else if (closureTime > upperBound) {
-        const minutesLate = differenceInMinutes(closureTime, upperBound);
-        if (minutesLate > 0) {
-          lateTasks.push({ task, minutes: minutesLate });
-        } else {
-          punctualTasks++;
-        }
+        lateTasks.push({ task, minutes: differenceInMinutes(closureTime, upperBound) });
       } else {
         punctualTasks++;
       }
@@ -563,32 +561,4 @@ const calculatePunctuality = (tasks: Tache[]) => {
   });
 
   return { punctualTasks, earlyTasks, lateTasks };
-}
-
-function getHubCategory(hubName: string | undefined | null): 'depot' | 'magasin' {
-  if (!hubName) return "magasin";
-  
-  const depots = ["Aix", "Rungis", "VLG", "Vitry", "Castries", "Solo"];
-  if (depots.some(depot => hubName.startsWith(depot))) {
-    return "depot";
-  }
-
-  return "magasin";
-}
-
-function getDepotFromHub(hubName: string | undefined | null): string {
-    if (!hubName) return "Inconnu";
-    const depots = ["Aix", "Rungis", "VLG", "Vitry", "Castries", "Solo"];
-    const foundDepot = depots.find(depot => hubName.startsWith(depot));
-    return foundDepot || "Magasin";
-}
-
-function getDriverFullName(item: Tache | Tournee): string | undefined {
-    if ('livreur' in item && item.livreur) {
-        return `${item.livreur.prenom || ''} ${item.livreur.nom || ''}`.trim();
-    }
-    if ('driver' in item && item.driver) {
-        return `${item.driver.firstName || ''} ${item.driver.lastName || ''}`.trim();
-    }
-    return undefined;
 }
