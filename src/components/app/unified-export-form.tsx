@@ -194,10 +194,12 @@ export function UnifiedExportForm({
         let anyError = false;
 
         if (taskJsonData) { // Even if empty, we might need to delete
-            anyError = !(await saveCollection('tasks', taskJsonData, 'tacheId', dateRange)) || anyError;
+            const success = await saveCollection('tasks', taskJsonData, 'tacheId', dateRange);
+            if (!success) anyError = true;
         }
         if (roundJsonData) {
-            anyError = !(await saveCollection('rounds', roundJsonData, 'id', dateRange)) || anyError;
+            const success = await saveCollection('rounds', roundJsonData, 'id', dateRange);
+            if (!success) anyError = true;
         }
 
         onSavingChange(false);
@@ -267,7 +269,11 @@ export function UnifiedExportForm({
                 itemsToUpdate.push(item);
                 addedCount++;
             } else {
-                if (!equal(existingDoc, item)) {
+                // Firestore timestamps and JS Dates are not deep equal, convert to ms for comparison
+                const comparableExisting = { ...existingDoc, date: existingDoc.date?.toMillis() };
+                const comparableApiItem = { ...item, date: item.date ? new Date(item.date).getTime() : undefined };
+
+                if (!equal(comparableExisting, comparableApiItem)) {
                     itemsToUpdate.push(item);
                     updatedCount++;
                 } else {
@@ -298,11 +304,12 @@ export function UnifiedExportForm({
           });
 
           try {
+            onLogUpdate([`      - Écriture du lot ${i / batchSize + 1}/${Math.ceil(itemsToUpdate.length / batchSize)}...`]);
             await batch.commit();
-            onLogUpdate([`      - ✅ Lot ${i / batchSize + 1}/${Math.ceil(itemsToUpdate.length / batchSize)} sauvegardé avec succès.`]);
+            onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
             // Introduce a delay to avoid hitting rate limits on large datasets
             if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
-              onLogUpdate([`      - ⏱️ Pause de 500ms pour ne pas surcharger Firestore...`]);
+              onLogUpdate([`      - ⏱️ Pause de 500ms...`]);
               await delay(500);
             }
           } catch (e) {
@@ -312,7 +319,7 @@ export function UnifiedExportForm({
             const permissionError = new FirestorePermissionError({
                 path: `${collectionName}`,
                 operation: 'write',
-                requestResourceData: batchData,
+                requestResourceData: batchData.map(item => item[idKey]),
             });
             errorEmitter.emit('permission-error', permissionError);
           }
