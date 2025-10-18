@@ -11,13 +11,14 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DriverStats } from "@/lib/scoring";
-import { User, Award, Star, Clock, Smartphone, MapPinOff, Ban, ListTodo } from "lucide-react";
+import { User, Award, Star, Clock, Smartphone, MapPinOff, Ban, ListTodo, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 interface DriverPerformanceTableProps {
   data: DriverStats[];
@@ -68,18 +69,8 @@ const ColumnHeader = ({ title, tooltipText, children }: { title: string; tooltip
     </TableHead>
 )
 
-export function DriverPerformanceTable({ data }: DriverPerformanceTableProps) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 text-center text-muted-foreground">
-        Aucune donnée de performance des livreurs à afficher pour la période sélectionnée.
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-      <Table>
+const DriverTable = ({ drivers }: { drivers: DriverStats[] }) => (
+    <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Livreur</TableHead>
@@ -107,7 +98,7 @@ export function DriverPerformanceTable({ data }: DriverPerformanceTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((driver) => (
+          {drivers.map((driver) => (
             <TableRow key={driver.name}>
               <TableCell className="font-medium flex items-center gap-2">
                 <User className="text-muted-foreground"/> {driver.name}
@@ -127,6 +118,50 @@ export function DriverPerformanceTable({ data }: DriverPerformanceTableProps) {
           ))}
         </TableBody>
       </Table>
+);
+
+
+export function DriverPerformanceTable({ data }: DriverPerformanceTableProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 text-center text-muted-foreground">
+        Aucune donnée de performance des livreurs à afficher pour la période sélectionnée.
+      </div>
+    );
+  }
+
+  const top5 = data.slice(0, 5);
+  // Get the last 5, but reverse them to show the absolute worst first.
+  const flop5 = data.length > 5 ? data.slice(-5).reverse() : [];
+
+
+  return (
+    <div className="space-y-6">
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="text-green-600"/>
+                    Top 5 Livreurs
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+                <DriverTable drivers={top5} />
+            </CardContent>
+        </Card>
+        
+        {flop5.length > 0 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <TrendingDown className="text-destructive"/>
+                        Flop 5 Livreurs
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <DriverTable drivers={flop5} />
+                </CardContent>
+            </Card>
+        )}
     </div>
   );
 }
