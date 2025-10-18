@@ -21,6 +21,7 @@ import {
   query,
   where,
   documentId,
+  Timestamp,
 } from "firebase/firestore";
 import equal = require("deep-equal");
 
@@ -102,6 +103,9 @@ export function UnifiedExportForm({
     },
   });
 
+  const { watch } = form;
+  const dateRange = watch("dateRange");
+
   useEffect(() => {
     // Set default date range on the client to avoid hydration mismatch
     const today = new Date();
@@ -180,14 +184,20 @@ export function UnifiedExportForm({
     async function saveData() {
         onSavingChange(true);
         onLogUpdate([`\n💾 Début de la sauvegarde intelligente dans Firestore...`]);
+        if (!dateRange?.from) {
+          onLogUpdate(["   - ❌ Erreur: Aucune plage de dates n'est sélectionnée pour la sauvegarde."]);
+          onSavingChange(false);
+          return true; // Indicate error
+        }
+
 
         let anyError = false;
 
-        if (taskJsonData && taskJsonData.length > 0) {
-            anyError = !(await saveCollection('tasks', taskJsonData, 'tacheId')) || anyError;
+        if (taskJsonData) { // Even if empty, we might need to delete
+            anyError = !(await saveCollection('tasks', taskJsonData, 'tacheId', dateRange)) || anyError;
         }
-        if (roundJsonData && roundJsonData.length > 0) {
-            anyError = !(await saveCollection('rounds', roundJsonData, 'id')) || anyError;
+        if (roundJsonData) {
+            anyError = !(await saveCollection('rounds', roundJsonData, 'id', dateRange)) || anyError;
         }
 
         onSavingChange(false);
@@ -195,49 +205,60 @@ export function UnifiedExportForm({
     }
 
 
-    async function saveCollection(collectionName: 'tasks' | 'rounds', data: any[], idKey: string): Promise<boolean> {
-        onLogUpdate([`\n   -> Analyse de ${data.length} ${collectionName}...`]);
+    async function saveCollection(collectionName: 'tasks' | 'rounds', dataFromApi: any[], idKey: string, dateRange: DateRange): Promise<boolean> {
+        onLogUpdate([`\n   -> Synchronisation de la collection "${collectionName}"...`]);
         const collectionRef = collection(firestore, collectionName);
         let success = true;
-        
-        const itemsWithId = data.filter(item => item[idKey]);
-        const itemIds = itemsWithId.map(item => item[idKey].toString());
 
-        if (itemIds.length === 0) {
-            onLogUpdate([`      - ✅ Aucun document avec un ID valide à analyser.`]);
-            return true;
+        if (!dateRange.from) {
+          onLogUpdate([`      - ⚠️ Aucune date de début sélectionnée. Impossible de déterminer les documents à supprimer.`]);
+          return false;
         }
 
-        // Fetch existing documents from Firestore for comparison
-        onLogUpdate([`      - Récupération de ${itemIds.length} document(s) existant(s) pour comparaison...`]);
+        // --- Step 1: Identify documents to delete ---
+        const fromDate = new Date(dateRange.from);
+        fromDate.setHours(0,0,0,0);
+        const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+        toDate.setHours(23,59,59,999);
+
+        onLogUpdate([`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`]);
+        
         const existingDocsMap = new Map<string, any>();
-        
-        // Firestore 'in' query supports up to 30 elements. We need to chunk it.
-        const idChunks: string[][] = [];
-        for (let i = 0; i < itemIds.length; i += 30) {
-          idChunks.push(itemIds.slice(i, i + 30));
-        }
-        
-        for (const chunk of idChunks) {
-            const q = query(collectionRef, where(documentId(), "in", chunk));
-            try {
-                const querySnapshot = await getDocs(q);
-                querySnapshot.forEach(doc => {
-                    existingDocsMap.set(doc.id, doc.data());
-                });
-            } catch (e) {
-                 success = false;
-                 onLogUpdate([`      - ❌ Erreur lors de la récupération des documents : ${(e as Error).message}`]);
-                 // Continue with empty map, will try to write all docs
+        let documentsToDelete: string[] = [];
+
+        try {
+            const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(doc => existingDocsMap.set(doc.id, doc.data()));
+            onLogUpdate([`      - ${existingDocsMap.size} documents trouvés dans la base de données pour cette période.`]);
+            
+            const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString()).filter(Boolean));
+            documentsToDelete = Array.from(existingDocsMap.keys()).filter(id => !idsFromApi.has(id));
+
+            if(documentsToDelete.length > 0) {
+              onLogUpdate([`      - 🗑️ ${documentsToDelete.length} documents marqués pour suppression.`]);
+              const deleteBatch = writeBatch(firestore);
+              documentsToDelete.forEach(id => {
+                deleteBatch.delete(doc(collectionRef, id));
+              });
+              await deleteBatch.commit();
+              onLogUpdate([`      - ✅ Suppression effectuée.`]);
+            } else {
+               onLogUpdate([`      - ✅ Aucune suppression nécessaire.`]);
             }
+        } catch(e) {
+          success = false;
+          onLogUpdate([`      - ❌ Erreur lors de la recherche ou suppression des documents existants : ${(e as Error).message}`]);
         }
-        onLogUpdate([`      - ${existingDocsMap.size} documents existants récupérés.`]);
 
 
+        // --- Step 2: Identify documents to add/update ---
         let addedCount = 0;
         let updatedCount = 0;
         let unchangedCount = 0;
         const itemsToUpdate: any[] = [];
+        
+        const itemsWithId = dataFromApi.filter(item => item[idKey]);
         
         itemsWithId.forEach(item => {
             const docId = item[idKey].toString();
@@ -255,16 +276,16 @@ export function UnifiedExportForm({
             }
         });
         
-        onLogUpdate([`      - Nouveaux: ${addedCount}, Modifiés: ${updatedCount}, Inchangés: ${unchangedCount}`]);
+        onLogUpdate([`      - Nouveaux: ${addedCount}, Modifiés: ${updatedCount}, Inchangés (ignorés): ${unchangedCount}`]);
         
         if (itemsToUpdate.length === 0) {
-            onLogUpdate([`      - ✅ Aucune mise à jour nécessaire.`]);
-            return true;
+            onLogUpdate([`      - ✅ Aucune création ou mise à jour nécessaire.`]);
+            return success;
         }
         
-        onLogUpdate([`      - ${itemsToUpdate.length} documents à créer ou mettre à jour.`]);
+        onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
 
-        // Firestore batch writes are limited to 500 operations.
+        // --- Step 3: Batch write the updates/additions ---
         const batchSize = 500;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
           const batchData = itemsToUpdate.slice(i, i + batchSize);
@@ -473,7 +494,7 @@ export function UnifiedExportForm({
               </Button>
               <Button type="button" onClick={handleSaveToFirestore} disabled={!hasData || isLoading || isUserLoading}>
                 {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
-                {isSaving ? "Sauvegarde..." : "Sauvegarder"}
+                {isSaving ? "Sauvegarde..." : "Synchroniser"}
               </Button>
               <Button type="button" onClick={() => handleDownload('tasks')} disabled={!taskJsonData || taskJsonData.length === 0 || isUserLoading}>
                 <Download />Tâches
