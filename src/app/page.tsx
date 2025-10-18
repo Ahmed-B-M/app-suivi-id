@@ -8,7 +8,7 @@ import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calendar as CalendarIcon, Truck, User, Warehouse, Building } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
@@ -16,9 +16,7 @@ import { TasksOverTimeChart } from "@/components/app/tasks-over-time-chart";
 import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
 import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
 import type { Tache, Tournee } from "@/lib/types";
-import { addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
-import { getDepotFromHub, getCarrierFromDriver, getDriverFullName, getHubCategory } from "@/lib/grouping";
 import { calculateDriverScore, calculateRawDriverStats, type DriverStats } from "@/lib/scoring";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
@@ -28,7 +26,7 @@ import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dia
 import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 import { useFilterContext } from "@/context/filter-context";
-import { DriverPerformanceRankings } from "@/components/app/driver-performance-rankings";
+import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -165,42 +163,15 @@ export default function DashboardPage() {
         
     const ratingRate = totalCompletedTasks > 0 ? (ratedTasks.length / totalCompletedTasks) * 100 : null;
 
-    let punctualTasks = 0;
-    const earlyTasks: PunctualityTask[] = [];
-    const lateTasks: PunctualityTask[] = [];
-    const completedTasksWithTime = completedTasksList.filter(
-        t => t.creneauHoraire?.debut && t.dateCloture
-    );
+    const { punctualTasks, earlyTasks, lateTasks } = calculatePunctuality(completedTasksList);
     
-    completedTasksWithTime.forEach(task => {
-        const closureTime = new Date(task.dateCloture!);
-        const windowStart = new Date(task.creneauHoraire!.debut!);
-        const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120); // Default to 2h window if no end
-
-        const lowerBound = subMinutes(windowStart, 15);
-        const upperBound = addMinutes(windowEnd, 15);
-
-        if (closureTime < lowerBound) {
-            earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, closureTime) });
-        } else if (closureTime > upperBound) {
-            const minutesLate = differenceInMinutes(closureTime, upperBound);
-            if (minutesLate > 0) {
-              lateTasks.push({ task, minutes: minutesLate });
-            } else {
-              punctualTasks++;
-            }
-        } else {
-            punctualTasks++;
-        }
-    });
-
-    const punctualityRate = completedTasksWithTime.length > 0
-      ? (punctualTasks / completedTasksWithTime.length) * 100
+    const punctualityRate = completedTasksList.length > 0
+      ? (punctualTasks / completedTasksList.length) * 100
       : null;
 
     const lateTasksOver1h = lateTasks.filter(t => t.minutes > 60);
-    const lateOver1hRate = completedTasksWithTime.length > 0
-        ? (lateTasksOver1h.length / completedTasksWithTime.length) * 100
+    const lateOver1hRate = completedTasksList.length > 0
+        ? (lateTasksOver1h.length / completedTasksList.length) * 100
         : null;
 
     const mobileValidations = completedTasksList.filter(t => t.completePar === 'mobile').length;
@@ -470,7 +441,7 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <DashboardStats 
             stats={dashboardData.stats}
-            top5StarDrivers={dashboardData.top5StarDrivers}
+            topDrivers={dashboardData.top5StarDrivers}
             onRatingClick={() => setIsRatingDetailsOpen(true)}
             onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
             onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
@@ -485,7 +456,7 @@ export default function DashboardPage() {
             onQualityAlertClick={() => setIsQualityAlertOpen(true)}
           />
 
-          <DriverPerformanceRankings data={dashboardData.driverPerformance} isLoading={false} />
+          <DriverPerformanceTable data={dashboardData.driverPerformance} isLoading={false} />
           
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -556,4 +527,68 @@ export default function DashboardPage() {
       )}
     </main>
   );
+}
+
+const calculatePunctuality = (tasks: Tache[]) => {
+  let punctualTasks = 0;
+  const earlyTasks: PunctualityTask[] = [];
+  const lateTasks: PunctualityTask[] = [];
+
+  const completedWithTime = tasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+
+  completedWithTime.forEach(task => {
+    try {
+      const closureTime = new Date(task.dateCloture!);
+      const windowStart = new Date(task.creneauHoraire!.debut!);
+      const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+
+      const lowerBound = subMinutes(windowStart, 15);
+      const upperBound = addMinutes(windowEnd, 15);
+
+      if (closureTime < lowerBound) {
+        earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, closureTime) });
+      } else if (closureTime > upperBound) {
+        const minutesLate = differenceInMinutes(closureTime, upperBound);
+        if (minutesLate > 0) {
+          lateTasks.push({ task, minutes: minutesLate });
+        } else {
+          punctualTasks++;
+        }
+      } else {
+        punctualTasks++;
+      }
+    } catch(e) {
+      // Ignore date parsing errors
+    }
+  });
+
+  return { punctualTasks, earlyTasks, lateTasks };
+}
+
+function getHubCategory(hubName: string | undefined | null): 'depot' | 'magasin' {
+  if (!hubName) return "magasin";
+  
+  const depots = ["Aix", "Rungis", "VLG", "Vitry", "Castries", "Solo"];
+  if (depots.some(depot => hubName.startsWith(depot))) {
+    return "depot";
+  }
+
+  return "magasin";
+}
+
+function getDepotFromHub(hubName: string | undefined | null): string {
+    if (!hubName) return "Inconnu";
+    const depots = ["Aix", "Rungis", "VLG", "Vitry", "Castries", "Solo"];
+    const foundDepot = depots.find(depot => hubName.startsWith(depot));
+    return foundDepot || "Magasin";
+}
+
+function getDriverFullName(item: Tache | Tournee): string | undefined {
+    if ('livreur' in item && item.livreur) {
+        return `${item.livreur.prenom || ''} ${item.livreur.nom || ''}`.trim();
+    }
+    if ('driver' in item && item.driver) {
+        return `${item.driver.firstName || ''} ${item.driver.lastName || ''}`.trim();
+    }
+    return undefined;
 }

@@ -1,7 +1,13 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   ArchiveX,
   Ban,
@@ -9,7 +15,6 @@ import {
   CheckCircle,
   Clock,
   Crown,
-  Hourglass,
   ListTodo,
   MapPinOff,
   Megaphone,
@@ -17,18 +22,14 @@ import {
   Route,
   SearchX,
   ShieldAlert,
-  Siren,
   Smartphone,
   Star,
   Timer,
   TimerOff,
   Trophy,
-  User,
-  XCircle,
-  Clock1,
-  Award,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
 
 type DashboardStatsProps = {
   stats: {
@@ -56,7 +57,7 @@ type DashboardStatsProps = {
     numberOfRatings: number;
     ratingRate: number | null;
   };
-  top5StarDrivers: { name: string; fiveStarCount: number }[];
+  topDrivers: { name: string; fiveStarCount: number }[];
   onRatingClick: () => void;
   onEarlyClick: () => void;
   onLateClick: () => void;
@@ -71,38 +72,65 @@ type DashboardStatsProps = {
   onQualityAlertClick: () => void;
 };
 
-const StatCard = ({ title, icon, onClick, variant = 'default', children, "data-testid": dataTestId }: { title: string, icon: React.ReactNode, onClick?: () => void, variant?: 'default' | 'success' | 'warning' | 'danger', children: React.ReactNode, "data-testid"?: string }) => {
-  const isClickable = !!onClick;
-  const valueColor = 
-    variant === 'success' ? 'text-green-600' : 
-    variant === 'danger' ? 'text-red-600' : 
-    variant === 'warning' ? 'text-orange-500' : '';
+const StatCard = ({
+  title,
+  value,
+  icon,
+  onClick,
+  description,
+  variant = "default",
+}: {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+  description?: string;
+  variant?: "default" | "success" | "warning" | "danger";
+}) => {
+  const valueColor =
+    variant === "success"
+      ? "text-green-600"
+      : variant === "danger"
+      ? "text-red-600"
+      : variant === "warning"
+      ? "text-orange-500"
+      : "";
 
   return (
-    <Card onClick={onClick} className={isClickable ? "cursor-pointer hover:bg-muted" : ""} data-testid={dataTestId}>
+    <Card
+      onClick={onClick}
+      className={onClick ? "cursor-pointer hover:bg-muted/50" : ""}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {icon}
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold ${valueColor}`}>
-          {children}
-        </div>
+        <div className={`text-2xl font-bold ${valueColor}`}>{value}</div>
+        {description && (
+          <p className="text-xs text-muted-foreground pt-1">{description}</p>
+        )}
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <h3 className="col-span-full text-lg font-semibold mt-6 mb-2">{children}</h3>
+const MiniStat = ({ title, value, icon, onClick }: { title: string, value: string, icon: React.ReactNode, onClick?: () => void }) => (
+    <div className={`flex items-center justify-between space-x-4 p-3 rounded-lg ${onClick ? 'cursor-pointer hover:bg-muted' : ''}`} onClick={onClick}>
+        <div className="flex items-center space-x-2">
+            {icon}
+            <p className="text-sm font-medium">{title}</p>
+        </div>
+        <p className="text-sm font-semibold">{value}</p>
+    </div>
 );
 
 
-export function DashboardStats({ 
+export function DashboardStats({
   stats,
-  top5StarDrivers,
-  onRatingClick, 
-  onEarlyClick, 
+  topDrivers,
+  onRatingClick,
+  onEarlyClick,
   onLateClick,
   onLateOver1hClick,
   onFailedDeliveryClick,
@@ -114,200 +142,166 @@ export function DashboardStats({
   onSensitiveDeliveriesClick,
   onQualityAlertClick,
 }: DashboardStatsProps) {
-  const gridCols = "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
-  
-  const getVariant = (value: number | null, thresholds: { success: number, warning: number, isHigherBetter: boolean }): 'success' | 'warning' | 'danger' => {
-    if (value === null) return 'danger';
+  const getVariant = (
+    value: number | null,
+    thresholds: { success: number; warning: number; isHigherBetter: boolean }
+  ): "success" | "warning" | "danger" => {
+    if (value === null) return "danger";
     if (thresholds.isHigherBetter) {
-      if (value >= thresholds.success) return 'success';
-      if (value >= thresholds.warning) return 'warning';
+      if (value >= thresholds.success) return "success";
+      if (value >= thresholds.warning) return "warning";
     } else {
-      if (value <= thresholds.success) return 'success';
-      if (value <= thresholds.warning) return 'warning';
+      if (value <= thresholds.success) return "success";
+      if (value <= thresholds.warning) return "warning";
     }
-    return 'danger';
-  }
+    return "danger";
+  };
 
   return (
-    <div className={`grid gap-4 ${gridCols}`}>
+    <div className="space-y-6">
+      {/* Main KPIs */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Taux d'échec"
+          value={
+            stats.failedDeliveryRate !== null
+              ? `${stats.failedDeliveryRate.toFixed(2)}%`
+              : "N/A"
+          }
+          icon={<ShieldAlert className="h-4 w-4 text-muted-foreground" />}
+          onClick={onFailedDeliveryClick}
+          variant={getVariant(stats.failedDeliveryRate, {
+            success: 1,
+            warning: 3,
+            isHigherBetter: false,
+          })}
+          description={`${stats.failedTasks} échecs / ${stats.completedTasks} terminées`}
+        />
+        <StatCard
+          title="Ponctualité"
+          value={
+            stats.punctualityRate !== null
+              ? `${stats.punctualityRate.toFixed(2)}%`
+              : "N/A"
+          }
+          icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+          variant={getVariant(stats.punctualityRate, {
+            success: 95,
+            warning: 90,
+            isHigherBetter: true,
+          })}
+          description={`${stats.earlyTasksCount} en avance, ${stats.lateTasksCount} en retard`}
+        />
+        <StatCard
+          title="Note Moyenne"
+          icon={<Star className="h-4 w-4 text-muted-foreground" />}
+          onClick={onRatingClick}
+          variant={getVariant(stats.averageRating, {
+            success: 4.79,
+            warning: 4.5,
+            isHigherBetter: true,
+          })}
+          value={stats.averageRating ? stats.averageRating.toFixed(2) : "N/A"}
+          description={
+            stats.numberOfRatings > 0 && stats.ratingRate !== null
+              ? `${stats.numberOfRatings} notes (${stats.ratingRate.toFixed(
+                  0
+                )}% de participation)`
+              : "Aucune note"
+          }
+        />
+        <StatCard
+          title="SCANBAC"
+          value={
+            stats.scanbacRate !== null
+              ? `${stats.scanbacRate.toFixed(2)}%`
+              : "N/A"
+          }
+          icon={<Smartphone className="h-4 w-4 text-muted-foreground" />}
+          variant={getVariant(stats.scanbacRate, {
+            success: 95,
+            warning: 90,
+            isHigherBetter: true,
+          })}
+          description="Validation via l'app mobile"
+        />
+      </div>
 
-      <SectionTitle>Performance Clé</SectionTitle>
-      
-      <StatCard 
-        title="Taux d'échec" 
-        icon={<ShieldAlert className="h-4 w-4 text-muted-foreground" />} 
-        onClick={onFailedDeliveryClick}
-        variant={getVariant(stats.failedDeliveryRate, { success: 1, warning: 3, isHigherBetter: false })}
-      >
-        <span>{stats.failedDeliveryRate !== null ? `${stats.failedDeliveryRate.toFixed(2)}%` : "N/A"}</span>
-      </StatCard>
-      <StatCard 
-        title="Ponctualité" 
-        icon={<Clock className="h-4 w-4 text-muted-foreground" />} 
-        variant={getVariant(stats.punctualityRate, { success: 95, warning: 90, isHigherBetter: true })}
-      >
-        <span>{stats.punctualityRate !== null ? `${stats.punctualityRate.toFixed(2)}%` : "N/A"}</span>
-      </StatCard>
-      <StatCard
-        title="Taux de retard > 1h"
-        icon={<Clock1 className="h-4 w-4 text-muted-foreground" />}
-        onClick={onLateOver1hClick}
-        variant={getVariant(stats.lateOver1hRate, { success: 1, warning: 2, isHigherBetter: false })}
-      >
-        <span>{stats.lateOver1hRate !== null ? `${stats.lateOver1hRate.toFixed(2)}%` : "N/A"}</span>
-      </StatCard>
-       <StatCard 
-        title="Note Moyenne" 
-        icon={<Star className="h-4 w-4 text-muted-foreground" />} 
-        onClick={onRatingClick}
-        variant={getVariant(stats.averageRating, { success: 4.79, warning: 4.5, isHigherBetter: true })}
-      >
-        <div className="flex items-baseline gap-2">
-          {stats.averageRating ? stats.averageRating.toFixed(2) : "N/A"}
-          {stats.numberOfRatings > 0 && stats.ratingRate !== null && (
-            <span className="text-xs font-normal text-muted-foreground">
-              ({stats.numberOfRatings} notes, {stats.ratingRate.toFixed(0)}%)
-            </span>
-          )}
-        </div>
-      </StatCard>
-       <StatCard 
-        title="SCANBAC" 
-        icon={<Smartphone className="h-4 w-4 text-muted-foreground" />} 
-        variant={getVariant(stats.scanbacRate, { success: 95, warning: 90, isHigherBetter: true })}
-      >
-        <span>{stats.scanbacRate !== null ? `${stats.scanbacRate.toFixed(2)}%` : "N/A"}</span>
-      </StatCard>
-      <StatCard 
-        title="Sur place forcé" 
-        icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
-        variant={getVariant(stats.forcedAddressRate, { success: 10, warning: 20, isHigherBetter: false })}
-      >
-        <span>{stats.forcedAddressRate !== null ? `${stats.forcedAddressRate.toFixed(2)}%` : "N/A"}</span>
-      </StatCard>
-      <StatCard 
-        title="Commandes forcées" 
-        icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
-         variant={getVariant(stats.forcedContactlessRate, { success: 10, warning: 20, isHigherBetter: false })}
-      >
-        <span>{stats.forcedContactlessRate !== null ? `${stats.forcedContactlessRate.toFixed(2)}%` : "N/A"}</span>
-      </StatCard>
-      
-      <SectionTitle>Analyse de la Qualité</SectionTitle>
+      {/* Secondary KPIs and Anomalies */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Performance & Qualité</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <MiniStat title="Taux de retard > 1h" value={`${stats.lateOver1hRate?.toFixed(2) ?? 'N/A'}%`} icon={<TimerOff className="h-5 w-5 text-red-500" />} onClick={onLateOver1hClick}/>
+            <Separator />
+            <MiniStat title="Alerte qualité (note < 4)" value={stats.qualityAlerts.toString()} icon={<Megaphone className="h-5 w-5 text-destructive" />} onClick={onQualityAlertClick}/>
+            <Separator />
+            <MiniStat title="Sur place forcé" value={`${stats.forcedAddressRate?.toFixed(2) ?? 'N/A'}%`} icon={<MapPinOff className="h-5 w-5 text-orange-500" />} />
+             <Separator />
+            <MiniStat title="Commandes forcées" value={`${stats.forcedContactlessRate?.toFixed(2) ?? 'N/A'}%`} icon={<Ban className="h-5 w-5 text-orange-500" />} />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Anomalies & Suivi</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <MiniStat title="Relivraisons" value={stats.redeliveries.toString()} icon={<Repeat className="h-5 w-5 text-blue-500" />} onClick={onRedeliveryClick}/>
+            <Separator />
+            <MiniStat title="Tâches manquantes" value={stats.missingTasks.toString()} icon={<SearchX className="h-5 w-5 text-orange-500" />} onClick={onMissingClick}/>
+            <Separator />
+            <MiniStat title="Bacs manquants" value={stats.missingBacs.toString()} icon={<ArchiveX className="h-5 w-5 text-amber-600" />} onClick={onMissingBacsClick}/>
+             <Separator />
+            <MiniStat title="Livraisons partielles" value={stats.partialDeliveredTasks.toString()} icon={<BoxSelect className="h-5 w-5 text-indigo-500" />} onClick={onPartialDeliveredClick}/>
+          </CardContent>
+        </Card>
 
-      <StatCard
-        title="Alerte qualité"
-        icon={<Megaphone className="h-4 w-4 text-red-600" />}
-        onClick={onQualityAlertClick}
-      >
-        <div className="text-2xl font-bold">{stats.qualityAlerts}</div>
-      </StatCard>
-      <StatCard 
-        title="Tâches en Avance" 
-        icon={<Timer className="h-4 w-4 text-green-500" />} 
-        onClick={onEarlyClick}
-      >
-        <div className="text-2xl font-bold">{stats.earlyTasksCount}</div>
-      </StatCard>
-      <StatCard 
-        title="Tâches en Retard" 
-        icon={<TimerOff className="h-4 w-4 text-red-500" />} 
-        onClick={onLateClick}
-      >
-        <div className="text-2xl font-bold">{stats.lateTasksCount}</div>
-      </StatCard>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Livreurs (5★)</CardTitle>
-            <Crown className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-            {top5StarDrivers.length > 0 ? (
-                <ol className="space-y-1 text-sm">
-                    {top5StarDrivers.map((driver, index) => (
-                        <li key={driver.name} className="flex items-center justify-between">
-                            <span className="font-medium">{index + 1}. {driver.name}</span>
-                            <Badge variant="default" className="flex items-center gap-1">
-                                {driver.fiveStarCount} <Star className="h-3 w-3"/>
-                            </Badge>
-                        </li>
-                    ))}
-                </ol>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="text-yellow-500" />
+              Top Livreurs (5★)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topDrivers.length > 0 ? (
+              <ol className="space-y-2 text-sm">
+                {topDrivers.map((driver, index) => (
+                  <li
+                    key={driver.name}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="font-medium">
+                      {index + 1}. {driver.name}
+                    </span>
+                    <Badge
+                      variant="default"
+                      className="flex items-center gap-1 bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                    >
+                      {driver.fiveStarCount}{" "}
+                      <Star className="h-3 w-3 fill-current" />
+                    </Badge>
+                  </li>
+                ))}
+              </ol>
             ) : (
-                <p className="text-sm text-muted-foreground">Aucune note 5 étoiles.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Aucune note 5 étoiles.
+              </p>
             )}
-        </CardContent>
-      </Card>
-     
-      <SectionTitle>Anomalies et Suivi</SectionTitle>
-      
-      <StatCard 
-        title="Échecs Livraison" 
-        icon={<XCircle className="h-4 w-4 text-destructive" />} 
-        onClick={onFailedDeliveryClick}
-      >
-        <div className="text-2xl font-bold">{stats.failedTasks}</div>
-      </StatCard>
-       <StatCard 
-        title="Relivraisons" 
-        icon={<Repeat className="h-4 w-4 text-orange-500" />} 
-        onClick={onRedeliveryClick}
-      >
-        <div className="text-2xl font-bold">{stats.redeliveries}</div>
-      </StatCard>
-       <StatCard 
-        title="Tâches en attente" 
-        icon={<Hourglass className="h-4 w-4 text-blue-500" />} 
-        onClick={onPendingClick}
-      >
-        <div className="text-2xl font-bold">{stats.pendingTasks}</div>
-      </StatCard>
-       <StatCard 
-        title="Tâches manquantes" 
-        icon={<SearchX className="h-4 w-4 text-orange-500" />} 
-        onClick={onMissingClick}
-      >
-        <div className="text-2xl font-bold">{stats.missingTasks}</div>
-      </StatCard>
-       <StatCard 
-        title="Bacs manquants" 
-        icon={<ArchiveX className="h-4 w-4 text-amber-600" />} 
-        onClick={onMissingBacsClick}
-      >
-        <div className="text-2xl font-bold">{stats.missingBacs}</div>
-      </StatCard>
-      <StatCard 
-        title="Livraisons partielles" 
-        icon={<BoxSelect className="h-4 w-4 text-indigo-500" />} 
-        onClick={onPartialDeliveredClick}
-      >
-        <div className="text-2xl font-bold">{stats.partialDeliveredTasks}</div>
-      </StatCard>
-      <StatCard 
-        title="Livraisons Sensibles" 
-        icon={<Siren className="h-4 w-4 text-red-600" />} 
-        onClick={onSensitiveDeliveriesClick}
-      >
-        <div className="text-2xl font-bold">{stats.sensitiveDeliveries}</div>
-      </StatCard>
+          </CardContent>
+        </Card>
+      </div>
 
-
-       <SectionTitle>Vue d'Ensemble</SectionTitle>
-      <StatCard title="Tâches Totales" icon={<ListTodo className="h-4 w-4 text-muted-foreground" />}>
-        <div className="text-2xl font-bold">{stats.totalTasks}</div>
-      </StatCard>
-      <StatCard title="Tâches Terminées" icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}>
-        <div className="text-2xl font-bold">{stats.completedTasks}</div>
-      </StatCard>
-      <StatCard title="Tournées Totales" icon={<Route className="h-4 w-4 text-muted-foreground" />}>
-        <div className="text-2xl font-bold">{stats.totalRounds}</div>
-      </StatCard>
-      <StatCard title="Tournées Terminées" icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
-        <div className="text-2xl font-bold">{stats.completedRounds}</div>
-      </StatCard>
-
+       <div className="grid gap-4 md:grid-cols-4">
+          <StatCard title="Tâches Totales" value={stats.totalTasks.toString()} icon={<ListTodo className="h-4 w-4 text-muted-foreground" />} />
+          <StatCard title="Tâches Terminées" value={stats.completedTasks.toString()} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
+          <StatCard title="Tournées Totales" value={stats.totalRounds.toString()} icon={<Route className="h-4 w-4 text-muted-foreground" />} />
+          <StatCard title="Tournées Terminées" value={stats.completedRounds.toString()} icon={<Trophy className="h-4 w-4 text-muted-foreground" />} />
+       </div>
     </div>
   );
 }
-
-    
