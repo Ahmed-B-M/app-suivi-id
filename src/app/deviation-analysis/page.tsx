@@ -389,6 +389,7 @@ export default function DeviationAnalysisPage() {
                         <TableRow>
                             <TableHead>Date</TableHead>
                             <TableHead>Tournée</TableHead>
+                            <TableHead>Entrepôt</TableHead>
                             <TableHead>Client</TableHead>
                             <TableHead>Créneau Promis</TableHead>
                             <TableHead>Arrivée Prévue</TableHead>
@@ -404,6 +405,7 @@ export default function DeviationAnalysisPage() {
                                 : "N/A"}
                             </TableCell>
                             <TableCell className="font-medium">{task.nomTournee}</TableCell>
+                            <TableCell>{task.nomHub || 'N/A'}</TableCell>
                             <TableCell>{task.contact?.personne || 'N/A'}</TableCell>
                             <TableCell>
                                 {task.creneauHoraire?.debut ? format(new Date(task.creneauHoraire.debut), "HH:mm") : ''}
