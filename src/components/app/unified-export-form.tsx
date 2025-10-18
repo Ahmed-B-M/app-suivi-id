@@ -299,7 +299,12 @@ export function UnifiedExportForm({
 
           try {
             await batch.commit();
-            onLogUpdate([`      - ✅ Lot ${i / batchSize + 1} sauvegardé avec succès.`]);
+            onLogUpdate([`      - ✅ Lot ${i / batchSize + 1}/${Math.ceil(itemsToUpdate.length / batchSize)} sauvegardé avec succès.`]);
+            // Introduce a delay to avoid hitting rate limits on large datasets
+            if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
+              onLogUpdate([`      - ⏱️ Pause de 500ms pour ne pas surcharger Firestore...`]);
+              await delay(500);
+            }
           } catch (e) {
             success = false;
             onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${i / batchSize + 1}.`]);
