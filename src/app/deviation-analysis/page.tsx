@@ -66,6 +66,7 @@ export default function DeviationAnalysisPage() {
 
     const { from, to } = dateRange || {};
     let filteredRounds = rounds;
+    let filteredTasks = tasks;
 
     if (from) {
       const startOfDay = new Date(from);
@@ -73,49 +74,45 @@ export default function DeviationAnalysisPage() {
       const endOfDay = to ? new Date(to) : new Date(from);
       endOfDay.setHours(23, 59, 59, 999);
 
-      filteredRounds = rounds.filter((round) => {
-        const itemDateString = round.date;
+      const filterByDate = (item: Tache | Tournee) => {
+        const itemDateString = item.date;
         if (!itemDateString) return false;
         const itemDate = new Date(itemDateString);
         return itemDate >= startOfDay && itemDate <= endOfDay;
-      });
+      };
+
+      filteredRounds = rounds.filter(filterByDate);
+      filteredTasks = tasks.filter(filterByDate);
     }
 
-    const tasksByRoundName = tasks.reduce((acc, task) => {
-      const roundName = task.nomTournee;
-      if (roundName) {
-        if (!acc[roundName]) {
-          acc[roundName] = [];
-        }
-        acc[roundName].push(task);
-      }
-      return acc;
-    }, {} as Record<string, Tache[]>);
+    const tasksWeightByRound = new Map<string, number>();
 
+    for (const task of filteredTasks) {
+      if (!task.nomTournee || !task.date || !task.nomHub) {
+        continue;
+      }
+      // Clé composite pour associer tâche et tournée
+      const roundKey = `${task.nomTournee}-${task.date.split('T')[0]}-${task.nomHub}`;
+      const taskWeight = task.dimensions?.poids ?? 0;
+
+      if (taskWeight > 0) {
+        const currentWeight = tasksWeightByRound.get(roundKey) || 0;
+        tasksWeightByRound.set(roundKey, currentWeight + taskWeight);
+      }
+    }
+    
     const results: Deviation[] = [];
 
     for (const round of filteredRounds) {
       const roundCapacity = round.vehicle?.dimensions?.poids;
-      if (typeof roundCapacity !== "number" || !round.name) {
+
+      if (typeof roundCapacity !== "number" || !round.name || !round.date || !round.nomHub) {
         continue;
       }
+      
+      const roundKey = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
+      const totalWeight = tasksWeightByRound.get(roundKey) || 0;
 
-      const associatedTasks = tasksByRoundName[round.name] || [];
-      let totalWeight = 0;
-      for (const task of associatedTasks) {
-        if (task.articles) {
-          for (const item of task.articles) {
-            if (typeof item.dimensions?.poids === "number") {
-              totalWeight += item.dimensions.poids;
-            }
-          }
-        }
-      }
-      
-      // Convert capacity from kg to g if necessary, assuming item weights are in grams
-      // This is a guess, adjust if units are different. Let's assume weights are consistent.
-      // Let's assume poids is in the same unit for both vehicle and items.
-      
       if (totalWeight > roundCapacity) {
         results.push({
           round,
@@ -126,7 +123,7 @@ export default function DeviationAnalysisPage() {
       }
     }
 
-    return results.sort((a,b) => b.deviation - a.deviation);
+    return results.sort((a, b) => b.deviation - a.deviation);
   }, [tasks, rounds, dateRange]);
 
   const isLoading = isLoadingTasks || isLoadingRounds;
@@ -178,8 +175,7 @@ export default function DeviationAnalysisPage() {
               Tournées en Surcharge de Poids
             </CardTitle>
             <CardDescription>
-              Liste des tournées dont le poids total calculé des articles
-              dépasse la capacité maximale du véhicule assigné.
+              Liste des tournées dont le poids total des tâches dépasse la capacité maximale du véhicule assigné.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -189,6 +185,7 @@ export default function DeviationAnalysisPage() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Tournée</TableHead>
+                    <TableHead>Entrepôt</TableHead>
                     <TableHead>Livreur</TableHead>
                     <TableHead className="text-right">Poids Calculé (kg)</TableHead>
                     <TableHead className="text-right">Capacité (kg)</TableHead>
@@ -204,15 +201,16 @@ export default function DeviationAnalysisPage() {
                           : "N/A"}
                       </TableCell>
                       <TableCell className="font-medium">{round.name}</TableCell>
+                      <TableCell>{round.nomHub || 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {(totalWeight / 1000).toFixed(2)}
+                        {totalWeight.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right font-mono text-muted-foreground">
-                        {(capacity / 1000).toFixed(2)}
+                        {capacity.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right font-mono font-bold text-destructive">
-                        +{(deviation / 1000).toFixed(2)}
+                        +{deviation.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))}
