@@ -24,7 +24,6 @@ import {
   ShieldAlert,
   Smartphone,
   Star,
-  Timer,
   TimerOff,
   Trophy,
 } from "lucide-react";
@@ -160,7 +159,7 @@ export function DashboardStats({
   return (
     <div className="space-y-6">
       {/* Main KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Taux d'échec"
           value={
@@ -225,6 +224,18 @@ export function DashboardStats({
           })}
           description="Validation via l'app mobile"
         />
+         <StatCard 
+            title="Sur place forcé" 
+            value={`${stats.forcedAddressRate?.toFixed(2) ?? 'N/A'}%`} 
+            icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
+            variant={getVariant(stats.forcedAddressRate, { success: 2, warning: 5, isHigherBetter: false })}
+          />
+        <StatCard 
+            title="Commandes forcées" 
+            value={`${stats.forcedContactlessRate?.toFixed(2) ?? 'N/A'}%`} 
+            icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
+            variant={getVariant(stats.forcedContactlessRate, { success: 2, warning: 5, isHigherBetter: false })}
+        />
       </div>
 
       {/* Secondary KPIs and Anomalies */}
@@ -237,10 +248,6 @@ export function DashboardStats({
             <MiniStat title="Taux de retard > 1h" value={`${stats.lateOver1hRate?.toFixed(2) ?? 'N/A'}%`} icon={<TimerOff className="h-5 w-5 text-red-500" />} onClick={onLateOver1hClick}/>
             <Separator />
             <MiniStat title="Alerte qualité (note < 4)" value={stats.qualityAlerts.toString()} icon={<Megaphone className="h-5 w-5 text-destructive" />} onClick={onQualityAlertClick}/>
-            <Separator />
-            <MiniStat title="Sur place forcé" value={`${stats.forcedAddressRate?.toFixed(2) ?? 'N/A'}%`} icon={<MapPinOff className="h-5 w-5 text-orange-500" />} />
-             <Separator />
-            <MiniStat title="Commandes forcées" value={`${stats.forcedContactlessRate?.toFixed(2) ?? 'N/A'}%`} icon={<Ban className="h-5 w-5 text-orange-500" />} />
           </CardContent>
         </Card>
         
@@ -250,6 +257,8 @@ export function DashboardStats({
           </CardHeader>
           <CardContent className="space-y-2">
             <MiniStat title="Relivraisons" value={stats.redeliveries.toString()} icon={<Repeat className="h-5 w-5 text-blue-500" />} onClick={onRedeliveryClick}/>
+            <Separator />
+            <MiniStat title="Livraisons sensibles" value={stats.sensitiveDeliveries.toString()} icon={<ShieldAlert className="h-5 w-5 text-purple-500" />} onClick={onSensitiveDeliveriesClick}/>
             <Separator />
             <MiniStat title="Tâches manquantes" value={stats.missingTasks.toString()} icon={<SearchX className="h-5 w-5 text-orange-500" />} onClick={onMissingClick}/>
             <Separator />
@@ -305,3 +314,5 @@ export function DashboardStats({
     </div>
   );
 }
+
+    
