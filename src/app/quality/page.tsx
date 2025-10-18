@@ -78,7 +78,7 @@ export default function QualityPage() {
 
 
   const qualityData = useMemo((): QualityData | null => {
-    if (!filteredTasks) return null;
+    if (!filteredTasks || isLoadingTasks) return null;
 
     // 1. Group tasks by driver
     const driverTasks: Record<string, Tache[]> = {};
@@ -155,10 +155,10 @@ export default function QualityPage() {
 
     // 4. Calculate final averages and scores
     const details = Object.values(aggregated).map((depot: any) => {
-        const avgDepotStats = calculateAverageStats(depot.tasks, driverStats, Array.from(depot.drivers as Set<string>));
+        const avgDepotStats = calculateAverageStats(depot.tasks);
 
         const carriers = Object.values(depot.carriers).map((carrier: any) => {
-            const avgCarrierStats = calculateAverageStats(carrier.tasks, driverStats, Array.from(carrier.drivers as Set<string>));
+            const avgCarrierStats = calculateAverageStats(carrier.tasks);
             const carrierDrivers = Array.from(carrier.drivers as Set<string>).map(name => driverStats[name]).filter(Boolean);
             
             return {
@@ -166,40 +166,40 @@ export default function QualityPage() {
                 ...avgCarrierStats,
                 drivers: carrierDrivers.sort((a,b) => (b.score ?? 0) - (a.score ?? 0)),
             }
-        }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        }).sort((a, b) => b.drivers.length - a.drivers.length); // Sort by driver count as a proxy for activity
         
         return {
             name: depot.name,
             ...avgDepotStats,
             carriers,
         }
-    }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    }).sort((a, b) => b.carriers.reduce((s, c) => s + c.drivers.length, 0) - a.carriers.reduce((s, c) => s + c.drivers.length, 0));
 
     // --- SUMMARY CALCULATION ---
-    const summary = calculateAverageStats(filteredTasks, driverStats, Object.keys(driverStats));
+    const allDriverStats = Object.values(driverStats);
+    const scoredDrivers = allDriverStats.filter(d => d.score !== undefined && d.score > 0);
+    const globalAverageScore = scoredDrivers.length > 0
+        ? scoredDrivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0) / scoredDrivers.length
+        : 0;
+
+    const summary = calculateAverageStats(filteredTasks);
     
     return {
       summary: {
         ...summary,
-        totalRatings: summary.totalRatings, // from calculateAverageStats
-        totalAlerts: summary.totalAlerts, // from calculateAverageStats
-        alertRate: summary.totalRatings > 0 ? (summary.totalAlerts / summary.totalRatings * 100) : 0,
+        score: globalAverageScore,
       },
       details,
     };
 
-  }, [filteredTasks]);
+  }, [filteredTasks, isLoadingTasks]);
 
   function calculateAverageStats(
       entityTasks: Tache[], 
-      allDriverStats: Record<string, ExtendedDriverStats>, 
-      driverNames: string[]
-  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks'> & { totalRatings: number, totalAlerts: number } {
+  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks' | 'score'> & { totalRatings: number, totalAlerts: number } {
     if (entityTasks.length === 0) {
-      return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, score: 0, totalRatings: 0, totalAlerts: 0 };
+      return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, totalRatings: 0, totalAlerts: 0 };
     }
-
-    const entityDrivers = driverNames.map(name => allDriverStats[name]).filter(Boolean);
 
     const completedTasks = entityTasks.filter(t => t.progression === 'COMPLETED');
     const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
@@ -220,22 +220,8 @@ export default function QualityPage() {
     const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
     const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
     const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
-
-    const maxCompletedTasksInSelection = Math.max(0, ...entityDrivers.map(d => d.completedTasks));
-
-    const score = calculateDriverScore({
-      name: 'aggregate',
-      totalTasks: entityTasks.length,
-      completedTasks: completedTasks.length,
-      averageRating,
-      punctualityRate,
-      scanbacRate,
-      forcedAddressRate,
-      forcedContactlessRate
-    }, maxCompletedTasksInSelection);
     
     return {
-        score,
         averageRating,
         punctualityRate,
         scanbacRate,

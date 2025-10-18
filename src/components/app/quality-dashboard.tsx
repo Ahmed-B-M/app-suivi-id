@@ -35,19 +35,17 @@ interface DriverQuality extends DriverStats {
   score: number;
 }
 
-interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
+interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
   name: string;
   totalRatings: number;
   totalAlerts: number;
-  score: number;
   drivers: DriverQuality[];
 }
 
-interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
+interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
   name: string;
   totalRatings: number;
   totalAlerts: number;
-  score: number;
   carriers: CarrierQuality[];
 }
 
@@ -226,7 +224,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
             />
             <StatCard 
                 title="Taux d'alerte (< 4★)" 
-                value={`${summary.alertRate.toFixed(1)} %`} 
+                value={`${(summary.alertRate ?? 0).toFixed(1)} %`} 
                 icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
                 variant={getVariant(summary.alertRate, {success: 5, warning: 10, isHigherBetter: false})}
             />
@@ -334,3 +332,5 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
     </div>
   );
 }
+
+    
