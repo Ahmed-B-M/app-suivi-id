@@ -25,7 +25,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { AlertCircle, Building, Clock, MapPin, Percent, TrendingDown, TrendingUp, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
-import { getDepotFromHub, getHubCategory } from "@/lib/grouping";
+import { getDepotFromHub } from "@/lib/grouping";
 import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 
@@ -278,20 +278,31 @@ export default function SummaryPage() {
       filteredTasks = tasks.filter(filterByDate);
     }
     
-    const depots = new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)).filter(Boolean));
-    const stores = new Set(filteredTasks.map(t => t.nomHub).filter(h => h && getHubCategory(h) === 'magasin'));
+    const allHubs = new Set(filteredTasks.map(t => t.nomHub).filter(Boolean) as string[]);
+    const depotToHubsMap = new Map<string, Set<string>>();
 
-    const depotMetrics = Array.from(depots).map(depotName => calculateMetricsForEntity(depotName, 'depot', filteredTasks, filteredRounds));
-    
-    const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
-    for (const storeName of stores) {
-        if(!storeName) continue;
-        const depotName = getDepotFromHub(storeName) || "Autre";
-        if (!warehouseSummaryByDepot.has(depotName)) {
-            warehouseSummaryByDepot.set(depotName, []);
+    for (const hubName of allHubs) {
+        const depotName = getDepotFromHub(hubName);
+        if (!depotToHubsMap.has(depotName)) {
+            depotToHubsMap.set(depotName, new Set());
         }
-        const metrics = calculateMetricsForEntity(storeName, 'warehouse', filteredTasks, filteredRounds);
-        warehouseSummaryByDepot.get(depotName)!.push(metrics);
+        depotToHubsMap.get(depotName)!.add(hubName);
+    }
+    
+    const depotMetrics: SummaryMetrics[] = [];
+    const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
+
+    for (const [depotName, hubSet] of depotToHubsMap.entries()) {
+        const depotTasks = filteredTasks.filter(t => getDepotFromHub(t.nomHub) === depotName);
+        const depotRounds = filteredRounds.filter(r => getDepotFromHub(r.nomHub) === depotName);
+        
+        depotMetrics.push(calculateMetricsForEntity(depotName, 'depot', depotTasks, depotRounds));
+        
+        const hubMetrics: SummaryMetrics[] = [];
+        for (const hubName of hubSet) {
+            hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', filteredTasks, filteredRounds));
+        }
+        warehouseSummaryByDepot.set(depotName, hubMetrics.sort((a,b) => b.totalRounds - a.totalRounds));
     }
     
     return {
