@@ -199,35 +199,49 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     }
 };
 
+const HeaderRow = () => (
+    <div className="flex w-full px-4 py-2 text-left align-middle font-medium text-muted-foreground bg-muted/50 rounded-t-lg">
+        <div className="w-[15%]">Entité</div>
+        <div className="text-right w-[5%]">Tournées</div>
+        <div className="text-right w-[10%] flex items-center justify-end gap-1"><Clock className="h-4"/>Ponct. Prév.</div>
+        <div className="text-right w-[10%] flex items-center justify-end gap-1"><Clock className="h-4"/>Ponct. Réal.</div>
+        <div className="text-right w-[10%] flex items-center justify-end gap-1"><Percent className="h-4"/>Surcharge</div>
+        <div className="w-[15%] text-center">Fenêtres (Pop.)</div>
+        <div className="w-[10%] text-center">Fenêtre (Retards)</div>
+        <div className="w-[15%] flex items-center justify-center gap-1"><MapPin className="h-4"/>Top 3 CP (Retards)</div>
+        <div className="text-right w-[10%]">Tâches / 2h</div>
+    </div>
+)
+
 const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow?: boolean }) => (
-    <TableRow className={cn(isSubRow && "bg-muted/50")}>
-        <TableCell className="font-medium">
+    <div className={cn("flex w-full items-center px-4 py-3", isSubRow ? "bg-muted/20" : "font-semibold")}>
+        <div className="font-medium w-[15%]">
             <div className={cn("flex items-center gap-2", isSubRow && "pl-6")}>
                 {isSubRow ? <Warehouse className="h-4 w-4 text-muted-foreground"/> : <Building className="h-4 w-4 text-muted-foreground"/>}
                 {data.name}
             </div>
-        </TableCell>
-        <TableCell className="text-right">{data.totalRounds}</TableCell>
-        <TableCell className="text-right font-mono">{data.punctualityRatePlanned?.toFixed(1) ?? 'N/A'}%</TableCell>
-        <TableCell className="text-right font-mono">{data.punctualityRateActual?.toFixed(1) ?? 'N/A'}%</TableCell>
-        <TableCell className="text-right font-mono">{data.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-        <TableCell>
+        </div>
+        <div className="text-right w-[5%]">{data.totalRounds}</div>
+        <div className="text-right font-mono w-[10%]">{data.punctualityRatePlanned?.toFixed(1) ?? 'N/A'}%</div>
+        <div className="text-right font-mono w-[10%]">{data.punctualityRateActual?.toFixed(1) ?? 'N/A'}%</div>
+        <div className="text-right font-mono w-[10%]">{data.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</div>
+        <div className="w-[15%] px-2">
             <div className="flex flex-col text-xs">
                 <div className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500"/> {data.mostFrequentTimeWindow}</div>
                 <div className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500"/> {data.leastFrequentTimeWindow}</div>
             </div>
-        </TableCell>
-        <TableCell>
+        </div>
+        <div className="w-[10%] text-center">
              <Badge variant="destructive">{data.mostLateTimeWindow}</Badge>
-        </TableCell>
-        <TableCell>
+        </div>
+        <div className="w-[15%] px-2">
             <ol className="list-decimal list-inside text-xs">
                 {data.top3LatePostcodes.map(pc => <li key={pc.postcode}>{pc.postcode} ({pc.count})</li>)}
                  {data.top3LatePostcodes.length === 0 && <li className="list-none">N/A</li>}
             </ol>
-        </TableCell>
-        <TableCell className="text-right font-mono">{data.avgTasksPer2Hours?.toFixed(1) ?? 'N/A'}</TableCell>
-    </TableRow>
+        </div>
+        <div className="text-right font-mono w-[10%]">{data.avgTasksPer2Hours?.toFixed(1) ?? 'N/A'}</div>
+    </div>
 );
 
 
@@ -363,97 +377,44 @@ export default function SummaryPage() {
                 <CardDescription>Vue d'ensemble des indicateurs de performance clés par dépôt et par entrepôt/magasin.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[15%]">Entité</TableHead>
-                                <TableHead className="text-right w-[5%]">Tournées</TableHead>
-                                <TableHead className="text-right w-[10%]"><Clock className="inline h-4"/> Ponct. Prév.</TableHead>
-                                <TableHead className="text-right w-[10%]"><Clock className="inline h-4"/> Ponct. Réal.</TableHead>
-                                <TableHead className="text-right w-[10%]"><Percent className="inline h-4"/> Surcharge Poids</TableHead>
-                                <TableHead className="w-[15%]">Fenêtres Horaires (Pop.)</TableHead>
-                                <TableHead className="w-[10%]">Fenêtre (Retards)</TableHead>
-                                <TableHead className="w-[15%]"><MapPin className="inline h-4"/> Top 3 CP (Retards)</TableHead>
-                                <TableHead className="text-right w-[10%]">Tâches / 2h</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                         <TableBody>
-                              {depotSummary.map(depotData => {
-                                  const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
-                                  return (
-                                      <AccordionItem key={depotData.name} value={depotData.name} asChild>
-                                          <tbody className="group">
-                                              <AccordionTrigger asChild>
-                                                    <TableRow className="cursor-pointer hover:bg-muted/50 font-semibold data-[state=open]:bg-muted/50">
-                                                        <TableCell className="w-[15%]">
-                                                             <div className="flex items-center gap-2">
-                                                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                                                <Building className="h-4 w-4 text-muted-foreground"/>
-                                                                {depotData.name}
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right w-[5%]">{depotData.totalRounds}</TableCell>
-                                                        <TableCell className="text-right font-mono w-[10%]">{depotData.punctualityRatePlanned?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                        <TableCell className="text-right font-mono w-[10%]">{depotData.punctualityRateActual?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                        <TableCell className="text-right font-mono w-[10%]">{depotData.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                        <TableCell className="w-[15%]">
-                                                            <div className="flex flex-col text-xs">
-                                                                <div className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500"/> {depotData.mostFrequentTimeWindow}</div>
-                                                                <div className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500"/> {depotData.leastFrequentTimeWindow}</div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="w-[10%]">
-                                                            <Badge variant="destructive">{depotData.mostLateTimeWindow}</Badge>
-                                                        </TableCell>
-                                                        <TableCell className="w-[15%]">
-                                                            <ol className="list-decimal list-inside text-xs">
-                                                                {depotData.top3LatePostcodes.map(pc => <li key={pc.postcode}>{pc.postcode} ({pc.count})</li>)}
-                                                                {depotData.top3LatePostcodes.length === 0 && <li className="list-none">N/A</li>}
-                                                            </ol>
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-mono w-[10%]">{depotData.avgTasksPer2Hours?.toFixed(1) ?? 'N/A'}</TableCell>
-                                                    </TableRow>
-                                              </AccordionTrigger>
-                                              <AccordionContent asChild>
-                                                  <TableRow>
-                                                      <TableCell colSpan={9} className="p-0">
-                                                          <Table>
-                                                              <TableBody>
-                                                                  {warehouses.map(whData => (
-                                                                      <SummaryRow key={whData.name} data={whData} isSubRow={true} />
-                                                                  ))}
-                                                                  {warehouses.length === 0 && (
-                                                                      <TableRow>
-                                                                          <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4 pl-12">
-                                                                              Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
-                                                                          </TableCell>
-                                                                      </TableRow>
-                                                                  )}
-                                                              </TableBody>
-                                                          </Table>
-                                                      </TableCell>
-                                                  </TableRow>
-                                              </AccordionContent>
-                                          </tbody>
-                                      </AccordionItem>
-                                  )
-                              })}
-                              {depotSummary.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                                        Aucune donnée à afficher pour la période sélectionnée.
-                                    </TableCell>
-                                </TableRow>
-                              )}
-                        </TableBody>
-                    </Table>
-                </Accordion>
+                <div className="border rounded-lg">
+                    <HeaderRow />
+                    <Accordion type="multiple" className="w-full">
+                        {depotSummary.map(depotData => {
+                            const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
+                            return (
+                                <AccordionItem key={depotData.name} value={depotData.name} className="border-b">
+                                    <AccordionTrigger className="hover:no-underline p-0">
+                                        <div className="flex items-center w-full hover:bg-muted/50">
+                                            <div className="pl-4">
+                                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                            </div>
+                                            <SummaryRow data={depotData} />
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        {warehouses.map(whData => (
+                                            <SummaryRow key={whData.name} data={whData} isSubRow={true} />
+                                        ))}
+                                        {warehouses.length === 0 && (
+                                            <div className="text-center text-muted-foreground italic py-4 pl-12">
+                                                Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
+                                            </div>
+                                        )}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            )
+                        })}
+                    </Accordion>
+                     {depotSummary.length === 0 && (
+                        <div className="text-center text-muted-foreground py-8">
+                            Aucune donnée à afficher pour la période sélectionnée.
+                        </div>
+                    )}
+                </div>
             </CardContent>
         </Card>
       )}
     </main>
   );
 }
-
-    
