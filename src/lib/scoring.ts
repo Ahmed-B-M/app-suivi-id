@@ -3,6 +3,7 @@ export interface DriverStats {
   name: string;
   totalTasks: number;
   completedTasks: number;
+  totalRatings: number;
   averageRating: number | null;
   punctualityRate: number | null;
   scanbacRate: number | null;

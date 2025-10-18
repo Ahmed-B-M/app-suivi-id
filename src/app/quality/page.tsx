@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -7,14 +6,15 @@ import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
-import { QualityDashboard, type QualityData } from "@/components/app/quality-dashboard";
 import { categorizeSingleCommentAction, saveCategorizedCommentsAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { CommentAnalysis, type CategorizedComment, categories } from "@/components/app/comment-analysis";
 import { useToast } from "@/hooks/use-toast";
 import { addMinutes, subMinutes } from "date-fns";
 import { calculateDriverScore, DriverStats } from "@/lib/scoring";
+import { DriverPerformanceRankings } from "@/components/app/driver-performance-rankings";
+import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 
 interface ExtendedDriverStats extends DriverStats {
   tasks: Tache[];
@@ -52,7 +52,6 @@ const getCategoryFromKeywords = (comment: string): typeof categories[number] => 
 export default function QualityPage() {
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
-  const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [categorizedComments, setCategorizedComments] = useState<CategorizedComment[]>([]);
   const { toast } = useToast();
@@ -123,8 +122,8 @@ export default function QualityPage() {
   }, [filteredTasks]);
 
 
-  const qualityData = useMemo((): QualityData | null => {
-    if (!filteredTasks || isLoadingTasks) return null;
+ const { driverRankings, alertData } = useMemo(() => {
+    if (!filteredTasks || isLoadingTasks) return { driverRankings: null, alertData: [] };
 
     // 1. Group tasks by driver
     const driverTasks: Record<string, Tache[]> = {};
@@ -136,191 +135,97 @@ export default function QualityPage() {
         }
     });
 
-    // 2. Calculate raw stats for each driver
+    // 2. Calculate raw stats for each driver & filter out those with no ratings
     const maxCompletedTasks = Math.max(0, ...Object.values(driverTasks).map(tasks => tasks.filter(t => t.progression === 'COMPLETED').length));
 
-    const driverStats: Record<string, ExtendedDriverStats> = {};
-    Object.entries(driverTasks).forEach(([name, tasks]) => {
-        const completed = tasks.filter(t => t.progression === 'COMPLETED');
-        const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-        
-        const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-        let punctual = 0;
-        completedWithTime.forEach(t => {
-            const closure = new Date(t.dateCloture!);
-            const windowStart = new Date(t.creneauHoraire!.debut!);
-            const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-            if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
-                punctual++;
-            }
-        });
-        
-        const rawStats = {
-            name,
-            totalTasks: tasks.length,
-            completedTasks: completed.length,
-            averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
-            punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
-            scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
-            forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
-            forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
-        };
-        driverStats[name] = {
-            ...rawStats,
-            score: calculateDriverScore(rawStats, maxCompletedTasks),
-            tasks: tasks,
-        };
-    });
+    const driverStatsList: DriverStats[] = Object.entries(driverTasks)
+        .map(([name, tasks]) => {
+            const completed = tasks.filter(t => t.progression === 'COMPLETED');
+            const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+            
+            const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+            let punctual = 0;
+            completedWithTime.forEach(t => {
+                const closure = new Date(t.dateCloture!);
+                const windowStart = new Date(t.creneauHoraire!.debut!);
+                const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+                if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
+                    punctual++;
+                }
+            });
+            
+            const rawStats = {
+                name,
+                totalTasks: tasks.length,
+                completedTasks: completed.length,
+                totalRatings: rated.length,
+                averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
+                punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
+                scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
+                forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
+                forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
+            };
 
-    // 3. Aggregate stats by depot and carrier
-    const aggregated: Record<string, any> = {};
+            return {
+                ...rawStats,
+                score: calculateDriverScore(rawStats, maxCompletedTasks),
+            };
+        })
+        .filter(stats => stats.totalRatings > 0); // Only include drivers with at least one rating
 
-    for (const task of filteredTasks) {
+    // 3. Prepare data for AlertRecurrenceTable
+    const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};
+
+    const alertTasks = filteredTasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
+
+    alertTasks.forEach(task => {
         const depot = getDepotFromHub(task.nomHub);
-        if (!depot) continue;
+        if (!depot) return;
 
         const driverName = getDriverFullName(task);
-        if (!driverName) continue;
+        if (!driverName) return;
 
         const carrierName = getCarrierFromDriver(driverName);
-        
-        // Depot level
-        if (!aggregated[depot]) {
-            aggregated[depot] = { name: depot, tasks: [], drivers: new Set(), carriers: {} };
+        const comment = task.metaDonnees?.commentaireLivreur || '';
+        const category = getCategoryFromKeywords(comment);
+
+        if (!alertAggregation[depot]) {
+            alertAggregation[depot] = { name: depot, carriers: {} };
         }
-        // Carrier level
-        if (!aggregated[depot].carriers[carrierName]) {
-            aggregated[depot].carriers[carrierName] = { name: carrierName, tasks: [], drivers: new Set() };
+        if (!alertAggregation[depot].carriers[carrierName]) {
+            alertAggregation[depot].carriers[carrierName] = { name: carrierName, drivers: {} };
+        }
+        if (!alertAggregation[depot].carriers[carrierName].drivers[driverName]) {
+            const driverGlobalStats = driverStatsList.find(d => d.name === driverName);
+            alertAggregation[depot].carriers[carrierName].drivers[driverName] = {
+                name: driverName,
+                alertCount: 0,
+                totalRatings: driverGlobalStats?.totalRatings || 0,
+                averageRating: driverGlobalStats?.averageRating || null,
+                commentCategories: {},
+            };
         }
 
-        aggregated[depot].tasks.push(task);
-        aggregated[depot].drivers.add(driverName);
-        aggregated[depot].carriers[carrierName].tasks.push(task);
-        aggregated[depot].carriers[carrierName].drivers.add(driverName);
-    }
+        const driverEntry = alertAggregation[depot].carriers[carrierName].drivers[driverName];
+        driverEntry.alertCount++;
+        driverEntry.commentCategories[category] = (driverEntry.commentCategories[category] || 0) + 1;
+    });
 
-    // 4. Calculate final averages and scores
-    const details = Object.values(aggregated).map((depot: any) => {
-        const avgDepotStats = calculateAverageStats(depot.tasks);
-
-        const carriers = Object.values(depot.carriers).map((carrier: any) => {
-            const avgCarrierStats = calculateAverageStats(carrier.tasks);
-            const carrierDrivers = Array.from(carrier.drivers as Set<string>).map(name => driverStats[name]).filter(Boolean);
-            
-            return {
-                name: carrier.name,
-                ...avgCarrierStats,
-                drivers: carrierDrivers.sort((a,b) => (b.score ?? 0) - (a.score ?? 0)),
-            }
-        }).sort((a, b) => b.drivers.length - a.drivers.length); // Sort by driver count as a proxy for activity
-        
-        return {
-            name: depot.name,
-            ...avgDepotStats,
-            carriers,
-        }
-    }).sort((a, b) => b.carriers.reduce((s, c) => s + c.drivers.length, 0) - a.carriers.reduce((s, c) => s + c.drivers.length, 0));
-
-    // --- SUMMARY CALCULATION ---
-    const allDriverStats = Object.values(driverStats);
-    const scoredDrivers = allDriverStats.filter(d => d.score !== undefined && d.score > 0);
-    const globalAverageScore = scoredDrivers.length > 0
-        ? scoredDrivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0) / scoredDrivers.length
-        : 0;
-
-    const allRatedTasks = filteredTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-    const summary = calculateAverageStats(filteredTasks);
-    const totalAlerts = allRatedTasks.filter(r => r < 4).length;
+    const finalAlertData: AlertData[] = Object.values(alertAggregation).map(depot => ({
+        ...depot,
+        carriers: Object.values(depot.carriers).map(carrier => ({
+            ...carrier,
+            drivers: Object.values(carrier.drivers).sort((a, b) => b.alertCount - a.alertCount),
+        })).sort((a,b) => b.drivers.reduce((sum, d) => sum + d.alertCount, 0) - a.drivers.reduce((sum, d) => sum + d.alertCount, 0))
+    })).sort((a,b) => b.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0) - a.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0));
 
 
     return {
-      summary: {
-        ...summary,
-        averageRating: allRatedTasks.length > 0 ? allRatedTasks.reduce((sum, rating) => sum + rating, 0) / allRatedTasks.length : null,
-        score: globalAverageScore,
-        totalAlerts,
-        alertRate: allRatedTasks.length > 0 ? (totalAlerts / allRatedTasks.length) * 100 : 0
-      },
-      details,
+      driverRankings: driverStatsList,
+      alertData: finalAlertData,
     };
-
   }, [filteredTasks, isLoadingTasks]);
 
-  function calculateAverageStats(
-    entityTasks: Tache[],
-  ) {
-      if (entityTasks.length === 0) {
-          return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, totalRatings: 0, totalAlerts: 0, alertRate: null };
-      }
-  
-      const completedTasks = entityTasks.filter(t => t.progression === 'COMPLETED');
-      const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-      
-      const weightedPunctuality = completedTasks.reduce((acc, task) => acc + ((task.punctualityRate ?? 0) / 100 * task.completedTasks), 0);
-      const totalCompleted = completedTasks.reduce((acc, task) => acc + task.completedTasks, 0);
-
-      const punctualityRate = totalCompleted > 0 ? (weightedPunctuality / totalCompleted) * 100 : null;
-
-      const totalPunctualityTasks = completedTasks.map(t => t.completedTasks).reduce((sum, current) => sum + current, 0);
-
-      const drivers = Object.values(
-        entityTasks.reduce((acc, task) => {
-          const driverName = getDriverFullName(task);
-          if (driverName) {
-            if (!acc[driverName]) acc[driverName] = { tasks: [] };
-            acc[driverName].tasks.push(task);
-          }
-          return acc;
-        }, {} as Record<string, { tasks: Tache[] }>)
-      );
-
-      const totalCompletedTasks = drivers.reduce((sum, driver) => sum + driver.tasks.filter(t => t.progression === 'COMPLETED').length, 0);
-      
-      const calcRate = (field: keyof Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks' | 'score' | 'averageRating'>) => {
-        const weightedSum = drivers.reduce((sum, driver) => {
-            const completed = driver.tasks.filter(t => t.progression === 'COMPLETED');
-            if (completed.length === 0) return sum;
-            
-            const driverStats = calculateDriverStats(completed);
-            return sum + (driverStats[field] ?? 0) * completed.length;
-        }, 0);
-        return totalCompletedTasks > 0 ? weightedSum / totalCompletedTasks : null;
-      };
-      
-      const calculateDriverStats = (tasks: Tache[]) => {
-          const completed = tasks.filter(t => t.progression === 'COMPLETED');
-          const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-          let punctual = 0;
-          completedWithTime.forEach(t => {
-              const closure = new Date(t.dateCloture!);
-              const windowStart = new Date(t.creneauHoraire!.debut!);
-              const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-              if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
-                  punctual++;
-              }
-          });
-          return {
-              punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
-              scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
-              forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
-              forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
-          }
-      }
-
-      const totalRatings = ratedTasks.length;
-      const totalAlerts = ratedTasks.filter(r => r < 4).length;
-      
-      return {
-          averageRating: totalRatings > 0 ? ratedTasks.reduce((a, b) => a + b, 0) / totalRatings : null,
-          punctualityRate: calcRate('punctualityRate'),
-          scanbacRate: calcRate('scanbacRate'),
-          forcedAddressRate: calcRate('forcedAddressRate'),
-          forcedContactlessRate: calcRate('forcedContactlessRate'),
-          totalRatings: totalRatings,
-          totalAlerts: totalAlerts,
-          alertRate: totalRatings > 0 ? (totalAlerts / totalRatings) * 100 : 0,
-      };
-  }
 
   const handleAnalyzeOneComment = useCallback(async (taskId: string) => {
     const commentToAnalyze = categorizedComments.find(c => c.task.tacheId === taskId);
@@ -404,12 +309,11 @@ export default function QualityPage() {
         </div>
       </div>
       <div className="space-y-8">
-        <QualityDashboard 
-          data={qualityData} 
-          isLoading={isLoading} 
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+        <DriverPerformanceRankings 
+            driverStats={driverRankings || []}
+            isLoading={isLoading}
         />
+        <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
           data={categorizedComments} 
           onCategoryChange={handleCategoryChange} 
