@@ -89,6 +89,7 @@ export function UnifiedExportForm({
   const { toast } = useToast();
   const { firestore } = useFirebase();
   const { isUserLoading } = useUser();
+   const [autoSaveTrigger, setAutoSaveTrigger] = useState(false);
 
   const form = useForm<UnifiedExportFormValues>({
     resolver: zodResolver(unifiedExportFormSchema),
@@ -114,12 +115,18 @@ export function UnifiedExportForm({
       to: today,
     });
   }, [form]);
+  
+  useEffect(() => {
+    if (autoSaveTrigger) {
+      handleSaveToFirestore();
+      setAutoSaveTrigger(false); // Reset trigger
+    }
+  }, [autoSaveTrigger]);
 
 
   const onSubmit = async (values: UnifiedExportFormValues) => {
     onExportStart();
     
-    // Convert dates to YYYY-MM-DD strings before sending to the server
     const fromString = values.dateRange?.from ? format(values.dateRange.from, 'yyyy-MM-dd') : '';
     const toString = values.dateRange?.to ? format(values.dateRange.to, 'yyyy-MM-dd') : fromString;
 
@@ -138,6 +145,10 @@ export function UnifiedExportForm({
         title: "Échec de l'exportation",
         description: result.error,
       });
+    } else if (result.data) {
+       onLogUpdate([`\n⏱️  Attente de 5 secondes avant la sauvegarde automatique...`]);
+       await delay(5000);
+       setAutoSaveTrigger(true); // Trigger the save
     }
   };
 
@@ -170,7 +181,6 @@ export function UnifiedExportForm({
       description: "La sauvegarde des données dans Firestore a commencé en arrière-plan.",
     });
 
-    // Run the save operation asynchronously
     saveData().then(anyError => {
         if (!anyError) {
             onLogUpdate([`\n🎉 Sauvegarde terminée !`]);
@@ -193,7 +203,7 @@ export function UnifiedExportForm({
 
         let anyError = false;
 
-        if (taskJsonData) { // Even if empty, we might need to delete
+        if (taskJsonData) { 
             const success = await saveCollection('tasks', taskJsonData, 'tacheId', dateRange);
             if (!success) anyError = true;
         }
@@ -217,7 +227,6 @@ export function UnifiedExportForm({
           return false;
         }
 
-        // --- Step 1: Identify documents to delete ---
         const fromDate = new Date(dateRange.from);
         fromDate.setHours(0,0,0,0);
         const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
@@ -254,7 +263,6 @@ export function UnifiedExportForm({
         }
 
 
-        // --- Step 2: Identify documents to add/update ---
         let addedCount = 0;
         let updatedCount = 0;
         let unchangedCount = 0;
@@ -269,7 +277,6 @@ export function UnifiedExportForm({
                 itemsToUpdate.push(item);
                 addedCount++;
             } else {
-                // Firestore timestamps and JS Dates are not deep equal, convert to ms for comparison
                 const comparableExisting = { ...existingDoc, date: existingDoc.date?.toMillis() };
                 const comparableApiItem = { ...item, date: item.date ? new Date(item.date).getTime() : undefined };
 
@@ -291,7 +298,6 @@ export function UnifiedExportForm({
         
         onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
 
-        // --- Step 3: Batch write the updates/additions ---
         const batchSize = 500;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
           const batchData = itemsToUpdate.slice(i, i + batchSize);
@@ -307,7 +313,6 @@ export function UnifiedExportForm({
             onLogUpdate([`      - Écriture du lot ${i / batchSize + 1}/${Math.ceil(itemsToUpdate.length / batchSize)}...`]);
             await batch.commit();
             onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
-            // Introduce a delay to avoid hitting rate limits on large datasets
             if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
               onLogUpdate([`      - ⏱️ Pause de 500ms...`]);
               await delay(500);
@@ -344,7 +349,6 @@ export function UnifiedExportForm({
   }
 
   const isLoading = isExporting || isSaving;
-  const hasData = (taskJsonData && taskJsonData.length > 0) || (roundJsonData && roundJsonData.length > 0);
 
   return (
     <Card>
@@ -496,22 +500,19 @@ export function UnifiedExportForm({
             />
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-2">
-            <Button type="submit" disabled={isLoading || isUserLoading}>
-              {isExporting ? <Loader2 className="animate-spin" /> : <Rocket />}
-              {isExporting ? "Export en cours..." : "Lancer l'Export"}
+            <Button type="submit" disabled={isLoading || isUserLoading} className="min-w-[200px]">
+              {isExporting && <><Loader2 className="animate-spin" />Export en cours...</>}
+              {isSaving && <><Loader2 className="animate-spin" />Sauvegarde...</>}
+              {!isLoading && <><Rocket />Exporter & Sauvegarder</>}
             </Button>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={handleResetClick} disabled={isLoading || isUserLoading}>
                 <RotateCcw/>Réinitialiser
               </Button>
-              <Button type="button" onClick={handleSaveToFirestore} disabled={!hasData || isLoading || isUserLoading}>
-                {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
-                {isSaving ? "Sauvegarde..." : "Synchroniser"}
-              </Button>
-              <Button type="button" onClick={() => handleDownload('tasks')} disabled={!taskJsonData || taskJsonData.length === 0 || isUserLoading}>
+              <Button type="button" onClick={() => handleDownload('tasks')} disabled={!taskJsonData || taskJsonData.length === 0 || isLoading}>
                 <Download />Tâches
               </Button>
-              <Button type="button" onClick={() => handleDownload('rounds')} disabled={!roundJsonData || roundJsonData.length === 0 || isUserLoading}>
+              <Button type="button" onClick={() => handleDownload('rounds')} disabled={!roundJsonData || roundJsonData.length === 0 || isLoading}>
                 <Download />Tournées
               </Button>
             </div>
