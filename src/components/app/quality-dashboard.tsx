@@ -39,6 +39,7 @@ interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'complete
   name: string;
   totalRatings: number;
   totalAlerts: number;
+  alertRate: number | null;
   drivers: DriverQuality[];
 }
 
@@ -46,6 +47,7 @@ interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedT
   name: string;
   totalRatings: number;
   totalAlerts: number;
+  alertRate: number | null;
   carriers: CarrierQuality[];
 }
 
@@ -91,31 +93,34 @@ const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, 
     )
 };
 
-const StatBadge = ({ value, icon, tooltipText, isRate=true, isLowerBetter=false }: { value: number | null, icon: React.ReactNode, tooltipText: string, isRate?: boolean, isLowerBetter?: boolean }) => {
-  let variant: 'default' | 'secondary' | 'destructive' = 'secondary';
+const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = false }: { value: number | null, icon: React.ReactNode, tooltipText: string, isRate?: boolean, isLowerBetter?: boolean }) => {
+  let badgeVariant: 'default' | 'secondary' | 'destructive' = 'secondary';
+  
   if (value !== null) {
-      if (isRate) {
-          if (isLowerBetter) {
-              if (value < 5) variant = 'default';
-              else if (value < 15) variant = 'secondary';
-              else variant = 'destructive';
-          } else {
-              if (value > 95) variant = 'default';
-              else if (value > 85) variant = 'secondary';
-              else variant = 'destructive';
-          }
-      } else { // For ratings
-          if (value > 4.79) variant = 'default';
-          else if (value > 4.5) variant = 'secondary';
-          else variant = 'destructive';
+    if (isRate) {
+      if (isLowerBetter) {
+        if (value <= 5) badgeVariant = 'default'; // Good
+        else if (value <= 10) badgeVariant = 'secondary'; // Warning
+        else badgeVariant = 'destructive'; // Bad
+      } else {
+        if (value >= 95) badgeVariant = 'default'; // Good
+        else if (value >= 90) badgeVariant = 'secondary'; // Warning
+        else badgeVariant = 'destructive'; // Bad
       }
+    } else { // For ratings
+      if (value >= 4.8) badgeVariant = 'default'; // Good
+      else if (value >= 4.5) badgeVariant = 'secondary'; // Warning
+      else badgeVariant = 'destructive'; // Bad
+    }
+  } else {
+    badgeVariant = 'secondary';
   }
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-            <Badge variant={variant} className="flex gap-1.5 min-w-[70px] justify-center">
+            <Badge variant={badgeVariant} className="flex gap-1.5 min-w-[70px] justify-center">
               {icon} 
               {value !== null ? value.toFixed(isRate ? 1 : 2) : 'N/A'}
               {isRate && '%'}
@@ -277,6 +282,8 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                               <StatBadge value={carrier.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
                                               <StatBadge value={carrier.punctualityRate} icon={<Clock />} tooltipText="Ponctualité" />
                                               <StatBadge value={carrier.scanbacRate} icon={<Smartphone />} tooltipText="SCANBAC" />
+                                               <StatBadge value={carrier.forcedAddressRate} icon={<MapPinOff />} tooltipText="Sur Place Forcé" isLowerBetter={true} />
+                                              <StatBadge value={carrier.forcedContactlessRate} icon={<Ban />} tooltipText="Cmd. Forcées" isLowerBetter={true} />
                                           </div>
                                       </div>
                                   </AccordionTrigger>
@@ -332,5 +339,3 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
     </div>
   );
 }
-
-    
