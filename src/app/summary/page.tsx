@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -142,7 +143,7 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
             actualPunctual++;
         } catch(e) {/* ignore date parsing errors */}
     });
-    const punctualityRateActual = tasksForActualPunctuality.length > 0 ? (actualPunctual / tasksForActualPunc-tuality.length) * 100 : null;
+    const punctualityRateActual = tasksForActualPunctuality.length > 0 ? (actualPunctual / tasksForActualPunctuality.length) * 100 : null;
 
     // 4. Time Windows
     const timeWindows = tasks.map(t => {
