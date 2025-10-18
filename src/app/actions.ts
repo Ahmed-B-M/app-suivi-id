@@ -488,11 +488,11 @@ export async function saveCategorizedCommentsAction(
 
     await batch.commit();
     return { success: true, error: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error saving categorized comments:", error);
     return {
       success: false,
-      error: "Failed to save categorized comments to Firestore.",
+      error: error.message || "Failed to save categorized comments to Firestore.",
     };
   }
 }
