@@ -21,7 +21,7 @@ import { format } from "date-fns";
  */
 function transformTaskData(rawTask: any): Tache {
   return {
-    tacheId: rawTask.taskId,
+    tacheId: rawTask.taskId || rawTask.id,
     type: rawTask.type,
     date: rawTask.date,
     progression: rawTask.progress,
