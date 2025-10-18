@@ -434,7 +434,13 @@ export async function getScheduleAction(
   }
 }
 
-// --- AI Comment Categorization Action ---
+// --- AI Comment Categorization (Single) ---
+export async function categorizeSingleCommentAction(comment: string): Promise<CategorizeCommentOutput> {
+  return await categorizeComment({ comment });
+}
+
+
+// --- AI Comment Categorization Action (Bulk - Deprecated by UI change) ---
 export async function categorizeCommentsAction(tasks: Tache[]) {
   try {
     const promises = tasks
@@ -490,5 +496,3 @@ export async function saveCategorizedCommentsAction(
     };
   }
 }
-
-    
