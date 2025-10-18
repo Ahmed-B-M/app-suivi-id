@@ -11,7 +11,7 @@ import { QualityDashboard, type QualityData } from "@/components/app/quality-das
 import { categorizeCommentsAction, saveCategorizedCommentsAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { BrainCircuit, Loader2, Save } from "lucide-react";
-import { CommentAnalysis, type CategorizedComment, categories } from "@/components/app/comment-analysis";
+import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
 import { useToast } from "@/hooks/use-toast";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import { calculateDriverScore, DriverStats } from "@/lib/scoring";
@@ -183,11 +183,18 @@ export default function QualityPage() {
         : 0;
 
     const summary = calculateAverageStats(filteredTasks);
+
+    const allRatedTasks = filteredTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+    const allAlerts = allRatedTasks.filter(r => r < 4);
     
     return {
       summary: {
         ...summary,
+        averageRating: allRatedTasks.length > 0 ? allRatedTasks.reduce((a, b) => a + b, 0) / allRatedTasks.length : null,
         score: globalAverageScore,
+        totalRatings: allRatedTasks.length,
+        totalAlerts: allAlerts.length,
+        alertRate: allRatedTasks.length > 0 ? (allAlerts.length / allRatedTasks.length) * 100 : 0,
       },
       details,
     };
@@ -196,9 +203,9 @@ export default function QualityPage() {
 
   function calculateAverageStats(
       entityTasks: Tache[], 
-  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks' | 'score'> & { totalRatings: number, totalAlerts: number } {
+  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks' | 'score'> & { totalRatings: number, totalAlerts: number, alertRate: number | null } {
     if (entityTasks.length === 0) {
-      return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, totalRatings: 0, totalAlerts: 0 };
+      return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, totalRatings: 0, totalAlerts: 0, alertRate: null };
     }
 
     const completedTasks = entityTasks.filter(t => t.progression === 'COMPLETED');
@@ -221,6 +228,8 @@ export default function QualityPage() {
     const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
     const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
     
+    const totalAlerts = ratedTasks.filter(r => r < 4).length;
+    
     return {
         averageRating,
         punctualityRate,
@@ -228,7 +237,8 @@ export default function QualityPage() {
         forcedAddressRate,
         forcedContactlessRate,
         totalRatings: ratedTasks.length,
-        totalAlerts: ratedTasks.filter(r => r < 4).length
+        totalAlerts: totalAlerts,
+        alertRate: ratedTasks.length > 0 ? (totalAlerts / ratedTasks.length) * 100 : null,
     };
 }
 
@@ -261,7 +271,7 @@ export default function QualityPage() {
     } else if (result.data) {
       const categorizedData = result.data.map(item => ({
         task: item.task,
-        category: item.category || 'Autre',
+        category: item.category,
       }))
       setAnalysisResult(categorizedData);
        toast({
@@ -308,7 +318,7 @@ export default function QualityPage() {
   const handleCategoryChange = (taskId: string, newCategory: string) => {
     setAnalysisResult(prev => 
       prev!.map(item => 
-        item.task.tacheId === taskId ? { ...item, category: newCategory } : item
+        item.task.tacheId === taskId ? { ...item, category: newCategory as (typeof item.category) } : item
       )
     );
   };
