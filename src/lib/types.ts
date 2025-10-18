@@ -69,7 +69,7 @@ export interface Tache {
 
   dimensions?: {
     volume?: number;
-    bac?: number;
+    bac?: string;
     poids?: number;
   };
   articles?: {
@@ -217,4 +217,5 @@ export interface Round {
     
 
     
+
 

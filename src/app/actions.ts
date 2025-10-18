@@ -19,7 +19,7 @@ import { getDriverFullName } from "@/lib/grouping";
  */
 function transformTaskData(rawTask: any): Tache {
   return {
-    tacheId: rawTask.taskId?.toString(),
+    tacheId: rawTask.taskId,
     type: rawTask.type,
     date: rawTask.date,
     progression: rawTask.progress,
@@ -337,7 +337,11 @@ export async function runUnifiedExportAction(
         allTasks.push(...unplannedTasks);
     } else {
         const dateCursor = new Date(fromDate);
-        while (dateCursor <= toDate) {
+        dateCursor.setUTCHours(0, 0, 0, 0); // Start at the beginning of the day in UTC
+        const finalToDate = new Date(toDate);
+        finalToDate.setUTCHours(0, 0, 0, 0); // Normalize to date for comparison
+
+        while (dateCursor <= finalToDate) {
             const dateString = dateCursor.toISOString().split("T")[0];
             logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
             const paramsForDay = new URLSearchParams(taskParams);
@@ -366,7 +370,11 @@ export async function runUnifiedExportAction(
     
     let allRounds: Tournee[] = [];
     const dateCursorRounds = new Date(fromDate);
-     while (dateCursorRounds <= toDate) {
+    dateCursorRounds.setUTCHours(0, 0, 0, 0); // Start at the beginning of the day in UTC
+    const finalToDateRounds = new Date(toDate);
+    finalToDateRounds.setUTCHours(0, 0, 0, 0); // Normalize to date for comparison
+
+     while (dateCursorRounds <= finalToDateRounds) {
       const dateString = dateCursorRounds.toISOString().split("T")[0];
       logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
       const paramsForDay = new URLSearchParams(roundParams);
@@ -482,8 +490,10 @@ export async function saveCategorizedCommentsAction(
     const batch = firestore.batch();
     
     categorizedComments.forEach(comment => {
-      const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
-      batch.set(docRef, comment, { merge: true });
+      if (comment.taskId) {
+        const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
+        batch.set(docRef, comment, { merge: true });
+      }
     });
 
     await batch.commit();
