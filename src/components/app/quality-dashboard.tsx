@@ -29,6 +29,7 @@ import { Skeleton } from "../ui/skeleton";
 import { Input } from "../ui/input";
 import { DriverStats } from "@/lib/scoring";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { cn } from "@/lib/utils";
 
 // Data structures
 interface DriverQuality extends DriverStats {
@@ -94,33 +95,31 @@ const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, 
 };
 
 const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = false }: { value: number | null, icon: React.ReactNode, tooltipText: string, isRate?: boolean, isLowerBetter?: boolean }) => {
-  let badgeVariant: 'default' | 'secondary' | 'destructive' = 'secondary';
+  let colorClass = "bg-secondary text-secondary-foreground";
   
   if (value !== null) {
     if (isRate) {
       if (isLowerBetter) {
-        if (value <= 5) badgeVariant = 'default'; // Good
-        else if (value <= 10) badgeVariant = 'secondary'; // Warning
-        else badgeVariant = 'destructive'; // Bad
+        if (value <= 2) colorClass = "bg-green-600 text-white"; // Good
+        else if (value <= 5) colorClass = "bg-orange-500 text-white"; // Warning
+        else colorClass = "bg-red-600 text-white"; // Bad
       } else {
-        if (value >= 95) badgeVariant = 'default'; // Good
-        else if (value >= 90) badgeVariant = 'secondary'; // Warning
-        else badgeVariant = 'destructive'; // Bad
+        if (value >= 95) colorClass = "bg-green-600 text-white"; // Good
+        else if (value >= 90) colorClass = "bg-orange-500 text-white"; // Warning
+        else colorClass = "bg-red-600 text-white"; // Bad
       }
     } else { // For ratings
-      if (value >= 4.8) badgeVariant = 'default'; // Good
-      else if (value >= 4.5) badgeVariant = 'secondary'; // Warning
-      else badgeVariant = 'destructive'; // Bad
+      if (value >= 4.8) colorClass = "bg-green-600 text-white"; // Good
+      else if (value >= 4.5) colorClass = "bg-orange-500 text-white"; // Warning
+      else colorClass = "bg-red-600 text-white"; // Bad
     }
-  } else {
-    badgeVariant = 'secondary';
   }
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-            <Badge variant={badgeVariant} className="flex gap-1.5 min-w-[70px] justify-center">
+            <Badge className={cn("flex gap-1.5 min-w-[70px] justify-center border-transparent", colorClass)}>
               {icon} 
               {value !== null ? value.toFixed(isRate ? 1 : 2) : 'N/A'}
               {isRate && '%'}
