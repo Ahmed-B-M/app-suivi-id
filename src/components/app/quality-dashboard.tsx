@@ -101,20 +101,20 @@ const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = fa
     if (isRate) { // For percentage-based rates
       if (isLowerBetter) { // Lower is better (e.g., forced address rate)
         if (value <= 2) colorClass = "bg-green-700 text-white";       // Excellent
-        else if (value <= 5) colorClass = "bg-green-500 text-white";  // Good
+        else if (value <= 5) colorClass = "bg-green-500 text-white";  // Good (target)
         else if (value <= 10) colorClass = "bg-yellow-500 text-black"; // Average
         else if (value <= 15) colorClass = "bg-orange-500 text-white"; // Warning
         else colorClass = "bg-red-600 text-white";                   // Poor
       } else { // Higher is better (e.g., punctuality)
         if (value >= 98) colorClass = "bg-green-700 text-white";      // Excellent
-        else if (value >= 95) colorClass = "bg-green-500 text-white"; // Good
+        else if (value >= 95) colorClass = "bg-green-500 text-white"; // Good (target)
         else if (value >= 90) colorClass = "bg-yellow-500 text-black";// Average
         else if (value >= 85) colorClass = "bg-orange-500 text-white"; // Warning
         else colorClass = "bg-red-600 text-white";                   // Poor
       }
     } else { // For ratings (not a rate, scale of 1-5)
       if (value >= 4.9) colorClass = "bg-green-700 text-white";      // Excellent
-      else if (value >= 4.8) colorClass = "bg-green-500 text-white"; // Good
+      else if (value >= 4.8) colorClass = "bg-green-500 text-white"; // Good (target)
       else if (value >= 4.5) colorClass = "bg-yellow-500 text-black";// Average
       else if (value >= 4.0) colorClass = "bg-orange-500 text-white"; // Warning
       else colorClass = "bg-red-600 text-white";                   // Poor
