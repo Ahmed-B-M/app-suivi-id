@@ -11,6 +11,7 @@ import { Tache, Tournee } from "@/lib/types";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
+import { format } from "date-fns";
 
 
 /**
@@ -295,19 +296,14 @@ async function fetchRounds(
 }
 
 /**
- * Formats a Date object into a YYYY-MM-DD string, adjusted for the user's local timezone
- * to prevent day-before errors when the server is in a different timezone (e.g., UTC).
+ * Formats a Date object into a YYYY-MM-DD string, reliably respecting the user's local date.
  * @param date The date to format.
  * @returns A string in YYYY-MM-DD format.
  */
 const toISODateString = (date: Date) => {
-    // Get the timezone offset in minutes and convert it to milliseconds.
-    const timezoneOffset = date.getTimezoneOffset() * 60000;
-    // Create a new Date object adjusted for the local timezone.
-    // This effectively "tricks" the toISOString method into using the local date parts.
-    const adjustedDate = new Date(date.getTime() - timezoneOffset);
-    // Convert to an ISO string (e.g., "2024-07-17T00:00:00.000Z") and take the date part.
-    return adjustedDate.toISOString().split('T')[0];
+    // This uses date-fns format function, which is better at handling timezones
+    // than toISOString() by default for this purpose.
+    return format(date, 'yyyy-MM-dd');
 };
 
 // --- Unified Export Action ---
@@ -521,3 +517,5 @@ export async function saveCategorizedCommentsAction(
 }
 
     
+
+      
