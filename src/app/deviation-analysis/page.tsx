@@ -21,11 +21,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Building, Percent, Scale, Warehouse } from "lucide-react";
+import { AlertCircle, Building, Clock, Percent, Scale, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
 import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
-import { format } from "date-fns";
+import { format, differenceInMinutes, parseISO } from "date-fns";
 
 interface Deviation {
   round: Tournee;
@@ -40,6 +40,13 @@ interface DeviationSummary {
     totalRounds: number;
     overweightRounds: number;
 }
+
+interface PunctualityIssue {
+  task: Tache;
+  plannedArriveTime: string;
+  deviationMinutes: number; // positive for late, negative for early
+}
+
 
 const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: DeviationSummary[], icon: React.ReactNode }) => {
     return (
@@ -111,9 +118,9 @@ export default function DeviationAnalysisPage() {
     error: roundsError,
   } = useCollection<Tournee>(roundsCollection);
 
-  const { deviations, depotSummary, warehouseSummary } = useMemo(() => {
+  const { deviations, depotSummary, warehouseSummary, punctualityIssues } = useMemo(() => {
     if (!tasks || !rounds) {
-      return { deviations: [], depotSummary: [], warehouseSummary: [] };
+      return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [] };
     }
 
     const { from, to } = dateRange || {};
@@ -137,10 +144,10 @@ export default function DeviationAnalysisPage() {
       filteredTasks = tasks.filter(filterByDate);
     }
 
+    // --- Weight Deviation Logic ---
     const tasksWeightByRound = new Map<string, number>();
-
     for (const task of filteredTasks) {
-      if (!task.nomTournee || !task.date || !task.nomHub) {
+       if (!task.nomTournee || !task.date || !task.nomHub) {
         continue;
       }
       const roundKey = `${task.nomTournee}-${task.date.split('T')[0]}-${task.nomHub}`;
@@ -152,10 +159,9 @@ export default function DeviationAnalysisPage() {
       }
     }
     
-    const results: Deviation[] = [];
+    const weightResults: Deviation[] = [];
     const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
-
 
     for (const round of filteredRounds) {
       const roundCapacity = round.vehicle?.dimensions?.poids;
@@ -168,7 +174,6 @@ export default function DeviationAnalysisPage() {
       const totalWeight = tasksWeightByRound.get(roundKey) || 0;
       const isOverweight = totalWeight > roundCapacity;
 
-      // Aggregation logic
       const depot = getDepotFromHub(round.nomHub);
       const warehouse = round.nomHub;
 
@@ -183,9 +188,8 @@ export default function DeviationAnalysisPage() {
           if (isOverweight) warehouseAggregation[warehouse].overweightRounds += 1;
       }
 
-      // Deviation logic for individual rounds
       if (isOverweight) {
-        results.push({
+        weightResults.push({
           round,
           totalWeight,
           capacity: roundCapacity,
@@ -202,11 +206,49 @@ export default function DeviationAnalysisPage() {
             overweightRounds: data.overweightRounds,
         })).sort((a, b) => b.overloadRate - a.overloadRate);
     }
+    
+    // --- Punctuality Logic ---
+    const roundStopsByTaskId = new Map<string, any>();
+    for (const round of filteredRounds) {
+      if (round.stops) {
+        for (const stop of round.stops) {
+          if (stop.taskId) {
+            roundStopsByTaskId.set(stop.taskId, stop);
+          }
+        }
+      }
+    }
+
+    const punctualityResults: PunctualityIssue[] = [];
+    for (const task of filteredTasks) {
+      if (task.tacheId && task.creneauHoraire?.debut) {
+        const stop = roundStopsByTaskId.get(task.tacheId);
+        if (stop && stop.arriveTime) {
+          try {
+            const plannedArrive = parseISO(stop.arriveTime);
+            const windowStart = parseISO(task.creneauHoraire.debut);
+            const deviation = differenceInMinutes(plannedArrive, windowStart);
+
+            if (deviation < -15 || deviation > 15) { // Threshold of 15 minutes
+              punctualityResults.push({
+                task,
+                plannedArriveTime: stop.arriveTime,
+                deviationMinutes: deviation
+              });
+            }
+          } catch (e) {
+            console.error("Error parsing date for punctuality:", e);
+          }
+        }
+      }
+    }
+
 
     return {
-        deviations: results.sort((a, b) => b.deviation - a.deviation),
+        deviations: weightResults.sort((a, b) => b.deviation - a.deviation),
         depotSummary: calculateSummary(depotAggregation),
         warehouseSummary: calculateSummary(warehouseAggregation),
+        punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
     };
   }, [tasks, rounds, dateRange]);
 
@@ -216,7 +258,7 @@ export default function DeviationAnalysisPage() {
   return (
     <main className="flex-1 container py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold">Analyse des Ecarts de Poids</h1>
+        <h1 className="text-3xl font-bold">Analyse des Écarts & Ponctualité</h1>
       </div>
 
       {isLoading && (
@@ -308,6 +350,59 @@ export default function DeviationAnalysisPage() {
                     ) : (
                     <div className="text-center py-16 text-muted-foreground">
                         <p>Aucune tournée en surcharge détectée pour la période sélectionnée.</p>
+                    </div>
+                    )}
+                </CardContent>
+            </Card>
+
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                    <Clock />
+                    Analyse de Ponctualité Prévisionnelle
+                    </CardTitle>
+                    <CardDescription>
+                    Liste des tâches dont l'heure d'arrivée planifiée est en dehors du créneau horaire promis au client (tolérance de +/- 15 min).
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {punctualityIssues.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Tournée</TableHead>
+                            <TableHead>Client</TableHead>
+                            <TableHead>Créneau Promis</TableHead>
+                            <TableHead>Arrivée Prévue</TableHead>
+                            <TableHead className="text-right">Écart (min)</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {punctualityIssues.map(({ task, plannedArriveTime, deviationMinutes }) => (
+                            <TableRow key={task.tacheId}>
+                            <TableCell>
+                                {task.date
+                                ? format(new Date(task.date), "dd/MM/yyyy")
+                                : "N/A"}
+                            </TableCell>
+                            <TableCell className="font-medium">{task.nomTournee}</TableCell>
+                            <TableCell>{task.contact?.personne || 'N/A'}</TableCell>
+                            <TableCell>
+                                {task.creneauHoraire?.debut ? format(new Date(task.creneauHoraire.debut), "HH:mm") : ''}
+                                {task.creneauHoraire?.fin ? ` - ${format(new Date(task.creneauHoraire.fin), "HH:mm")}`: ''}
+                            </TableCell>
+                            <TableCell>{format(new Date(plannedArriveTime), "HH:mm")}</TableCell>
+                            <TableCell className={`text-right font-bold ${deviationMinutes > 0 ? 'text-destructive' : 'text-blue-500'}`}>
+                                {deviationMinutes > 0 ? `+${deviationMinutes}` : deviationMinutes} min
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                    ) : (
+                    <div className="text-center py-16 text-muted-foreground">
+                        <p>Aucun écart de ponctualité prévisionnel détecté pour la période sélectionnée.</p>
                     </div>
                     )}
                 </CardContent>

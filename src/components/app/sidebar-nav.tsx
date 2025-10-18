@@ -30,7 +30,7 @@ const links = [
   },
   {
     href: "/deviation-analysis",
-    label: "Analyse des ecarts",
+    label: "Analyse des Écarts",
     icon: <Scale />,
   },
   {
