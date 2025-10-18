@@ -88,10 +88,10 @@ export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompl
   // Term 5: Forced Contactless rate (inverted, coeff 2)
   const forcedContactlessTerm = (100 - (stats.forcedContactlessRate ?? 0)) * 2;
   
-  // Term 6: Volume of tasks (coeff 1)
+  // Term 6: Volume of tasks (coeff 0.5)
   // Convert completed tasks to a percentage of the max
   const volumePct = maxCompletedTasks > 0 ? (stats.completedTasks / maxCompletedTasks) * 100 : 0;
-  const volumeTerm = volumePct * 1;
+  const volumeTerm = volumePct * 0.5;
 
   const totalNumerator =
     ratingTerm +
@@ -101,8 +101,8 @@ export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompl
     forcedContactlessTerm +
     volumeTerm;
   
-  // The denominator is the sum of all coefficients: 5 + 3 + 1 + 1 + 2 + 1 = 13
-  const totalDenominator = 13;
+  // The denominator is the sum of all coefficients: 5 + 3 + 1 + 1 + 2 + 0.5 = 12.5
+  const totalDenominator = 12.5;
 
   const score = totalNumerator / totalDenominator;
   
