@@ -1,3 +1,4 @@
+
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import { Tache } from "./types";
 
@@ -62,47 +63,49 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
  * Calculates a composite score for a driver based on a custom formula.
  * @param stats - The driver's performance statistics.
  * @param maxCompletedTasks - The maximum number of tasks completed by any single driver in the period.
- * @returns A composite score.
+ * @returns A composite score between 0 and 100.
  */
 export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompletedTasks: number): number {
-  if (stats.completedTasks < 1 || stats.totalRatings < 1) {
+  // If the driver has no ratings or no completed tasks, their score is 0.
+  if (stats.totalRatings < 1 || stats.completedTasks < 1) {
     return 0;
   }
 
-  // 1. Rating term (coeff 3)
-  const ratingPct = stats.averageRating ? (stats.averageRating / 5) * 100 : 0;
-  const ratingTerm = ratingPct * 3;
+  // Term 1: Rating (coeff 5)
+  // Convert rating out of 5 to percentage, then apply coefficient.
+  const ratingPct = (stats.averageRating ?? 0) / 5 * 100;
+  const ratingTerm = ratingPct * 5;
 
-  // 2. Punctuality term (coeff 2)
-  const punctualityPct = stats.punctualityRate ?? 0;
-  const punctualityTerm = punctualityPct * 2;
+  // Term 2: Punctuality (coeff 3)
+  const punctualityTerm = (stats.punctualityRate ?? 0) * 3;
 
-  // 3. Scanbac term (coeff 1)
-  const scanbacPct = stats.scanbacRate ?? 0;
+  // Term 3: Scanbac rate (coeff 1)
+  const scanbacTerm = stats.scanbacRate ?? 0;
 
-  // 4. Forced Address term (inverted, coeff 1)
-  const forcedAddressInvertedPct = 100 - (stats.forcedAddressRate ?? 0);
+  // Term 4: Forced Address rate (inverted, coeff 1)
+  const forcedAddressTerm = 100 - (stats.forcedAddressRate ?? 0);
 
-  // 5. Forced Contactless term (inverted, coeff 1)
-  const forcedContactlessInvertedPct = 100 - (stats.forcedContactlessRate ?? 0);
+  // Term 5: Forced Contactless rate (inverted, coeff 2)
+  const forcedContactlessTerm = (100 - (stats.forcedContactlessRate ?? 0)) * 2;
   
-  const qualityNumerator = 
-      ratingTerm + 
-      punctualityTerm + 
-      scanbacPct + 
-      forcedAddressInvertedPct + 
-      forcedContactlessInvertedPct;
-      
-  const qualityScore = qualityNumerator / 8; // (3+2+1+1+1)
+  // Term 6: Volume of tasks (coeff 1)
+  // Convert completed tasks to a percentage of the max
+  const volumePct = maxCompletedTasks > 0 ? (stats.completedTasks / maxCompletedTasks) * 100 : 0;
+  const volumeTerm = volumePct * 1;
 
-  // Volume weighting factor: starts low and scales up to 1.
-  // This means a driver with few tasks can still get a good score based on quality,
-  // but the score is more "trusted" for drivers with more tasks.
-  // Using a soft-cap approach: Math.min(stats.completedTasks, 50) / 50
-  const volumeWeight = Math.min(stats.completedTasks, 50) / 50;
+  const totalNumerator =
+    ratingTerm +
+    punctualityTerm +
+    scanbacTerm +
+    forcedAddressTerm +
+    forcedContactlessTerm +
+    volumeTerm;
+  
+  // The denominator is the sum of all coefficients: 5 + 3 + 1 + 1 + 2 + 1 = 13
+  const totalDenominator = 13;
 
-  // Final score is a mix of quality and volume confidence
-  const score = qualityScore * volumeWeight;
-
+  const score = totalNumerator / totalDenominator;
+  
+  // Ensure the score is within the 0-100 range.
   return Math.max(0, Math.min(100, score));
 }
