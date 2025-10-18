@@ -293,6 +293,14 @@ async function fetchRounds(
   return transformedRounds;
 }
 
+// Helper to format a date as YYYY-MM-DD in the local timezone
+const toISODateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // --- Unified Export Action ---
 export async function runUnifiedExportAction(
   values: z.infer<typeof unifiedExportFormSchema>
@@ -314,8 +322,8 @@ export async function runUnifiedExportAction(
     const fromDate = from;
     const toDate = to || from;
     
-    const fromString = fromDate.toISOString().split("T")[0];
-    const toString = toDate.toISOString().split("T")[0];
+    const fromString = toISODateString(fromDate);
+    const toString = toISODateString(toDate);
     logs.push(
       `   - Période sélectionnée: ${fromString}${fromString !== toString ? ` à ${toString}` : ''}`
     );
@@ -337,12 +345,10 @@ export async function runUnifiedExportAction(
         allTasks.push(...unplannedTasks);
     } else {
         const dateCursor = new Date(fromDate);
-        dateCursor.setUTCHours(0, 0, 0, 0); // Start at the beginning of the day in UTC
         const finalToDate = new Date(toDate);
-        finalToDate.setUTCHours(0, 0, 0, 0); // Normalize to date for comparison
 
         while (dateCursor <= finalToDate) {
-            const dateString = dateCursor.toISOString().split("T")[0];
+            const dateString = toISODateString(dateCursor);
             logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
             const paramsForDay = new URLSearchParams(taskParams);
             paramsForDay.append("date", dateString);
@@ -370,12 +376,10 @@ export async function runUnifiedExportAction(
     
     let allRounds: Tournee[] = [];
     const dateCursorRounds = new Date(fromDate);
-    dateCursorRounds.setUTCHours(0, 0, 0, 0); // Start at the beginning of the day in UTC
     const finalToDateRounds = new Date(toDate);
-    finalToDateRounds.setUTCHours(0, 0, 0, 0); // Normalize to date for comparison
 
      while (dateCursorRounds <= finalToDateRounds) {
-      const dateString = dateCursorRounds.toISOString().split("T")[0];
+      const dateString = toISODateString(dateCursorRounds);
       logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
       const paramsForDay = new URLSearchParams(roundParams);
       paramsForDay.append("date", dateString);
