@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -309,15 +310,15 @@ export default function QualityPage() {
         </div>
       </div>
       <div className="space-y-8">
-        <DriverPerformanceRankings 
-            driverStats={driverRankings || []}
-            isLoading={isLoading}
-        />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
           data={categorizedComments} 
           onCategoryChange={handleCategoryChange} 
           onAnalyzeComment={handleAnalyzeOneComment}
+        />
+        <DriverPerformanceRankings 
+            driverStats={driverRankings || []}
+            isLoading={isLoading}
         />
       </div>
     </main>
