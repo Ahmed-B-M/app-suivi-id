@@ -12,8 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Save, Search } from "lucide-react";
 import { CommentAnalysis, type CategorizedComment, categories } from "@/components/app/comment-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { addMinutes, subMinutes } from "date-fns";
-import { calculateDriverScore, DriverStats } from "@/lib/scoring";
+import { calculateDriverScore, calculateRawDriverStats, DriverStats } from "@/lib/scoring";
 import { DriverPerformanceRankings } from "@/components/app/driver-performance-rankings";
 import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
@@ -139,42 +138,17 @@ export default function QualityPage() {
         }
     });
 
-    const maxCompletedTasks = Math.max(0, ...Object.values(driverTasks).map(tasks => tasks.filter(t => t.progression === 'COMPLETED').length));
+    const rawDriverStats = Object.entries(driverTasks).map(([name, tasks]) => {
+      return calculateRawDriverStats(name, tasks);
+    });
 
-    // 2. Calculate stats for each driver
-    const driverStatsList: DriverStats[] = Object.entries(driverTasks)
-        .map(([name, tasks]) => {
-            const completed = tasks.filter(t => t.progression === 'COMPLETED');
-            const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-            
-            const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-            let punctual = 0;
-            completedWithTime.forEach(t => {
-                const closure = new Date(t.dateCloture!);
-                const windowStart = new Date(t.creneauHoraire!.debut!);
-                const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-                if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
-                    punctual++;
-                }
-            });
-            
-            const rawStats = {
-                name,
-                totalTasks: tasks.length,
-                completedTasks: completed.length,
-                totalRatings: rated.length,
-                averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
-                punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
-                scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
-                forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
-                forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
-            };
+    const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
 
-            return {
-                ...rawStats,
-                score: calculateDriverScore(rawStats, maxCompletedTasks),
-            };
-        });
+    const driverStatsList: DriverStats[] = rawDriverStats
+        .map(rawStats => ({
+            ...rawStats,
+            score: calculateDriverScore(rawStats, maxCompletedTasks),
+        }));
 
     // 3. Aggregate stats by depot and carrier
     const depotAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: DriverStats[] }> }> = {};
@@ -206,7 +180,7 @@ export default function QualityPage() {
         return sum + tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4).length;
       }, 0);
 
-      const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings'>, weightKey: 'totalRatings' | 'completedTasks') => {
+      const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings' | 'totalTasks' | 'completedTasks'>, weightKey: 'totalRatings' | 'completedTasks') => {
         let totalWeightedSum = 0;
         let totalWeight = 0;
 
@@ -290,41 +264,16 @@ export default function QualityPage() {
         }
     });
 
-    const maxCompletedTasks = Math.max(0, ...Object.values(driverTasks).map(tasks => tasks.filter(t => t.progression === 'COMPLETED').length));
+    const rawDriverStats = Object.entries(driverTasks)
+      .map(([name, tasks]) => calculateRawDriverStats(name, tasks));
 
-    const driverStatsList: DriverStats[] = Object.entries(driverTasks)
-        .map(([name, tasks]) => {
-            const completed = tasks.filter(t => t.progression === 'COMPLETED');
-            const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-            
-            const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-            let punctual = 0;
-            completedWithTime.forEach(t => {
-                const closure = new Date(t.dateCloture!);
-                const windowStart = new Date(t.creneauHoraire!.debut!);
-                const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-                if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
-                    punctual++;
-                }
-            });
-            
-            const rawStats = {
-                name,
-                totalTasks: tasks.length,
-                completedTasks: completed.length,
-                totalRatings: rated.length,
-                averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
-                punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
-                scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
-                forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
-                forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
-            };
+    const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
 
-            return {
-                ...rawStats,
-                score: calculateDriverScore(rawStats, maxCompletedTasks),
-            };
-        })
+    const driverStatsList: DriverStats[] = rawDriverStats
+        .map(stats => ({
+            ...stats,
+            score: calculateDriverScore(stats, maxCompletedTasks),
+        }))
         .filter(stats => stats.totalRatings > 0);
 
     const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};

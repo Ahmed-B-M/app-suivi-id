@@ -19,7 +19,7 @@ import type { Tache, Tournee } from "@/lib/types";
 import { addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName, getHubCategory } from "@/lib/grouping";
-import { calculateDriverScore, type DriverStats } from "@/lib/scoring";
+import { calculateDriverScore, calculateRawDriverStats, type DriverStats } from "@/lib/scoring";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
@@ -240,7 +240,7 @@ export default function DashboardPage() {
       (t) => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4
     );
 
-    // Comprehensive driver stats calculation
+    // --- Driver Performance Calculation ---
     const driverData: Record<string, { tasks: Tache[] }> = {};
     filteredData.tasks.forEach(task => {
         const driverName = getDriverFullName(task);
@@ -251,38 +251,11 @@ export default function DashboardPage() {
             driverData[driverName].tasks.push(task);
         }
     });
+
+    const rawDriverStats = Object.entries(driverData)
+      .map(([name, data]) => calculateRawDriverStats(name, data.tasks))
+      .filter(stats => stats.totalRatings > 0);
     
-    const rawDriverStats: Omit<DriverStats, 'score'>[] = Object.entries(driverData)
-    .map(([name, data]) => {
-      const completed = data.tasks.filter(t => t.progression === 'COMPLETED');
-      const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
-      
-      const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-      let punctual = 0;
-      completedWithTime.forEach(t => {
-        const closure = new Date(t.dateCloture!);
-        const windowStart = new Date(t.creneauHoraire!.debut!);
-        const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-        if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
-          punctual++;
-        }
-      });
-
-      return {
-        name,
-        totalTasks: data.tasks.length,
-        completedTasks: completed.length,
-        totalRatings: rated.length,
-        averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
-        punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
-        scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
-        forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
-        forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
-      };
-    })
-    .filter(stats => stats.totalRatings > 0);
-
-
     const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
 
     const driverPerformance: DriverStats[] = rawDriverStats.map(stats => ({
@@ -512,7 +485,7 @@ export default function DashboardPage() {
             onQualityAlertClick={() => setIsQualityAlertOpen(true)}
           />
 
-          <DriverPerformanceRankings data={dashboardData.driverPerformance} />
+          <DriverPerformanceRankings data={dashboardData.driverPerformance} isLoading={false} />
           
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -584,4 +557,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
