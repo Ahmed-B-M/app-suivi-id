@@ -198,7 +198,7 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
 };
 
 const SummaryRow = ({ data }: { data: SummaryMetrics }) => (
-    <TableRow>
+    <TableRow className="border-none">
         <TableCell className="font-medium">
             <div className="flex items-center gap-2">
                 {data.type === 'depot' ? <Building className="h-4 w-4 text-muted-foreground"/> : <Warehouse className="h-4 w-4 text-muted-foreground"/>}
@@ -278,7 +278,7 @@ export default function SummaryPage() {
       filteredTasks = tasks.filter(filterByDate);
     }
     
-    const depots = new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)).filter(d => d !== 'Magasin'));
+    const depots = new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)).filter(Boolean));
     const warehouses = new Set(filteredTasks.map(t => t.nomHub).filter(h => h && getHubCategory(h) === 'magasin'));
 
     const depotMetrics = Array.from(depots).map(depotName => calculateMetricsForEntity(depotName, 'depot', filteredTasks, filteredRounds));
@@ -349,33 +349,8 @@ export default function SummaryPage() {
                 <CardDescription>Vue d'ensemble des indicateurs de performance clés par dépôt et par entrepôt.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full">
-                {depotSummary.map(depotData => (
-                    <AccordionItem key={depotData.name} value={depotData.name}>
-                        <AccordionTrigger className="hover:no-underline">
-                            <Table className="w-full">
-                                <TableBody>
-                                    <SummaryRow data={depotData} />
-                                </TableBody>
-                            </Table>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                           <div className="pl-10 pr-4 py-2 bg-muted/50">
-                             <Table>
-                                <TableBody>
-                                 {(warehouseSummaryByDepot.get(depotData.name) || []).map(whData => (
-                                     <SummaryRow key={whData.name} data={whData} />
-                                 ))}
-                                </TableBody>
-                             </Table>
-                           </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                ))}
-                </Accordion>
-
-                <Table className="mt-4">
-                     <TableHeader>
+                <Table>
+                    <TableHeader>
                         <TableRow>
                             <TableHead className="w-[15%]">Entité</TableHead>
                             <TableHead className="text-right w-[5%]">Tournées</TableHead>
@@ -389,6 +364,37 @@ export default function SummaryPage() {
                         </TableRow>
                     </TableHeader>
                 </Table>
+                <Accordion type="multiple" className="w-full">
+                {depotSummary.map(depotData => (
+                    <AccordionItem key={depotData.name} value={depotData.name}>
+                        <AccordionTrigger className="hover:no-underline p-0">
+                           <Table className="w-full">
+                                <TableBody>
+                                    <SummaryRow data={depotData} />
+                                </TableBody>
+                            </Table>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <div className="pl-10 pr-4 py-2 bg-muted/50">
+                             <Table>
+                                <TableBody>
+                                 {(warehouseSummaryByDepot.get(depotData.name) || []).map(whData => (
+                                     <SummaryRow key={whData.name} data={whData} />
+                                 ))}
+                                 {(warehouseSummaryByDepot.get(depotData.name) || []).length === 0 && (
+                                     <TableRow>
+                                         <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4">
+                                             Aucun entrepôt de type "magasin" associé à ce dépôt pour la période sélectionnée.
+                                         </TableCell>
+                                     </TableRow>
+                                 )}
+                                </TableBody>
+                             </Table>
+                           </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+                </Accordion>
             </CardContent>
         </Card>
       )}
