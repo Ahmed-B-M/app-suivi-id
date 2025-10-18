@@ -4,8 +4,8 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Tache } from "@/lib/types";
-import { getHubCategory, getDepotFromHub, getDriverFullName } from "@/lib/grouping";
+import type { Tache, Tournee } from "@/lib/types";
+import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
 import { QualityDashboard, type QualityData } from "@/components/app/quality-dashboard";
 import { categorizeSingleCommentAction, saveCategorizedCommentsAction } from "@/app/actions";
