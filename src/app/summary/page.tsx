@@ -17,7 +17,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -26,7 +25,7 @@ import { AlertCircle, Building, ChevronDown, Clock, MapPin, Percent, TrendingDow
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
 import { getDepotFromHub } from "@/lib/grouping";
-import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
+import { format, differenceInMinutes, parseISO, addMinutes, subMinutes, differenceInHours } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +52,7 @@ const countOccurrences = (arr: (string|undefined)[]) => {
     }, {} as Record<string, number>);
 };
 
-const getMinMaxFromCounts = (counts: Record<string, number>) => {
+const getMinMaxFromCounts = (counts: Record<string, number>, total: number) => {
     const entries = Object.entries(counts);
     if (entries.length === 0) return { most: 'N/A', least: 'N/A' };
     
@@ -64,7 +63,13 @@ const getMinMaxFromCounts = (counts: Record<string, number>) => {
         if (entry[1] > most[1]) most = entry;
         if (entry[1] < least[1]) least = entry;
     }
-    return { most: most[0], least: least[0] };
+
+    const formatWithPercentage = (entry: [string, number]) => {
+        const percentage = total > 0 ? (entry[1] / total) * 100 : 0;
+        return `${entry[0]} (${percentage.toFixed(0)}%)`;
+    };
+
+    return { most: formatWithPercentage(most), least: formatWithPercentage(least) };
 };
 
 const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', allTasks: Tache[], allRounds: Tournee[]): SummaryMetrics => {
@@ -148,14 +153,14 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     const punctualityRateActual = tasksForActualPunctuality.length > 0 ? (actualPunctual / tasksForActualPunctuality.length) * 100 : null;
 
     // 4. Time Windows
-    const timeWindows = tasks.map(t => {
-        if (!t.creneauHoraire?.debut || !t.creneauHoraire.fin) return undefined;
+    const tasksWithTimeWindow = tasks.filter(t => t.creneauHoraire?.debut && t.creneauHoraire.fin);
+    const timeWindows = tasksWithTimeWindow.map(t => {
         try {
-            return `${format(parseISO(t.creneauHoraire.debut), 'HH:mm')}-${format(parseISO(t.creneauHoraire.fin), 'HH:mm')}`;
+            return `${format(parseISO(t.creneauHoraire!.debut!), 'HH:mm')}-${format(parseISO(t.creneauHoraire!.fin!), 'HH:mm')}`;
         } catch(e) { return undefined; }
     });
     const timeWindowCounts = countOccurrences(timeWindows);
-    const { most: mostFrequentTimeWindow, least: leastFrequentTimeWindow } = getMinMaxFromCounts(timeWindowCounts);
+    const { most: mostFrequentTimeWindow, least: leastFrequentTimeWindow } = getMinMaxFromCounts(timeWindowCounts, tasksWithTimeWindow.length);
 
     // 5. Late Time Windows
     const lateTimeWindows = lateTasksActual.map(t => {
@@ -165,7 +170,7 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
         } catch(e) { return undefined; }
     });
     const lateTimeWindowCounts = countOccurrences(lateTimeWindows);
-    const { most: mostLateTimeWindow } = getMinMaxFromCounts(lateTimeWindowCounts);
+    const { most: mostLateTimeWindowRaw } = getMinMaxFromCounts(lateTimeWindowCounts, lateTasksActual.length);
 
 
     // 6. Top 3 Late Postcodes
@@ -177,12 +182,21 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
         .map(([postcode, count]) => ({ postcode, count }));
     
     // 7. Avg tasks per 2 hours
-    const totalServiceTimeHours = rounds.reduce((sum, round) => {
-      const durationSeconds = round.totalOrderServiceTime;
-      return durationSeconds ? sum + (durationSeconds / 3600) : sum;
-    }, 0);
-    const totalCompletedTasks = tasks.filter(t => t.progression === 'COMPLETED').length;
-    const avgTasksPer2Hours = totalServiceTimeHours > 0 ? (totalCompletedTasks / totalServiceTimeHours) * 2 : null;
+    const completedTasksWithClosure = tasks.filter(t => t.progression === 'COMPLETED' && t.dateCloture);
+    let avgTasksPer2Hours: number | null = null;
+    if (completedTasksWithClosure.length > 1) {
+        const closureTimes = completedTasksWithClosure.map(t => parseISO(t.dateCloture!).getTime());
+        const minTime = Math.min(...closureTimes);
+        const maxTime = Math.max(...closureTimes);
+        const durationHours = (maxTime - minTime) / (1000 * 60 * 60);
+
+        if (durationHours > 0) {
+            avgTasksPer2Hours = (completedTasksWithClosure.length / durationHours) * 2;
+        } else if (completedTasksWithClosure.length > 0) {
+            avgTasksPer2Hours = Infinity; // Handle case where all tasks close at the same time
+        }
+    }
+
 
     return {
         name,
@@ -193,14 +207,14 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
         punctualityRateActual,
         mostFrequentTimeWindow,
         leastFrequentTimeWindow,
-        mostLateTimeWindow,
+        mostLateTimeWindow: mostLateTimeWindowRaw,
         top3LatePostcodes,
         avgTasksPer2Hours
     }
 };
 
 const HeaderRow = () => (
-    <div className="flex w-full px-4 py-2 text-left align-middle font-medium text-muted-foreground bg-muted/50 rounded-t-lg">
+    <div className="flex w-full px-4 py-2 text-left align-middle font-medium text-muted-foreground bg-muted/50 rounded-t-lg text-xs">
         <div className="w-[15%]">Entité</div>
         <div className="text-right w-[5%]">Tournées</div>
         <div className="text-right w-[10%] flex items-center justify-end gap-1"><Clock className="h-4"/>Ponct. Prév.</div>
@@ -214,7 +228,7 @@ const HeaderRow = () => (
 )
 
 const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow?: boolean }) => (
-    <div className={cn("flex w-full items-center px-4 py-3", isSubRow ? "bg-muted/20" : "font-semibold")}>
+    <div className={cn("flex w-full items-center px-4 py-3 text-sm", isSubRow ? "bg-card" : "font-semibold bg-muted/50")}>
         <div className="font-medium w-[15%]">
             <div className={cn("flex items-center gap-2", isSubRow && "pl-6")}>
                 {isSubRow ? <Warehouse className="h-4 w-4 text-muted-foreground"/> : <Building className="h-4 w-4 text-muted-foreground"/>}
@@ -227,8 +241,8 @@ const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow
         <div className="text-right font-mono w-[10%]">{data.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</div>
         <div className="w-[15%] px-2">
             <div className="flex flex-col text-xs">
-                <div className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-green-500"/> {data.mostFrequentTimeWindow}</div>
-                <div className="flex items-center gap-1"><TrendingDown className="h-3 w-3 text-red-500"/> {data.leastFrequentTimeWindow}</div>
+                <div className="flex items-center gap-1 text-green-600"><TrendingUp className="h-3 w-3"/> {data.mostFrequentTimeWindow}</div>
+                <div className="flex items-center gap-1 text-red-600"><TrendingDown className="h-3 w-3"/> {data.leastFrequentTimeWindow}</div>
             </div>
         </div>
         <div className="w-[10%] text-center">
@@ -240,7 +254,7 @@ const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow
                  {data.top3LatePostcodes.length === 0 && <li className="list-none">N/A</li>}
             </ol>
         </div>
-        <div className="text-right font-mono w-[10%]">{data.avgTasksPer2Hours?.toFixed(1) ?? 'N/A'}</div>
+        <div className="text-right font-mono w-[10%]">{data.avgTasksPer2Hours !== null ? (isFinite(data.avgTasksPer2Hours) ? data.avgTasksPer2Hours.toFixed(1) : '∞') : 'N/A'}</div>
     </div>
 );
 
@@ -303,6 +317,7 @@ export default function SummaryPage() {
         if (!depotToHubsMap.has(depotName)) {
             depotToHubsMap.set(depotName, new Set());
         }
+        // Add hub to its depot's list, unless it's the depot itself
         if (hubName !== depotName) {
             depotToHubsMap.get(depotName)!.add(hubName);
         }
@@ -311,7 +326,7 @@ export default function SummaryPage() {
     const depotMetrics: SummaryMetrics[] = [];
     const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
 
-    for (const depotName of new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)))) {
+    for (const depotName of new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)).filter(Boolean))) {
         depotMetrics.push(calculateMetricsForEntity(depotName, 'depot', filteredTasks, filteredRounds));
         
         const hubSet = depotToHubsMap.get(depotName) || new Set();
@@ -383,21 +398,21 @@ export default function SummaryPage() {
                         {depotSummary.map(depotData => {
                             const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
                             return (
-                                <AccordionItem key={depotData.name} value={depotData.name} className="border-b">
-                                    <AccordionTrigger className="hover:no-underline p-0">
+                                <AccordionItem key={depotData.name} value={depotData.name} className="border-b last:border-b-0">
+                                    <AccordionTrigger className="hover:no-underline p-0 data-[state=closed]:border-b-0">
                                         <div className="flex items-center w-full hover:bg-muted/50">
                                             <div className="pl-4">
-                                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
                                             </div>
                                             <SummaryRow data={depotData} />
                                         </div>
                                     </AccordionTrigger>
-                                    <AccordionContent>
+                                    <AccordionContent className="p-0">
                                         {warehouses.map(whData => (
                                             <SummaryRow key={whData.name} data={whData} isSubRow={true} />
                                         ))}
                                         {warehouses.length === 0 && (
-                                            <div className="text-center text-muted-foreground italic py-4 pl-12">
+                                            <div className="text-center text-muted-foreground italic py-4 pl-12 text-sm">
                                                 Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
                                             </div>
                                         )}
