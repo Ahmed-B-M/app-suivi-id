@@ -22,12 +22,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { AlertCircle, Building, Clock, MapPin, Percent, TrendingDown, TrendingUp, Warehouse } from "lucide-react";
+import { AlertCircle, Building, ChevronDown, Clock, MapPin, Percent, TrendingDown, TrendingUp, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
 import { getDepotFromHub } from "@/lib/grouping";
 import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
 
 interface SummaryMetrics {
     name: string;
@@ -197,10 +199,10 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     }
 };
 
-const SummaryRow = ({ data }: { data: SummaryMetrics }) => (
-    <TableRow className="border-none">
+const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow?: boolean }) => (
+    <TableRow className={cn("border-b", isSubRow && "bg-muted/50")}>
         <TableCell className="font-medium">
-            <div className="flex items-center gap-2">
+            <div className={cn("flex items-center gap-2", isSubRow && "pl-6")}>
                 {data.type === 'depot' ? <Building className="h-4 w-4 text-muted-foreground"/> : <Warehouse className="h-4 w-4 text-muted-foreground"/>}
                 {data.name}
             </div>
@@ -221,6 +223,7 @@ const SummaryRow = ({ data }: { data: SummaryMetrics }) => (
         <TableCell>
             <ol className="list-decimal list-inside text-xs">
                 {data.top3LatePostcodes.map(pc => <li key={pc.postcode}>{pc.postcode} ({pc.count})</li>)}
+                 {data.top3LatePostcodes.length === 0 && <li className="list-none">N/A</li>}
             </ol>
         </TableCell>
         <TableCell className="text-right font-mono">{data.avgTasksPer2Hours?.toFixed(1) ?? 'N/A'}</TableCell>
@@ -286,6 +289,7 @@ export default function SummaryPage() {
         if (!depotToHubsMap.has(depotName)) {
             depotToHubsMap.set(depotName, new Set());
         }
+        // Add all hubs to their corresponding depot's set
         depotToHubsMap.get(depotName)!.add(hubName);
     }
     
@@ -300,6 +304,8 @@ export default function SummaryPage() {
         
         const hubMetrics: SummaryMetrics[] = [];
         for (const hubName of hubSet) {
+             // Only consider hubs that are NOT depots themselves as sub-items, to avoid duplication
+            if (getDepotFromHub(hubName) === hubName) continue;
             hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', filteredTasks, filteredRounds));
         }
         warehouseSummaryByDepot.set(depotName, hubMetrics.sort((a,b) => b.totalRounds - a.totalRounds));
@@ -374,41 +380,59 @@ export default function SummaryPage() {
                             <TableHead className="text-right w-[10%]">Tâches / 2h</TableHead>
                         </TableRow>
                     </TableHeader>
+                    <TableBody>
+                        <Accordion type="multiple" className="w-full" asChild>
+                            <>
+                                {depotSummary.map(depotData => {
+                                    const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
+                                    return (
+                                        <AccordionItem key={depotData.name} value={depotData.name} asChild>
+                                            <>
+                                                <AccordionTrigger asChild>
+                                                   <TableRow className="cursor-pointer hover:bg-muted/50">
+                                                        <TableCell className="font-medium" colSpan={9}>
+                                                            <div className="flex items-center gap-2">
+                                                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                                <Building className="h-4 w-4 text-muted-foreground"/>
+                                                                {depotData.name}
+                                                            </div>
+                                                        </TableCell>
+                                                   </TableRow>
+                                                </AccordionTrigger>
+                                                <SummaryRow data={depotData} />
+                                                <AccordionContent asChild>
+                                                    <>
+                                                        {warehouses.map(whData => (
+                                                            <SummaryRow key={whData.name} data={whData} isSubRow={true} />
+                                                        ))}
+                                                        {warehouses.length === 0 && (
+                                                            <TableRow>
+                                                                <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4 pl-12">
+                                                                    Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </>
+                                                </AccordionContent>
+                                            </>
+                                        </AccordionItem>
+                                    )
+                                })}
+                             </>
+                        </Accordion>
+                         {depotSummary.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                                    Aucune donnée à afficher pour la période sélectionnée.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
                 </Table>
-                <Accordion type="multiple" className="w-full">
-                {depotSummary.map(depotData => (
-                    <AccordionItem key={depotData.name} value={depotData.name}>
-                        <AccordionTrigger className="hover:no-underline p-0">
-                           <Table className="w-full">
-                                <TableBody>
-                                    <SummaryRow data={depotData} />
-                                </TableBody>
-                            </Table>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                           <div className="pl-10 pr-4 py-2 bg-muted/50">
-                             <Table>
-                                <TableBody>
-                                 {(warehouseSummaryByDepot.get(depotData.name) || []).map(whData => (
-                                     <SummaryRow key={whData.name} data={whData} />
-                                 ))}
-                                 {(warehouseSummaryByDepot.get(depotData.name) || []).length === 0 && (
-                                     <TableRow>
-                                         <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4">
-                                             Aucun magasin associé à ce dépôt pour la période sélectionnée.
-                                         </TableCell>
-                                     </TableRow>
-                                 )}
-                                </TableBody>
-                             </Table>
-                           </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                ))}
-                </Accordion>
             </CardContent>
         </Card>
       )}
     </main>
   );
 }
+
