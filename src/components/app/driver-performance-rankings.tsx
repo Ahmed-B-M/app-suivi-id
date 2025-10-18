@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from 'react';
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DriverStats } from "@/lib/scoring";
-import { User, Award, Star, Clock, Smartphone, MapPinOff, Ban, ListTodo, TrendingUp, TrendingDown, ChevronsRight, ChevronsLeft, AlertCircle } from "lucide-react";
+import { User, Award, Star, Clock, Smartphone, MapPinOff, Ban, ListTodo } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -22,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Skeleton } from '../ui/skeleton';
 
 interface DriverPerformanceRankingsProps {
-  driverStats: DriverStats[];
+  data: DriverStats[];
   isLoading: boolean;
 }
 
@@ -48,7 +49,7 @@ const StatCell = ({ value, unit, isRate = true, isLowerBetter = false }: { value
     
     return (
         <TableCell className={`text-right font-mono ${colorClass}`}>
-            {value !== null ? `${value.toFixed(2)}${unit || ''}` : "N/A"}
+            {value !== null ? `${value.toFixed(isRate ? 1: 2)}${unit || ''}` : "N/A"}
         </TableCell>
     )
 }
@@ -123,34 +124,34 @@ const DriverTable = ({ drivers }: { drivers: DriverStats[] }) => (
 );
 
 
-export function DriverPerformanceRankings({ driverStats, isLoading }: DriverPerformanceRankingsProps) {
+export function DriverPerformanceRankings({ data, isLoading }: DriverPerformanceRankingsProps) {
 
   const rankings = useMemo(() => {
-    if (!driverStats) return { full: [], flopRating: [], flopPunctuality: [], flopScanbac: [], flopForcedAddress: [], flopForcedContactless: [] };
+    if (!data) return { full: [], flopRating: [], flopPunctuality: [], flopScanbac: [], flopForcedAddress: [], flopForcedContactless: [] };
     
-    const sortedByScore = [...driverStats].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const sortedByScore = [...data].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     
-    const flopRating = [...driverStats]
+    const flopRating = [...data]
       .filter(d => d.averageRating !== null)
       .sort((a, b) => (a.averageRating ?? 5) - (b.averageRating ?? 5))
       .slice(0, 5);
 
-    const flopPunctuality = [...driverStats]
+    const flopPunctuality = [...data]
       .filter(d => d.punctualityRate !== null)
       .sort((a, b) => (a.punctualityRate ?? 100) - (b.punctualityRate ?? 100))
       .slice(0, 5);
 
-    const flopScanbac = [...driverStats]
+    const flopScanbac = [...data]
         .filter(d => d.scanbacRate !== null)
         .sort((a,b) => (a.scanbacRate ?? 100) - (b.scanbacRate ?? 100))
         .slice(0,5);
     
-    const flopForcedAddress = [...driverStats]
+    const flopForcedAddress = [...data]
         .filter(d => d.forcedAddressRate !== null)
         .sort((a,b) => (b.forcedAddressRate ?? 0) - (a.forcedAddressRate ?? 0))
         .slice(0,5);
 
-    const flopForcedContactless = [...driverStats]
+    const flopForcedContactless = [...data]
         .filter(d => d.forcedContactlessRate !== null)
         .sort((a,b) => (b.forcedContactlessRate ?? 0) - (a.forcedContactlessRate ?? 0))
         .slice(0,5);
@@ -165,13 +166,13 @@ export function DriverPerformanceRankings({ driverStats, isLoading }: DriverPerf
       flopForcedContactless
     };
 
-  }, [driverStats]);
+  }, [data]);
 
   if (isLoading) {
     return <Skeleton className="h-96 w-full" />
   }
 
-  if (!driverStats || driverStats.length === 0) {
+  if (!data || data.length === 0) {
     return (
         <Card>
             <CardHeader>
@@ -230,7 +231,7 @@ const FlopCard = ({ title, drivers, kpi, icon, isLowerBetter = false }: { title:
                             <li key={driver.name} className="flex justify-between items-center text-sm border-b pb-2 last:border-b-0">
                                 <span className="font-medium">{driver.name}</span>
                                 <Badge variant="destructive" className="font-mono">
-                                    {(driver[kpi] as number)?.toFixed(2)}{kpi !== 'averageRating' ? '%' : ''}
+                                    {(driver[kpi] as number)?.toFixed(kpi === 'averageRating' ? 2 : 1)}{kpi !== 'averageRating' ? '%' : ''}
                                 </Badge>
                             </li>
                         ))}

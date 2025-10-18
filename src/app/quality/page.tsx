@@ -199,30 +199,42 @@ export default function QualityPage() {
     });
 
     const calculateAggregatedStats = (drivers: DriverStats[]) => {
-      const totalRatings = drivers.reduce((sum, d) => sum + d.totalRatings, 0);
+      const totalRatings = drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0);
+      
       const alerts = drivers.reduce((sum, d) => {
         const tasks = driverTasks[d.name] || [];
         return sum + tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4).length;
       }, 0);
 
-      const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score'>) => {
-          const totalWeight = drivers.reduce((sum, d) => d[kpi] !== null ? d.totalRatings : sum, 0);
-          if (totalWeight === 0) return null;
-          return drivers.reduce((sum, d) => sum + (d[kpi] ?? 0) * d.totalRatings, 0) / totalWeight;
-      };
+      const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings'>, weightKey: 'totalRatings' | 'completedTasks') => {
+        let totalWeightedSum = 0;
+        let totalWeight = 0;
 
-      const averageRating = weightedAvg('averageRating');
+        drivers.forEach(d => {
+            const value = d[kpi] as number | null;
+            const weight = d[weightKey] as number;
+            if (value !== null && weight > 0) {
+                totalWeightedSum += value * weight;
+                totalWeight += weight;
+            }
+        });
+
+        if (totalWeight === 0) return null;
+        return totalWeightedSum / totalWeight;
+      };
+      
+      const averageRating = weightedAvg('averageRating', 'totalRatings');
       const score = drivers.length > 0 ? drivers.reduce((sum, d) => sum + (d.score ?? 0), 0) / drivers.length : 0;
 
       return {
         totalRatings,
         totalAlerts: alerts,
-        alertRate: totalRatings > 0 ? (alerts / totalRatings) * 100 : null,
+        alertRate: totalRatings > 0 ? (alerts / totalRatings) * 100 : 0,
         averageRating,
-        punctualityRate: weightedAvg('punctualityRate'),
-        scanbacRate: weightedAvg('scanbacRate'),
-        forcedAddressRate: weightedAvg('forcedAddressRate'),
-        forcedContactlessRate: weightedAvg('forcedContactlessRate'),
+        punctualityRate: weightedAvg('punctualityRate', 'completedTasks'),
+        scanbacRate: weightedAvg('scanbacRate', 'completedTasks'),
+        forcedAddressRate: weightedAvg('forcedAddressRate', 'completedTasks'),
+        forcedContactlessRate: weightedAvg('forcedContactlessRate', 'completedTasks'),
         score
       };
     };
@@ -467,12 +479,10 @@ export default function QualityPage() {
           onAnalyzeComment={handleAnalyzeOneComment}
         />
         <DriverPerformanceRankings 
-            driverStats={driverRankings || []}
+            data={driverRankings || []}
             isLoading={isLoading}
         />
       </div>
     </main>
   );
 }
-
-    

@@ -36,7 +36,7 @@ interface DriverQuality extends DriverStats {
   score: number;
 }
 
-interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
+interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
   name: string;
   totalRatings: number;
   totalAlerts: number;
@@ -44,7 +44,7 @@ interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'complete
   drivers: DriverQuality[];
 }
 
-interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
+interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
   name: string;
   totalRatings: number;
   totalAlerts: number;
@@ -224,7 +224,6 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                         <TableHead>Livreur</TableHead>
                                                         <TableHead className="text-right">Score</TableHead>
                                                         <TableHead className="text-right">Note Moy.</TableHead>
-                                                        <TableHead className="text-right">Taux Alerte</TableHead>
                                                         <TableHead className="text-right">Ponctualité</TableHead>
                                                         <TableHead className="text-right">SCANBAC</TableHead>
                                                         <TableHead className="text-right">Forçage Adr.</TableHead>
@@ -238,7 +237,6 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                             <TableCell className="font-medium">{driver.name}</TableCell>
                                                             <TableCell className="text-right font-bold"><Badge variant={getScoreVariant(driver.score ?? 0)}>{driver.score?.toFixed(1)}</Badge></TableCell>
                                                             <TableCell className="text-right font-mono">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.totalRatings > 0 ? `${((driver.totalTasks - driver.completedTasks) / driver.totalRatings * 100).toFixed(1)}%` : 'N/A'}</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
@@ -259,5 +257,3 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
         </Card>
     );
 }
-
-    
