@@ -11,7 +11,7 @@ import { QualityDashboard, type QualityData } from "@/components/app/quality-das
 import { categorizeCommentsAction, saveCategorizedCommentsAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { BrainCircuit, Loader2, Save } from "lucide-react";
-import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
+import { CommentAnalysis, type CategorizedComment, categories } from "@/components/app/comment-analysis";
 import { useToast } from "@/hooks/use-toast";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import { calculateDriverScore, DriverStats } from "@/lib/scoring";
@@ -136,51 +136,33 @@ export default function QualityPage() {
         const driverName = getDriverFullName(task);
         if (!driverName) continue;
 
-        const driver = driverStats[driverName];
-        if (!driver) continue;
-
         const carrierName = getCarrierFromDriver(driverName);
-        const rating = task.metaDonnees?.notationLivreur;
-        const isAlert = typeof rating === 'number' && rating < 4;
-
+        
         // Depot level
         if (!aggregated[depot]) {
-            aggregated[depot] = { name: depot, totalRatings: 0, totalAlerts: 0, carriers: {}, drivers: new Set() };
+            aggregated[depot] = { name: depot, tasks: [], drivers: new Set(), carriers: {} };
         }
         // Carrier level
         if (!aggregated[depot].carriers[carrierName]) {
-            aggregated[depot].carriers[carrierName] = { name: carrierName, totalRatings: 0, totalAlerts: 0, drivers: new Set() };
+            aggregated[depot].carriers[carrierName] = { name: carrierName, tasks: [], drivers: new Set() };
         }
 
-        // Add driver to sets for avg calculation later
+        aggregated[depot].tasks.push(task);
         aggregated[depot].drivers.add(driverName);
+        aggregated[depot].carriers[carrierName].tasks.push(task);
         aggregated[depot].carriers[carrierName].drivers.add(driverName);
-
-        // Add rating data
-        if(typeof rating === 'number') {
-            aggregated[depot].totalRatings++;
-            aggregated[depot].carriers[carrierName].totalRatings++;
-            if(isAlert) {
-                aggregated[depot].totalAlerts++;
-                aggregated[depot].carriers[carrierName].totalAlerts++;
-            }
-        }
     }
 
-    // 4. Calculate final averages
+    // 4. Calculate final averages and scores
     const details = Object.values(aggregated).map((depot: any) => {
-        const depotDrivers = Array.from(depot.drivers as Set<string>).map(name => driverStats[name]).filter(Boolean);
-        
-        const avgDepotStats = calculateAverageStats(depotDrivers);
+        const avgDepotStats = calculateAverageStats(depot.tasks, driverStats, Array.from(depot.drivers as Set<string>));
 
         const carriers = Object.values(depot.carriers).map((carrier: any) => {
+            const avgCarrierStats = calculateAverageStats(carrier.tasks, driverStats, Array.from(carrier.drivers as Set<string>));
             const carrierDrivers = Array.from(carrier.drivers as Set<string>).map(name => driverStats[name]).filter(Boolean);
-            const avgCarrierStats = calculateAverageStats(carrierDrivers);
             
             return {
                 name: carrier.name,
-                totalRatings: carrier.totalRatings,
-                totalAlerts: carrier.totalAlerts,
                 ...avgCarrierStats,
                 drivers: carrierDrivers.sort((a,b) => (b.score ?? 0) - (a.score ?? 0)),
             }
@@ -188,80 +170,79 @@ export default function QualityPage() {
         
         return {
             name: depot.name,
-            totalRatings: depot.totalRatings,
-            totalAlerts: depot.totalAlerts,
             ...avgDepotStats,
             carriers,
         }
     }).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
     // --- SUMMARY CALCULATION ---
-    const allDrivers = Object.values(driverStats);
-    const summary = calculateAverageStats(allDrivers);
+    const summary = calculateAverageStats(filteredTasks, driverStats, Object.keys(driverStats));
     
-    // Correct calculation for global average rating
-    const allRatedTasks = filteredTasks
-      .map(t => t.metaDonnees?.notationLivreur)
-      .filter((r): r is number => typeof r === 'number');
-    
-    const globalAverageRating = allRatedTasks.length > 0
-        ? allRatedTasks.reduce((sum, rating) => sum + rating, 0) / allRatedTasks.length
-        : null;
-
-    const totalNumberOfRatings = allRatedTasks.length;
-    const totalAlerts = allRatedTasks.filter(r => r < 4).length;
-
     return {
       summary: {
         ...summary,
-        averageRating: globalAverageRating, // Use the direct average
-        totalRatings: totalNumberOfRatings,
-        totalAlerts: totalAlerts,
-        alertRate: totalNumberOfRatings > 0 ? (totalAlerts / totalNumberOfRatings * 100) : 0,
+        totalRatings: summary.totalRatings, // from calculateAverageStats
+        totalAlerts: summary.totalAlerts, // from calculateAverageStats
+        alertRate: summary.totalRatings > 0 ? (summary.totalAlerts / summary.totalRatings * 100) : 0,
       },
       details,
     };
 
   }, [filteredTasks]);
 
-  function calculateAverageStats(drivers: DriverStats[]): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks'> {
-      if (drivers.length === 0) {
-        return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, score: 0 };
+  function calculateAverageStats(
+      entityTasks: Tache[], 
+      allDriverStats: Record<string, ExtendedDriverStats>, 
+      driverNames: string[]
+  ): Omit<DriverStats, 'name' | 'totalTasks' | 'completedTasks'> & { totalRatings: number, totalAlerts: number } {
+    if (entityTasks.length === 0) {
+      return { averageRating: null, punctualityRate: null, scanbacRate: null, forcedAddressRate: null, forcedContactlessRate: null, score: 0, totalRatings: 0, totalAlerts: 0 };
     }
 
-    const calculateWeightedAvg = (key: keyof Omit<DriverStats, 'name' | 'totalTasks' | 'score' | 'averageRating'>) => {
-        const totalWeight = drivers.reduce((sum, driver) => sum + driver.completedTasks, 0);
-        if (totalWeight === 0) return null;
-        const weightedSum = drivers.reduce((sum, driver) => {
-            const value = driver[key] as number | null;
-            if (value !== null) {
-                return sum + (value * driver.completedTasks);
-            }
-            return sum;
-        }, 0);
-        return weightedSum / totalWeight;
-    };
+    const entityDrivers = driverNames.map(name => allDriverStats[name]).filter(Boolean);
+
+    const completedTasks = entityTasks.filter(t => t.progression === 'COMPLETED');
+    const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+    const averageRating = ratedTasks.length > 0 ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length : null;
+
+    const completedWithTime = completedTasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+    let punctual = 0;
+    completedWithTime.forEach(t => {
+      const closure = new Date(t.dateCloture!);
+      const windowStart = new Date(t.creneauHoraire!.debut!);
+      const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+      if (closure >= subMinutes(windowStart, 15) && closure <= addMinutes(windowEnd, 15)) {
+        punctual++;
+      }
+    });
     
-    const totalScore = drivers.reduce((sum, driver) => sum + (driver.score ?? 0), 0);
+    const punctualityRate = completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null;
+    const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
+    const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
+    const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
 
-    const totalRatedTasksWeight = drivers.reduce((sum, driver) => {
-        return driver.averageRating !== null ? sum + driver.completedTasks : sum;
-    }, 0);
-    const weightedRatingSum = drivers.reduce((sum, driver) => {
-        if (driver.averageRating !== null) {
-            return sum + (driver.averageRating * driver.completedTasks);
-        }
-        return sum;
-    }, 0);
-    const averageRating = totalRatedTasksWeight > 0 ? weightedRatingSum / totalRatedTasksWeight : null;
+    const maxCompletedTasksInSelection = Math.max(0, ...entityDrivers.map(d => d.completedTasks));
 
+    const score = calculateDriverScore({
+      name: 'aggregate',
+      totalTasks: entityTasks.length,
+      completedTasks: completedTasks.length,
+      averageRating,
+      punctualityRate,
+      scanbacRate,
+      forcedAddressRate,
+      forcedContactlessRate
+    }, maxCompletedTasksInSelection);
+    
     return {
-        score: totalScore / drivers.length,
-        averageRating: averageRating,
-        punctualityRate: calculateWeightedAvg('punctualityRate'),
-        scanbacRate: calculateWeightedAvg('scanbacRate'),
-        forcedAddressRate: calculateWeightedAvg('forcedAddressRate'),
-        forcedContactlessRate: calculateWeightedAvg('forcedContactlessRate'),
+        score,
+        averageRating,
+        punctualityRate,
+        scanbacRate,
+        forcedAddressRate,
+        forcedContactlessRate,
+        totalRatings: ratedTasks.length,
+        totalAlerts: ratedTasks.filter(r => r < 4).length
     };
 }
 
@@ -292,7 +273,11 @@ export default function QualityPage() {
         description: result.error,
       });
     } else if (result.data) {
-      setAnalysisResult(result.data);
+      const categorizedData = result.data.map(item => ({
+        task: item.task,
+        category: item.category || 'Autre',
+      }))
+      setAnalysisResult(categorizedData);
        toast({
         title: "Analyse terminée !",
         description: `${result.data?.length} commentaires ont été classés avec succès.`,
@@ -388,3 +373,5 @@ export default function QualityPage() {
     </main>
   );
 }
+
+    
