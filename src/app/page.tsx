@@ -549,9 +549,13 @@ const calculatePunctuality = (tasks: Tache[]) => {
       const upperBound = addMinutes(windowEnd, 15);
 
       if (closureTime < lowerBound) {
-        earlyTasks.push({ task, minutes: differenceInMinutes(lowerBound, closureTime) });
+        const minutes = differenceInMinutes(lowerBound, closureTime);
+        if (minutes > 0) earlyTasks.push({ task, minutes });
+        else punctualTasks++; // Difference is 0, so it's on time
       } else if (closureTime > upperBound) {
-        lateTasks.push({ task, minutes: differenceInMinutes(closureTime, upperBound) });
+        const minutes = differenceInMinutes(closureTime, upperBound);
+        if (minutes > 0) lateTasks.push({ task, minutes });
+        else punctualTasks++; // Difference is 0, so it's on time
       } else {
         punctualTasks++;
       }
