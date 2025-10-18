@@ -25,7 +25,7 @@ import { AlertCircle, Building, Clock, Percent, Scale, Warehouse } from "lucide-
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
 import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
-import { format, differenceInMinutes, parseISO } from "date-fns";
+import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
 
 interface Deviation {
   round: Tournee;
@@ -226,15 +226,32 @@ export default function DeviationAnalysisPage() {
         if (stop && stop.arriveTime) {
           try {
             const plannedArrive = parseISO(stop.arriveTime);
+            
+            // Check for earliness
             const windowStart = parseISO(task.creneauHoraire.debut);
-            const deviation = differenceInMinutes(plannedArrive, windowStart);
-
-            if (deviation < -15 || deviation > 15) { // Threshold of 15 minutes
+            const earlyThreshold = subMinutes(windowStart, 15);
+            if (plannedArrive < earlyThreshold) {
+              const deviation = differenceInMinutes(earlyThreshold, plannedArrive);
               punctualityResults.push({
                 task,
                 plannedArriveTime: stop.arriveTime,
-                deviationMinutes: deviation
+                deviationMinutes: -deviation
               });
+              continue; // A task can't be both early and late
+            }
+
+            // Check for lateness
+            if (task.creneauHoraire.fin) {
+              const windowEnd = parseISO(task.creneauHoraire.fin);
+              const lateThreshold = addMinutes(windowEnd, 15);
+               if (plannedArrive > lateThreshold) {
+                  const deviation = differenceInMinutes(plannedArrive, lateThreshold);
+                  punctualityResults.push({
+                    task,
+                    plannedArriveTime: stop.arriveTime,
+                    deviationMinutes: deviation
+                  });
+              }
             }
           } catch (e) {
             console.error("Error parsing date for punctuality:", e);
