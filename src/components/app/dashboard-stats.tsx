@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -26,6 +25,8 @@ import {
   Star,
   TimerOff,
   Trophy,
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
@@ -159,7 +160,7 @@ export function DashboardStats({
   return (
     <div className="space-y-6">
       {/* Main KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <StatCard
           title="Taux d'échec"
           value={
@@ -242,18 +243,22 @@ export function DashboardStats({
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Performance & Qualité</CardTitle>
+            <CardTitle>Performance &amp; Qualité</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <MiniStat title="Taux de retard > 1h" value={`${stats.lateOver1hRate?.toFixed(2) ?? 'N/A'}%`} icon={<TimerOff className="h-5 w-5 text-red-500" />} onClick={onLateOver1hClick}/>
+            <MiniStat title="Tâches en avance" value={stats.earlyTasksCount.toString()} icon={<TrendingUp className="h-5 w-5 text-green-500" />} onClick={onEarlyClick}/>
             <Separator />
-            <MiniStat title="Alerte qualité (note < 4)" value={stats.qualityAlerts.toString()} icon={<Megaphone className="h-5 w-5 text-destructive" />} onClick={onQualityAlertClick}/>
+            <MiniStat title="Tâches en retard" value={stats.lateTasksCount.toString()} icon={<TrendingDown className="h-5 w-5 text-orange-500" />} onClick={onLateClick}/>
+            <Separator />
+            <MiniStat title="Taux de retard &gt; 1h" value={`${stats.lateOver1hRate?.toFixed(2) ?? 'N/A'}%`} icon={<TimerOff className="h-5 w-5 text-red-500" />} onClick={onLateOver1hClick}/>
+            <Separator />
+            <MiniStat title="Alerte qualité (note &lt; 4)" value={stats.qualityAlerts.toString()} icon={<Megaphone className="h-5 w-5 text-destructive" />} onClick={onQualityAlertClick}/>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader>
-            <CardTitle>Anomalies & Suivi</CardTitle>
+            <CardTitle>Anomalies &amp; Suivi</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <MiniStat title="Relivraisons" value={stats.redeliveries.toString()} icon={<Repeat className="h-5 w-5 text-blue-500" />} onClick={onRedeliveryClick}/>
