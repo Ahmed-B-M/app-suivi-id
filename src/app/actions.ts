@@ -8,9 +8,11 @@ import {
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee } from "@/lib/types";
-import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
+import { categorizeSingleCommentAction } from "@/app/actions";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
+import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
+
 
 /**
  * Transforms a raw task object from the Urbantz API into the desired French structure.
@@ -293,12 +295,20 @@ async function fetchRounds(
   return transformedRounds;
 }
 
-// Helper to format a date as YYYY-MM-DD in the local timezone
+/**
+ * Formats a Date object into a YYYY-MM-DD string, adjusted for the user's local timezone
+ * to prevent day-before errors when the server is in a different timezone (e.g., UTC).
+ * @param date The date to format.
+ * @returns A string in YYYY-MM-DD format.
+ */
 const toISODateString = (date: Date) => {
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
+    // Get the timezone offset in minutes and convert it to milliseconds.
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    // Create a new Date object adjusted for the local timezone.
+    // This effectively "tricks" the toISOString method into using the local date parts.
+    const adjustedDate = new Date(date.getTime() - timezoneOffset);
+    // Convert to an ISO string (e.g., "2024-07-17T00:00:00.000Z") and take the date part.
+    return adjustedDate.toISOString().split('T')[0];
 };
 
 // --- Unified Export Action ---
