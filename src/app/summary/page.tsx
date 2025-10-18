@@ -182,20 +182,33 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
         .map(([postcode, count]) => ({ postcode, count }));
     
     // 7. Avg tasks per 2 hours
-    const completedTasksWithClosure = tasks.filter(t => t.progression === 'COMPLETED' && t.dateCloture);
-    let avgTasksPer2Hours: number | null = null;
-    if (completedTasksWithClosure.length > 1) {
-        const closureTimes = completedTasksWithClosure.map(t => parseISO(t.dateCloture!).getTime());
-        const minTime = Math.min(...closureTimes);
-        const maxTime = Math.max(...closureTimes);
-        const durationHours = (maxTime - minTime) / (1000 * 60 * 60);
+    const completedTasksByRound: Record<string, Tache[]> = {};
+    tasks.filter(t => t.progression === 'COMPLETED' && t.dateCloture && t.nomTournee)
+         .forEach(t => {
+             if (!completedTasksByRound[t.nomTournee!]) {
+                 completedTasksByRound[t.nomTournee!] = [];
+             }
+             completedTasksByRound[t.nomTournee!].push(t);
+         });
 
-        if (durationHours > 0) {
-            avgTasksPer2Hours = (completedTasksWithClosure.length / durationHours) * 2;
-        } else if (completedTasksWithClosure.length > 0) {
-            avgTasksPer2Hours = Infinity; // Handle case where all tasks close at the same time
+    const roundPaces: number[] = [];
+    Object.values(completedTasksByRound).forEach(roundTasks => {
+        if (roundTasks.length > 1) {
+            const closureTimes = roundTasks.map(t => parseISO(t.dateCloture!).getTime());
+            const minTime = Math.min(...closureTimes);
+            const maxTime = Math.max(...closureTimes);
+            const durationHours = (maxTime - minTime) / (1000 * 60 * 60);
+
+            if (durationHours > 0) {
+                const pace = (roundTasks.length / durationHours) * 2;
+                roundPaces.push(pace);
+            }
         }
-    }
+    });
+
+    const avgTasksPer2Hours = roundPaces.length > 0
+        ? roundPaces.reduce((sum, pace) => sum + pace, 0) / roundPaces.length
+        : null;
 
 
     return {
@@ -302,8 +315,12 @@ export default function SummaryPage() {
       const filterByDate = (item: Tache | Tournee) => {
         const itemDateString = item.date;
         if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
+        try {
+          const itemDate = new Date(itemDateString);
+          return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch(e) {
+          return false;
+        }
       };
       filteredRounds = rounds.filter(filterByDate);
       filteredTasks = tasks.filter(filterByDate);
@@ -317,9 +334,11 @@ export default function SummaryPage() {
         if (!depotToHubsMap.has(depotName)) {
             depotToHubsMap.set(depotName, new Set());
         }
-        // Add hub to its depot's list, unless it's the depot itself
-        if (hubName !== depotName) {
-            depotToHubsMap.get(depotName)!.add(hubName);
+        // Add hub to its depot's list, but only if it's not the depot itself.
+        // Or if it IS the depot, but there are no other hubs for that depot.
+        const hubIsDepotItself = depotToHubsMap.get(depotName)!.size === 0 && hubName === depotName;
+        if (hubName !== depotName || hubIsDepotItself) {
+             depotToHubsMap.get(depotName)!.add(hubName);
         }
     }
     
@@ -332,7 +351,11 @@ export default function SummaryPage() {
         const hubSet = depotToHubsMap.get(depotName) || new Set();
         const hubMetrics: SummaryMetrics[] = [];
         for (const hubName of hubSet) {
-            hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', filteredTasks, filteredRounds));
+             // Only calculate warehouse metrics if it's not the same as the depot,
+             // or if it is the same but it's the only one.
+            if(hubName !== depotName || hubSet.size === 1) {
+              hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', filteredTasks, filteredRounds));
+            }
         }
         warehouseSummaryByDepot.set(depotName, hubMetrics.sort((a,b) => b.totalRounds - a.totalRounds));
     }
