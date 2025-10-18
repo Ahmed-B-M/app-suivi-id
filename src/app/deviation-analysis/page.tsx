@@ -21,10 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Scale } from "lucide-react";
+import { AlertCircle, Building, Scale, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
-import { getDriverFullName } from "@/lib/grouping";
+import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
 import { format } from "date-fns";
 
 interface Deviation {
@@ -33,6 +33,59 @@ interface Deviation {
   capacity: number;
   deviation: number;
 }
+
+interface DeviationSummary {
+    name: string;
+    deviationPercentage: number;
+    totalWeight: number;
+    totalCapacity: number;
+    totalRounds: number;
+}
+
+const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: DeviationSummary[], icon: React.ReactNode }) => {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                    {icon}
+                    {title}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nom</TableHead>
+                            <TableHead className="text-right">Écart Moyen</TableHead>
+                            <TableHead className="text-right">Tournées</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {data.map(item => (
+                            <TableRow key={item.name}>
+                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className={`text-right font-bold ${
+                                    item.deviationPercentage > 5 ? 'text-destructive' :
+                                    item.deviationPercentage > 0 ? 'text-orange-500' :
+                                    'text-green-600'
+                                }`}>
+                                    {item.deviationPercentage > 0 ? '+' : ''}{item.deviationPercentage.toFixed(2)}%
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">{item.totalRounds}</TableCell>
+                            </TableRow>
+                        ))}
+                         {data.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center text-muted-foreground">Aucune donnée</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function DeviationAnalysisPage() {
   const { firestore } = useFirebase();
@@ -59,9 +112,9 @@ export default function DeviationAnalysisPage() {
     error: roundsError,
   } = useCollection<Tournee>(roundsCollection);
 
-  const deviations = useMemo((): Deviation[] => {
+  const { deviations, depotSummary, warehouseSummary } = useMemo(() => {
     if (!tasks || !rounds) {
-      return [];
+      return { deviations: [], depotSummary: [], warehouseSummary: [] };
     }
 
     const { from, to } = dateRange || {};
@@ -91,7 +144,6 @@ export default function DeviationAnalysisPage() {
       if (!task.nomTournee || !task.date || !task.nomHub) {
         continue;
       }
-      // Clé composite pour associer tâche et tournée
       const roundKey = `${task.nomTournee}-${task.date.split('T')[0]}-${task.nomHub}`;
       const taskWeight = task.dimensions?.poids ?? 0;
 
@@ -102,10 +154,13 @@ export default function DeviationAnalysisPage() {
     }
     
     const results: Deviation[] = [];
+    const depotAggregation: Record<string, { totalCapacity: number, totalWeight: number, totalRounds: number }> = {};
+    const warehouseAggregation: Record<string, { totalCapacity: number, totalWeight: number, totalRounds: number }> = {};
+
 
     for (const round of filteredRounds) {
       const roundCapacity = round.vehicle?.dimensions?.poids;
-
+      
       if (typeof roundCapacity !== "number" || !round.name || !round.date || !round.nomHub) {
         continue;
       }
@@ -113,6 +168,24 @@ export default function DeviationAnalysisPage() {
       const roundKey = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
       const totalWeight = tasksWeightByRound.get(roundKey) || 0;
 
+      // Aggregation logic
+      const depot = getDepotFromHub(round.nomHub);
+      const warehouse = round.nomHub;
+
+      if (depot) {
+          if (!depotAggregation[depot]) depotAggregation[depot] = { totalCapacity: 0, totalWeight: 0, totalRounds: 0 };
+          depotAggregation[depot].totalCapacity += roundCapacity;
+          depotAggregation[depot].totalWeight += totalWeight;
+          depotAggregation[depot].totalRounds += 1;
+      }
+      if (warehouse) {
+          if (!warehouseAggregation[warehouse]) warehouseAggregation[warehouse] = { totalCapacity: 0, totalWeight: 0, totalRounds: 0 };
+          warehouseAggregation[warehouse].totalCapacity += roundCapacity;
+          warehouseAggregation[warehouse].totalWeight += totalWeight;
+          warehouseAggregation[warehouse].totalRounds += 1;
+      }
+
+      // Deviation logic for individual rounds
       if (totalWeight > roundCapacity) {
         results.push({
           round,
@@ -123,7 +196,21 @@ export default function DeviationAnalysisPage() {
       }
     }
 
-    return results.sort((a, b) => b.deviation - a.deviation);
+    const calculateSummary = (aggregation: Record<string, any>): DeviationSummary[] => {
+        return Object.entries(aggregation).map(([name, data]) => ({
+            name,
+            deviationPercentage: data.totalCapacity > 0 ? ((data.totalWeight - data.totalCapacity) / data.totalCapacity) * 100 : 0,
+            totalWeight: data.totalWeight,
+            totalCapacity: data.totalCapacity,
+            totalRounds: data.totalRounds,
+        })).sort((a, b) => b.deviationPercentage - a.deviationPercentage);
+    }
+
+    return {
+        deviations: results.sort((a, b) => b.deviation - a.deviation),
+        depotSummary: calculateSummary(depotAggregation),
+        warehouseSummary: calculateSummary(warehouseAggregation),
+    };
   }, [tasks, rounds, dateRange]);
 
   const isLoading = isLoadingTasks || isLoadingRounds;
@@ -168,61 +255,67 @@ export default function DeviationAnalysisPage() {
       )}
 
       {!isLoading && !error && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Scale />
-              Tournées en Surcharge de Poids
-            </CardTitle>
-            <CardDescription>
-              Liste des tournées dont le poids total des tâches dépasse la capacité maximale du véhicule assigné.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {deviations.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Tournée</TableHead>
-                    <TableHead>Entrepôt</TableHead>
-                    <TableHead>Livreur</TableHead>
-                    <TableHead className="text-right">Poids Calculé (kg)</TableHead>
-                    <TableHead className="text-right">Capacité (kg)</TableHead>
-                    <TableHead className="text-right text-destructive">Ecart (kg)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deviations.map(({ round, totalWeight, capacity, deviation }) => (
-                    <TableRow key={round.id}>
-                      <TableCell>
-                        {round.date
-                          ? format(new Date(round.date), "dd/MM/yyyy")
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell className="font-medium">{round.name}</TableCell>
-                      <TableCell>{round.nomHub || 'N/A'}</TableCell>
-                      <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {totalWeight.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-muted-foreground">
-                        {capacity.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-bold text-destructive">
-                        +{deviation.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-16 text-muted-foreground">
-                <p>Aucune tournée en surcharge détectée pour la période sélectionnée.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <DeviationSummaryCard title="Synthèse par Dépôt" data={depotSummary} icon={<Building />} />
+                <DeviationSummaryCard title="Synthèse par Entrepôt" data={warehouseSummary} icon={<Warehouse />} />
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                    <Scale />
+                    Détail des Tournées en Surcharge
+                    </CardTitle>
+                    <CardDescription>
+                    Liste des tournées dont le poids total des tâches dépasse la capacité maximale du véhicule assigné.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {deviations.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Tournée</TableHead>
+                            <TableHead>Entrepôt</TableHead>
+                            <TableHead>Livreur</TableHead>
+                            <TableHead className="text-right">Poids Calculé (kg)</TableHead>
+                            <TableHead className="text-right">Capacité (kg)</TableHead>
+                            <TableHead className="text-right text-destructive">Ecart (kg)</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {deviations.map(({ round, totalWeight, capacity, deviation }) => (
+                            <TableRow key={round.id}>
+                            <TableCell>
+                                {round.date
+                                ? format(new Date(round.date), "dd/MM/yyyy")
+                                : "N/A"}
+                            </TableCell>
+                            <TableCell className="font-medium">{round.name}</TableCell>
+                            <TableCell>{round.nomHub || 'N/A'}</TableCell>
+                            <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
+                            <TableCell className="text-right font-mono">
+                                {totalWeight.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-muted-foreground">
+                                {capacity.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-bold text-destructive">
+                                +{deviation.toFixed(2)}
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                    ) : (
+                    <div className="text-center py-16 text-muted-foreground">
+                        <p>Aucune tournée en surcharge détectée pour la période sélectionnée.</p>
+                    </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
       )}
     </main>
   );
