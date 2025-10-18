@@ -19,6 +19,7 @@ import {
   TableCell,
   TableHeader,
   TableRow,
+  TableHead,
 } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle, Building, ChevronDown, Clock, MapPin, Percent, TrendingDown, TrendingUp, Warehouse } from "lucide-react";
@@ -166,7 +167,8 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     const lateTimeWindows = lateTasksActual.map(t => {
         if (!t.creneauHoraire?.debut || !t.creneauHoraire.fin) return undefined;
         try {
-            return `${format(parseISO(t.creneauHoraire.debut), 'HH:mm')}-${format(parseISO(t.creneauHoraire.fin), 'HH:mm')}`;
+            const percentage = tasksWithTimeWindow.length > 0 ? (lateTasksActual.length / tasksWithTimeWindow.length) * 100 : 0;
+            return `${format(parseISO(t.creneauHoraire.debut), 'HH:mm')}-${format(parseISO(t.creneauHoraire.fin), 'HH:mm')} (${percentage.toFixed(0)}%)`;
         } catch(e) { return undefined; }
     });
     const lateTimeWindowCounts = countOccurrences(lateTimeWindows);
@@ -226,49 +228,35 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     }
 };
 
-const HeaderRow = () => (
-    <div className="flex w-full px-4 py-2 text-left align-middle font-medium text-muted-foreground bg-muted/50 rounded-t-lg text-xs">
-        <div className="w-[15%]">Entité</div>
-        <div className="text-right w-[5%]">Tournées</div>
-        <div className="text-right w-[10%] flex items-center justify-end gap-1"><Clock className="h-4"/>Ponct. Prév.</div>
-        <div className="text-right w-[10%] flex items-center justify-end gap-1"><Clock className="h-4"/>Ponct. Réal.</div>
-        <div className="text-right w-[10%] flex items-center justify-end gap-1"><Percent className="h-4"/>Surcharge</div>
-        <div className="w-[15%] text-center">Fenêtres (Pop.)</div>
-        <div className="w-[10%] text-center">Fenêtre (Retards)</div>
-        <div className="w-[15%] flex items-center justify-center gap-1"><MapPin className="h-4"/>Top 3 CP (Retards)</div>
-        <div className="text-right w-[10%]">Tâches / 2h</div>
-    </div>
-)
-
 const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow?: boolean }) => (
-    <div className={cn("flex w-full items-center px-4 py-3 text-sm", isSubRow ? "bg-card" : "font-semibold bg-muted/50")}>
-        <div className="font-medium w-[15%]">
-            <div className={cn("flex items-center gap-2", isSubRow && "pl-6")}>
+     <TableRow className={cn(!isSubRow && "bg-muted/50 font-semibold")}>
+        <TableCell className="w-[15%]">
+             <div className={cn("flex items-center gap-2", isSubRow && "pl-6")}>
                 {isSubRow ? <Warehouse className="h-4 w-4 text-muted-foreground"/> : <Building className="h-4 w-4 text-muted-foreground"/>}
                 {data.name}
             </div>
-        </div>
-        <div className="text-right w-[5%]">{data.totalRounds}</div>
-        <div className="text-right font-mono w-[10%]">{data.punctualityRatePlanned?.toFixed(1) ?? 'N/A'}%</div>
-        <div className="text-right font-mono w-[10%]">{data.punctualityRateActual?.toFixed(1) ?? 'N/A'}%</div>
-        <div className="text-right font-mono w-[10%]">{data.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</div>
-        <div className="w-[15%] px-2">
+        </TableCell>
+        <TableCell className="text-right w-[5%]">{data.totalRounds}</TableCell>
+        <TableCell className="text-right font-mono w-[10%]">{data.punctualityRatePlanned?.toFixed(1) ?? 'N/A'}%</TableCell>
+        <TableCell className="text-right font-mono w-[10%]">{data.punctualityRateActual?.toFixed(1) ?? 'N/A'}%</TableCell>
+        <TableCell className="text-right font-mono w-[10%]">{data.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+        <TableCell className="w-[15%] px-2">
             <div className="flex flex-col text-xs">
                 <div className="flex items-center gap-1 text-green-600"><TrendingUp className="h-3 w-3"/> {data.mostFrequentTimeWindow}</div>
                 <div className="flex items-center gap-1 text-red-600"><TrendingDown className="h-3 w-3"/> {data.leastFrequentTimeWindow}</div>
             </div>
-        </div>
-        <div className="w-[10%] text-center">
+        </TableCell>
+        <TableCell className="w-[10%] text-center">
              <Badge variant="destructive">{data.mostLateTimeWindow}</Badge>
-        </div>
-        <div className="w-[15%] px-2">
+        </TableCell>
+        <TableCell className="w-[15%] px-2">
             <ol className="list-decimal list-inside text-xs">
                 {data.top3LatePostcodes.map(pc => <li key={pc.postcode}>{pc.postcode} ({pc.count})</li>)}
                  {data.top3LatePostcodes.length === 0 && <li className="list-none">N/A</li>}
             </ol>
-        </div>
-        <div className="text-right font-mono w-[10%]">{data.avgTasksPer2Hours !== null ? (isFinite(data.avgTasksPer2Hours) ? data.avgTasksPer2Hours.toFixed(1) : '∞') : 'N/A'}</div>
-    </div>
+        </TableCell>
+        <TableCell className="text-right font-mono w-[10%]">{data.avgTasksPer2Hours !== null ? (isFinite(data.avgTasksPer2Hours) ? data.avgTasksPer2Hours.toFixed(1) : '∞') : 'N/A'}</TableCell>
+    </TableRow>
 );
 
 
@@ -334,26 +322,19 @@ export default function SummaryPage() {
         if (!depotToHubsMap.has(depotName)) {
             depotToHubsMap.set(depotName, new Set());
         }
-        // Add hub to its depot's list, but only if it's not the depot itself.
-        // Or if it IS the depot, but there are no other hubs for that depot.
-        const hubIsDepotItself = depotToHubsMap.get(depotName)!.size === 0 && hubName === depotName;
-        if (hubName !== depotName || hubIsDepotItself) {
-             depotToHubsMap.get(depotName)!.add(hubName);
-        }
+        depotToHubsMap.get(depotName)!.add(hubName);
     }
     
     const depotMetrics: SummaryMetrics[] = [];
     const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
 
-    for (const depotName of new Set(filteredTasks.map(t => getDepotFromHub(t.nomHub)).filter(Boolean))) {
+    for (const depotName of depotToHubsMap.keys()) {
         depotMetrics.push(calculateMetricsForEntity(depotName, 'depot', filteredTasks, filteredRounds));
         
         const hubSet = depotToHubsMap.get(depotName) || new Set();
         const hubMetrics: SummaryMetrics[] = [];
         for (const hubName of hubSet) {
-             // Only calculate warehouse metrics if it's not the same as the depot,
-             // or if it is the same but it's the only one.
-            if(hubName !== depotName || hubSet.size === 1) {
+             if(hubName !== depotName || hubSet.size === 1) {
               hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', filteredTasks, filteredRounds));
             }
         }
@@ -415,41 +396,58 @@ export default function SummaryPage() {
                 <CardDescription>Vue d'ensemble des indicateurs de performance clés par dépôt et par entrepôt/magasin.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="border rounded-lg">
-                    <HeaderRow />
-                    <Accordion type="multiple" className="w-full">
-                        {depotSummary.map(depotData => {
-                            const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
-                            return (
-                                <AccordionItem key={depotData.name} value={depotData.name} className="border-b last:border-b-0">
-                                    <AccordionTrigger className="hover:no-underline p-0 data-[state=closed]:border-b-0">
-                                        <div className="flex items-center w-full hover:bg-muted/50">
-                                            <div className="pl-4">
-                                                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                                            </div>
-                                            <SummaryRow data={depotData} />
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent className="p-0">
-                                        {warehouses.map(whData => (
-                                            <SummaryRow key={whData.name} data={whData} isSubRow={true} />
-                                        ))}
-                                        {warehouses.length === 0 && (
-                                            <div className="text-center text-muted-foreground italic py-4 pl-12 text-sm">
-                                                Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
-                                            </div>
-                                        )}
-                                    </AccordionContent>
-                                </AccordionItem>
-                            )
-                        })}
-                    </Accordion>
-                     {depotSummary.length === 0 && (
-                        <div className="text-center text-muted-foreground py-8">
-                            Aucune donnée à afficher pour la période sélectionnée.
-                        </div>
-                    )}
-                </div>
+                <Accordion type="multiple" className="w-full border rounded-lg">
+                    {depotSummary.map(depotData => {
+                        const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
+                        return (
+                            <AccordionItem key={depotData.name} value={depotData.name}>
+                                <AccordionTrigger>
+                                  <Table className="w-full">
+                                    <TableBody>
+                                      <SummaryRow data={depotData} />
+                                    </TableBody>
+                                  </Table>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="pl-6 pr-2 py-2 border-l-4 border-primary ml-2">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="w-[15%]">Entrepôt</TableHead>
+                                                    <TableHead className="text-right w-[5%]">Tournées</TableHead>
+                                                    <TableHead className="text-right w-[10%]">Ponct. Prév.</TableHead>
+                                                    <TableHead className="text-right w-[10%]">Ponct. Réal.</TableHead>
+                                                    <TableHead className="text-right w-[10%]">Surcharge</TableHead>
+                                                    <TableHead className="w-[15%] text-center">Fenêtres (Pop.)</TableHead>
+                                                    <TableHead className="w-[10%] text-center">Fenêtre (Retards)</TableHead>
+                                                    <TableHead className="w-[15%] text-center">Top 3 CP (Retards)</TableHead>
+                                                    <TableHead className="text-right w-[10%]">Tâches / 2h</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {warehouses.map(whData => (
+                                                    <SummaryRow key={whData.name} data={whData} isSubRow={true} />
+                                                ))}
+                                                {warehouses.length === 0 && (
+                                                  <TableRow>
+                                                    <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4">
+                                                        Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
+                                                    </TableCell>
+                                                  </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )
+                    })}
+                </Accordion>
+                {depotSummary.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8 border rounded-lg">
+                        Aucune donnée à afficher pour la période sélectionnée.
+                    </div>
+                )}
             </CardContent>
         </Card>
       )}
