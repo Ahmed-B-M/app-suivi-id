@@ -2,9 +2,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -26,27 +23,7 @@ import type { Tache, Tournee } from "@/lib/types";
 import { useFilterContext } from "@/context/filter-context";
 import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
 import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
-
-interface Deviation {
-  round: Tournee;
-  totalWeight: number;
-  capacity: number;
-  deviation: number;
-}
-
-interface DeviationSummary {
-    name: string;
-    overloadRate: number;
-    totalRounds: number;
-    overweightRounds: number;
-}
-
-interface PunctualityIssue {
-  task: Tache;
-  plannedArriveTime: string;
-  deviationMinutes: number; // positive for late, negative for early
-}
-
+import { calculateDeviations, DeviationSummary } from "@/lib/stats-calculator";
 
 const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: DeviationSummary[], icon: React.ReactNode }) => {
     return (
@@ -94,187 +71,16 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
 
 
 export default function DeviationAnalysisPage() {
-  const { firestore } = useFirebase();
-  const { dateRange } = useFilterContext();
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const {
-    data: tasks,
-    isLoading: isLoadingTasks,
-    error: tasksError,
-  } = useCollection<Tache>(tasksCollection);
-  const {
-    data: rounds,
-    isLoading: isLoadingRounds,
-    error: roundsError,
-  } = useCollection<Tournee>(roundsCollection);
+  const { filteredTasks, filteredRounds, isLoading } = useFilterContext();
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues } = useMemo(() => {
-    if (!tasks || !rounds) {
+    if (!filteredTasks || !filteredRounds) {
       return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [] };
     }
+    return calculateDeviations(filteredTasks, filteredRounds);
+  }, [filteredTasks, filteredRounds]);
 
-    const { from, to } = dateRange || {};
-    let filteredRounds = rounds;
-    let filteredTasks = tasks;
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date;
-        if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
-      };
-
-      filteredRounds = rounds.filter(filterByDate);
-      filteredTasks = tasks.filter(filterByDate);
-    }
-
-    // --- Weight Deviation Logic ---
-    const tasksWeightByRound = new Map<string, number>();
-    for (const task of filteredTasks) {
-       if (!task.nomTournee || !task.date || !task.nomHub) {
-        continue;
-      }
-      const roundKey = `${task.nomTournee}-${task.date.split('T')[0]}-${task.nomHub}`;
-      const taskWeight = task.dimensions?.poids ?? 0;
-
-      if (taskWeight > 0) {
-        const currentWeight = tasksWeightByRound.get(roundKey) || 0;
-        tasksWeightByRound.set(roundKey, currentWeight + taskWeight);
-      }
-    }
-    
-    const weightResults: Deviation[] = [];
-    const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
-    const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
-
-    for (const round of filteredRounds) {
-      const roundCapacity = round.vehicle?.dimensions?.poids;
-      
-      if (typeof roundCapacity !== "number" || !round.name || !round.date || !round.nomHub) {
-        continue;
-      }
-      
-      const roundKey = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
-      const totalWeight = tasksWeightByRound.get(roundKey) || 0;
-      const isOverweight = totalWeight > roundCapacity;
-
-      const depot = getDepotFromHub(round.nomHub);
-      const warehouse = round.nomHub;
-
-      if (depot) {
-          if (!depotAggregation[depot]) depotAggregation[depot] = { totalRounds: 0, overweightRounds: 0 };
-          depotAggregation[depot].totalRounds += 1;
-          if (isOverweight) depotAggregation[depot].overweightRounds += 1;
-      }
-      if (warehouse) {
-          if (!warehouseAggregation[warehouse]) warehouseAggregation[warehouse] = { totalRounds: 0, overweightRounds: 0 };
-          warehouseAggregation[warehouse].totalRounds += 1;
-          if (isOverweight) warehouseAggregation[warehouse].overweightRounds += 1;
-      }
-
-      if (isOverweight) {
-        weightResults.push({
-          round,
-          totalWeight,
-          capacity: roundCapacity,
-          deviation: totalWeight - roundCapacity,
-        });
-      }
-    }
-
-    const calculateSummary = (aggregation: Record<string, any>): DeviationSummary[] => {
-        return Object.entries(aggregation).map(([name, data]) => ({
-            name,
-            overloadRate: data.totalRounds > 0 ? (data.overweightRounds / data.totalRounds) * 100 : 0,
-            totalRounds: data.totalRounds,
-            overweightRounds: data.overweightRounds,
-        })).sort((a, b) => b.overloadRate - a.overloadRate);
-    }
-    
-    // --- Punctuality Logic ---
-    const roundStopsByTaskId = new Map<string, any>();
-    for (const round of filteredRounds) {
-      if (round.stops) {
-        for (const stop of round.stops) {
-          if (stop.taskId) {
-            roundStopsByTaskId.set(stop.taskId, stop);
-          }
-        }
-      }
-    }
-
-    const punctualityResults: PunctualityIssue[] = [];
-    for (const task of filteredTasks) {
-      if (task.tacheId && task.creneauHoraire?.debut) {
-        const stop = roundStopsByTaskId.get(task.tacheId);
-        if (stop && stop.arriveTime) {
-          try {
-            const plannedArrive = parseISO(stop.arriveTime);
-            
-            // Check for earliness
-            const windowStart = parseISO(task.creneauHoraire.debut);
-            const earlyThreshold = subMinutes(windowStart, 15);
-            if (plannedArrive < earlyThreshold) {
-              const deviation = differenceInMinutes(earlyThreshold, plannedArrive);
-               if (deviation > 0) {
-                  punctualityResults.push({
-                    task,
-                    plannedArriveTime: stop.arriveTime,
-                    deviationMinutes: -deviation
-                  });
-              }
-              continue; // A task can't be both early and late
-            }
-
-            // Check for lateness
-            if (task.creneauHoraire.fin) {
-              const windowEnd = parseISO(task.creneauHoraire.fin);
-              const lateThreshold = addMinutes(windowEnd, 15);
-               if (plannedArrive > lateThreshold) {
-                  const deviation = differenceInMinutes(plannedArrive, lateThreshold);
-                   if (deviation > 0) {
-                      punctualityResults.push({
-                        task,
-                        plannedArriveTime: stop.arriveTime,
-                        deviationMinutes: deviation
-                      });
-                  }
-              }
-            }
-          } catch (e) {
-            console.error("Error parsing date for punctuality:", e);
-          }
-        }
-      }
-    }
-
-
-    return {
-        deviations: weightResults.sort((a, b) => b.deviation - a.deviation),
-        depotSummary: calculateSummary(depotAggregation),
-        warehouseSummary: calculateSummary(warehouseAggregation),
-        punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
-    };
-  }, [tasks, rounds, dateRange]);
-
-  const isLoading = isLoadingTasks || isLoadingRounds;
-  const error = tasksError || roundsError;
+  const error = null; // Assuming no error from context for now
 
   return (
     <main className="flex-1 container py-8">

@@ -5,9 +5,10 @@ import { createContext, useContext, useState, ReactNode, useMemo, useEffect, use
 import type { DateRange } from 'react-day-picker';
 import { getHubCategory, getDepotFromHub, DEPOT_RULES } from '@/lib/grouping';
 import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
+import { format } from 'date-fns';
 
 type FilterType = 'tous' | 'depot' | 'magasin';
 
@@ -26,9 +27,48 @@ interface FilterContextProps {
   setSelectedStore: (store: string) => void;
 
   lastUpdateTime: Date | null;
+  
+  tasks: Tache[] | null;
+  rounds: Tournee[] | null;
+  isLoading: boolean;
+
+  filteredTasks: Tache[];
+  filteredRounds: Tournee[];
 }
 
 const FilterContext = createContext<FilterContextProps | undefined>(undefined);
+
+
+// A new, more performant hook to fetch data with server-side date filtering
+function useCollectionWithDateRange<T>(collectionName: string): { data: T[] | null, isLoading: boolean, error: Error | null } {
+  const { firestore } = useFirebase();
+  const { dateRange } = useFilterContext(); // We need this to apply date filters
+
+  const memoizedQuery = useMemoFirebase(() => {
+    if (!firestore || !dateRange?.from) {
+      return null;
+    }
+    
+    const fromDate = new Date(dateRange.from);
+    fromDate.setHours(0, 0, 0, 0);
+
+    const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+    toDate.setHours(23, 59, 59, 999);
+
+    const fromISO = fromDate.toISOString();
+    const toISO = toDate.toISOString();
+
+    const collRef = collection(firestore, collectionName);
+    return query(collRef, where("date", ">=", fromISO), where("date", "<=", toISO));
+
+  }, [firestore, dateRange]);
+
+  const { data, isLoading, error } = useCollection<T>(memoizedQuery);
+  
+  // @ts-ignore
+  return { data, isLoading, error };
+}
+
 
 export function FilterProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
@@ -38,66 +78,95 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [selectedStore, setSelectedStore] = useState('all');
 
   useEffect(() => {
-    // Initialize date range on the client to avoid hydration mismatch
     const today = new Date();
     _setDateRange({ from: today, to: today });
   }, []);
 
   const setDateRange = useCallback((range: DateRange | undefined) => {
     if (range?.from && !range.to) {
-      // If user clicks a single date, set both from and to
       _setDateRange({ from: range.from, to: range.from });
     } else {
       _setDateRange(range);
     }
   }, []);
 
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
+  const tasksQuery = useMemoFirebase(() => {
+    if (!firestore || !dateRange?.from) return null;
+    const from = new Date(dateRange.from);
+    from.setHours(0, 0, 0, 0);
+    const to = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+    to.setHours(23, 59, 59, 999);
+    return query(collection(firestore, "tasks"), where("date", ">=", from.toISOString()), where("date", "<=", to.toISOString()));
+  }, [firestore, dateRange]);
 
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const { data: tasks } = useCollection<Tache>(tasksCollection);
-  const { data: rounds } = useCollection<Tournee>(roundsCollection);
+  const roundsQuery = useMemoFirebase(() => {
+    if (!firestore || !dateRange?.from) return null;
+    const from = new Date(dateRange.from);
+    from.setHours(0, 0, 0, 0);
+    const to = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+    to.setHours(23, 59, 59, 999);
+    return query(collection(firestore, "rounds"), where("date", ">=", from.toISOString()), where("date", "<=", to.toISOString()));
+  }, [firestore, dateRange]);
+  
+  const { data: tasks, isLoading: isLoadingTasks, error: tasksError } = useCollection<Tache>(tasksQuery);
+  const { data: rounds, isLoading: isLoadingRounds, error: roundsError } = useCollection<Tournee>(roundsQuery);
 
   const { availableDepots, availableStores, lastUpdateTime } = useMemo(() => {
     const allItems: (Tache | Tournee)[] = [...(tasks || []), ...(rounds || [])];
-    const depotSet = new Set<string>();
     const storeSet = new Set<string>();
     let maxDate: Date | null = null;
-
+    
     allItems.forEach(item => {
       const hub = item.nomHub;
-      if (hub) {
-        if (getHubCategory(hub) === 'depot') {
-          depotSet.add(getDepotFromHub(hub));
-        } else {
-          storeSet.add(hub);
-        }
+      if (hub && getHubCategory(hub) === 'magasin') {
+        storeSet.add(hub);
       }
-
+      
       const updateDateStr = item.dateMiseAJour || item.updated;
       if (updateDateStr) {
-        const updateDate = new Date(updateDateStr);
-        if (!maxDate || updateDate > maxDate) {
-          maxDate = updateDate;
+        try {
+          const updateDate = new Date(updateDateStr);
+          if (!maxDate || updateDate > maxDate) {
+            maxDate = updateDate;
+          }
+        } catch (e) {
+          // ignore invalid date
         }
       }
     });
 
-    const depots = DEPOT_RULES.map(r => r.name);
-    
     return {
-      availableDepots: Array.from(depots).sort(),
+      availableDepots: DEPOT_RULES.map(r => r.name).sort(),
       availableStores: Array.from(storeSet).sort(),
       lastUpdateTime: maxDate,
     };
   }, [tasks, rounds]);
+
+  const { filteredTasks, filteredRounds } = useMemo(() => {
+    let currentTasks = tasks || [];
+    let currentRounds = rounds || [];
+
+    if (filterType !== 'tous') {
+        const filterLogic = (item: Tache | Tournee) => getHubCategory(item.nomHub) === filterType;
+        currentTasks = currentTasks.filter(filterLogic);
+        currentRounds = currentRounds.filter(filterLogic);
+    }
+
+    if (selectedDepot !== "all") {
+      const filterLogic = (item: Tache | Tournee) => getDepotFromHub(item.nomHub) === selectedDepot;
+      currentTasks = currentTasks.filter(filterLogic);
+      currentRounds = currentRounds.filter(filterLogic);
+    }
+    
+    if (selectedStore !== "all") {
+      const filterLogic = (item: Tache | Tournee) => item.nomHub === selectedStore;
+      currentTasks = currentTasks.filter(filterLogic);
+      currentRounds = currentRounds.filter(filterLogic);
+    }
+    
+    return { filteredTasks: currentTasks, filteredRounds: currentRounds };
+  }, [tasks, rounds, filterType, selectedDepot, selectedStore]);
+
 
   const value = {
     filterType,
@@ -111,6 +180,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     selectedStore,
     setSelectedStore,
     lastUpdateTime,
+    tasks,
+    rounds,
+    isLoading: isLoadingTasks || isLoadingRounds,
+    filteredTasks,
+    filteredRounds,
   };
 
   return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;

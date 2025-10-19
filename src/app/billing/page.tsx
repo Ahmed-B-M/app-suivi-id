@@ -39,10 +39,7 @@ import {
 } from "@/components/ui/select";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { useFilterContext } from "@/context/filter-context";
-import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Tache, Tournee } from "@/lib/types";
-import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
+import { getCarrierFromDriver, getDepotFromHub, getDriverFullName, getHubCategory } from "@/lib/grouping";
 import { BillingDashboard, type AggregatedData } from "@/components/app/billing-dashboard";
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 import { exportToCsv } from "@/lib/csv-export";
@@ -72,70 +69,10 @@ export default function BillingPage() {
     { id: "3", type: "Prix par tournée", targetType: "Entrepôt", targetValue: "Rungis FRAIS", price: 20.00 },
   ]);
 
-  const { firestore } = useFirebase();
-  const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const { data: tasks } = useCollection<Tache>(tasksCollection);
-  const { data: rounds } = useCollection<Tournee>(roundsCollection);
-
-  const filteredData = useMemo(() => {
-    const { from, to } = dateRange || {};
-
-    let filteredTasks = tasks || [];
-    let filteredRounds = rounds || [];
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0,0,0,0);
-      
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23,59,59,999);
-      
-      const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date || item.dateCreation;
-        if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
-      };
-
-      filteredTasks = filteredTasks.filter(filterByDate);
-      filteredRounds = filteredRounds.filter(filterByDate);
-    }
-    
-    if (filterType !== 'tous') {
-        const filterLogic = (item: Tache | Tournee) => getHubCategory(item.nomHub) === filterType;
-        filteredTasks = filteredTasks.filter(filterLogic);
-        filteredRounds = filteredRounds.filter(filterLogic);
-    }
-
-    if (selectedDepot !== "all") {
-      const filterLogic = (item: Tache | Tournee) => getDepotFromHub(item.nomHub) === selectedDepot;
-      filteredTasks = filteredTasks.filter(filterLogic);
-      filteredRounds = filteredRounds.filter(filterLogic);
-    }
-    
-    if (selectedStore !== "all") {
-      const filterLogic = (item: Tache | Tournee) => item.nomHub === selectedStore;
-      filteredTasks = filteredTasks.filter(filterLogic);
-      filteredRounds = filteredRounds.filter(filterLogic);
-    }
-
-    return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
-
+  const { filteredRounds } = useFilterContext();
 
   const billingData = useMemo((): AggregatedData | null => {
-    if (!filteredData.rounds) return null;
+    if (!filteredRounds) return null;
 
     let totalPrice = 0;
     let totalCost = 0;
@@ -152,7 +89,7 @@ export default function BillingPage() {
         }>;
     }> = {};
 
-    for (const round of filteredData.rounds) {
+    for (const round of filteredRounds) {
       const driverName = getDriverFullName(round);
       const carrier = getCarrierFromDriver(driverName);
       const depot = getDepotFromHub(round.nomHub);
@@ -209,7 +146,7 @@ export default function BillingPage() {
         return acc;
     }, {} as Record<string, number>);
 
-    const totalRounds = filteredData.rounds.length;
+    const totalRounds = filteredRounds.length;
 
     return {
       summary: {
@@ -233,7 +170,7 @@ export default function BillingPage() {
           })).sort((a,b) => b.totalRounds - a.totalRounds)
       })).sort((a,b) => b.totalRounds - a.totalRounds)
     };
-  }, [filteredData.rounds, rules]);
+  }, [filteredRounds, rules]);
 
 
   const form = useForm<BillingRuleFormValues>({
