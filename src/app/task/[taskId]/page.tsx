@@ -68,7 +68,7 @@ export default function TaskPage({ params }: { params: { taskId: string } }) {
          <Card>
             <CardHeader>
                 <CardTitle>Tâche non trouvée</CardTitle>
-            </Header>
+            </CardHeader>
             <CardContent>
                 <p>Aucune tâche trouvée avec l'ID : {params.taskId}</p>
             </CardContent>
