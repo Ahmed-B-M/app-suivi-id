@@ -1,0 +1,14 @@
+{
+    "editor.experimentalGpuAcceleration": "on",
+    "editor.experimental.treeSitterTelemetry": false,
+    "diffEditor.maxComputationTime": 50000,
+    "diffEditor.maxFileSize": 90,
+    "files.participants.timeout": 600000,
+    "workbench.commandPalette.experimental.suggestCommands": true,
+    "workbench.colorTheme": "Google Light",
+    "search.actionsPosition": "auto",
+    "search.collapseResults": "auto",
+    "search.maxResults": 200000,
+    "debug.allowBreakpointsEverywhere": true,
+    "terminal.integrated.suggest.enabled": true
+}
