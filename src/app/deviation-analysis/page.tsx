@@ -232,11 +232,13 @@ export default function DeviationAnalysisPage() {
             const earlyThreshold = subMinutes(windowStart, 15);
             if (plannedArrive < earlyThreshold) {
               const deviation = differenceInMinutes(earlyThreshold, plannedArrive);
-              punctualityResults.push({
-                task,
-                plannedArriveTime: stop.arriveTime,
-                deviationMinutes: -deviation
-              });
+               if (deviation > 0) {
+                  punctualityResults.push({
+                    task,
+                    plannedArriveTime: stop.arriveTime,
+                    deviationMinutes: -deviation
+                  });
+              }
               continue; // A task can't be both early and late
             }
 
@@ -246,11 +248,13 @@ export default function DeviationAnalysisPage() {
               const lateThreshold = addMinutes(windowEnd, 15);
                if (plannedArrive > lateThreshold) {
                   const deviation = differenceInMinutes(plannedArrive, lateThreshold);
-                  punctualityResults.push({
-                    task,
-                    plannedArriveTime: stop.arriveTime,
-                    deviationMinutes: deviation
-                  });
+                   if (deviation > 0) {
+                      punctualityResults.push({
+                        task,
+                        plannedArriveTime: stop.arriveTime,
+                        deviationMinutes: deviation
+                      });
+                  }
               }
             }
           } catch (e) {
