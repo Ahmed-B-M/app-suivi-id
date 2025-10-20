@@ -51,6 +51,7 @@ export function RedeliveryDetailsDialog({
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Tournée</TableHead>
+                    <TableHead>Entrepôt</TableHead>
                     <TableHead>Livreur</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead className="text-center">Tentatives</TableHead>
@@ -63,6 +64,7 @@ export function RedeliveryDetailsDialog({
                         {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
+                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
                       <TableCell>{task.contact?.personne || "N/A"}</TableCell>
                       <TableCell className="text-center">
