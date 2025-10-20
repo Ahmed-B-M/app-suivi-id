@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
-import { FirebaseClientProvider } from "@/firebase";
+import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { AppHeader } from "@/components/app/header";
 import { FilterProvider } from "@/context/filter-context";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
