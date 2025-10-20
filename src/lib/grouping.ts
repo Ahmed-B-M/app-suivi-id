@@ -83,15 +83,24 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
 
 
 /**
- * Determines the carrier name from a driver's name based on predefined rules.
- * @param driverName - The full name of the driver.
+ * Determines the carrier name from a driver's name or a round object.
+ * @param driverNameOrRound - The full name of the driver or a Tournee object.
  * @returns The name of the carrier.
  */
-export function getCarrierFromDriver(driverName: string | undefined | null): string {
+export function getCarrierFromDriver(driverNameOrRound: string | Tournee | undefined | null): string {
+    let driverName: string | undefined | null = null;
+
+    if (typeof driverNameOrRound === 'string') {
+        driverName = driverNameOrRound;
+    } else if (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) {
+        driverName = `${driverNameOrRound.driver?.firstName || ''} ${driverNameOrRound.driver?.lastName || ''}`.trim();
+    }
+    
     if (!driverName) {
         return "Inconnu";
     }
 
+    // Use the logic from the existing getCarrierFromDriver function
     const lowerCaseName = driverName.toLowerCase();
 
     if (lowerCaseName.includes("id log")) {
@@ -117,6 +126,17 @@ export function getCarrierFromDriver(driverName: string | undefined | null): str
     if (lastChar === '6') return "RK";
     if (lastChar === '2') return "Express";
     if (lastChar === '5') return "MLG";
+
+
+    // New logic based on suffix in lastName
+    const driver = (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) ? driverNameOrRound.driver : null;
+    const lastName = driver?.lastName;
+    if (lastName) {
+      const separatorIndex = lastName.indexOf('-');
+      if (separatorIndex !== -1 && separatorIndex < lastName.length - 1) {
+        return lastName.substring(separatorIndex + 1).trim();
+      }
+    }
 
     return "Inconnu";
 }

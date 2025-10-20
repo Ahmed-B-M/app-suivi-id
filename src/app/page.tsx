@@ -25,6 +25,7 @@ import { MissingBacsDetailsDialog } from "@/components/app/missing-bacs-details-
 import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dialog";
 import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
+import { AllRoundsDetailsDialog } from "@/components/app/all-rounds-details-dialog";
 import { useFilterContext } from "@/context/filter-context";
 import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [isRedeliveryDetailsOpen, setIsRedeliveryDetailsOpen] = useState(false);
   const [isSensitiveDeliveriesOpen, setIsSensitiveDeliveriesOpen] = useState(false);
   const [isQualityAlertOpen, setIsQualityAlertOpen] = useState(false);
+  const [isAllRoundsDetailsOpen, setIsAllRoundsDetailsOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late' | 'late_over_1h';
     tasks: PunctualityTask[];
@@ -90,7 +92,7 @@ export default function DashboardPage() {
       endOfDay.setHours(23,59,59,999);
       
       const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date || item.dateCreation;
+        const itemDateString = item.date || ('dateCreation' in item && item.dateCreation);
         if (!itemDateString) return false;
         const itemDate = new Date(itemDateString);
         return itemDate >= startOfDay && itemDate <= endOfDay;
@@ -406,6 +408,11 @@ export default function DashboardPage() {
         onOpenChange={setIsQualityAlertOpen}
         tasks={dashboardData?.qualityAlertTasks || []}
       />
+      <AllRoundsDetailsDialog
+        isOpen={isAllRoundsDetailsOpen}
+        onOpenChange={setIsAllRoundsDetailsOpen}
+        rounds={filteredData.rounds}
+      />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
       </div>
@@ -443,23 +450,24 @@ export default function DashboardPage() {
       {!isLoading && !error && dashboardData && dashboardData.hasData && (
         <div className="space-y-6">
           <DashboardStats 
-            stats={dashboardData.stats}
-            topDrivers={dashboardData.top5StarDrivers}
+            stats={dashboardData.stats!}
+            topDrivers={dashboardData.top5StarDrivers || []}
             onRatingClick={() => setIsRatingDetailsOpen(true)}
-            onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks })}
-            onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks })}
-            onLateOver1hClick={() => setPunctualityDetails({ type: 'late_over_1h', tasks: dashboardData.lateTasksOver1h })}
+            onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks || [] })}
+            onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks || [] })}
+            onLateOver1hClick={() => setPunctualityDetails({ type: 'late_over_1h', tasks: dashboardData.lateTasksOver1h || [] })}
             onFailedDeliveryClick={() => setIsFailedDeliveryDetailsOpen(true)}
-            onPendingClick={() => setStatusDetails({ status: 'PENDING', tasks: dashboardData.pendingTasksList, type: 'status' })}
-            onMissingClick={() => setStatusDetails({ status: 'MISSING', tasks: dashboardData.missingTasksList, type: 'status' })}
+            onPendingClick={() => setStatusDetails({ status: 'PENDING', tasks: dashboardData.pendingTasksList || [], type: 'status' })}
+            onMissingClick={() => setStatusDetails({ status: 'MISSING', tasks: dashboardData.missingTasksList || [], type: 'status' })}
             onMissingBacsClick={() => setIsMissingBacsDetailsOpen(true)}
-            onPartialDeliveredClick={() => setStatusDetails({ status: 'PARTIAL_DELIVERED', tasks: dashboardData.partialDeliveredTasksList, type: 'status' })}
+            onPartialDeliveredClick={() => setStatusDetails({ status: 'PARTIAL_DELIVERED', tasks: dashboardData.partialDeliveredTasksList || [], type: 'status' })}
             onRedeliveryClick={() => setIsRedeliveryDetailsOpen(true)}
             onSensitiveDeliveriesClick={() => setIsSensitiveDeliveriesOpen(true)}
             onQualityAlertClick={() => setIsQualityAlertOpen(true)}
+            onTotalRoundsClick={() => setIsAllRoundsDetailsOpen(true)}
           />
 
-          <DriverPerformanceTable data={dashboardData.driverPerformance} isLoading={false} />
+          <DriverPerformanceTable data={dashboardData.driverPerformance || []} isLoading={false} />
           
           <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -468,7 +476,7 @@ export default function DashboardPage() {
             </TabsList>
             <TabsContent value="tasks" className="mt-4 space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {dashboardData.tasksByStatus.length > 0 ? (
+                {dashboardData.tasksByStatus && dashboardData.tasksByStatus.length > 0 ? (
                   <TasksByStatusChart 
                     data={dashboardData.tasksByStatus} 
                     onStatusClick={handleStatusClick}
@@ -478,7 +486,7 @@ export default function DashboardPage() {
                     <p className="text-muted-foreground">Aucune donnée de tâche par statut pour cette période.</p>
                   </Card>
                 )}
-                 {dashboardData.tasksByProgression.length > 0 ? (
+                 {dashboardData.tasksByProgression && dashboardData.tasksByProgression.length > 0 ? (
                   <TasksByProgressionChart 
                     data={dashboardData.tasksByProgression} 
                     onProgressionClick={handleProgressionClick}
@@ -490,7 +498,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="grid grid-cols-1">
-                 {dashboardData.tasksOverTime.length > 0 ? (
+                 {dashboardData.tasksOverTime && dashboardData.tasksOverTime.length > 0 ? (
                   <TasksOverTimeChart data={dashboardData.tasksOverTime} />
                 ) : (
                   <Card className="flex items-center justify-center h-96">
@@ -501,14 +509,14 @@ export default function DashboardPage() {
             </TabsContent>
             <TabsContent value="rounds" className="mt-4">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {dashboardData.roundsByStatus.length > 0 ? (
+                {dashboardData.roundsByStatus && dashboardData.roundsByStatus.length > 0 ? (
                   <RoundsByStatusChart data={dashboardData.roundsByStatus} />
                 ) : (
                    <Card className="flex items-center justify-center h-96">
                     <p className="text-muted-foreground">Aucune donnée de tournée par statut pour cette période.</p>
                   </Card>
                 )}
-                 {dashboardData.roundsOverTime.length > 0 ? (
+                 {dashboardData.roundsOverTime && dashboardData.roundsOverTime.length > 0 ? (
                   <RoundsOverTimeChart data={dashboardData.roundsOverTime} />
                 ) : (
                   <Card className="flex items-center justify-center h-96">
