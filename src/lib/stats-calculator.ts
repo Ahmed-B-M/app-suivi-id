@@ -1,11 +1,12 @@
 
+
 import type { Tache, Tournee } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName } from "./grouping";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 
-const FAILED_STATUSES = ['FAILED', 'CANCELLED', 'EXPIRED'];
-const FAILED_PROGRESS = ['FAILED', 'CANCELLED'];
+const FAILED_PROGRESSIONS = ['FAILED', 'CANCELLED'];
+const FAILED_STATUSES = ['DELIVERY_FAILED', 'NOT_DELIVERED', 'CANCELLED', 'REJECTED'];
 const SENSITIVE_CLIENTS = ['RENAULT', 'PORSCHE']; // Example sensitive clients
 const QUALITY_ALERT_RATING = 3;
 
@@ -50,7 +51,11 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
     }
   
     const completedTasks = tasks.filter(t => t.progression === "COMPLETED");
-    const failedTasks = tasks.filter(t => FAILED_PROGRESS.includes(t.progression ?? ''));
+    
+    const failedTasks = tasks.filter(t => 
+        FAILED_PROGRESSIONS.includes(t.progression ?? '') || 
+        FAILED_STATUSES.includes(t.status ?? '')
+    );
     
     const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
     const averageRating = ratedTasks.length > 0 ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length : null;
@@ -98,9 +103,17 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
 
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
     const missingTasksList = tasks.filter(t => t.status === 'MISSING');
-    const tasksWithMissingBacs = tasks.filter(t => t.articles?.some(item => item.type?.startsWith('BAC_') && item.statut !== 'DELIVERED'));
+    
+    const tasksWithMissingBacs = tasks.filter(task =>
+        task.articles?.some(item =>
+            item.type?.startsWith('BAC_') &&
+            item.statut !== 'DELIVERED' &&
+            !item.log?.some(logEntry => logEntry.vers === 'SCANNED_AT_HUB')
+        )
+    );
+
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
-    const redeliveriesList = failedTasks.filter(t => (t.tentatives ?? 0) >= 2);
+    const redeliveriesList = tasks.filter(t => (t.tentatives ?? 0) >= 2);
     const sensitiveDeliveriesList = tasks.filter(t => SENSITIVE_CLIENTS.includes(t.client?.toUpperCase() ?? ''));
     const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur <= QUALITY_ALERT_RATING);
 
@@ -197,7 +210,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
         missingBacs: tasksWithMissingBacs.length,
         partialDeliveredTasks: partialDeliveredTasksList.length,
         redeliveries: redeliveriesList.length,
-        failedDeliveryRate: completedTasks.length > 0 ? (failedTasks.length / completedTasks.length) * 100 : null,
+        failedDeliveryRate: tasks.length > 0 ? (failedTasks.length / tasks.length) * 100 : null,
         sensitiveDeliveries: sensitiveDeliveriesList.length,
         qualityAlerts: qualityAlertTasks.length,
         numberOfRatings,
