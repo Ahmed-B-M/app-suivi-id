@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { getHubCategory, getDepotFromHub } from "@/lib/grouping";
 import { DetailsTasksTable } from "@/components/app/details-tasks-table";
 import { DetailsRoundsTable } from "@/components/app/details-rounds-table";
@@ -18,35 +18,13 @@ import { DetailsBacsTable } from "@/components/app/details-bacs-table";
 
 export default function DetailsPage() {
   const { firestore } = useFirebase();
-  const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const {
-    data: tasks,
-    isLoading: isLoadingTasks,
-    error: tasksError,
-  } = useCollection<Tache>(tasksCollection);
-
-  const {
-    data: rounds,
-    isLoading: isLoadingRounds,
-    error: roundsError,
-  } = useCollection<Tournee>(roundsCollection);
+  const { dateRange, filterType, selectedDepot, selectedStore, allTasks, allRounds, isContextLoading } = useFilters();
 
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
 
-    let filteredTasks = tasks || [];
-    let filteredRounds = rounds || [];
+    let filteredTasks = allTasks || [];
+    let filteredRounds = allRounds || [];
 
     // Filter by date
     if (from) {
@@ -59,8 +37,12 @@ export default function DetailsPage() {
       const filterByDate = (item: Tache | Tournee) => {
         const itemDateString = item.date || item.dateCreation;
         if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
+        try {
+            const itemDate = new Date(itemDateString);
+            return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch(e) {
+            return false;
+        }
       };
 
       filteredTasks = filteredTasks.filter(filterByDate);
@@ -89,11 +71,11 @@ export default function DetailsPage() {
     }
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
+  }, [allTasks, allRounds, dateRange, filterType, selectedDepot, selectedStore]);
 
 
-  const isLoading = isLoadingTasks || isLoadingRounds;
-  const error = tasksError || roundsError;
+  const isLoading = isContextLoading;
+  const error = null; // Assuming no errors from context
 
   return (
     <main className="flex-1 container py-8">
@@ -152,3 +134,5 @@ export default function DetailsPage() {
     </main>
   );
 }
+
+    

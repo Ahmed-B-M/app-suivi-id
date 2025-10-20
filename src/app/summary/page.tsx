@@ -24,7 +24,7 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle, Building, ChevronDown, Clock, MapPin, Percent, TrendingDown, TrendingUp, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { getDepotFromHub } from "@/lib/grouping";
 import { format, differenceInMinutes, parseISO, addMinutes, subMinutes, differenceInHours } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -261,29 +261,7 @@ const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow
 
 
 export default function SummaryPage() {
-  const { firestore } = useFirebase();
-  const { dateRange } = useFilterContext();
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const {
-    data: tasks,
-    isLoading: isLoadingTasks,
-    error: tasksError,
-  } = useCollection<Tache>(tasksCollection);
-  const {
-    data: rounds,
-    isLoading: isLoadingRounds,
-    error: roundsError,
-  } = useCollection<Tournee>(roundsCollection);
+  const { dateRange, allTasks: tasks, allRounds: rounds, isContextLoading } = useFilters();
 
   const { depotSummary, warehouseSummaryByDepot } = useMemo(() => {
     if (!tasks || !rounds) {
@@ -348,8 +326,8 @@ export default function SummaryPage() {
   }, [tasks, rounds, dateRange]);
 
 
-  const isLoading = isLoadingTasks || isLoadingRounds;
-  const error = tasksError || roundsError;
+  const isLoading = isContextLoading;
+  const error = null;
 
   return (
     <main className="flex-1 container py-8">
@@ -454,3 +432,5 @@ export default function SummaryPage() {
     </main>
   );
 }
+
+    

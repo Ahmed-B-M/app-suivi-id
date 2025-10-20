@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { AlertCircle, Building, Clock, Percent, Scale, Warehouse } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
 import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
 
@@ -94,29 +94,7 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
 
 
 export default function DeviationAnalysisPage() {
-  const { firestore } = useFirebase();
-  const { dateRange } = useFilterContext();
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const {
-    data: tasks,
-    isLoading: isLoadingTasks,
-    error: tasksError,
-  } = useCollection<Tache>(tasksCollection);
-  const {
-    data: rounds,
-    isLoading: isLoadingRounds,
-    error: roundsError,
-  } = useCollection<Tournee>(roundsCollection);
+  const { dateRange, allTasks: tasks, allRounds: rounds, isContextLoading } = useFilters();
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues } = useMemo(() => {
     if (!tasks || !rounds) {
@@ -136,8 +114,12 @@ export default function DeviationAnalysisPage() {
       const filterByDate = (item: Tache | Tournee) => {
         const itemDateString = item.date;
         if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
+        try {
+            const itemDate = new Date(itemDateString);
+            return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch(e) {
+            return false;
+        }
       };
 
       filteredRounds = rounds.filter(filterByDate);
@@ -273,8 +255,8 @@ export default function DeviationAnalysisPage() {
     };
   }, [tasks, rounds, dateRange]);
 
-  const isLoading = isLoadingTasks || isLoadingRounds;
-  const error = tasksError || roundsError;
+  const isLoading = isContextLoading;
+  const error = null;
 
   return (
     <main className="flex-1 container py-8">
@@ -435,3 +417,5 @@ export default function DeviationAnalysisPage() {
     </main>
   );
 }
+
+    

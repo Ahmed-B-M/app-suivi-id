@@ -38,7 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlusCircle, Trash2 } from "lucide-react";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
@@ -73,26 +73,13 @@ export default function BillingPage() {
   ]);
 
   const { firestore } = useFirebase();
-  const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const { data: tasks } = useCollection<Tache>(tasksCollection);
-  const { data: rounds } = useCollection<Tournee>(roundsCollection);
+  const { dateRange, filterType, selectedDepot, selectedStore, allTasks, allRounds } = useFilters();
 
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
 
-    let filteredTasks = tasks || [];
-    let filteredRounds = rounds || [];
+    let filteredTasks = allTasks || [];
+    let filteredRounds = allRounds || [];
 
     if (from) {
       const startOfDay = new Date(from);
@@ -104,8 +91,12 @@ export default function BillingPage() {
       const filterByDate = (item: Tache | Tournee) => {
         const itemDateString = item.date || item.dateCreation;
         if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
+        try {
+            const itemDate = new Date(itemDateString);
+            return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch(e) {
+            return false;
+        }
       };
 
       filteredTasks = filteredTasks.filter(filterByDate);
@@ -131,7 +122,7 @@ export default function BillingPage() {
     }
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
+  }, [allTasks, allRounds, dateRange, filterType, selectedDepot, selectedStore]);
 
 
   const billingData = useMemo((): AggregatedData | null => {
@@ -420,3 +411,5 @@ export default function BillingPage() {
     </main>
   );
 }
+
+    

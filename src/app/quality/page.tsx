@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
 import { calculateDriverScore, calculateRawDriverStats, DriverStats } from "@/lib/scoring";
 import { DriverPerformanceRankings } from "@/components/app/driver-performance-rankings";
@@ -14,42 +14,46 @@ import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-rec
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { categorizeComment, updateSingleCommentAction, saveCategorizedCommentsAction } from "@/app/actions";
+import { Cloud, CloudOff, Save } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getCategoryFromKeywords } from "@/lib/stats-calculator";
 
+interface LocalCategorizedComment extends CategorizedComment {
+  isSaved: boolean;
+}
 
 export default function QualityPage() {
   const { firestore } = useFirebase();
-  const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
+  const { dateRange, filterType, selectedDepot, selectedStore, allTasks, isContextLoading } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
 
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const { data: tasks, isLoading: isLoadingTasks } = useCollection<Tache>(tasksCollection);
-  
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const { data: rounds, isLoading: isLoadingRounds } = useCollection<Tournee>(roundsCollection);
-  
   const commentsCollection = useMemoFirebase(() => {
       if (!firestore) return null;
       return collection(firestore, 'categorized_comments');
   }, [firestore]);
 
-  const { data: categorizedCommentsData, isLoading: isLoadingComments } = useCollection<CategorizedComment>(commentsCollection);
+  const { data: savedCommentsData, isLoading: isLoadingComments } = useCollection<CategorizedComment>(commentsCollection);
+  
+  const [categorizedComments, setCategorizedComments] = useState<LocalCategorizedComment[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const categorizedComments = useMemo(() => {
-      return (categorizedCommentsData || []).map(c => ({...c, status: 'traité' as const}));
-  }, [categorizedCommentsData]);
+  const savedCommentIds = useMemo(() => new Set(savedCommentsData?.map(c => c.taskId) || []), [savedCommentsData]);
 
+  useEffect(() => {
+    if (!allTasks || isContextLoading) return;
 
-  const filteredTasks = useMemo(() => {
     const { from, to } = dateRange || {};
-    let filtered = tasks || [];
+    let filtered = allTasks;
 
     if (from) {
       const startOfDay = new Date(from);
@@ -60,8 +64,12 @@ export default function QualityPage() {
       filtered = filtered.filter(task => {
         const itemDateString = task.date || task.dateCreation;
         if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
+        try {
+            const itemDate = new Date(itemDateString);
+            return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch(e) {
+            return false;
+        }
       });
     }
     
@@ -77,59 +85,117 @@ export default function QualityPage() {
       filtered = filtered.filter(task => task.nomHub === selectedStore);
     }
 
-    return filtered;
-  }, [tasks, dateRange, filterType, selectedDepot, selectedStore]);
+     // Merge logic
+    setCategorizedComments(prevComments => {
+        const existingCommentsMap = new Map(prevComments.map(c => [c.taskId, c]));
+        const newComments: LocalCategorizedComment[] = [];
+
+        filtered.forEach(task => {
+            const isNegativeComment =
+                typeof task.metaDonnees?.notationLivreur === 'number' &&
+                task.metaDonnees.notationLivreur < 4 &&
+                task.metaDonnees.commentaireLivreur;
+
+            if (isNegativeComment) {
+                if (existingCommentsMap.has(task.tacheId)) {
+                    // Preserve existing comment, but update its saved status
+                    const existing = existingCommentsMap.get(task.tacheId)!;
+                    existing.isSaved = savedCommentIds.has(task.tacheId);
+                    newComments.push(existing);
+                } else {
+                    // It's a new comment, create it
+                    newComments.push({
+                        id: task.tacheId,
+                        taskId: task.tacheId,
+                        comment: task.metaDonnees!.commentaireLivreur!,
+                        rating: task.metaDonnees!.notationLivreur!,
+                        category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+                        taskDate: task.date,
+                        driverName: getDriverFullName(task),
+                        status: 'à traiter',
+                        isSaved: savedCommentIds.has(task.tacheId),
+                    });
+                }
+            }
+        });
+        // Filter out comments from previous filter selections that are not in the current `filtered` list
+        return newComments.filter(c => filtered.some(t => t.tacheId === c.taskId));
+    });
+
+  }, [allTasks, dateRange, filterType, selectedDepot, selectedStore, isContextLoading, savedCommentIds]);
+
+
+  const handleCategoryChange = (taskId: string, newCategory: string) => {
+    setCategorizedComments(prev =>
+      prev.map(c => (c.taskId === taskId ? { ...c, category: newCategory, isSaved: false } : c))
+    );
+  };
   
- const filteredComments = useMemo(() => {
-    if (!categorizedComments || !tasks) return [];
+  const handleSaveSingleComment = async (commentToSave: LocalCategorizedComment) => {
+    setIsSaving(true);
+    const result = await updateSingleCommentAction(commentToSave);
+    if (result.success) {
+      toast({ title: "Succès", description: `Commentaire ${commentToSave.taskId} sauvegardé.` });
+      setCategorizedComments(prev => prev.map(c => c.taskId === commentToSave.taskId ? {...c, isSaved: true, status: 'traité'} : c));
+    } else {
+      toast({ title: "Erreur", description: result.error, variant: "destructive" });
+    }
+    setIsSaving(false);
+  };
 
+  const handleSaveAllUnsaved = async () => {
+      const unsaved = categorizedComments.filter(c => !c.isSaved);
+      if (unsaved.length === 0) {
+          toast({ title: "Information", description: "Tous les commentaires sont déjà sauvegardés."});
+          return;
+      }
+      setIsSaving(true);
+      const result = await saveCategorizedCommentsAction(unsaved);
+       if (result.success) {
+            toast({ title: "Succès", description: `${unsaved.length} commentaires ont été sauvegardés.` });
+             setCategorizedComments(prev => prev.map(c => ({...c, isSaved: true, status: 'traité'})));
+        } else {
+            toast({ title: "Erreur", description: result.error, variant: "destructive" });
+        }
+      setIsSaving(false);
+  }
+
+  const qualityData = useMemo(() => {
+    if (!allTasks || isContextLoading) return null;
+
+    let filteredTasks = allTasks;
     const { from, to } = dateRange || {};
-    let comments = categorizedComments;
 
-    // Create a lookup map for task details
-    const taskDetailsMap = new Map(tasks.map(task => [task.tacheId, { hubName: task.nomHub }]));
-
-    // Filter by Date Range
     if (from) {
       const startOfDay = new Date(from);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = to ? new Date(to) : new Date(from);
       endOfDay.setHours(23, 59, 59, 999);
       
-      comments = comments.filter(comment => {
-        if (!comment.taskDate) return false;
-        const commentDate = new Date(comment.taskDate);
-        return commentDate >= startOfDay && commentDate <= endOfDay;
+      filteredTasks = filteredTasks.filter(task => {
+        const itemDateString = task.date || task.dateCreation;
+        if (!itemDateString) return false;
+        try {
+            const itemDate = new Date(itemDateString);
+            return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch(e) {
+            return false;
+        }
       });
     }
+    
+    if (filterType !== 'tous') {
+      filteredTasks = filteredTasks.filter(task => getHubCategory(task.nomHub) === filterType);
+    }
 
-    // Filter by Type, Depot, and Store using the lookup map
-    comments = comments.filter(comment => {
-        const taskDetails = taskDetailsMap.get(comment.taskId);
-        if (!taskDetails?.hubName) return false;
+    if (selectedDepot !== "all") {
+      filteredTasks = filteredTasks.filter(task => getDepotFromHub(task.nomHub) === selectedDepot);
+    }
+    
+    if (selectedStore !== "all") {
+      filteredTasks = filteredTasks.filter(task => task.nomHub === selectedStore);
+    }
 
-        const hubName = taskDetails.hubName;
-        const hubCategory = getHubCategory(hubName);
-        const depot = getDepotFromHub(hubName);
-
-        if (filterType !== 'tous' && hubCategory !== filterType) {
-            return false;
-        }
-        if (selectedDepot !== "all" && depot !== selectedDepot) {
-            return false;
-        }
-        if (selectedStore !== "all" && hubName !== selectedStore) {
-            return false;
-        }
-        return true;
-    });
-
-    return comments;
-}, [categorizedComments, tasks, dateRange, filterType, selectedDepot, selectedStore]);
-
-
-  const qualityData = useMemo(() => {
-    if (!filteredTasks || isLoadingTasks) return null;
 
     const driverTasks: Record<string, Tache[]> = {};
     filteredTasks.forEach(task => {
@@ -162,6 +228,8 @@ export default function QualityPage() {
         if (!mainHub) return;
 
         const depotName = getDepotFromHub(mainHub);
+        if (!depotName) return;
+
         const carrierName = getCarrierFromDriver(driverStat.name);
         
         if (!depotAggregation[depotName]) {
@@ -175,6 +243,7 @@ export default function QualityPage() {
 
     const calculateAggregatedStats = (drivers: typeof driverStatsList) => {
       const totalRatings = drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0);
+      const completedTasks = drivers.reduce((sum, d) => sum + (d.completedTasks || 0), 0);
       
       const alerts = drivers.reduce((sum, d) => {
         const tasks = driverTasks[d.name] || [];
@@ -230,7 +299,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [filteredTasks, isLoadingTasks]);
+  }, [allTasks, isContextLoading, dateRange, filterType, selectedDepot, selectedStore]);
 
 
   const filteredQualityData = useMemo(() => {
@@ -254,10 +323,27 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (!filteredTasks || isLoadingTasks || !categorizedComments) return { driverRankings: null, alertData: [] };
+    if (!allTasks || isContextLoading) return { driverRankings: null, alertData: [] };
+    
+    // Create a fresh filtered list of comments for this calculation
+    const allNegativeComments = allTasks
+        .filter(task => 
+            typeof task.metaDonnees?.notationLivreur === 'number' &&
+            task.metaDonnees.notationLivreur < 4 &&
+            task.metaDonnees.commentaireLivreur
+        )
+        .map(task => ({
+            taskId: task.tacheId,
+            comment: task.metaDonnees!.commentaireLivreur!,
+            rating: task.metaDonnees!.notationLivreur!,
+            category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+            taskDate: task.date,
+            driverName: getDriverFullName(task),
+            nomHub: task.nomHub,
+        }));
     
     const driverTasks: Record<string, Tache[]> = {};
-    filteredTasks.forEach(task => {
+    allTasks.forEach(task => {
         const driverName = getDriverFullName(task);
         if (driverName) {
             if (!driverTasks[driverName]) driverTasks[driverName] = [];
@@ -279,14 +365,11 @@ export default function QualityPage() {
 
     const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};
     
-    filteredComments.forEach(comment => {
-        const task = filteredTasks.find(t => t.tacheId === comment.taskId);
-        if (!task) return;
-
-        const depot = getDepotFromHub(task.nomHub);
+    allNegativeComments.forEach(comment => {
+        const depot = getDepotFromHub(comment.nomHub);
         if (!depot) return;
 
-        const driverName = getDriverFullName(task);
+        const driverName = comment.driverName;
         if (!driverName) return;
 
         const carrierName = getCarrierFromDriver(driverName);
@@ -318,7 +401,7 @@ export default function QualityPage() {
         carriers: Object.values(depot.carriers).map(carrier => ({
             ...carrier,
             drivers: Object.values(carrier.drivers).sort((a, b) => b.alertCount - a.alertCount),
-        })).sort((a,b) => b.drivers.reduce((sum, d) => sum + d.alertCount, 0) - a.drivers.reduce((sum, d) => sum + d.alertCount, 0))
+        })).sort((a,b) => b.drivers.reduce((sum, d) => sum + d.alertCount, 0) - a.carriers.reduce((sum, c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0))
     })).sort((a,b) => b.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0) - a.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0));
 
 
@@ -326,10 +409,10 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [filteredTasks, isLoadingTasks, categorizedComments, filteredComments]);
+  }, [allTasks, isContextLoading]);
 
 
-  const isLoading = isLoadingTasks || isLoadingRounds || isLoadingComments;
+  const isLoading = isContextLoading || isLoadingComments;
 
   return (
     <main className="flex-1 container py-8">
@@ -351,7 +434,11 @@ export default function QualityPage() {
         <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
-          data={filteredComments} 
+            data={categorizedComments}
+            isSaving={isSaving}
+            onSaveAll={handleSaveAllUnsaved}
+            onSaveSingle={handleSaveSingleComment}
+            onCategoryChange={handleCategoryChange}
         />
         <DriverPerformanceRankings 
             data={driverRankings || []}

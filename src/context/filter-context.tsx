@@ -1,13 +1,14 @@
 
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { getHubCategory, getDepotFromHub, DEPOT_RULES } from '@/lib/grouping';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { getDepotFromHub } from '@/lib/grouping';
+import { useCollection } from '@/firebase';
+import { collection, DocumentData, Query } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
+import { subDays } from 'date-fns';
 
 type FilterType = 'tous' | 'magasin' | 'entrepot';
 
@@ -26,6 +27,9 @@ interface FilterContextProps {
   setSelectedStore: (store: string) => void;
 
   lastUpdateTime: Date | null;
+  allTasks: Tache[];
+  allRounds: Tournee[];
+  isContextLoading: boolean;
 }
 
 const FilterContext = createContext<FilterContextProps | undefined>(undefined);
@@ -33,93 +37,96 @@ const FilterContext = createContext<FilterContextProps | undefined>(undefined);
 export function FilterProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const [filterType, setFilterType] = useState<FilterType>('tous');
-  const [dateRange, _setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  // Set default date range to the last 7 days
+  const [dateRange, _setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 7),
+    to: new Date(),
+  });
+
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
+  
+  const tasksCollection = useMemo(() => {
+    return firestore ? collection(firestore, 'tasks') : null;
+  }, [firestore]);
 
-  useEffect(() => {
-    // Initialize date range on the client to avoid hydration mismatch
-    const today = new Date();
-    _setDateRange({ from: today, to: today });
-  }, []);
+  const roundsCollection = useMemo(() => {
+    return firestore ? collection(firestore, 'rounds') : null;
+  }, [firestore]);
 
-  const setDateRange = useCallback((range: DateRange | undefined) => {
-    if (range?.from && !range.to) {
-      // If user clicks a single date, set both from and to
-      _setDateRange({ from: range.from, to: range.from });
-    } else {
-      _setDateRange(range);
+  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection as Query<DocumentData>);
+  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection as Query<DocumentData>);
+
+  const setDateRange = (newRange: DateRange | undefined) => {
+    if (newRange?.from && newRange?.to && newRange.from > newRange.to) {
+      console.warn("Invalid date range: 'from' date cannot be after 'to' date.");
+      return;
     }
-  }, []);
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const { data: tasks } = useCollection<Tache>(tasksCollection);
-  const { data: rounds } = useCollection<Tournee>(roundsCollection);
-
-  const { availableDepots, availableStores, lastUpdateTime } = useMemo(() => {
-    const allItems: (Tache | Tournee)[] = [...(tasks || []), ...(rounds || [])];
-    const depotSet = new Set<string>();
-    const storeSet = new Set<string>();
-    let maxDate: Date | null = null;
-
-    allItems.forEach(item => {
-      const hub = item.nomHub;
-      if (hub) {
-        if (getHubCategory(hub) === 'entrepot') {
-          depotSet.add(getDepotFromHub(hub));
-        } else {
-          storeSet.add(hub);
-        }
-      }
-
-      const updateDateStr = 'dateMiseAJour' in item ? item.dateMiseAJour : item.updated;
-      if (updateDateStr) {
-        const updateDate = new Date(updateDateStr);
-        if (!maxDate || updateDate > maxDate) {
-          maxDate = updateDate;
-        }
-      }
-    });
-
-    const depots = DEPOT_RULES.map(r => r.name);
-    
-    return {
-      availableDepots: Array.from(depots).sort(),
-      availableStores: Array.from(storeSet).sort(),
-      lastUpdateTime: maxDate,
-    };
-  }, [tasks, rounds]);
-
-  const value = {
-    filterType,
-    setFilterType,
-    dateRange,
-    setDateRange,
-    availableDepots,
-    selectedDepot,
-    setSelectedDepot,
-    availableStores,
-    selectedStore,
-    setSelectedStore,
-    lastUpdateTime,
+    _setDateRange(newRange);
   };
+  
+  useEffect(() => {
+    if (!dateRange && !isLoadingTasks && !isLoadingRounds) {
+        _setDateRange({ from: subDays(new Date(), 7), to: new Date() });
+    }
+  }, [dateRange, isLoadingTasks, isLoadingRounds]);
 
-  return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
+  const availableDepots = useMemo(
+    () => {
+        if (!allTasks) return [];
+        const depots = allTasks.map(t => getDepotFromHub(t.nomHub));
+        const filteredDepots = depots.filter((d): d is string => !!d && d !== "Magasin");
+        return [...new Set(filteredDepots)].sort();
+    },
+    [allTasks]
+  );
+  
+  const availableStores = useMemo(
+    () => {
+        if (!allTasks) return [];
+        const stores = allTasks.filter(t => getDepotFromHub(t.nomHub) === 'Magasin').map(t => t.nomHub);
+        const filteredStores = stores.filter((s): s is string => !!s);
+        return [...new Set(filteredStores)].sort();
+    },
+    [allTasks]
+  );
+  
+  const lastUpdateTime = useMemo(() => {
+    if (tasksLastUpdate && roundsLastUpdate) {
+        return tasksLastUpdate > roundsLastUpdate ? tasksLastUpdate : roundsLastUpdate;
+    }
+    return tasksLastUpdate || roundsLastUpdate;
+  }, [tasksLastUpdate, roundsLastUpdate]);
+
+  return (
+    <FilterContext.Provider
+      value={{
+        filterType,
+        setFilterType,
+        dateRange,
+        setDateRange,
+        availableDepots,
+        selectedDepot,
+        setSelectedDepot,
+        availableStores,
+        selectedStore,
+        setSelectedStore,
+        lastUpdateTime,
+        allTasks,
+        allRounds,
+        isContextLoading: isLoadingTasks || isLoadingRounds,
+      }}
+    >
+      {children}
+    </FilterContext.Provider>
+  );
 }
 
-export function useFilterContext() {
+export function useFilters() {
   const context = useContext(FilterContext);
   if (context === undefined) {
-    throw new Error('useFilterContext must be used within a FilterProvider');
+    throw new Error('useFilters must be used within a FilterProvider');
   }
   return context;
 }

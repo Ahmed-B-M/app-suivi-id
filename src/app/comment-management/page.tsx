@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -22,7 +23,7 @@ import {
 import { updateSingleCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { Tache } from "@/lib/types";
 import { getDriverFullName } from "@/lib/grouping";
 
@@ -58,14 +59,12 @@ const categoryOptions = [
 
 export default function CommentManagementPage() {
   const { firestore } = useFirebase();
-  const { dateRange } = useFilterContext();
+  const { dateRange, allTasks: tasks, isContextLoading: isLoadingTasks } = useFilters();
   const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('tous');
   
   const categorizedCommentsCollection = useMemo(() => collection(firestore, "categorized_comments"), [firestore]);
-  const tasksCollection = useMemo(() => collection(firestore, "tasks"), [firestore]);
 
   const { data: categorizedComments, isLoading: isLoadingCategorized, error: categorizedError } = useCollection<CategorizedComment>(categorizedCommentsCollection);
-  const { data: tasks, isLoading: isLoadingTasks, error: tasksError } = useCollection<Tache>(tasksCollection);
   
   const [editableComments, setEditableComments] = useState<
     CategorizedComment[]
@@ -111,8 +110,12 @@ export default function CommentManagementPage() {
       
       commentsToFilter = commentsToFilter.filter(comment => {
         if (!comment.taskDate) return false;
-        const commentDate = new Date(comment.taskDate);
-        return commentDate >= startOfDay && commentDate <= endOfDay;
+        try {
+            const commentDate = new Date(comment.taskDate);
+            return commentDate >= startOfDay && commentDate <= endOfDay;
+        } catch (e) {
+            return false;
+        }
       });
     }
     
@@ -158,7 +161,7 @@ export default function CommentManagementPage() {
   };
 
   const isLoading = isLoadingCategorized || isLoadingTasks;
-  const error = categorizedError || tasksError;
+  const error = categorizedError;
 
   if (isLoading) {
     return <div>Chargement...</div>;
@@ -260,3 +263,5 @@ export default function CommentManagementPage() {
     </div>
   );
 }
+
+    

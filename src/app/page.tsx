@@ -26,10 +26,11 @@ import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dia
 import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 import { AllRoundsDetailsDialog } from "@/components/app/all-rounds-details-dialog";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "@/lib/grouping";
+import { calculateDashboardStats } from "@/lib/stats-calculator";
 
 
 export default function DashboardPage() {
@@ -39,7 +40,10 @@ export default function DashboardPage() {
     filterType,
     selectedDepot, 
     selectedStore,
-   } = useFilterContext();
+    allTasks,
+    allRounds,
+    isContextLoading,
+   } = useFilters();
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
@@ -54,34 +58,11 @@ export default function DashboardPage() {
   } | null>(null);
   const [statusDetails, setStatusDetails] = useState<{ status: string; tasks: Tache[], type: 'status' | 'progression' } | null>(null);
 
-
-  const tasksCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "tasks");
-  }, [firestore]);
-
-  const roundsCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "rounds");
-  }, [firestore]);
-
-  const {
-    data: tasks,
-    isLoading: isLoadingTasks,
-    error: tasksError,
-  } = useCollection<Tache>(tasksCollection);
-
-  const {
-    data: rounds,
-    isLoading: isLoadingRounds,
-    error: roundsError,
-  } = useCollection<Tournee>(roundsCollection);
-
   const filteredData = useMemo(() => {
     const { from, to } = dateRange || {};
 
-    let filteredTasks = tasks || [];
-    let filteredRounds = rounds || [];
+    let filteredTasks = allTasks || [];
+    let filteredRounds = allRounds || [];
 
     // Filter by date
     if (from) {
@@ -94,8 +75,12 @@ export default function DashboardPage() {
       const filterByDate = (item: Tache | Tournee) => {
         const itemDateString = item.date || ('dateCreation' in item && item.dateCreation);
         if (!itemDateString) return false;
-        const itemDate = new Date(itemDateString);
-        return itemDate >= startOfDay && itemDate <= endOfDay;
+        try {
+            const itemDate = new Date(itemDateString);
+            return itemDate >= startOfDay && itemDate <= endOfDay;
+        } catch (e) {
+            return false;
+        }
       };
 
       filteredTasks = filteredTasks.filter(filterByDate);
@@ -124,7 +109,7 @@ export default function DashboardPage() {
     }
 
     return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [tasks, rounds, dateRange, filterType, selectedDepot, selectedStore]);
+  }, [allTasks, allRounds, dateRange, filterType, selectedDepot, selectedStore]);
 
   const handleStatusClick = (status: string) => {
       const tasksForStatus = filteredData.tasks.filter(task => {
@@ -143,228 +128,11 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    if (!filteredData.tasks && !filteredData.rounds) return null;
+    return calculateDashboardStats(filteredData.tasks, filteredData.rounds);
+  }, [filteredData.tasks, filteredData.rounds]);
 
-    const totalTasks = filteredData.tasks.length;
-    const completedTasksList = filteredData.tasks.filter(
-      (t) => t.progression === "COMPLETED"
-    );
-    const totalCompletedTasks = completedTasksList.length;
-
-    if (totalTasks === 0 && filteredData.rounds.length === 0) {
-      return { hasData: false };
-    }
-
-    const ratedTasks = completedTasksList.map(t => {
-      const rating = t.metaDonnees?.notationLivreur;
-      return typeof rating === 'number' ? rating : null;
-    }).filter((r): r is number => r !== null);
-    
-    const averageRating =
-      ratedTasks.length > 0
-        ? ratedTasks.reduce((sum, rating) => sum + rating, 0) /
-          ratedTasks.length
-        : null;
-        
-    const ratingRate = totalCompletedTasks > 0 ? (ratedTasks.length / totalCompletedTasks) * 100 : null;
-
-    const { punctualTasks, earlyTasks, lateTasks } = calculatePunctuality(completedTasksList);
-    
-    const punctualityRate = completedTasksList.length > 0
-      ? (punctualTasks / completedTasksList.length) * 100
-      : null;
-
-    const lateTasksOver1h = lateTasks.filter(t => t.minutes > 60);
-    const lateOver1hRate = completedTasksList.length > 0
-        ? (lateTasksOver1h.length / completedTasksList.length) * 100
-        : null;
-
-    const mobileValidations = completedTasksList.filter(t => t.completePar === 'mobile').length;
-    const scanbacRate = totalCompletedTasks > 0 ? (mobileValidations / totalCompletedTasks) * 100 : 0;
-
-    const incorrectAddresses = completedTasksList.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length;
-    const forcedAddressRate = totalCompletedTasks > 0 ? (incorrectAddresses / totalCompletedTasks) * 100 : 0;
-    
-    const forcedContactless = completedTasksList.filter(t => t.execution?.sansContact?.forced === true).length;
-    const forcedContactlessRate = totalCompletedTasks > 0 ? (forcedContactless / totalCompletedTasks) * 100 : 0;
-    
-    const failedTasksList = filteredData.tasks.filter(
-      (t) => t.progression === "COMPLETED" && t.status === "NOT_DELIVERED"
-    );
-    const failedTasksCount = failedTasksList.length;
-
-    const failedDeliveryRate = totalCompletedTasks > 0 ? (failedTasksCount / totalCompletedTasks) * 100 : null;
-
-    const redeliveriesList = filteredData.tasks.filter(t => (t.tentatives ?? 1) >= 2 && t.status !== 'DELIVERED');
-
-    const pendingTasksList = filteredData.tasks.filter(t => t.status === "PENDING");
-    const missingTasksList = filteredData.tasks.filter(t => t.status === "MISSING");
-    const partialDeliveredTasksList = filteredData.tasks.filter(t => t.status === "PARTIAL_DELIVERED");
-    
-    const tasksWithMissingBacs = filteredData.tasks.filter(task => 
-      task.articles && task.articles.some(article => article.statut === 'MISSING')
-    );
-
-    const sensitiveKeywords = ['pièce', 'identité', 'gendarmerie', 'caserne', 'police', 'militaire'];
-    const sensitiveDeliveriesList = filteredData.tasks.filter(t => {
-      if (!t.instructions) return false;
-      const lowercasedInstructions = t.instructions.toLowerCase();
-      return sensitiveKeywords.some(keyword => lowercasedInstructions.includes(keyword));
-    });
-
-    const qualityAlertTasks = filteredData.tasks.filter(
-      (t) => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4
-    );
-
-    // --- Driver Performance Calculation ---
-    const driverData: Record<string, { tasks: Tache[] }> = {};
-    filteredData.tasks.forEach(task => {
-        const driverName = getDriverFullName(task);
-        if (driverName) {
-            if (!driverData[driverName]) {
-                driverData[driverName] = { tasks: [] };
-            }
-            driverData[driverName].tasks.push(task);
-        }
-    });
-
-    const rawDriverStats = Object.entries(driverData)
-      .map(([name, data]) => calculateRawDriverStats(name, data.tasks))
-      .filter(stats => stats.totalRatings > 0);
-    
-    const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
-
-    const driverPerformance: DriverStats[] = rawDriverStats.map(stats => ({
-      ...stats,
-      score: calculateDriverScore(stats, maxCompletedTasks),
-    })).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-
-
-     const top5StarDrivers = Object.entries(driverData).map(([name, data]) => {
-      const fiveStarCount = data.tasks.filter(t => t.metaDonnees?.notationLivreur === 5).length;
-      return { name, fiveStarCount };
-    }).filter(d => d.fiveStarCount > 0)
-    .sort((a, b) => b.fiveStarCount - a.fiveStarCount)
-    .slice(0, 3);
-
-
-    const taskStats = {
-      totalTasks: totalTasks,
-      completedTasks: totalCompletedTasks,
-      failedTasks: failedTasksCount,
-      averageRating: averageRating,
-      punctualityRate: punctualityRate,
-      earlyTasksCount: earlyTasks.length,
-      lateTasksCount: lateTasks.length,
-      lateOver1hRate: lateOver1hRate,
-      scanbacRate: scanbacRate,
-      forcedAddressRate: forcedAddressRate,
-      forcedContactlessRate: forcedContactlessRate,
-      pendingTasks: pendingTasksList.length,
-      missingTasks: missingTasksList.length,
-      missingBacs: tasksWithMissingBacs.length,
-      partialDeliveredTasks: partialDeliveredTasksList.length,
-      redeliveries: redeliveriesList.length,
-      failedDeliveryRate: failedDeliveryRate,
-      sensitiveDeliveries: sensitiveDeliveriesList.length,
-      qualityAlerts: qualityAlertTasks.length,
-      numberOfRatings: ratedTasks.length,
-      ratingRate: ratingRate,
-    };
-
-    const roundStats = filteredData.rounds
-      ? {
-          totalRounds: filteredData.rounds.length,
-           completedRounds: filteredData.rounds.filter(
-            (r) => r.status === "COMPLETED"
-          ).length,
-        }
-      : { totalRounds: 0, completedRounds: 0 };
-
-     const tasksByStatus = filteredData.tasks.reduce((acc, task) => {
-      const status = task.status || "Unknown";
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const tasksByProgression = filteredData.tasks.reduce((acc, task) => {
-      const progression = task.progression || "Unknown";
-      acc[progression] = (acc[progression] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const tasksOverTime = filteredData.tasks
-      ? filteredData.tasks.reduce((acc, task) => {
-          const date = task.date ? task.date.split("T")[0] : "Non planifiée";
-          if (date === "Non planifiée" && !task.unplanned) return acc;
-          acc[date] = (acc[date] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      : {};
-
-    const roundsByStatus = filteredData.rounds
-      ? filteredData.rounds.reduce((acc, round) => {
-          const status = round.status || "Unknown";
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      : {};
-
-    const roundsOverTime = filteredData.rounds
-      ? filteredData.rounds.reduce((acc, round) => {
-          const date = round.date ? round.date.split("T")[0] : "Unknown";
-          acc[date] = (acc[date] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      : {};
-
-    const hasData = filteredData.tasks.length > 0 || filteredData.rounds.length > 0;
-
-    return {
-      hasData,
-      stats: { ...taskStats, ...roundStats },
-      driverPerformance,
-      top5StarDrivers,
-      earlyTasks,
-      lateTasks,
-      lateTasksOver1h,
-      failedTasksList,
-      pendingTasksList,
-      missingTasksList,
-      tasksWithMissingBacs,
-      partialDeliveredTasksList,
-      redeliveriesList,
-      sensitiveDeliveriesList,
-      qualityAlertTasks,
-      tasksByStatus: Object.entries(tasksByStatus).map(([name, value]) => ({
-        name,
-        value,
-      })),
-      tasksByProgression: Object.entries(tasksByProgression).map(([name, value]) => ({
-        name,
-        value,
-      })),
-      tasksOverTime: Object.entries(tasksOverTime)
-        .map(([date, count]) => ({
-          date,
-          count,
-        }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-      roundsByStatus: Object.entries(roundsByStatus).map(([name, value]) => ({
-        name,
-        value,
-      })),
-      roundsOverTime: Object.entries(roundsOverTime)
-        .map(([date, count]) => ({
-          date,
-          count,
-        }))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    };
-  }, [filteredData]);
-
-  const isLoading = isLoadingTasks || isLoadingRounds;
-  const error = tasksError || roundsError;
+  const isLoading = isContextLoading;
+  const error = null; // Assuming no error state from context for now
 
   return (
     <main className="flex-1 container py-8">
@@ -538,39 +306,4 @@ export default function DashboardPage() {
       )}
     </main>
   );
-}
-
-const calculatePunctuality = (tasks: Tache[]) => {
-  let punctualTasks = 0;
-  const earlyTasks: PunctualityTask[] = [];
-  const lateTasks: PunctualityTask[] = [];
-
-  const completedWithTime = tasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
-
-  completedWithTime.forEach(task => {
-    try {
-      const closureTime = new Date(task.dateCloture!);
-      const windowStart = new Date(task.creneauHoraire!.debut!);
-      const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
-
-      const lowerBound = subMinutes(windowStart, 15);
-      const upperBound = addMinutes(windowEnd, 15);
-
-      if (closureTime < lowerBound) {
-        const minutes = differenceInMinutes(lowerBound, closureTime);
-        if (minutes > 0) earlyTasks.push({ task, minutes });
-        else punctualTasks++; // Difference is 0, so it's on time
-      } else if (closureTime > upperBound) {
-        const minutes = differenceInMinutes(closureTime, upperBound);
-        if (minutes > 0) lateTasks.push({ task, minutes });
-        else punctualTasks++; // Difference is 0, so it's on time
-      } else {
-        punctualTasks++;
-      }
-    } catch(e) {
-      // Ignore date parsing errors
-    }
-  });
-
-  return { punctualTasks, earlyTasks, lateTasks };
 }
