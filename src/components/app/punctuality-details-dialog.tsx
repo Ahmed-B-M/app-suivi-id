@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tache } from "@/lib/types";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
+import { Badge } from "../ui/badge";
 
 export type PunctualityTask = {
   task: Tache;
@@ -34,13 +36,6 @@ type PunctualityDetailsDialogProps = {
   } | null;
 };
 
-const formatTimeSlot = (start?: string, end?: string) => {
-    if (!start) return "N/A";
-    const startTime = format(new Date(start), "HH:mm");
-    const endTime = end ? format(new Date(end), "HH:mm") : "";
-    return endTime ? `${startTime} - ${endTime}` : startTime;
-}
-
 export function PunctualityDetailsDialog({
   isOpen,
   onOpenChange,
@@ -48,29 +43,15 @@ export function PunctualityDetailsDialog({
 }: PunctualityDetailsDialogProps) {
   if (!details) return null;
 
-  const { type, tasks } = details;
+  const { type, tasks = [] } = details;
 
-  const titles = {
-    early: "Détail des Tâches en Avance",
-    late: "Détail des Tâches en Retard",
-    late_over_1h: "Détail des Tâches en Retard de plus d'1h",
-  }
+  const title = {
+    early: "Détail des Livraisons en Avance",
+    late: "Détail des Livraisons en Retard",
+    late_over_1h: "Détail des Livraisons en Retard de Plus d'1h",
+  }[type];
 
-  const descriptions = {
-    early: "Voici la liste des tâches terminées en avance par rapport à la fenêtre de ponctualité.",
-    late: "Voici la liste des tâches terminées en retard par rapport à la fenêtre de ponctualité.",
-    late_over_1h: "Voici la liste des tâches terminées avec plus de 60 minutes de retard."
-  }
-
-  const timeColumnTitles = {
-    early: "Avance (min)",
-    late: "Retard (min)",
-    late_over_1h: "Retard (min)",
-  }
-
-  const title = titles[type];
-  const description = descriptions[type];
-  const timeColumnTitle = timeColumnTitles[type];
+  const description = `Voici la liste des ${tasks.length} tâches correspondantes.`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -85,28 +66,28 @@ export function PunctualityDetailsDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Livreur</TableHead>
+                    <TableHead>Date</TableHead>
                     <TableHead>Tournée</TableHead>
-                    <TableHead>Seq.</TableHead>
-                    <TableHead>Créneau Prévu</TableHead>
-                    <TableHead>Heure de Clôture</TableHead>
-                    <TableHead className="text-right">{timeColumnTitle}</TableHead>
+                    <TableHead>Entrepôt</TableHead>
+                    <TableHead>Livreur</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead className="text-center">{type === 'early' ? 'Avance (min)' : 'Retard (min)'}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tasks.map(({ task, minutes }) => (
                     <TableRow key={task.tacheId}>
-                      <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
+                      <TableCell>
+                        {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
+                      </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
-                      <TableCell>{task.sequence ?? 'N/A'}</TableCell>
-                      <TableCell>
-                        {formatTimeSlot(task.creneauHoraire?.debut, task.creneauHoraire?.fin)}
-                      </TableCell>
-                      <TableCell>
-                        {task.dateCloture ? format(new Date(task.dateCloture), "HH:mm") : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {minutes}
+                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
+                      <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
+                      <TableCell>{task.contact?.personne || "N/A"}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={type === 'early' ? 'default' : 'destructive'}>
+                          {minutes}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}

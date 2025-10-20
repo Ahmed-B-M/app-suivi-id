@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
 
 type MissingBacsDetailsDialogProps = {
@@ -39,7 +39,7 @@ export function MissingBacsDetailsDialog({
         <DialogHeader>
           <DialogTitle>Détail des Bacs Manquants</DialogTitle>
           <DialogDescription>
-            Voici la liste des {tasks.length} tâches contenant au moins un bac (article) avec le statut "MISSING".
+            Voici la liste des {tasks.length} tâches avec des bacs manquants.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
@@ -48,39 +48,30 @@ export function MissingBacsDetailsDialog({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tâche ID</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Tournée</TableHead>
-                    <TableHead>Bacs Manquants</TableHead>
+                    <TableHead>Entrepôt</TableHead>
+                    <TableHead>Livreur</TableHead>
+                    <TableHead>Client</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tasks.map((task) => (
                     <TableRow key={task.tacheId}>
-                      <TableCell className="font-mono">{task.tacheId}</TableCell>
                       <TableCell>
                         {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
-                      <TableCell>
-                         <div className="flex flex-col gap-1">
-                          {task.articles
-                            ?.filter(a => a.statut === 'MISSING')
-                            .map(a => (
-                              <Badge key={a.codeBarre} variant="destructive">
-                                {a.nom || 'Sans nom'} ({a.codeBarre})
-                              </Badge>
-                            ))
-                          }
-                        </div>
-                      </TableCell>
+                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
+                      <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
+                      <TableCell>{task.contact?.personne || "N/A"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                Aucune tâche avec des bacs manquants.
+                Aucune tâche avec des bacs manquants à afficher.
               </p>
             )}
           </div>
@@ -89,5 +80,3 @@ export function MissingBacsDetailsDialog({
     </Dialog>
   );
 }
-
-    

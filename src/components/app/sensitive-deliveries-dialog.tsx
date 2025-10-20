@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/table";
 import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
-import { AlertTriangle } from "lucide-react";
 
 type SensitiveDeliveriesDialogProps = {
   isOpen: boolean;
@@ -38,12 +37,9 @@ export function SensitiveDeliveriesDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="text-destructive"/>
-            Détail des Livraisons Sensibles
-          </DialogTitle>
+          <DialogTitle>Détail des Livraisons Sensibles</DialogTitle>
           <DialogDescription>
-            Voici la liste des {tasks.length} tâches dont les instructions contiennent des mots-clés sensibles.
+            Voici la liste des {tasks.length} tâches sensibles.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
@@ -54,8 +50,9 @@ export function SensitiveDeliveriesDialog({
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Tournée</TableHead>
+                    <TableHead>Entrepôt</TableHead>
                     <TableHead>Livreur</TableHead>
-                    <TableHead>Instructions</TableHead>
+                    <TableHead>Client</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -65,8 +62,9 @@ export function SensitiveDeliveriesDialog({
                         {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
+                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
-                      <TableCell className="text-destructive font-medium italic">{task.instructions || "N/A"}</TableCell>
+                      <TableCell>{task.contact?.personne || "N/A"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -82,5 +80,3 @@ export function SensitiveDeliveriesDialog({
     </Dialog>
   );
 }
-
-    
