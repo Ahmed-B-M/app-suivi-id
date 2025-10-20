@@ -20,11 +20,17 @@ import {
 } from "@/components/ui/table";
 import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
+import { Badge } from "../ui/badge";
+
+type MissingBacEntry = {
+    task: Tache;
+    bac: Tache['articles'][number];
+}
 
 type MissingBacsDetailsDialogProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  tasks: Tache[];
+  tasks: MissingBacEntry[];
 };
 
 export function MissingBacsDetailsDialog({
@@ -39,7 +45,7 @@ export function MissingBacsDetailsDialog({
         <DialogHeader>
           <DialogTitle>Détail des Bacs Manquants</DialogTitle>
           <DialogDescription>
-            Voici la liste des {tasks.length} tâches avec des bacs manquants.
+            Voici la liste des {tasks.length} bacs avec le statut "MISSING".
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
@@ -50,21 +56,27 @@ export function MissingBacsDetailsDialog({
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Tournée</TableHead>
-                    <TableHead>Entrepôt</TableHead>
                     <TableHead>Livreur</TableHead>
-                    <TableHead>Client</TableHead>
+                    <TableHead>Task ID</TableHead>
+                    <TableHead>Type de Bac</TableHead>
+                    <TableHead>Statut</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tasks.map((task) => (
-                    <TableRow key={task.tacheId}>
+                  {tasks.map(({task, bac}) => (
+                    <TableRow key={`${task.tacheId}-${bac.codeBarre}`}>
                       <TableCell>
                         {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
-                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
-                      <TableCell>{task.contact?.personne || "N/A"}</TableCell>
+                      <TableCell>{task.tacheId}</TableCell>
+                      <TableCell>
+                         <Badge variant="secondary">{bac.type || 'N/A'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="destructive">{bac.statut || 'N/A'}</Badge>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
