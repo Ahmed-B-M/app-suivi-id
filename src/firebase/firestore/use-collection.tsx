@@ -8,6 +8,9 @@ import {
   FirestoreError,
   QuerySnapshot,
   CollectionReference,
+  query,
+  orderBy,
+  OrderByDirection,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -54,8 +57,19 @@ export interface InternalQuery extends Query<DocumentData> {
  */
 export function useCollection<T = any>(
     targetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>))  | null | undefined,
+    options?: { orderByField?: string; orderByDirection?: OrderByDirection }
 ): UseCollectionResult<T> {
-  const memoizedTargetRefOrQuery = useMemoFirebase(() => targetRefOrQuery, [targetRefOrQuery]);
+  const memoizedTargetRefOrQuery = useMemoFirebase(() => {
+    if (!targetRefOrQuery) return null;
+    if (options?.orderByField) {
+      return query(
+        targetRefOrQuery,
+        orderBy(options.orderByField, options.orderByDirection || 'asc')
+      );
+    }
+    return targetRefOrQuery;
+  }, [targetRefOrQuery, options?.orderByField, options?.orderByDirection]);
+
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
 

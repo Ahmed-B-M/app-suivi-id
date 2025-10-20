@@ -460,7 +460,7 @@ export async function saveCategorizedCommentsAction(
     categorizedComments.forEach(comment => {
       if (comment.taskId) {
         const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
-        batch.set(docRef, comment, { merge: true });
+        batch.set(docRef, { ...comment, status: 'à traiter' }, { merge: true });
       }
     });
 
@@ -471,6 +471,41 @@ export async function saveCategorizedCommentsAction(
     return {
       success: false,
       error: error.message || "Failed to save categorized comments to Firestore.",
+    };
+  }
+}
+
+// --- Update a Single Categorized Comment in Firestore ---
+export async function updateSingleCommentAction(
+  comment: {
+    taskId: string;
+    comment: string;
+    rating: number;
+    category: string;
+    taskDate?: string;
+    driverName?: string;
+  }
+) {
+  try {
+    const { firestore } = await initializeFirebaseOnServer();
+    
+    if (comment.taskId) {
+      const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
+      const dataToSave = {
+          ...comment,
+          status: 'traité'
+      };
+      await docRef.set(dataToSave, { merge: true });
+      return { success: true, error: null };
+    } else {
+      throw new Error("Task ID is missing.");
+    }
+
+  } catch (error: any) {
+    console.error("Error updating single comment:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to update the comment in Firestore.",
     };
   }
 }

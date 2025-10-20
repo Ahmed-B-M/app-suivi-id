@@ -1,0 +1,287 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { useCollection, useFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { updateSingleCommentAction } from "@/app/actions";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { useFilterContext } from "@/context/filter-context";
+import { Tache } from "@/lib/types";
+import { getDriverFullName } from "@/lib/grouping";
+
+type CategorizedComment = {
+  id: string;
+  taskId: string;
+  comment: string;
+  rating: number;
+  category: string;
+  taskDate?: string;
+  driverName?: string;
+  status: "à traiter" | "traité";
+};
+
+const categoryOptions = [
+    { value: "Attitude livreur", label: "Attitude livreur" },
+    { value: "Amabilité livreur", label: "Amabilité livreur" },
+    { value: "Casse produit", label: "Casse produit" },
+    { value: "Manquant produit", label: "Manquant produit" },
+    { value: "Manquant multiple", label: "Manquant multiple" },
+    { value: "Manquant bac", label: "Manquant bac" },
+    { value: "Non livré", label: "Non livré" },
+    { value: "Erreur de préparation", label: "Erreur de préparation" },
+    { value: "Erreur de livraison", label: "Erreur de livraison" },
+    { value: "Livraison en avance", label: "Livraison en avance" },
+    { value: "Livraison en retard", label: "Livraison en retard" },
+    { value: "Rupture chaine de froid", label: "Rupture chaine de froid" },
+    { value: "Process", label: "Process" },
+    { value: "Non pertinent", label: "Non pertinent" },
+    { value: "Autre", label: "Autre" },
+];
+
+
+export default function CommentManagementPage() {
+  const { firestore } = useFirebase();
+  const { dateRange } = useFilterContext();
+  const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('à traiter');
+  
+  const categorizedCommentsCollection = useMemo(() => collection(firestore, "categorized_comments"), [firestore]);
+  const tasksCollection = useMemo(() => collection(firestore, "tasks"), [firestore]);
+
+  const { data: categorizedComments, isLoading: isLoadingCategorized, error: categorizedError } = useCollection<CategorizedComment>(categorizedCommentsCollection);
+  const { data: tasks, isLoading: isLoadingTasks, error: tasksError } = useCollection<Tache>(tasksCollection);
+  
+  const [editableComments, setEditableComments] = useState<CategorizedComment[]>([]);
+  const { toast } = useToast();
+
+  const combinedComments = useMemo(() => {
+    if (!tasks || !categorizedComments) return [];
+
+    const categorizedIds = new Set(categorizedComments.map(c => c.taskId));
+
+    const newCommentsFromTasks: CategorizedComment[] = tasks
+      .filter(task => 
+        !categorizedIds.has(task.tacheId) &&
+        typeof task.metaDonnees?.notationLivreur === 'number' &&
+        task.metaDonnees.notationLivreur < 4 &&
+        task.metaDonnees.commentaireLivreur
+      )
+      .map(task => ({
+        id: task.tacheId,
+        taskId: task.tacheId,
+        comment: task.metaDonnees!.commentaireLivreur!,
+        rating: task.metaDonnees!.notationLivreur!,
+        category: 'Autre',
+        taskDate: task.date,
+        driverName: getDriverFullName(task),
+        status: 'à traiter',
+      }));
+
+      return [...categorizedComments, ...newCommentsFromTasks];
+
+  }, [categorizedComments, tasks]);
+
+  const filteredComments = useMemo(() => {
+    let commentsToFilter = combinedComments;
+    const { from, to } = dateRange || {};
+
+    if (from) {
+      const startOfDay = new Date(from);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = to ? new Date(to) : new Date(from);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      commentsToFilter = commentsToFilter.filter(comment => {
+        if (!comment.taskDate) return false;
+        const commentDate = new Date(comment.taskDate);
+        return commentDate >= startOfDay && commentDate <= endOfDay;
+      });
+    }
+    
+    if (statusFilter !== 'tous') {
+      commentsToFilter = commentsToFilter.filter(comment => comment.status === statusFilter);
+    }
+    
+    // Re-sort after combining and filtering
+    return commentsToFilter.sort((a, b) => {
+        const dateA = a.taskDate ? new Date(a.taskDate).getTime() : 0;
+        const dateB = b.taskDate ? new Date(b.taskDate).getTime() : 0;
+        return dateB - dateA;
+    });
+
+  }, [combinedComments, dateRange, statusFilter]);
+
+  useEffect(() => {
+    setEditableComments(filteredComments);
+  }, [filteredComments]);
+
+  const handleInputChange = (
+    id: string,
+    field: keyof CategorizedComment,
+    value: string | number
+  ) => {
+    setEditableComments((prev) =>
+      prev.map((comment) =>
+        comment.id === id ? { ...comment, [field]: value } : comment
+      )
+    );
+  };
+
+  const handleCategoryChange = (id: string, value: string) => {
+    setEditableComments((prev) =>
+      prev.map((comment) =>
+        comment.id === id ? { ...comment, category: value } : comment
+      )
+    );
+  };
+
+  const handleSave = async (comment: CategorizedComment) => {
+    try {
+      await updateSingleCommentAction(comment);
+      toast({
+        title: "Succès",
+        description: "Commentaire sauvegardé avec succès.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description:
+          "Une erreur est survenue lors de la sauvegarde du commentaire.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isLoading = isLoadingCategorized || isLoadingTasks;
+  const error = categorizedError || tasksError;
+
+  if (isLoading) {
+    return <div>Chargement...</div>;
+  }
+
+  if (error) {
+    return <div>Erreur: {error.message}</div>;
+  }
+
+  return (
+    <div className="container mx-auto py-10">
+       <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Gestion des Commentaires</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={statusFilter === 'à traiter' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('à traiter')}
+          >
+            À traiter
+          </Button>
+          <Button
+            variant={statusFilter === 'traité' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('traité')}
+          >
+            Traités
+          </Button>
+          <Button
+            variant={statusFilter === 'tous' ? 'default' : 'outline'}
+            onClick={() => setStatusFilter('tous')}
+          >
+            Tous
+          </Button>
+        </div>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Statut</TableHead>
+            <TableHead>Task ID</TableHead>
+            <TableHead>Commentaire</TableHead>
+            <TableHead>Note</TableHead>
+            <TableHead>Catégorie</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Chauffeur</TableHead>
+            <TableHead>Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {editableComments.map((comment) => (
+            <TableRow key={comment.id}>
+              <TableCell>
+                <Badge
+                  variant={
+                    comment.status === "traité" ? "default" : "destructive"
+                  }
+                >
+                  {comment.status}
+                </Badge>
+              </TableCell>
+              <TableCell>{comment.taskId}</TableCell>
+              <TableCell>
+                <Input
+                  value={comment.comment}
+                  onChange={(e) =>
+                    handleInputChange(comment.id, "comment", e.target.value)
+                  }
+                />
+              </TableCell>
+              <TableCell>
+                <Input
+                  type="number"
+                  value={comment.rating}
+                  onChange={(e) =>
+                    handleInputChange(
+                      comment.id,
+                      "rating",
+                      parseInt(e.target.value, 10)
+                    )
+                  }
+                />
+              </TableCell>
+              <TableCell>
+                <Select
+                  value={comment.category}
+                  onValueChange={(value) =>
+                    handleCategoryChange(comment.id, value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez une catégorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell>{comment.taskDate}</TableCell>
+              <TableCell>{comment.driverName}</TableCell>
+              <TableCell>
+                <Button onClick={() => handleSave(comment)}>
+                  Sauvegarder
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}

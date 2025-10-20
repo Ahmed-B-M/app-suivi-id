@@ -1,21 +1,7 @@
 
 "use client";
 
-import { useMemo } from 'react';
-import type { Tache } from '@/lib/types';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -24,178 +10,110 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { BrainCircuit, MessageSquare, Star, Sparkles, Loader2 } from "lucide-react";
-import { getDriverFullName } from '@/lib/grouping';
-import { format } from 'date-fns';
-import { Button } from '../ui/button';
-import { Tooltip, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-
-export const categories = [
-  'Attitude livreur',
-  'Amabilité livreur',
-  'Casse produit',
-  'Manquant produit',
-  'Manquant multiple',
-  'Manquant bac',
-  'Non livré',
-  'Erreur de préparation',
-  'Erreur de livraison',
-  'Livraison en avance',
-  'Livraison en retard',
-  'Rupture chaine de froid',
-  'Process',
-  'Non pertinent',
-  'Autre',
-] as const;
+import { useMemo } from "react";
+import type { Tache } from "@/lib/types";
 
 export type CategorizedComment = {
-  task: Tache;
+  id: string;
+  taskId: string;
+  comment: string;
+  rating: number;
   category: string;
-  isAnalyzing?: boolean;
+  taskDate?: string;
+  driverName?: string;
+  status: "à traiter" | "traité";
 };
+
+
+export const categories = [
+    "Attitude livreur",
+    "Amabilité livreur",
+    "Casse produit",
+    "Manquant produit",
+    "Manquant multiple",
+    "Manquant bac",
+    "Non livré",
+    "Erreur de préparation",
+    "Erreur de livraison",
+    "Livraison en avance",
+    "Livraison en retard",
+    "Rupture chaine de froid",
+    "Process",
+    "Non pertinent",
+    "Autre",
+] as const;
 
 interface CommentAnalysisProps {
   data: CategorizedComment[];
-  onCategoryChange: (taskId: string, newCategory: string) => void;
-  onAnalyzeComment: (taskId: string) => void;
 }
 
-export function CommentAnalysis({ data, onCategoryChange, onAnalyzeComment }: CommentAnalysisProps) {
+export function CommentAnalysis({ data }: CommentAnalysisProps) {
   const commentsByCategory = useMemo(() => {
-    return data.reduce((acc, item) => {
-      const category = item.category || 'Autre';
-      if (!acc[category]) {
-        acc[category] = [];
+    const grouped: Record<string, CategorizedComment[]> = {};
+    for (const category of categories) {
+      grouped[category] = [];
+    }
+    data.forEach((item) => {
+      if (grouped[item.category]) {
+        grouped[item.category].push(item);
+      } else {
+        grouped["Autre"].push(item);
       }
-      acc[category].push(item);
-      return acc;
-    }, {} as Record<string, CategorizedComment[]>);
+    });
+    return Object.entries(grouped)
+      .map(([category, comments]) => ({ category, comments }))
+      .sort((a, b) => b.comments.length - a.comments.length);
   }, [data]);
-
-  const sortedCategories = useMemo(() => {
-    return Object.keys(commentsByCategory).sort((a, b) => 
-        commentsByCategory[b].length - commentsByCategory[a].length
-    );
-  }, [commentsByCategory]);
-
-  if (data.length === 0) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                <MessageSquare />
-                Analyse des Commentaires
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground text-center py-8">Aucun commentaire négatif à analyser pour la période sélectionnée.</p>
-            </CardContent>
-        </Card>
-    )
-  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageSquare />
-          Analyse des Commentaires Négatifs
-        </CardTitle>
-        <CardDescription>
-          Voici les {data.length} commentaires avec une note inférieure à 4. Une catégorie initiale a été assignée par mots-clés. Vous pouvez la modifier manuellement ou utiliser l'IA pour affiner l'analyse.
-        </CardDescription>
+        <CardTitle>Analyse des Commentaires Clients</CardTitle>
       </CardHeader>
-      <CardContent>
-        <Accordion type="multiple" className="w-full space-y-4">
-        {sortedCategories.map(category => (
-            <AccordionItem value={category} key={category} className="border-b-0">
-                <Card>
-                      <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
-                        <div className="w-full flex justify-between items-center">
-                            <span>{category}</span>
-                            <Badge variant="secondary">{commentsByCategory[category].length} commentaire(s)</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="p-0 pt-0">
-                        <div className="p-4 bg-muted/30">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[15%]">Livreur</TableHead>
-                                        <TableHead className="w-[10%]">Date</TableHead>
-                                        <TableHead className="text-center w-[80px]">Note</TableHead>
-                                        <TableHead className="w-[30%]">Commentaire</TableHead>
-                                        <TableHead className="w-[20%]">Catégorie Manuelle</TableHead>
-                                        <TableHead className="w-[5%] text-center">IA</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {commentsByCategory[category].map(({ task, category: currentCategory, isAnalyzing }) => (
-                                        <TableRow key={task.tacheId}>
-                                            <TableCell>{getDriverFullName(task) || 'N/A'}</TableCell>
-                                            <TableCell>{task.date ? format(new Date(task.date), "dd/MM/yy") : 'N/A'}</TableCell>
-                                            <TableCell className="text-center">
-                                                  <Badge variant="destructive" className="flex items-center justify-center gap-1">
-                                                    {task.metaDonnees?.notationLivreur}
-                                                    <Star className="h-3 w-3"/>
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="italic text-muted-foreground text-xs">
-                                                  <div className="flex items-start gap-2">
-                                                    <MessageSquare className="h-4 w-4 mt-0.5 shrink-0" />
-                                                    <span>"{task.metaDonnees?.commentaireLivreur}"</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                              <Select
-                                                value={currentCategory}
-                                                onValueChange={(newCategory) => onCategoryChange(task.tacheId, newCategory)}
-                                              >
-                                                <SelectTrigger>
-                                                  <SelectValue placeholder="Choisir une catégorie" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  {categories.map(cat => (
-                                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                               <TooltipProvider>
-                                                  <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                       <Button 
-                                                          variant="ghost" 
-                                                          size="icon" 
-                                                          onClick={() => onAnalyzeComment(task.tacheId)}
-                                                          disabled={isAnalyzing}
-                                                        >
-                                                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4 text-primary"/>}
-                                                      </Button>
-                                                    </TooltipTrigger>
-                                                    <p>Analyser avec l'IA</p>
-                                                  </Tooltip>
-                                                </TooltipProvider>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                      </AccordionContent>
-                </Card>
-            </AccordionItem>
+      <CardContent className="space-y-6">
+        {commentsByCategory.map(({ category, comments }) => (
+          <div key={category}>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              {category}
+              <Badge variant="secondary">{comments.length}</Badge>
+            </h3>
+            <div className="mt-2 border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1/4">Chauffeur</TableHead>
+                    <TableHead className="w-1/2">Commentaire</TableHead>
+                    <TableHead className="w-1/4">Note</TableHead>
+                    <TableHead>Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {comments.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{item.driverName || "N/A"}</TableCell>
+                      <TableCell>{item.comment}</TableCell>
+                      <TableCell>
+                        <Badge variant={item.rating < 4 ? "destructive" : "default"}>
+                          {item.rating} / 5
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            item.status === "traité" ? "default" : "destructive"
+                          }
+                        >
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         ))}
-        </Accordion>
       </CardContent>
     </Card>
   );

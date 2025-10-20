@@ -9,6 +9,15 @@
         "--only",
         "auth,firestore"
       ]
+    },
+    "urbantz": {
+      "command": "node",
+      "args": [
+        "./scripts/urbantz-mcp-server.js"
+      ],
+      "env": {
+        "PORT": "8081"
+      }
     }
   }
 }

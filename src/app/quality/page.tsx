@@ -1,64 +1,25 @@
 
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
 import { useFilterContext } from "@/context/filter-context";
-import { categorizeSingleCommentAction, saveCategorizedCommentsAction } from "@/app/actions";
-import { Button } from "@/components/ui/button";
-import { Loader2, Save, Search } from "lucide-react";
-import { CommentAnalysis, type CategorizedComment, categories } from "@/components/app/comment-analysis";
-import { useToast } from "@/hooks/use-toast";
+import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
 import { calculateDriverScore, calculateRawDriverStats, DriverStats } from "@/lib/scoring";
 import { DriverPerformanceRankings } from "@/components/app/driver-performance-rankings";
 import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
-
-
-interface ExtendedDriverStats extends DriverStats {
-  tasks: Tache[];
-}
-
-const keywordCategories: Record<typeof categories[number], string[]> = {
-  'Attitude livreur': ['agressif', 'impoli', 'pas aimable', 'désagréable'],
-  'Amabilité livreur': ['souriant', 'courtois', 'aimable', 'gentil', 'professionnel'], // also positive for context
-  'Casse produit': ['casse', 'cassé', 'abimé', 'endommagé', 'produit abîmé'],
-  'Manquant produit': ['manquant', 'manque', 'oubli', 'pas reçu', 'produit manquant'],
-  'Manquant multiple': ['plusieurs manquants', 'nombreux oublis'],
-  'Manquant bac': ['bac manquant', 'caisse manquante'],
-  'Non livré': ['non livré', 'pas livré', 'jamais reçu'],
-  'Erreur de préparation': ['erreur prepa', 'mauvais produit', 'erreur de commande'],
-  'Erreur de livraison': ['mauvaise adresse', 'erreur livraison', 'pas le bon client'],
-  'Livraison en avance': ['en avance', 'trop tôt'],
-  'Livraison en retard': ['en retard', 'trop tard', 'attente'],
-  'Rupture chaine de froid': ['chaîne du froid', 'produits chauds', 'pas frais'],
-  'Process': ['processus', 'application', 'site web', 'service client'],
-  'Non pertinent': ['test', 'ras', 'ok', 'rien a signaler'],
-  'Autre': [],
-};
-
-const getCategoryFromKeywords = (comment: string): typeof categories[number] => {
-    const lowerCaseComment = comment.toLowerCase();
-    for (const [category, keywords] of Object.entries(keywordCategories)) {
-        if (keywords.some(keyword => lowerCaseComment.includes(keyword))) {
-            return category as typeof categories[number];
-        }
-    }
-    return 'Autre';
-}
+import { Search } from "lucide-react";
 
 
 export default function QualityPage() {
   const { firestore } = useFirebase();
   const { dateRange, filterType, selectedDepot, selectedStore } = useFilterContext();
-  const [isSaving, setIsSaving] = useState(false);
-  const [categorizedComments, setCategorizedComments] = useState<CategorizedComment[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
 
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -73,6 +34,18 @@ export default function QualityPage() {
   }, [firestore]);
 
   const { data: rounds, isLoading: isLoadingRounds } = useCollection<Tournee>(roundsCollection);
+  
+  const commentsCollection = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return collection(firestore, 'categorized_comments');
+  }, [firestore]);
+
+  const { data: categorizedCommentsData, isLoading: isLoadingComments } = useCollection<CategorizedComment>(commentsCollection);
+
+  const categorizedComments = useMemo(() => {
+      return (categorizedCommentsData || []).map(c => ({...c, status: 'traité' as const}));
+  }, [categorizedCommentsData]);
+
 
   const filteredTasks = useMemo(() => {
     const { from, to } = dateRange || {};
@@ -106,29 +79,38 @@ export default function QualityPage() {
 
     return filtered;
   }, [tasks, dateRange, filterType, selectedDepot, selectedStore]);
+  
+  const filteredComments = useMemo(() => {
+      let comments = categorizedComments || [];
+      const { from, to } = dateRange || {};
 
+      if (from) {
+          const startOfDay = new Date(from);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = to ? new Date(to) : new Date(from);
+          endOfDay.setHours(23, 59, 59, 999);
+          
+          comments = comments.filter(comment => {
+              if (!comment.taskDate) return false;
+              const commentDate = new Date(comment.taskDate);
+              return commentDate >= startOfDay && commentDate <= endOfDay;
+          });
+      }
 
-   useEffect(() => {
-    const commentsToCategorize = filteredTasks.filter(task =>
-      typeof task.metaDonnees?.notationLivreur === 'number' &&
-      task.metaDonnees.notationLivreur < 4 &&
-      task.metaDonnees.commentaireLivreur
-    );
+      if (selectedDepot !== 'all' && tasks) {
+        const depotTaskIds = new Set(tasks
+            .filter(task => getDepotFromHub(task.nomHub) === selectedDepot)
+            .map(task => task.tacheId)
+        );
+        comments = comments.filter(comment => depotTaskIds.has(comment.taskId));
+      }
+      return comments;
+  }, [categorizedComments, dateRange, selectedDepot, tasks]);
 
-    const initialCategorization = commentsToCategorize.map(task => ({
-      task: task,
-      category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-      isAnalyzing: false,
-    }));
-
-    setCategorizedComments(initialCategorization);
-
-  }, [filteredTasks]);
 
   const qualityData = useMemo(() => {
     if (!filteredTasks || isLoadingTasks) return null;
 
-    // 1. Group tasks by driver
     const driverTasks: Record<string, Tache[]> = {};
     filteredTasks.forEach(task => {
         const driverName = getDriverFullName(task);
@@ -144,14 +126,13 @@ export default function QualityPage() {
 
     const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
 
-    const driverStatsList: DriverStats[] = rawDriverStats
+    const driverStatsList = rawDriverStats
         .map(rawStats => ({
             ...rawStats,
-            score: calculateDriverScore(rawStats, maxCompletedTasks),
+            score: calculateDriverScore(rawStats, maxCompletedTasks) ?? 0,
         }));
 
-    // 3. Aggregate stats by depot and carrier
-    const depotAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: DriverStats[] }> }> = {};
+    const depotAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: typeof driverStatsList }> }> = {};
 
     driverStatsList.forEach(driverStat => {
         const tasks = driverTasks[driverStat.name];
@@ -172,7 +153,7 @@ export default function QualityPage() {
         depotAggregation[depotName].carriers[carrierName].drivers.push(driverStat);
     });
 
-    const calculateAggregatedStats = (drivers: DriverStats[]) => {
+    const calculateAggregatedStats = (drivers: typeof driverStatsList) => {
       const totalRatings = drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0);
       
       const alerts = drivers.reduce((sum, d) => {
@@ -253,8 +234,8 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (!filteredTasks || isLoadingTasks) return { driverRankings: null, alertData: [] };
-
+    if (!filteredTasks || isLoadingTasks || !categorizedComments) return { driverRankings: null, alertData: [] };
+    
     const driverTasks: Record<string, Tache[]> = {};
     filteredTasks.forEach(task => {
         const driverName = getDriverFullName(task);
@@ -269,18 +250,19 @@ export default function QualityPage() {
 
     const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
 
-    const driverStatsList: DriverStats[] = rawDriverStats
+    const driverStatsList = rawDriverStats
         .map(stats => ({
             ...stats,
-            score: calculateDriverScore(stats, maxCompletedTasks),
+            score: calculateDriverScore(stats, maxCompletedTasks) ?? 0,
         }))
         .filter(stats => stats.totalRatings > 0);
 
     const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};
+    
+    filteredComments.forEach(comment => {
+        const task = filteredTasks.find(t => t.tacheId === comment.taskId);
+        if (!task) return;
 
-    const alertTasks = filteredTasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
-
-    alertTasks.forEach(task => {
         const depot = getDepotFromHub(task.nomHub);
         if (!depot) return;
 
@@ -288,8 +270,6 @@ export default function QualityPage() {
         if (!driverName) return;
 
         const carrierName = getCarrierFromDriver(driverName);
-        const comment = task.metaDonnees?.commentaireLivreur || '';
-        const category = getCategoryFromKeywords(comment);
 
         if (!alertAggregation[depot]) {
             alertAggregation[depot] = { name: depot, carriers: {} };
@@ -310,7 +290,7 @@ export default function QualityPage() {
 
         const driverEntry = alertAggregation[depot].carriers[carrierName].drivers[driverName];
         driverEntry.alertCount++;
-        driverEntry.commentCategories[category] = (driverEntry.commentCategories[category] || 0) + 1;
+        driverEntry.commentCategories[comment.category] = (driverEntry.commentCategories[comment.category] || 0) + 1;
     });
 
     const finalAlertData: AlertData[] = Object.values(alertAggregation).map(depot => ({
@@ -326,69 +306,10 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [filteredTasks, isLoadingTasks]);
+  }, [filteredTasks, isLoadingTasks, categorizedComments, filteredComments]);
 
 
-  const handleAnalyzeOneComment = useCallback(async (taskId: string) => {
-    const commentToAnalyze = categorizedComments.find(c => c.task.tacheId === taskId);
-    if (!commentToAnalyze || !commentToAnalyze.task.metaDonnees?.commentaireLivreur) return;
-
-    setCategorizedComments(prev =>
-      prev.map(c => c.task.tacheId === taskId ? { ...c, isAnalyzing: true } : c)
-    );
-
-    const result = await categorizeSingleCommentAction(commentToAnalyze.task.metaDonnees.commentaireLivreur);
-
-    setCategorizedComments(prev =>
-      prev.map(c => c.task.tacheId === taskId ? { ...c, category: result.category, isAnalyzing: false } : c)
-    );
-  }, [categorizedComments]);
-
-
-  const handleSave = async () => {
-    if (categorizedComments.length === 0) return;
-    setIsSaving(true);
-    toast({
-      title: "Sauvegarde en cours...",
-      description: `Sauvegarde de ${categorizedComments.length} catégories dans la base de données.`
-    });
-
-    const commentsToSave = categorizedComments.map(item => ({
-      taskId: item.task.tacheId,
-      comment: item.task.metaDonnees?.commentaireLivreur || "",
-      rating: item.task.metaDonnees?.notationLivreur || 0,
-      category: item.category,
-      taskDate: item.task.date,
-      driverName: getDriverFullName(item.task),
-    }));
-
-    const result = await saveCategorizedCommentsAction(commentsToSave);
-    setIsSaving(false);
-
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur de sauvegarde",
-        description: result.error,
-      });
-    } else {
-      toast({
-        title: "Sauvegarde réussie !",
-        description: "Les catégories ont été enregistrées dans la base de données.",
-      });
-    }
-  };
-
-  const handleCategoryChange = (taskId: string, newCategory: string) => {
-    setCategorizedComments(prev => 
-      prev!.map(item => 
-        item.task.tacheId === taskId ? { ...item, category: newCategory as (typeof item.category) } : item
-      )
-    );
-  };
-
-
-  const isLoading = isLoadingTasks || isLoadingRounds;
+  const isLoading = isLoadingTasks || isLoadingRounds || isLoadingComments;
 
   return (
     <main className="flex-1 container py-8">
@@ -404,28 +325,13 @@ export default function QualityPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
            </div>
-          {categorizedComments.length > 0 && (
-             <Button
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              Sauvegarder les Catégories ({categorizedComments.length})
-            </Button>
-          )}
         </div>
       </div>
       <div className="space-y-8">
         <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
-          data={categorizedComments} 
-          onCategoryChange={handleCategoryChange} 
-          onAnalyzeComment={handleAnalyzeOneComment}
+          data={filteredComments} 
         />
         <DriverPerformanceRankings 
             data={driverRankings || []}
