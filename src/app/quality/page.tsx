@@ -52,8 +52,8 @@ export default function QualityPage() {
   useEffect(() => {
     if (!allTasks || isContextLoading) return;
 
-    const { from, to } = dateRange || {};
     let filtered = allTasks;
+    const { from, to } = dateRange || {};
 
     if (from) {
       const startOfDay = new Date(from);
@@ -398,12 +398,17 @@ export default function QualityPage() {
 
     const finalAlertData: AlertData[] = Object.values(alertAggregation).map(depot => ({
         ...depot,
-        carriers: Object.values(depot.carriers).map(carrier => ({
-            ...carrier,
-            drivers: Object.values(carrier.drivers).sort((a, b) => b.alertCount - a.alertCount),
-        })).sort((a,b) => b.drivers.reduce((sum, d) => sum + d.alertCount, 0) - a.carriers.reduce((sum, c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0))
-    })).sort((a,b) => b.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0) - a.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0));
-
+        carriers: Object.values(depot.carriers)
+            .map(carrier => ({
+                ...carrier,
+                drivers: Object.values(carrier.drivers).sort((a, b) => b.alertCount - a.alertCount),
+            }))
+            .sort((a,b) => (b.drivers.reduce((sum, d) => sum + d.alertCount, 0)) - (a.drivers.reduce((sum, d) => sum + d.alertCount, 0)))
+    })).sort((a,b) => {
+        const totalA = a.carriers?.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0) || 0;
+        const totalB = b.carriers?.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + d.alertCount, 0), 0) || 0;
+        return totalB - totalA;
+    });
 
     return {
       driverRankings: driverStatsList,
