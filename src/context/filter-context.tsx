@@ -9,7 +9,7 @@ import { collection } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
 
-type FilterType = 'tous' | 'depot' | 'magasin';
+type FilterType = 'tous' | 'magasin' | 'entrepot';
 
 interface FilterContextProps {
   filterType: FilterType;
@@ -74,14 +74,14 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     allItems.forEach(item => {
       const hub = item.nomHub;
       if (hub) {
-        if (getHubCategory(hub) === 'depot') {
+        if (getHubCategory(hub) === 'entrepot') {
           depotSet.add(getDepotFromHub(hub));
         } else {
           storeSet.add(hub);
         }
       }
 
-      const updateDateStr = item.dateMiseAJour || item.updated;
+      const updateDateStr = 'dateMiseAJour' in item ? item.dateMiseAJour : item.updated;
       if (updateDateStr) {
         const updateDate = new Date(updateDateStr);
         if (!maxDate || updateDate > maxDate) {

@@ -32,17 +32,17 @@ function isDepot(hubName: string): boolean {
 }
 
 /**
- * Determines the category ('depot' or 'magasin') of a hub.
+ * Determines the category ('entrepot' or 'magasin') of a hub.
  * @param hubName - The name of the hub.
- * @returns 'depot' or 'magasin'.
+ * @returns 'entrepot' or 'magasin'.
  */
-export function getHubCategory(hubName: string | undefined | null): 'depot' | 'magasin' {
+export function getHubCategory(hubName: string | undefined | null): 'entrepot' | 'magasin' {
   if (!hubName) {
     return "magasin";
   }
   
   if (isDepot(hubName)) {
-    return "depot";
+    return "entrepot";
   }
 
   // Specific rules for stores

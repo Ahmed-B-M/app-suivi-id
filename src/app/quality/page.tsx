@@ -80,32 +80,52 @@ export default function QualityPage() {
     return filtered;
   }, [tasks, dateRange, filterType, selectedDepot, selectedStore]);
   
-  const filteredComments = useMemo(() => {
-      let comments = categorizedComments || [];
-      const { from, to } = dateRange || {};
+ const filteredComments = useMemo(() => {
+    if (!categorizedComments || !tasks) return [];
 
-      if (from) {
-          const startOfDay = new Date(from);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = to ? new Date(to) : new Date(from);
-          endOfDay.setHours(23, 59, 59, 999);
-          
-          comments = comments.filter(comment => {
-              if (!comment.taskDate) return false;
-              const commentDate = new Date(comment.taskDate);
-              return commentDate >= startOfDay && commentDate <= endOfDay;
-          });
-      }
+    const { from, to } = dateRange || {};
+    let comments = categorizedComments;
 
-      if (selectedDepot !== 'all' && tasks) {
-        const depotTaskIds = new Set(tasks
-            .filter(task => getDepotFromHub(task.nomHub) === selectedDepot)
-            .map(task => task.tacheId)
-        );
-        comments = comments.filter(comment => depotTaskIds.has(comment.taskId));
-      }
-      return comments;
-  }, [categorizedComments, dateRange, selectedDepot, tasks]);
+    // Create a lookup map for task details
+    const taskDetailsMap = new Map(tasks.map(task => [task.tacheId, { hubName: task.nomHub }]));
+
+    // Filter by Date Range
+    if (from) {
+      const startOfDay = new Date(from);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = to ? new Date(to) : new Date(from);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      comments = comments.filter(comment => {
+        if (!comment.taskDate) return false;
+        const commentDate = new Date(comment.taskDate);
+        return commentDate >= startOfDay && commentDate <= endOfDay;
+      });
+    }
+
+    // Filter by Type, Depot, and Store using the lookup map
+    comments = comments.filter(comment => {
+        const taskDetails = taskDetailsMap.get(comment.taskId);
+        if (!taskDetails?.hubName) return false;
+
+        const hubName = taskDetails.hubName;
+        const hubCategory = getHubCategory(hubName);
+        const depot = getDepotFromHub(hubName);
+
+        if (filterType !== 'tous' && hubCategory !== filterType) {
+            return false;
+        }
+        if (selectedDepot !== "all" && depot !== selectedDepot) {
+            return false;
+        }
+        if (selectedStore !== "all" && hubName !== selectedStore) {
+            return false;
+        }
+        return true;
+    });
+
+    return comments;
+}, [categorizedComments, tasks, dateRange, filterType, selectedDepot, selectedStore]);
 
 
   const qualityData = useMemo(() => {

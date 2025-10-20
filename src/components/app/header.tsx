@@ -71,7 +71,7 @@ export function AppHeader() {
 
           <RadioGroup
             value={filterType}
-            onValueChange={(value) => setFilterType(value as 'tous' | 'depot' | 'magasin')}
+            onValueChange={(value) => setFilterType(value as 'tous' | 'magasin' | 'entrepot')}
             className="hidden sm:flex items-center space-x-2"
           >
             <div className="flex items-center space-x-2">
@@ -79,12 +79,12 @@ export function AppHeader() {
               <Label htmlFor="tous">Tous</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="depot" id="depot" />
-              <Label htmlFor="depot">Dépôts</Label>
+              <RadioGroupItem value="magasin" id="magasin" />
+              <Label htmlFor="magasin">Magasins</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="magasin" id="magasin" />
-              <Label htmlFor="magasin">Entrepôts</Label>
+              <RadioGroupItem value="entrepot" id="entrepot" />
+              <Label htmlFor="entrepot">Entrepôts</Label>
             </div>
           </RadioGroup>
 
@@ -141,7 +141,7 @@ export function AppHeader() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'depot'}>
+          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'entrepot'}>
             <SelectTrigger className="hidden lg:flex w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par entrepôt" />
