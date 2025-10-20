@@ -23,7 +23,7 @@ import {
   documentId,
   Timestamp,
 } from "firebase/firestore";
-import equal = require("deep-equal");
+import equal from "deep-equal";
 
 import { serverExportSchema, unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
 import { runUnifiedExportAction } from "@/app/actions";
