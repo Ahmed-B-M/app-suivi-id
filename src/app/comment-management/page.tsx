@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useCollection, useFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -68,7 +67,9 @@ export default function CommentManagementPage() {
   const { data: categorizedComments, isLoading: isLoadingCategorized, error: categorizedError } = useCollection<CategorizedComment>(categorizedCommentsCollection);
   const { data: tasks, isLoading: isLoadingTasks, error: tasksError } = useCollection<Tache>(tasksCollection);
   
-  const [editableComments, setEditableComments] = useState<CategorizedComment[]>([]);
+  const [editableComments, setEditableComments] = useState<
+    CategorizedComment[]
+  >([]);
   const { toast } = useToast();
 
   const combinedComments = useMemo(() => {
@@ -119,7 +120,6 @@ export default function CommentManagementPage() {
       commentsToFilter = commentsToFilter.filter(comment => comment.status === statusFilter);
     }
     
-    // Re-sort after combining and filtering
     return commentsToFilter.sort((a, b) => {
         const dateA = a.taskDate ? new Date(a.taskDate).getTime() : 0;
         const dateB = b.taskDate ? new Date(b.taskDate).getTime() : 0;
@@ -131,18 +131,6 @@ export default function CommentManagementPage() {
   useEffect(() => {
     setEditableComments(filteredComments);
   }, [filteredComments]);
-
-  const handleInputChange = (
-    id: string,
-    field: keyof CategorizedComment,
-    value: string | number
-  ) => {
-    setEditableComments((prev) =>
-      prev.map((comment) =>
-        comment.id === id ? { ...comment, [field]: value } : comment
-      )
-    );
-  };
 
   const handleCategoryChange = (id: string, value: string) => {
     setEditableComments((prev) =>
@@ -210,7 +198,7 @@ export default function CommentManagementPage() {
           <TableRow>
             <TableHead>Statut</TableHead>
             <TableHead>Task ID</TableHead>
-            <TableHead>Commentaire</TableHead>
+            <TableHead className="w-[40%]">Commentaire</TableHead>
             <TableHead>Note</TableHead>
             <TableHead>Catégorie</TableHead>
             <TableHead>Date</TableHead>
@@ -232,25 +220,12 @@ export default function CommentManagementPage() {
               </TableCell>
               <TableCell>{comment.taskId}</TableCell>
               <TableCell>
-                <Input
-                  value={comment.comment}
-                  onChange={(e) =>
-                    handleInputChange(comment.id, "comment", e.target.value)
-                  }
-                />
+                <p className="whitespace-pre-wrap">{comment.comment}</p>
               </TableCell>
               <TableCell>
-                <Input
-                  type="number"
-                  value={comment.rating}
-                  onChange={(e) =>
-                    handleInputChange(
-                      comment.id,
-                      "rating",
-                      parseInt(e.target.value, 10)
-                    )
-                  }
-                />
+                <Badge variant={comment.rating < 4 ? "destructive" : "default"}>
+                  {comment.rating} / 5
+                </Badge>
               </TableCell>
               <TableCell>
                 <Select

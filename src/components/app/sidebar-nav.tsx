@@ -11,6 +11,8 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning } from "lucide-react";
+import { usePendingComments } from "@/hooks/use-pending-comments";
+import { Badge } from "@/components/ui/badge";
 
 const links = [
   {
@@ -47,6 +49,7 @@ const links = [
     href: "/comment-management",
     label: "Gestion des Commentaires",
     icon: <MessageSquareWarning />,
+    isCommentLink: true,
   },
   {
     href: "/settings",
@@ -57,6 +60,7 @@ const links = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const { count: pendingCommentsCount, isLoading } = usePendingComments();
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -64,13 +68,19 @@ export function SidebarNav() {
         <SidebarMenu>
           {links.map((link) => (
             <SidebarMenuItem key={link.href}>
-              <Link href={link.href}>
+              <Link href={link.href} className="relative">
                 <SidebarMenuButton
                   isActive={pathname === link.href}
                   tooltip={link.label}
+                  className="relative"
                 >
                   {link.icon}
                   <span>{link.label}</span>
+                   {link.isCommentLink && !isLoading && pendingCommentsCount > 0 && (
+                     <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
+                       {pendingCommentsCount}
+                     </Badge>
+                  )}
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
