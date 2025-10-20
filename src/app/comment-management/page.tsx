@@ -59,7 +59,7 @@ const categoryOptions = [
 export default function CommentManagementPage() {
   const { firestore } = useFirebase();
   const { dateRange } = useFilterContext();
-  const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('à traiter');
+  const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('tous');
   
   const categorizedCommentsCollection = useMemo(() => collection(firestore, "categorized_comments"), [firestore]);
   const tasksCollection = useMemo(() => collection(firestore, "tasks"), [firestore]);
