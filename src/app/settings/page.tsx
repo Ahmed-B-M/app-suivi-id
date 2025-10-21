@@ -12,10 +12,19 @@ import { FileSearch } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion } from "@/components/ui/accordion";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 
 function ExportTab() {
   const [logs, setLogs] = useState<string[]>([]);
@@ -129,27 +138,20 @@ function ExportTab() {
 function DatabaseTab() {
   const { firestore } = useFirebase();
 
+  // No specific client-side filtering needed here, we show all data in groups.
+  // Order by date to have a consistent display.
   const tasksCollection = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, "tasks");
+    return query(collection(firestore, "tasks"), orderBy("date", "desc"));
   }, [firestore]);
 
   const roundsCollection = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, "rounds");
+    return query(collection(firestore, "rounds"), orderBy("date", "desc"));
   }, [firestore]);
 
-  const {
-    data: tasks,
-    isLoading: isLoadingTasks,
-    error: tasksError,
-  } = useCollection<Tache>(tasksCollection);
-
-  const {
-    data: rounds,
-    isLoading: isLoadingRounds,
-    error: roundsError,
-  } = useCollection<Tournee>(roundsCollection);
+  const { data: tasks, loading: isLoadingTasks, error: tasksError } = useCollection<Tache>(tasksCollection);
+  const { data: rounds, loading: isLoadingRounds, error: roundsError } = useCollection<Tournee>(roundsCollection);
 
   const tasksByStatus = useMemo(() => {
     if (!tasks) return {};
@@ -180,15 +182,17 @@ function DatabaseTab() {
       (a, b) => new Date(b).getTime() - new Date(a).getTime()
     );
   }, [roundsByDate]);
+  
+  const isLoading = isLoadingTasks || isLoadingRounds;
 
   return (
     <Tabs defaultValue="tasks" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="tasks">
-          Tâches ({tasks?.length || 0})
+          Tâches ({isLoading ? '...' : tasks?.length || 0})
         </TabsTrigger>
         <TabsTrigger value="rounds">
-          Tournées ({rounds?.length || 0})
+          Tournées ({isLoading ? '...' : rounds?.length || 0})
         </TabsTrigger>
       </TabsList>
       <TabsContent value="tasks" className="mt-4">
@@ -200,24 +204,30 @@ function DatabaseTab() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingTasks && <Skeleton className="h-64 w-full" />}
+            {isLoadingTasks && (
+                <div className="space-y-4">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-64 w-full" />
+                </div>
+            )}
             {tasksError && (
               <p className="text-destructive">Erreur: {tasksError.message}</p>
             )}
-            {tasks && Object.keys(tasksByStatus).length > 0 ? (
-              <Accordion type="multiple" className="w-full space-y-4">
+            {!isLoadingTasks && tasks && Object.keys(tasksByStatus).length > 0 ? (
+               <Accordion type="multiple" className="w-full">
                 {Object.entries(tasksByStatus).map(
                   ([status, tasksInStatus]) => (
-                    <Card key={status}>
-                      <CardHeader>
-                        <CardTitle className="text-lg capitalize">
-                          {status.toLowerCase()} ({tasksInStatus.length})
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <TasksTable data={tasksInStatus} />
-                      </CardContent>
-                    </Card>
+                     <AccordionItem value={status} key={status}>
+                        <AccordionTrigger>
+                           <div className="flex items-center gap-4 justify-between w-full pr-4">
+                              <span className="text-lg capitalize">{status.toLowerCase()}</span>
+                              <p className="text-sm text-muted-foreground">{tasksInStatus.length} tâches</p>
+                           </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <TasksTable data={tasksInStatus} />
+                        </AccordionContent>
+                     </AccordionItem>
                   )
                 )}
               </Accordion>
@@ -240,23 +250,29 @@ function DatabaseTab() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingRounds && <Skeleton className="h-64 w-full" />}
+            {isLoadingRounds && (
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            )}
             {roundsError && (
               <p className="text-destructive">Erreur: {roundsError.message}</p>
             )}
-            {rounds && sortedRoundDates.length > 0 ? (
-              <Accordion type="multiple" className="w-full space-y-4">
+            {!isLoadingRounds && rounds && sortedRoundDates.length > 0 ? (
+              <Accordion type="multiple" className="w-full">
                 {sortedRoundDates.map((date) => (
-                  <Card key={date}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        {date} ({roundsByDate[date].length})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <RoundsTable data={roundsByDate[date]} />
-                    </CardContent>
-                  </Card>
+                  <AccordionItem value={date} key={date}>
+                     <AccordionTrigger>
+                        <div className="flex items-center gap-4 justify-between w-full pr-4">
+                           <span className="text-lg">{date}</span>
+                           <p className="text-sm text-muted-foreground">{roundsByDate[date].length} tournées</p>
+                        </div>
+                     </AccordionTrigger>
+                     <AccordionContent>
+                        <RoundsTable data={roundsByDate[date]} />
+                     </AccordionContent>
+                  </AccordionItem>
                 ))}
               </Accordion>
             ) : (
@@ -292,3 +308,5 @@ export default function SettingsPage() {
     </main>
   );
 }
+
+    

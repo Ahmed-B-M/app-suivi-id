@@ -109,14 +109,8 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
 
     const punctualityRate = punctualityTasks.length > 0 ? (punctualCount / punctualityTasks.length) * 100 : null;
 
-    const uniqueRoundKeys = new Set<string>();
-    rounds.forEach(round => {
-        if (round.name && round.date && round.nomHub) {
-            const key = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
-            uniqueRoundKeys.add(key);
-        }
-    });
-    const totalRounds = uniqueRoundKeys.size;
+    const uniqueRoundIds = new Set(rounds.map(r => r.id));
+    const totalRounds = uniqueRoundIds.size;
     const completedRounds = rounds.filter(r => r.status === "COMPLETED");
 
     const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
@@ -264,3 +258,5 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
       driverPerformance,
     };
 }
+
+    
