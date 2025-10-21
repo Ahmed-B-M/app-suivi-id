@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { getDepotFromHub } from '@/lib/grouping';
+import { getDepotFromHub, getHubCategory } from '@/lib/grouping';
 import { useCollection } from '@/firebase';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
