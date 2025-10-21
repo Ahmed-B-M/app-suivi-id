@@ -8,31 +8,34 @@ export async function initializeFirebaseOnServer() {
   const appName = `server-app-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
   try {
+    // Force la création d'une nouvelle instance à chaque fois
     const app = initializeApp({
         projectId: firebaseConfig.projectId,
     }, appName);
     
     const sdks = getSdks(app);
 
-    // This is a workaround to ensure the app is gracefully cleaned up
-    // This part is a bit of a hack, but it's to manage the lifecycle of the temp app
+    // Assure le nettoyage de cette instance temporaire
     const cleanup = async () => {
         try {
             await deleteApp(app);
         } catch (e) {
-            // console.error(`Error deleting temporary Firebase app ${appName}:`, e);
+            // Silence l'erreur si l'app est déjà supprimée, ce qui peut arriver
         }
     };
-    // Attach cleanup function to process exit events.
-    process.on('beforeExit', cleanup);
-    process.on('SIGINT', cleanup);
-    process.on('SIGTERM', cleanup);
-
-
+    
+    // Planifie le nettoyage pour la fin de l'exécution du processus
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(cleanup, 2000); // Délai pour permettre à l'opération de se terminer en dev
+    } else {
+       process.on('beforeExit', cleanup);
+    }
+    
     return sdks;
 
   } catch (error) {
      if (getApps().length > 0) {
+        // En cas d'erreur, tente de réutiliser une app existante comme solution de secours
         return getSdks(getApp());
     }
     throw error;
