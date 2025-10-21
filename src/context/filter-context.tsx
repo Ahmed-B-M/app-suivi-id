@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { getDepotFromHub, getHubCategory } from '@/lib/grouping';
-import { useCollection } from '@/firebase';
+import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-collection';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
@@ -35,6 +35,8 @@ interface FilterContextProps {
   allTasks: Tache[];
   allRounds: Tournee[];
   isContextLoading: boolean;
+
+  refreshData: () => void;
 }
 
 const FilterContext = createContext<FilterContextProps | undefined>(undefined);
@@ -52,6 +54,12 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshData = () => {
+    clearCollectionCache();
+    setRefreshKey(prevKey => prevKey + 1);
+  };
   
   const tasksCollection = useMemo(() => {
     return firestore ? collection(firestore, 'tasks') : null;
@@ -85,8 +93,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [date, dateRange, dateFilterMode]);
 
 
-  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters);
-  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters);
+  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters, refreshKey);
+  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters, refreshKey);
   
   const availableDepots = useMemo(
     () => {
@@ -112,7 +120,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     if (tasksLastUpdate && roundsLastUpdate) {
         return tasksLastUpdate > roundsLastUpdate ? tasksLastUpdate : roundsLastUpdate;
     }
-    return tasksLastUpdate || roundsLastUpdate;
+    return tasksLastUpdate || roundsLastUpdate || null;
   }, [tasksLastUpdate, roundsLastUpdate]);
 
   const filteredTasksByOtherCriteria = useMemo(() => {
@@ -165,6 +173,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allTasks: filteredTasksByOtherCriteria,
         allRounds: filteredRoundsByOtherCriteria,
         isContextLoading: isLoadingTasks || isLoadingRounds,
+        refreshData,
       }}
     >
       {children}
