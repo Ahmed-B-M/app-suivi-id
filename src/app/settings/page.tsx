@@ -15,7 +15,7 @@ import { useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Accordion } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Table,
   TableBody,
@@ -308,5 +308,3 @@ export default function SettingsPage() {
     </main>
   );
 }
-
-    
