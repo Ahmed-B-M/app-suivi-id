@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  AlertTriangle,
   ArchiveX,
   Ban,
   BoxSelect,
@@ -57,6 +58,7 @@ type DashboardStatsProps = {
     qualityAlerts: number;
     numberOfRatings: number;
     ratingRate: number | null;
+    alertRate: number | null;
   };
   topDrivers: { name: string; fiveStarCount: number }[];
   onRatingClick: () => void;
@@ -165,7 +167,7 @@ export function DashboardStats({
   return (
     <div className="space-y-6">
       {/* Main KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <StatCard
           title="Taux d'échec"
           value={
@@ -214,6 +216,22 @@ export function DashboardStats({
                 )}% de participation)`
               : "Aucune note"
           }
+        />
+         <StatCard
+          title="Taux d'Alerte"
+          value={
+            stats.alertRate !== null
+              ? `${stats.alertRate.toFixed(2)}%`
+              : "N/A"
+          }
+          icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
+          onClick={onQualityAlertClick}
+          variant={getVariant(stats.alertRate, {
+            success: 4,
+            warning: 8,
+            isHigherBetter: false,
+          })}
+          description={`${stats.qualityAlerts} alertes / ${stats.numberOfRatings} notes`}
         />
         <StatCard
           title="SCANBAC"

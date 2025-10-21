@@ -137,7 +137,10 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
     });
 
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
-    const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur <= 3);
+    const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
+
+    // Taux d'alerte global
+    const alertRate = numberOfRatings > 0 ? (qualityAlertTasks.length / numberOfRatings) * 100 : null;
 
     // Group tasks by status for chart
     const tasksByStatus = Object.entries(tasks.reduce((acc, task) => {
@@ -237,6 +240,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
         qualityAlerts: qualityAlertTasks.length,
         numberOfRatings,
         ratingRate,
+        alertRate,
       },
       top5StarDrivers,
       earlyTasks,
@@ -258,5 +262,3 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
       driverPerformance,
     };
 }
-
-    

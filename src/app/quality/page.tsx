@@ -175,11 +175,6 @@ export default function QualityPage() {
       const totalRatings = drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0);
       const completedTasks = drivers.reduce((sum, d) => sum + (d.completedTasks || 0), 0);
       
-      const alerts = drivers.reduce((sum, d) => {
-        const tasks = driverTasks[d.name] || [];
-        return sum + tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4).length;
-      }, 0);
-
       const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings' | 'totalTasks' | 'completedTasks'>, weightKey: 'totalRatings' | 'completedTasks') => {
         let totalWeightedSum = 0;
         let totalWeight = 0;
@@ -198,18 +193,14 @@ export default function QualityPage() {
       };
       
       const averageRating = weightedAvg('averageRating', 'totalRatings');
-      const score = drivers.length > 0 ? drivers.reduce((sum, d) => sum + (d.score ?? 0), 0) / drivers.length : 0;
-
+      
       return {
         totalRatings,
-        totalAlerts: alerts,
-        alertRate: totalRatings > 0 ? (alerts / totalRatings) * 100 : 0,
         averageRating,
         punctualityRate: weightedAvg('punctualityRate', 'completedTasks'),
         scanbacRate: weightedAvg('scanbacRate', 'completedTasks'),
         forcedAddressRate: weightedAvg('forcedAddressRate', 'completedTasks'),
         forcedContactlessRate: weightedAvg('forcedContactlessRate', 'completedTasks'),
-        score
       };
     };
 
@@ -222,9 +213,9 @@ export default function QualityPage() {
                 ...carrier,
                 ...calculateAggregatedStats(carrier.drivers),
                 drivers: carrier.drivers.sort((a,b) => (b.score ?? 0) - (a.score ?? 0))
-            })).sort((a,b) => (b.score ?? 0) - (a.score ?? 0))
+            })).sort((a,b) => (b.drivers.reduce((s,d) => s + (d.score ?? 0), 0) / b.drivers.length) - (a.drivers.reduce((s,d) => s + (d.score ?? 0), 0) / a.drivers.length))
         };
-    }).sort((a,b) => (b.score ?? 0) - (a.score ?? 0));
+    }).sort((a,b) => (b.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + (d.score ?? 0), 0), 0) / b.carriers.flatMap(c => c.drivers).length) - (a.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + (d.score ?? 0), 0), 0) / a.carriers.flatMap(c => c.drivers).length));
 
     const summary = calculateAggregatedStats(driverStatsList);
 

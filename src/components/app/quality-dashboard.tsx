@@ -36,33 +36,26 @@ interface DriverQuality extends DriverStats {
   score: number;
 }
 
-interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
+interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
   name: string;
   totalRatings: number;
-  totalAlerts: number;
-  alertRate: number | null;
   drivers: DriverQuality[];
 }
 
-interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'> {
+interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
   name: string;
   totalRatings: number;
-  totalAlerts: number;
-  alertRate: number | null;
   carriers: CarrierQuality[];
 }
 
 export interface QualityData {
   summary: {
     totalRatings: number;
-    totalAlerts: number;
-    alertRate: number;
     averageRating: number | null;
     punctualityRate: number | null;
     scanbacRate: number | null;
     forcedAddressRate: number | null;
     forcedContactlessRate: number | null;
-    score: number;
   };
   details: DepotQuality[];
 }
@@ -157,9 +150,7 @@ const Row = ({ name, data, icon, children }: { name: string, data: any, icon: Re
                             {icon} {name}
                         </div>
                         <div className="flex items-center gap-2">
-                           <StatBadge value={data.score} icon={<Award />} tooltipText="Score Qualité" isRate={false} />
                            <StatBadge value={data.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
-                           <StatBadge value={data.alertRate} icon={<AlertTriangle />} tooltipText="Taux d'Alertes" isLowerBetter />
                            <StatBadge value={data.punctualityRate} icon={<Clock />} tooltipText="Taux de Ponctualité" />
                            <StatBadge value={data.scanbacRate} icon={<Smartphone />} tooltipText="Taux de SCANBAC" />
                            <StatBadge value={data.forcedAddressRate} icon={<MapPinOff />} tooltipText="Taux 'Sur Place Forcé'" isLowerBetter />
@@ -195,19 +186,24 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
         );
     }
     
+    const getScoreVariant = (score: number | null) => {
+        if(score === null) return 'danger';
+        if (score >= 4.8) return 'success';
+        if (score >= 4.5) return 'warning';
+        return 'danger';
+    };
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Synthèse de la Qualité</CardTitle>
                 <CardDescription>Vue d'ensemble des indicateurs de performance qualité, agrégés par dépôt et transporteur.</CardDescription>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4 pt-4">
-                    <StatCard title="Score Qualité Global" value={data.summary.score.toFixed(1)} icon={<Award />} variant={getScoreVariant(data.summary.score)} />
-                    <StatCard title="Note Moyenne" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getScoreVariant((data.summary.averageRating ?? 0) * 20)} />
-                    <StatCard title="Taux d'Alertes" value={`${data.summary.alertRate.toFixed(1)}%`} icon={<AlertTriangle />} variant={getScoreVariant(100-data.summary.alertRate*5)} />
-                    <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getScoreVariant(data.summary.punctualityRate ?? 0)} />
-                    <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getScoreVariant(data.summary.scanbacRate ?? 0)} />
-                    <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getScoreVariant(100 - (data.summary.forcedAddressRate ?? 0)*10)} />
-                    <StatCard title="Forçage Sans Contact" value={`${data.summary.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%`} icon={<Ban />} variant={getScoreVariant(100 - (data.summary.forcedContactlessRate ?? 0)*10)} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 pt-4">
+                    <StatCard title="Note Moyenne Globale" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getScoreVariant(data.summary.averageRating)} />
+                    <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getScoreVariant((data.summary.punctualityRate ?? 0)/20)} />
+                    <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getScoreVariant((data.summary.scanbacRate ?? 0)/20)} />
+                    <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getScoreVariant(5 - (data.summary.forcedAddressRate ?? 100)/5)} />
+                    <StatCard title="Forçage Sans Contact" value={`${data.summary.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%`} icon={<Ban />} variant={getScoreVariant(5 - (data.summary.forcedContactlessRate ?? 100)/5)} />
                 </div>
             </CardHeader>
             <CardContent>
@@ -235,7 +231,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                      {carrier.drivers.map(driver => (
                                                         <TableRow key={driver.name}>
                                                             <TableCell className="font-medium">{driver.name}</TableCell>
-                                                            <TableCell className="text-right font-bold"><Badge variant={getScoreVariant(driver.score ?? 0)}>{driver.score?.toFixed(1)}</Badge></TableCell>
+                                                            <TableCell className="text-right font-bold"><Badge variant={getScoreVariant((driver.score ?? 0) / 20)}>{driver.score?.toFixed(1)}</Badge></TableCell>
                                                             <TableCell className="text-right font-mono">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
