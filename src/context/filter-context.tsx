@@ -61,6 +61,26 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     setRefreshKey(prevKey => prevKey + 1);
   };
   
+  useEffect(() => {
+    if (dateFilterMode === 'day' && date) {
+      const from = startOfDay(date);
+      const to = endOfDay(date);
+      if (dateRange?.from?.getTime() !== from.getTime() || dateRange?.to?.getTime() !== to.getTime()) {
+        setDateRange({ from, to });
+      }
+    }
+  }, [date, dateFilterMode]);
+
+  useEffect(() => {
+    if (dateFilterMode === 'range' && dateRange?.from) {
+       const fromDate = startOfDay(dateRange.from);
+       if (date?.getTime() !== fromDate.getTime()) {
+         setDate(fromDate);
+       }
+    }
+  }, [dateRange, dateFilterMode]);
+
+
   const tasksCollection = useMemo(() => {
     return firestore ? collection(firestore, 'tasks') : null;
   }, [firestore]);
@@ -70,16 +90,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [firestore]);
 
   const firestoreFilters = useMemo(() => {
-    let from: Date | undefined;
-    let to: Date | undefined;
-
-    if (dateFilterMode === 'day' && date) {
-      from = startOfDay(date);
-      to = endOfDay(date);
-    } else if (dateFilterMode === 'range' && dateRange?.from) {
-      from = startOfDay(dateRange.from);
-      to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-    }
+    const from = dateRange?.from;
+    const to = dateRange?.to;
     
     if (!from || !to) return [];
     
@@ -87,7 +99,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("date", ">=", from),
       where("date", "<=", to)
     ];
-  }, [date, dateRange, dateFilterMode]);
+  }, [dateRange]);
 
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters, refreshKey);
