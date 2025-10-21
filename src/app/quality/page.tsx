@@ -50,48 +50,41 @@ export default function QualityPage() {
   const savedCommentIds = useMemo(() => new Set(savedCommentsData?.map(c => c.taskId) || []), [savedCommentsData]);
 
   useEffect(() => {
-    if (!allTasks || isContextLoading) return;
+    if (!allTasks || !savedCommentsData) return;
 
-    let filtered = allTasks;
+    const savedCommentsMap = new Map(savedCommentsData.map(c => [c.taskId, c]));
 
-     // Merge logic
-    setCategorizedComments(prevComments => {
-        const existingCommentsMap = new Map(prevComments.map(c => [c.taskId, c]));
-        const newComments: LocalCategorizedComment[] = [];
-
-        filtered.forEach(task => {
-            const isNegativeComment =
-                typeof task.metaDonnees?.notationLivreur === 'number' &&
-                task.metaDonnees.notationLivreur < 4 &&
-                task.metaDonnees.commentaireLivreur;
-
-            if (isNegativeComment) {
-                if (existingCommentsMap.has(task.tacheId)) {
-                    // Preserve existing comment, but update its saved status
-                    const existing = existingCommentsMap.get(task.tacheId)!;
-                    existing.isSaved = savedCommentIds.has(task.tacheId);
-                    newComments.push(existing);
-                } else {
-                    // It's a new comment, create it
-                    newComments.push({
-                        id: task.tacheId,
-                        taskId: task.tacheId,
-                        comment: task.metaDonnees!.commentaireLivreur!,
-                        rating: task.metaDonnees!.notationLivreur!,
-                        category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                        taskDate: task.date,
-                        driverName: getDriverFullName(task),
-                        status: 'à traiter',
-                        isSaved: savedCommentIds.has(task.tacheId),
-                    });
-                }
+    const allComments = allTasks
+        .filter(task => 
+            typeof task.metaDonnees?.notationLivreur === 'number' &&
+            task.metaDonnees.notationLivreur < 4 &&
+            task.metaDonnees.commentaireLivreur
+        )
+        .map(task => {
+            const savedComment = savedCommentsMap.get(task.tacheId);
+            if (savedComment) {
+                return {
+                    ...savedComment,
+                    isSaved: true
+                };
+            } else {
+                return {
+                    id: task.tacheId,
+                    taskId: task.tacheId,
+                    comment: task.metaDonnees!.commentaireLivreur!,
+                    rating: task.metaDonnees!.notationLivreur!,
+                    category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+                    taskDate: task.date,
+                    driverName: getDriverFullName(task),
+                    status: 'à traiter' as const,
+                    isSaved: false
+                };
             }
         });
-        // Filter out comments from previous filter selections that are not in the current `filtered` list
-        return newComments.filter(c => filtered.some(t => t.tacheId === c.taskId));
-    });
 
-  }, [allTasks, isContextLoading, savedCommentIds]);
+      setCategorizedComments(allComments);
+
+  }, [allTasks, savedCommentsData]);
 
 
   const handleCategoryChange = (taskId: string, newCategory: string) => {
@@ -122,7 +115,7 @@ export default function QualityPage() {
       const result = await saveCategorizedCommentsAction(unsaved);
        if (result.success) {
             toast({ title: "Succès", description: `${unsaved.length} commentaires ont été sauvegardés.` });
-             setCategorizedComments(prev => prev.map(c => ({...c, isSaved: true, status: 'traité'})));
+             setCategorizedComments(prev => prev.map(c => unsaved.find(u => u.taskId === c.taskId) ? {...c, isSaved: true, status: 'traité'} : c));
         } else {
             toast({ title: "Erreur", description: result.error, variant: "destructive" });
         }
@@ -260,24 +253,28 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (!allTasks || isContextLoading) return { driverRankings: null, alertData: [] };
+    if (!allTasks || isContextLoading || !savedCommentsData) return { driverRankings: null, alertData: [] };
     
-    // Create a fresh filtered list of comments for this calculation
+    const commentsMap = new Map(savedCommentsData.map(c => [c.taskId, c]));
+    
     const allNegativeComments = allTasks
         .filter(task => 
             typeof task.metaDonnees?.notationLivreur === 'number' &&
             task.metaDonnees.notationLivreur < 4 &&
             task.metaDonnees.commentaireLivreur
         )
-        .map(task => ({
-            taskId: task.tacheId,
-            comment: task.metaDonnees!.commentaireLivreur!,
-            rating: task.metaDonnees!.notationLivreur!,
-            category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-            taskDate: task.date,
-            driverName: getDriverFullName(task),
-            nomHub: task.nomHub,
-        }));
+        .map(task => {
+            const savedComment = commentsMap.get(task.tacheId);
+            return {
+                taskId: task.tacheId,
+                comment: task.metaDonnees!.commentaireLivreur!,
+                rating: task.metaDonnees!.notationLivreur!,
+                category: savedComment?.category || getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+                taskDate: task.date,
+                driverName: getDriverFullName(task),
+                nomHub: task.nomHub,
+            };
+        });
     
     const driverTasks: Record<string, Tache[]> = {};
     allTasks.forEach(task => {
@@ -351,7 +348,7 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isContextLoading]);
+  }, [allTasks, isContextLoading, savedCommentsData]);
 
 
   const isLoading = isContextLoading || isLoadingComments;
@@ -377,10 +374,6 @@ export default function QualityPage() {
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
             data={categorizedComments}
-            isSaving={isSaving}
-            onSaveAll={handleSaveAllUnsaved}
-            onSaveSingle={handleSaveSingleComment}
-            onCategoryChange={handleCategoryChange}
         />
         <DriverPerformanceRankings 
             data={driverRankings || []}
