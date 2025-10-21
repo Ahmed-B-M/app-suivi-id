@@ -48,8 +48,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('day');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
   });
 
   const [selectedDepot, setSelectedDepot] = useState('all');
@@ -74,17 +74,17 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     let to: Date | undefined;
 
     if (dateFilterMode === 'day' && date) {
-      from = date;
-      to = date;
+      from = startOfDay(date);
+      to = endOfDay(date);
     } else if (dateFilterMode === 'range' && dateRange?.from) {
-      from = dateRange.from;
-      to = dateRange.to;
+      from = startOfDay(dateRange.from);
+      to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
     }
     
     if (!from) return [];
     
-    const startString = startOfDay(from).toISOString();
-    const endString = endOfDay(to || from).toISOString();
+    const startString = from.toISOString();
+    const endString = to ? to.toISOString() : startString;
     
 
     return [
