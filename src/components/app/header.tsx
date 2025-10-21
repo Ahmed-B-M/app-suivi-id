@@ -59,7 +59,9 @@ export function AppHeader() {
   };
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
-    setDate(selectedDate);
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
   }
 
   const handleRangeSelect = (selectedRange: typeof dateRange) => {

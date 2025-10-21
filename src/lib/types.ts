@@ -1,10 +1,11 @@
 
+import { Timestamp } from "firebase/firestore";
 
 // Définition de la structure d'une Tâche avec les champs en français
 export interface Tache {
   tacheId: string;
   type?: string;
-  date?: string;
+  date?: string | Date | Timestamp;
   progression?: string;
   status?: string;
   client?: string;
@@ -105,7 +106,7 @@ export interface Tache {
 // Nouvelle interface épurée pour les tournées
 export interface Tournee {
   id: string;
-  date?: string;
+  date?: string | Date | Timestamp;
   hub?: any;
   nomHub?: string;
   dimensions?: {
@@ -217,5 +218,6 @@ export interface Round {
     
 
     
+
 
 
