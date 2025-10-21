@@ -82,7 +82,9 @@ function normalizeDatesInObject(obj: any): any {
     return obj;
   }
   if (obj instanceof Date || (obj && typeof obj.toDate === 'function')) {
-      return (obj.toDate ? obj.toDate() : obj).toISOString();
+      // Convert Timestamps or Dates to a consistent ISO string format
+      const date = obj.toDate ? obj.toDate() : obj;
+      return date.toISOString();
   }
   if (Array.isArray(obj)) {
     return obj.map(normalizeDatesInObject);
@@ -90,12 +92,7 @@ function normalizeDatesInObject(obj: any): any {
   const newObj: { [key: string]: any } = {};
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const value = obj[key];
-       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-           newObj[key] = new Date(value).toISOString();
-       } else {
-           newObj[key] = normalizeDatesInObject(value);
-       }
+      newObj[key] = normalizeDatesInObject(obj[key]);
     }
   }
   return newObj;
@@ -249,7 +246,7 @@ export function UnifiedExportForm({
         let success = true;
 
         if (!dateRange.from) {
-          onLogUpdate([`      - ⚠️ Aucune date de début sélectionnée. Impossible de déterminer les documents à supprimer.`]);
+          onLogUpdate([`      - ⚠️ Aucune date de début sélectionnée. Impossible de déterminer les documents existants.`]);
           return false;
         }
 
@@ -259,71 +256,73 @@ export function UnifiedExportForm({
         onLogUpdate([`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`]);
         
         const existingDocsMap = new Map<string, any>();
-        let documentsToDelete: { docIdInFirestore: string, keyInMap: string }[] = [];
-
+        
         try {
             const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
-            
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(doc => {
               const docData = doc.data();
               // The key for the map MUST match the key format from the API data
-              let keyInMap;
-              if (collectionName === 'tasks') {
-                  keyInMap = docData[idKey]?.toString().replace(/^0+/, '');
-              } else {
-                  keyInMap = docData[idKey];
-              }
+              let keyInMap = collectionName === 'tasks'
+                ? docData[idKey]?.toString().replace(/^0+/, '')
+                : docData[idKey];
 
               if(keyInMap) {
                 existingDocsMap.set(keyInMap, { ...docData, __docId: doc.id });
               }
             });
             onLogUpdate([`      - ${existingDocsMap.size} documents trouvés dans la base de données pour cette période.`]);
-            
-            const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString()).filter(Boolean));
-
-            documentsToDelete = Array.from(existingDocsMap.keys())
-                .filter(idInMap => !idsFromApi.has(idInMap))
-                .map(idInMap => ({ docIdInFirestore: existingDocsMap.get(idInMap).__docId, keyInMap: idInMap }));
-
-            if(documentsToDelete.length > 0) {
-              onLogUpdate([`      - 🗑️ ${documentsToDelete.length} documents marqués pour suppression.`]);
-              const deleteBatch = writeBatch(firestore);
-              documentsToDelete.forEach(item => {
-                  deleteBatch.delete(doc(collectionRef, item.docIdInFirestore));
-              });
-              await deleteBatch.commit();
-              onLogUpdate([`      - ✅ Suppression effectuée.`]);
-            } else {
-               onLogUpdate([`      - ✅ Aucune suppression nécessaire.`]);
-            }
+        
         } catch(e) {
           success = false;
-          onLogUpdate([`      - ❌ Erreur lors de la recherche ou suppression des documents existants : ${(e as Error).message}`]);
+          onLogUpdate([`      - ❌ Erreur lors de la recherche des documents existants : ${(e as Error).message}`]);
+          // No return here, we might still be able to add new docs
         }
 
+        // Now, compare and decide what to add/update/delete
+        const apiIds = new Set(dataFromApi.map(item => item[idKey]?.toString().replace(/^0+/, '')));
+        const firestoreIds = new Set(Array.from(existingDocsMap.keys()).map(id => id.toString().replace(/^0+/, '')));
+
+        const idsToDelete = [...firestoreIds].filter(id => !apiIds.has(id));
+        
+        if (idsToDelete.length > 0) {
+            onLogUpdate([`      - 🗑️ ${idsToDelete.length} documents marqués pour suppression.`]);
+            const deleteBatch = writeBatch(firestore);
+            idsToDelete.forEach(idToDelete => {
+                const docIdInFirestore = existingDocsMap.get(idToDelete)?.__docId;
+                if(docIdInFirestore) {
+                   deleteBatch.delete(doc(collectionRef, docIdInFirestore));
+                }
+            });
+            try {
+                await deleteBatch.commit();
+                onLogUpdate([`      - ✅ Suppression effectuée.`]);
+            } catch(e) {
+                success = false;
+                onLogUpdate([`      - ❌ Erreur lors de la suppression: ${(e as Error).message}`]);
+            }
+        } else {
+            onLogUpdate([`      - ✅ Aucune suppression nécessaire.`]);
+        }
 
         let addedCount = 0;
         let updatedCount = 0;
         let unchangedCount = 0;
         const itemsToUpdate: any[] = [];
         
-        const itemsWithId = dataFromApi.filter(item => item[idKey]);
-        
-        itemsWithId.forEach(item => {
-            const docIdFromApi = item[idKey].toString();
-            const existingDocData = existingDocsMap.get(docIdFromApi);
+        dataFromApi.forEach(item => {
+            const idFromApi = item[idKey]?.toString().replace(/^0+/, '');
+            if (!idFromApi) return;
+
+            const existingDocData = existingDocsMap.get(idFromApi);
             
             if (!existingDocData) {
                 itemsToUpdate.push(item);
                 addedCount++;
             } else {
-                const { __docId, ...comparableExisting } = existingDocData; // exclude helper field
-                const comparableApiItem = { ...item };
-
+                const { __docId, ...comparableExisting } = existingDocData;
                 const normalizedExisting = normalizeDatesInObject(comparableExisting);
-                const normalizedApi = normalizeDatesInObject(comparableApiItem);
+                const normalizedApi = normalizeDatesInObject({ ...item });
 
                 if (!equal(normalizedExisting, normalizedApi)) {
                     itemsToUpdate.push(item);
@@ -349,17 +348,21 @@ export function UnifiedExportForm({
           const batch = writeBatch(firestore);
           
           batchData.forEach(item => {
-            let docIdForFirestore = item[idKey].toString();
-             if (collectionName === 'tasks') {
-                docIdForFirestore = '0' + docIdForFirestore;
-            }
+            // Firestore document ID should have the leading zero for tasks
+            const docIdForFirestore = collectionName === 'tasks' 
+              ? `0${item[idKey]}` 
+              : item[idKey].toString();
+              
             const docRef = doc(collectionRef, docIdForFirestore);
-            const dataToSet = { ...item };
+            const dataToSet: { [key: string]: any } = {};
+            
             // Convert date strings back to Date objects for Firestore Timestamps
-            Object.keys(dataToSet).forEach(key => {
-                const value = dataToSet[key];
+            Object.keys(item).forEach(key => {
+                const value = item[key];
                 if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
                     dataToSet[key] = new Date(value);
+                } else {
+                    dataToSet[key] = value;
                 }
             });
             batch.set(docRef, dataToSet, { merge: true });
@@ -369,13 +372,13 @@ export function UnifiedExportForm({
             onLogUpdate([`      - Écriture du lot ${i / batchSize + 1}/${Math.ceil(itemsToUpdate.length / batchSize)}...`]);
             await batch.commit();
             onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
-            if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
-              onLogUpdate([`      - ⏱️ Pause de 500ms...`]);
+             if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
+              onLogUpdate([`      - ⏱️ Pause de 500ms pour éviter la surcharge...`]);
               await delay(500);
             }
           } catch (e) {
             success = false;
-            onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${i / batchSize + 1}.`]);
+            onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${i / batchSize + 1}. Erreur: ${(e as Error).message}`]);
             console.error(`Échec de la sauvegarde du lot ${collectionName}`, e);
             const permissionError = new FirestorePermissionError({
                 path: `${collectionName}`,
