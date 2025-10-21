@@ -7,8 +7,22 @@ import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 
 const FAILED_PROGRESSIONS = ['FAILED', 'CANCELLED'];
 const FAILED_STATUSES = ['DELIVERY_FAILED', 'NOT_DELIVERED', 'CANCELLED', 'REJECTED'];
-const SENSITIVE_CLIENTS = ['RENAULT', 'PORSCHE']; // Example sensitive clients
-const QUALITY_ALERT_RATING = 3;
+
+// Mots-clés pour les livraisons sensibles, en minuscules et sans accents pour une recherche plus large
+const SENSITIVE_KEYWORDS = ["piece", "identite", "police", "gendarmerie", "caserne"];
+
+/**
+ * Normalise un texte en le passant en minuscules et en retirant les accents.
+ * @param text - Le texte à normaliser.
+ * @returns Le texte normalisé.
+ */
+function normalizeText(text: string): string {
+    return text
+        .toLowerCase()
+        .normalize("NFD") // Sépare les caractères et les accents
+        .replace(/[\u0300-\u036f]/g, ""); // Retire les accents
+}
+
 
 /**
  * Categorizes a comment based on keywords.
@@ -102,18 +116,26 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
     const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
 
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
-    const missingTasksList = tasks.filter(t => t.status === 'MISSING');
     
+    // Logique corrigée pour les bacs manquants
     const tasksWithMissingBacs = tasks.flatMap(task => 
         (task.articles ?? [])
           .filter(item => item.statut === 'MISSING')
           .map(item => ({ task, bac: item }))
     );
 
+    // Logique corrigée pour les relivraisons
+    const redeliveriesList = tasks.filter(t => (t.tentatives ?? 0) >= 2);
+    
+    // Logique corrigée pour les livraisons sensibles
+    const sensitiveDeliveriesList = tasks.filter(task => {
+        if (!task.instructions) return false;
+        const normalizedInstructions = normalizeText(task.instructions);
+        return SENSITIVE_KEYWORDS.some(keyword => normalizedInstructions.includes(keyword));
+    });
+
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
-    const redeliveriesList = tasks.filter(t => (t.tentatives ?? 1) >= 2);
-    const sensitiveDeliveriesList = tasks.filter(t => SENSITIVE_CLIENTS.includes(t.client?.toUpperCase() ?? ''));
-    const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur <= QUALITY_ALERT_RATING);
+    const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur <= 3);
 
     // Group tasks by status for chart
     const tasksByStatus = Object.entries(tasks.reduce((acc, task) => {
@@ -204,7 +226,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
         forcedAddressRate,
         forcedContactlessRate,
         pendingTasks: pendingTasksList.length,
-        missingTasks: missingTasksList.length,
+        missingTasks: tasks.filter(t => t.status === 'MISSING').length,
         missingBacs: tasksWithMissingBacs.length,
         partialDeliveredTasks: partialDeliveredTasksList.length,
         redeliveries: redeliveriesList.length,
@@ -220,7 +242,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
       lateTasksOver1h,
       failedTasksList: failedTasks,
       pendingTasksList,
-      missingTasksList,
+      missingTasksList: tasks.filter(t => t.status === 'MISSING'),
       tasksWithMissingBacs,
       partialDeliveredTasksList,
       redeliveriesList,
