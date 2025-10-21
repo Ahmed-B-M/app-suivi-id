@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useTransition } from "react";
 import { useCollection, useFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
 import { Tache } from "@/lib/types";
 import { getDriverFullName } from "@/lib/grouping";
+import { Loader2 } from "lucide-react";
 
 type CategorizedComment = {
   id: string;
@@ -70,6 +71,8 @@ export default function CommentManagementPage() {
     CategorizedComment[]
   >([]);
   const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const combinedComments = useMemo(() => {
     if (!tasks || !categorizedComments) return [];
@@ -143,21 +146,24 @@ export default function CommentManagementPage() {
     );
   };
 
-  const handleSave = async (comment: CategorizedComment) => {
-    try {
-      await updateSingleCommentAction(comment);
-      toast({
-        title: "Succès",
-        description: "Commentaire sauvegardé avec succès.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description:
-          "Une erreur est survenue lors de la sauvegarde du commentaire.",
-        variant: "destructive",
-      });
-    }
+  const handleSave = (comment: CategorizedComment) => {
+    setSavingId(comment.id);
+    startTransition(async () => {
+      const result = await updateSingleCommentAction(comment);
+      if (result.success) {
+        toast({
+          title: "Succès",
+          description: "Commentaire sauvegardé avec succès.",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Une erreur est survenue lors de la sauvegarde du commentaire.",
+          variant: "destructive",
+        });
+      }
+      setSavingId(null);
+    });
   };
 
   const isLoading = isLoadingCategorized || isLoadingTasks;
@@ -252,7 +258,8 @@ export default function CommentManagementPage() {
               <TableCell>{comment.taskDate}</TableCell>
               <TableCell>{comment.driverName}</TableCell>
               <TableCell>
-                <Button onClick={() => handleSave(comment)}>
+                <Button onClick={() => handleSave(comment)} disabled={isPending && savingId === comment.id}>
+                   {isPending && savingId === comment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Sauvegarder
                 </Button>
               </TableCell>
@@ -263,5 +270,3 @@ export default function CommentManagementPage() {
     </div>
   );
 }
-
-    
