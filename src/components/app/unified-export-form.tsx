@@ -244,13 +244,13 @@ export function UnifiedExportForm({
             
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(doc => {
-              // Spécificité pour les tâches : normaliser l'ID en retirant le '0' initial
-              const docId = collectionName === 'tasks' ? doc.id.replace(/^0+/, '') : doc.id;
-              existingDocsMap.set(docId, doc.data());
+              const docData = doc.data();
+              const docId = collectionName === 'tasks' ? docData[idKey]?.toString().replace(/^0+/, '') : doc.id;
+              existingDocsMap.set(docId, docData);
             });
             onLogUpdate([`      - ${existingDocsMap.size} documents trouvés dans la base de données pour cette période.`]);
             
-            const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString()).filter(Boolean));
+            const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString().replace(/^0+/, '')).filter(Boolean));
 
             documentsToDelete = Array.from(existingDocsMap.keys()).filter(id => !idsFromApi.has(id));
 
@@ -258,8 +258,7 @@ export function UnifiedExportForm({
               onLogUpdate([`      - 🗑️ ${documentsToDelete.length} documents marqués pour suppression.`]);
               const deleteBatch = writeBatch(firestore);
               documentsToDelete.forEach(id => {
-                // Pour la suppression, nous devons utiliser l'ID original du document
-                const originalId = querySnapshot.docs.find(d => (collectionName === 'tasks' ? d.id.replace(/^0+/, '') : d.id) === id)?.id;
+                const originalId = querySnapshot.docs.find(d => (d.data()[idKey]?.toString().replace(/^0+/, '') === id))?.id;
                 if (originalId) {
                   deleteBatch.delete(doc(collectionRef, originalId));
                 }
@@ -283,7 +282,7 @@ export function UnifiedExportForm({
         const itemsWithId = dataFromApi.filter(item => item[idKey]);
         
         itemsWithId.forEach(item => {
-            const docId = item[idKey].toString();
+            const docId = item[idKey].toString().replace(/^0+/, '');
             const existingDoc = existingDocsMap.get(docId);
             if (!existingDoc) {
                 itemsToUpdate.push(item);
@@ -317,7 +316,6 @@ export function UnifiedExportForm({
           
           batchData.forEach(item => {
             let docId = item[idKey].toString();
-            // Spécificité pour les tâches : l'ID du document commence par '0'
              if (collectionName === 'tasks') {
                 docId = '0' + docId;
             }
