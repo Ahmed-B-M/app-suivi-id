@@ -11,12 +11,17 @@ import type { Tache, Tournee } from '@/lib/types';
 import { format, subDays } from 'date-fns';
 
 type FilterType = 'tous' | 'magasin' | 'entrepot';
+type DateFilterMode = 'day' | 'range';
 
 interface FilterContextProps {
   filterType: FilterType;
   setFilterType: (type: FilterType) => void;
   dateRange: DateRange | undefined;
   setDateRange: (range: DateRange | undefined) => void;
+  date: Date | undefined;
+  setDate: (date: Date | undefined) => void;
+  dateFilterMode: DateFilterMode;
+  setDateFilterMode: (mode: DateFilterMode) => void;
   
   availableDepots: string[];
   selectedDepot: string;
@@ -38,7 +43,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const [filterType, setFilterType] = useState<FilterType>('tous');
   
-  const [dateRange, _setDateRange] = useState<DateRange | undefined>({
+  const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('day');
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
     to: new Date(),
   });
@@ -54,42 +61,33 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return firestore ? collection(firestore, 'rounds') : null;
   }, [firestore]);
 
-  // Build filters dynamically based on dateRange
   const firestoreFilters = useMemo(() => {
-    if (!dateRange?.from) return [];
+    let from: Date | undefined;
+    let to: Date | undefined;
+
+    if (dateFilterMode === 'day' && date) {
+      from = date;
+      to = date;
+    } else if (dateFilterMode === 'range' && dateRange?.from) {
+      from = dateRange.from;
+      to = dateRange.to;
+    }
     
-    const { from, to } = dateRange;
+    if (!from) return [];
     
-    // Format dates as 'YYYY-MM-DD' strings for comparison
     const startString = format(from, 'yyyy-MM-dd');
-    // If 'to' is not selected, use 'from' date.
-    // We append a high Unicode character to include the whole end day.
     const endString = format(to || from, 'yyyy-MM-dd') + '\uf8ff';
 
     return [
       where("date", ">=", startString),
       where("date", "<=", endString)
     ];
-  }, [dateRange]);
+  }, [date, dateRange, dateFilterMode]);
 
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters);
-
-  const setDateRange = (newRange: DateRange | undefined) => {
-    if (newRange?.from && newRange?.to && newRange.from > newRange.to) {
-      console.warn("Invalid date range: 'from' date cannot be after 'to' date.");
-      return;
-    }
-    _setDateRange(newRange);
-  };
   
-  useEffect(() => {
-    if (!dateRange && !isLoadingTasks && !isLoadingRounds) {
-        _setDateRange({ from: new Date(), to: new Date() });
-    }
-  }, [dateRange, isLoadingTasks, isLoadingRounds]);
-
   const availableDepots = useMemo(
     () => {
         if (!allTasks) return [];
@@ -153,6 +151,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         setFilterType,
         dateRange,
         setDateRange,
+        date,
+        setDate,
+        dateFilterMode,
+        setDateFilterMode,
         availableDepots,
         selectedDepot,
         setSelectedDepot,

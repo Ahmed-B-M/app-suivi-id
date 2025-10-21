@@ -21,6 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DEPOTS_LIST } from "@/lib/grouping";
+import { useState } from "react";
+import { Separator } from "../ui/separator";
 
 export function AppHeader() {
   const {
@@ -28,6 +30,10 @@ export function AppHeader() {
     setFilterType,
     dateRange,
     setDateRange,
+    date,
+    setDate,
+    dateFilterMode,
+    setDateFilterMode,
     availableDepots,
     selectedDepot,
     setSelectedDepot,
@@ -50,6 +56,14 @@ export function AppHeader() {
       setSelectedDepot('all'); 
     }
   };
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    setDate(selectedDate);
+  }
+
+  const handleRangeSelect = (selectedRange: typeof dateRange) => {
+    setDateRange(selectedRange);
+  }
 
 
   return (
@@ -99,7 +113,9 @@ export function AppHeader() {
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
+                 {dateFilterMode === 'day' && date ? (
+                    format(date, "dd LLL y", { locale: fr })
+                 ) : dateFilterMode === 'range' && dateRange?.from ? (
                   dateRange.to ? (
                     <>
                       {format(dateRange.from, "dd LLL y", { locale: fr })} -{" "}
@@ -109,20 +125,47 @@ export function AppHeader() {
                     format(dateRange.from, "dd LLL y", { locale: fr })
                   )
                 ) : (
-                  <span>Choisir une période</span>
+                  <span>Choisir une date</span>
                 )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-                locale={fr}
-              />
+                 <div className="p-4">
+                    <RadioGroup
+                        value={dateFilterMode}
+                        onValueChange={(value) => setDateFilterMode(value as 'day' | 'range')}
+                        className="flex items-center space-x-2"
+                    >
+                        <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="day" id="day" />
+                        <Label htmlFor="day">Jour</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="range" id="range" />
+                        <Label htmlFor="range">Période</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+                <Separator />
+                {dateFilterMode === 'day' ? (
+                     <Calendar
+                        initialFocus
+                        mode="single"
+                        selected={date}
+                        onSelect={handleDateSelect}
+                        locale={fr}
+                    />
+                ) : (
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={handleRangeSelect}
+                        numberOfMonths={2}
+                        locale={fr}
+                    />
+                )}
             </PopoverContent>
           </Popover>
           
@@ -161,3 +204,4 @@ export function AppHeader() {
     </header>
   );
 }
+
