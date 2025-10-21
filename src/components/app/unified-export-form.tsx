@@ -58,7 +58,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFirebase, useUser, errorEmitter, FirestorePermissionError, useFilters } from "@/firebase";
+import { useFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFilters } from "@/context/filter-context";
 import { Tache, Tournee } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { startOfDay, endOfDay } from 'date-fns';
