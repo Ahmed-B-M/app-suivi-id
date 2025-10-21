@@ -8,7 +8,7 @@ import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-co
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 
 type FilterType = 'tous' | 'magasin' | 'entrepot';
 type DateFilterMode = 'day' | 'range';
@@ -83,8 +83,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     
     if (!from) return [];
     
-    const startString = format(from, 'yyyy-MM-dd');
-    const endString = format(to || from, 'yyyy-MM-dd') + '\uf8ff';
+    const startString = startOfDay(from).toISOString();
+    const endString = endOfDay(to || from).toISOString();
+    
 
     return [
       where("date", ">=", startString),
