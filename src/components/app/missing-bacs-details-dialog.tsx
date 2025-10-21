@@ -63,8 +63,8 @@ export function MissingBacsDetailsDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tasks.map(({task, bac}) => (
-                    <TableRow key={`${task.tacheId}-${bac.codeBarre}`}>
+                  {tasks.map(({task, bac}, index) => (
+                    <TableRow key={`${task.tacheId}-${bac.codeBarre || 'null'}-${index}`}>
                       <TableCell>
                         {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
@@ -92,3 +92,4 @@ export function MissingBacsDetailsDialog({
     </Dialog>
   );
 }
+
