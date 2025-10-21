@@ -14,113 +14,18 @@ import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-rec
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { categorizeComment, updateSingleCommentAction, saveCategorizedCommentsAction } from "@/app/actions";
-import { Cloud, CloudOff, Save } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
+import { usePendingComments } from "@/hooks/use-pending-comments";
 
-interface LocalCategorizedComment extends CategorizedComment {
-  isSaved: boolean;
-}
 
 export default function QualityPage() {
-  const { firestore } = useFirebase();
-  const { dateRange, allTasks, isContextLoading } = useFilters();
+  const { allTasks, isContextLoading } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
-
-  const commentsCollection = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return collection(firestore, 'categorized_comments');
-  }, [firestore]);
-
-  const { data: savedCommentsData, isLoading: isLoadingComments } = useCollection<CategorizedComment>(commentsCollection);
   
-  const [categorizedComments, setCategorizedComments] = useState<LocalCategorizedComment[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const savedCommentIds = useMemo(() => new Set(savedCommentsData?.map(c => c.taskId) || []), [savedCommentsData]);
-
-  useEffect(() => {
-    if (!allTasks || !savedCommentsData) return;
-
-    const savedCommentsMap = new Map(savedCommentsData.map(c => [c.taskId, c]));
-
-    const allComments = allTasks
-        .filter(task => 
-            typeof task.metaDonnees?.notationLivreur === 'number' &&
-            task.metaDonnees.notationLivreur < 4 &&
-            task.metaDonnees.commentaireLivreur
-        )
-        .map(task => {
-            const savedComment = savedCommentsMap.get(task.tacheId);
-            if (savedComment) {
-                return {
-                    ...savedComment,
-                    isSaved: true
-                };
-            } else {
-                return {
-                    id: task.tacheId,
-                    taskId: task.tacheId,
-                    comment: task.metaDonnees!.commentaireLivreur!,
-                    rating: task.metaDonnees!.notationLivreur!,
-                    category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                    taskDate: task.date,
-                    driverName: getDriverFullName(task),
-                    status: 'à traiter' as const,
-                    isSaved: false
-                };
-            }
-        });
-
-      setCategorizedComments(allComments);
-
-  }, [allTasks, savedCommentsData]);
-
-
-  const handleCategoryChange = (taskId: string, newCategory: string) => {
-    setCategorizedComments(prev =>
-      prev.map(c => (c.taskId === taskId ? { ...c, category: newCategory, isSaved: false } : c))
-    );
-  };
-  
-  const handleSaveSingleComment = async (commentToSave: LocalCategorizedComment) => {
-    setIsSaving(true);
-    const result = await updateSingleCommentAction(commentToSave);
-    if (result.success) {
-      toast({ title: "Succès", description: `Commentaire ${commentToSave.taskId} sauvegardé.` });
-      setCategorizedComments(prev => prev.map(c => c.taskId === commentToSave.taskId ? {...c, isSaved: true, status: 'traité'} : c));
-    } else {
-      toast({ title: "Erreur", description: result.error, variant: "destructive" });
-    }
-    setIsSaving(false);
-  };
-
-  const handleSaveAllUnsaved = async () => {
-      const unsaved = categorizedComments.filter(c => !c.isSaved);
-      if (unsaved.length === 0) {
-          toast({ title: "Information", description: "Tous les commentaires sont déjà sauvegardés."});
-          return;
-      }
-      setIsSaving(true);
-      const result = await saveCategorizedCommentsAction(unsaved);
-       if (result.success) {
-            toast({ title: "Succès", description: `${unsaved.length} commentaires ont été sauvegardés.` });
-             setCategorizedComments(prev => prev.map(c => unsaved.find(u => u.taskId === c.taskId) ? {...c, isSaved: true, status: 'traité'} : c));
-        } else {
-            toast({ title: "Erreur", description: result.error, variant: "destructive" });
-        }
-      setIsSaving(false);
-  }
+  const { 
+    allComments: categorizedComments, 
+    isLoading: isLoadingComments 
+  } = usePendingComments();
 
   const qualityData = useMemo(() => {
     if (!allTasks || isContextLoading) return null;
@@ -220,7 +125,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, isContextLoading, dateRange]);
+  }, [allTasks, isContextLoading]);
 
 
   const filteredQualityData = useMemo(() => {
@@ -244,28 +149,7 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (!allTasks || isContextLoading || !savedCommentsData) return { driverRankings: null, alertData: [] };
-    
-    const commentsMap = new Map(savedCommentsData.map(c => [c.taskId, c]));
-    
-    const allNegativeComments = allTasks
-        .filter(task => 
-            typeof task.metaDonnees?.notationLivreur === 'number' &&
-            task.metaDonnees.notationLivreur < 4 &&
-            task.metaDonnees.commentaireLivreur
-        )
-        .map(task => {
-            const savedComment = commentsMap.get(task.tacheId);
-            return {
-                taskId: task.tacheId,
-                comment: task.metaDonnees!.commentaireLivreur!,
-                rating: task.metaDonnees!.notationLivreur!,
-                category: savedComment?.category || getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                taskDate: task.date,
-                driverName: getDriverFullName(task),
-                nomHub: task.nomHub,
-            };
-        });
+    if (!allTasks || isContextLoading || !categorizedComments) return { driverRankings: null, alertData: [] };
     
     const driverTasks: Record<string, Tache[]> = {};
     allTasks.forEach(task => {
@@ -290,8 +174,11 @@ export default function QualityPage() {
 
     const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};
     
-    allNegativeComments.forEach(comment => {
-        const depot = getDepotFromHub(comment.nomHub);
+    categorizedComments.forEach(comment => {
+        if (comment.rating >= 4) return;
+
+        const task = allTasks.find(t => t.tacheId === comment.taskId);
+        const depot = getDepotFromHub(task?.nomHub);
         if (!depot) return;
 
         const driverName = comment.driverName;
@@ -339,7 +226,7 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isContextLoading, savedCommentsData]);
+  }, [allTasks, isContextLoading, categorizedComments]);
 
 
   const isLoading = isContextLoading || isLoadingComments;
@@ -364,7 +251,7 @@ export default function QualityPage() {
         <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
-            data={categorizedComments}
+            data={categorizedComments.filter(c => c.rating < 4)}
         />
         <DriverPerformanceRankings 
             data={driverRankings || []}
@@ -374,3 +261,5 @@ export default function QualityPage() {
     </main>
   );
 }
+
+    
