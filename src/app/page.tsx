@@ -26,6 +26,7 @@ import { RedeliveryDetailsDialog } from "@/components/app/redelivery-details-dia
 import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries-dialog";
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 import { AllRoundsDetailsDialog } from "@/components/app/all-rounds-details-dialog";
+import { AllTasksDetailsDialog } from "@/components/app/all-tasks-details-dialog";
 import { useFilters } from "@/context/filter-context";
 import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   const [isSensitiveDeliveriesOpen, setIsSensitiveDeliveriesOpen] = useState(false);
   const [isQualityAlertOpen, setIsQualityAlertOpen] = useState(false);
   const [isAllRoundsDetailsOpen, setIsAllRoundsDetailsOpen] = useState(false);
+  const [isAllTasksDetailsOpen, setIsAllTasksDetailsOpen] = useState(false);
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late' | 'late_over_1h';
     tasks: PunctualityTask[];
@@ -124,6 +126,11 @@ export default function DashboardPage() {
         onOpenChange={setIsAllRoundsDetailsOpen}
         rounds={filteredRounds}
       />
+      <AllTasksDetailsDialog
+        isOpen={isAllTasksDetailsOpen}
+        onOpenChange={setIsAllTasksDetailsOpen}
+        tasks={filteredData}
+      />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
       </div>
@@ -176,6 +183,7 @@ export default function DashboardPage() {
             onSensitiveDeliveriesClick={() => setIsSensitiveDeliveriesOpen(true)}
             onQualityAlertClick={() => setIsQualityAlertOpen(true)}
             onTotalRoundsClick={() => setIsAllRoundsDetailsOpen(true)}
+            onTotalTasksClick={() => setIsAllTasksDetailsOpen(true)}
           />
 
           <DriverPerformanceTable data={dashboardData.driverPerformance || []} isLoading={false} />

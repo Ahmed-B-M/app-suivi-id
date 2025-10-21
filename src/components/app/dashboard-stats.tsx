@@ -72,6 +72,7 @@ type DashboardStatsProps = {
   onSensitiveDeliveriesClick: () => void;
   onQualityAlertClick: () => void;
   onTotalRoundsClick: () => void;
+  onTotalTasksClick: () => void;
 };
 
 const StatCard = ({
@@ -144,6 +145,7 @@ export function DashboardStats({
   onSensitiveDeliveriesClick,
   onQualityAlertClick,
   onTotalRoundsClick,
+  onTotalTasksClick,
 }: DashboardStatsProps) {
   const getVariant = (
     value: number | null,
@@ -314,7 +316,7 @@ export function DashboardStats({
       </div>
 
        <div className="grid gap-4 md:grid-cols-4">
-          <StatCard title="Tâches Totales" value={stats.totalTasks.toString()} icon={<ListTodo className="h-4 w-4 text-muted-foreground" />} />
+          <StatCard title="Tâches Totales" value={stats.totalTasks.toString()} icon={<ListTodo className="h-4 w-4 text-muted-foreground" />} onClick={onTotalTasksClick} />
           <StatCard title="Tâches Terminées" value={stats.completedTasks.toString()} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
           <StatCard title="Tournées Totales" value={stats.totalRounds.toString()} icon={<Route className="h-4 w-4 text-muted-foreground" />} onClick={onTotalRoundsClick} />
           <StatCard title="Tournées Terminées" value={stats.completedRounds.toString()} icon={<Trophy className="h-4 w-4 text-muted-foreground" />} />
