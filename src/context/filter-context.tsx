@@ -39,7 +39,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [filterType, setFilterType] = useState<FilterType>('tous');
   
   const [dateRange, _setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 7),
+    from: new Date(),
     to: new Date(),
   });
 
@@ -85,7 +85,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     if (!dateRange && !isLoadingTasks && !isLoadingRounds) {
-        _setDateRange({ from: subDays(new Date(), 7), to: new Date() });
+        _setDateRange({ from: new Date(), to: new Date() });
     }
   }, [dateRange, isLoadingTasks, isLoadingRounds]);
 
