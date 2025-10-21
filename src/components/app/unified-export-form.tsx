@@ -378,8 +378,8 @@ export function UnifiedExportForm({
             await batch.commit();
             onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
              if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
-              onLogUpdate([`      - ⏱️ Pause de 500ms pour éviter la surcharge...`]);
-              await delay(500);
+              onLogUpdate([`      - ⏱️ Pause de 1000ms pour éviter la surcharge...`]);
+              await delay(1000);
             }
           } catch (e) {
             success = false;
@@ -586,5 +586,7 @@ export function UnifiedExportForm({
     </Card>
   );
 }
+
+    
 
     
