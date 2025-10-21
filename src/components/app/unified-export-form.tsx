@@ -235,7 +235,7 @@ export function UnifiedExportForm({
         onLogUpdate([`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`]);
         
         const existingDocsMap = new Map<string, any>();
-        let documentsToDelete: string[] = [];
+        let documentsToDelete: { docIdInFirestore: string, keyInMap: string }[] = [];
 
         try {
             const fromISO = fromDate.toISOString();
@@ -245,23 +245,28 @@ export function UnifiedExportForm({
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(doc => {
               const docData = doc.data();
-              const docId = collectionName === 'tasks' ? docData[idKey]?.toString().replace(/^0+/, '') : doc.id;
-              existingDocsMap.set(docId, docData);
+              // The key for the map MUST match the key format from the API data
+              const keyInMap = collectionName === 'tasks' 
+                ? docData[idKey]?.toString().replace(/^0+/, '') // e.g., '623750981'
+                : docData[idKey]; // For rounds, it's just the ID, e.g., '68ef81bed2e4aec48d0cdbeb'
+              
+              if(keyInMap) {
+                existingDocsMap.set(keyInMap, { ...docData, __docId: doc.id });
+              }
             });
             onLogUpdate([`      - ${existingDocsMap.size} documents trouvés dans la base de données pour cette période.`]);
             
-            const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString().replace(/^0+/, '')).filter(Boolean));
+            const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString()).filter(Boolean));
 
-            documentsToDelete = Array.from(existingDocsMap.keys()).filter(id => !idsFromApi.has(id));
+            documentsToDelete = Array.from(existingDocsMap.keys())
+                .filter(idInMap => !idsFromApi.has(idInMap))
+                .map(idInMap => ({ docIdInFirestore: existingDocsMap.get(idInMap).__docId, keyInMap: idInMap }));
 
             if(documentsToDelete.length > 0) {
               onLogUpdate([`      - 🗑️ ${documentsToDelete.length} documents marqués pour suppression.`]);
               const deleteBatch = writeBatch(firestore);
-              documentsToDelete.forEach(id => {
-                const originalId = querySnapshot.docs.find(d => (d.data()[idKey]?.toString().replace(/^0+/, '') === id))?.id;
-                if (originalId) {
-                  deleteBatch.delete(doc(collectionRef, originalId));
-                }
+              documentsToDelete.forEach(item => {
+                  deleteBatch.delete(doc(collectionRef, item.docIdInFirestore));
               });
               await deleteBatch.commit();
               onLogUpdate([`      - ✅ Suppression effectuée.`]);
@@ -282,13 +287,14 @@ export function UnifiedExportForm({
         const itemsWithId = dataFromApi.filter(item => item[idKey]);
         
         itemsWithId.forEach(item => {
-            const docId = item[idKey].toString().replace(/^0+/, '');
-            const existingDoc = existingDocsMap.get(docId);
-            if (!existingDoc) {
+            const docIdFromApi = item[idKey].toString();
+            const existingDocData = existingDocsMap.get(docIdFromApi);
+            
+            if (!existingDocData) {
                 itemsToUpdate.push(item);
                 addedCount++;
             } else {
-                const comparableExisting = { ...existingDoc, date: existingDoc.date?.toDate ? existingDoc.date.toDate().toISOString() : existingDoc.date };
+                const { __docId, ...comparableExisting } = existingDocData; // exclude helper field
                 const comparableApiItem = { ...item };
 
                 if (!equal(comparableExisting, comparableApiItem)) {
@@ -315,11 +321,11 @@ export function UnifiedExportForm({
           const batch = writeBatch(firestore);
           
           batchData.forEach(item => {
-            let docId = item[idKey].toString();
+            let docIdForFirestore = item[idKey].toString();
              if (collectionName === 'tasks') {
-                docId = '0' + docId;
+                docIdForFirestore = '0' + docIdForFirestore;
             }
-            const docRef = doc(collectionRef, docId);
+            const docRef = doc(collectionRef, docIdForFirestore);
             const dataToSet = { ...item };
             if (dataToSet.date) {
                 dataToSet.date = new Date(dataToSet.date);
