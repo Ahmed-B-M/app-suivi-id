@@ -18,7 +18,7 @@ async function fetchUrbantzData(apiKey, endpoint, params) {
       'X-Api-Key': apiKey,
     },
     params: new URLSearchParams(params), // Axios handles params safely
-    timeout: 15000, // 15 seconds timeout
+    timeout: 30000, // 30 seconds timeout
   };
 
   try {
@@ -27,7 +27,7 @@ async function fetchUrbantzData(apiKey, endpoint, params) {
   } catch (error) {
     if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNABORTED') {
-            return { error: 'Failed to fetch from Urbantz API: Request timed out after 15 seconds.' };
+            return { error: 'Failed to fetch from Urbantz API: Request timed out after 30 seconds.' };
         }
         return { error: `API request failed with status ${error.response?.status}: ${JSON.stringify(error.response?.data)}` };
     }
