@@ -238,7 +238,10 @@ export function UnifiedExportForm({
         let documentsToDelete: string[] = [];
 
         try {
-            const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
+            const fromString = format(fromDate, 'yyyy-MM-dd');
+            const toString = format(toDate, 'yyyy-MM-dd') + '\uf8ff';
+            const q = query(collectionRef, where("date", ">=", fromString), where("date", "<=", toString));
+
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(doc => existingDocsMap.set(doc.id, doc.data()));
             onLogUpdate([`      - ${existingDocsMap.size} documents trouvés dans la base de données pour cette période.`]);
@@ -277,8 +280,8 @@ export function UnifiedExportForm({
                 itemsToUpdate.push(item);
                 addedCount++;
             } else {
-                const comparableExisting = { ...existingDoc, date: existingDoc.date?.toMillis() };
-                const comparableApiItem = { ...item, date: item.date ? new Date(item.date).getTime() : undefined };
+                const comparableExisting = { ...existingDoc, date: existingDoc.date?.toDate ? existingDoc.date.toDate().toISOString() : existingDoc.date };
+                const comparableApiItem = { ...item };
 
                 if (!equal(comparableExisting, comparableApiItem)) {
                     itemsToUpdate.push(item);
@@ -306,7 +309,11 @@ export function UnifiedExportForm({
           batchData.forEach(item => {
             const docId = item[idKey].toString();
             const docRef = doc(collectionRef, docId);
-            batch.set(docRef, item, { merge: true });
+            const dataToSet = { ...item };
+            if (dataToSet.date) {
+                dataToSet.date = new Date(dataToSet.date);
+            }
+            batch.set(docRef, dataToSet, { merge: true });
           });
 
           try {
