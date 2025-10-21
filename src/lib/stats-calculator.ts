@@ -1,6 +1,7 @@
 
 
 
+
 import type { Tache, Tournee } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName } from "./grouping";
@@ -32,6 +33,9 @@ function normalizeText(text: string): string {
  * @returns The determined category.
  */
 export function getCategoryFromKeywords(comment: string): string {
+    if (!comment) {
+      return 'Autre';
+    }
     const lowerComment = comment.toLowerCase();
     
     const categoryKeywords: Record<string, string[]> = {
@@ -300,5 +304,3 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], saved
       }
     };
 }
-
-    
