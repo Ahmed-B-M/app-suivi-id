@@ -52,8 +52,8 @@ export function AllTasksDetailsDialog({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {tasks.map((task) => (
-                <TableRow key={task.tacheId}>
+                {tasks.map((task, index) => (
+                <TableRow key={`${task.tacheId}-${index}`}>
                     <TableCell className="font-mono">{task.tacheId}</TableCell>
                     <TableCell>{task.nomHub || 'N/A'}</TableCell>
                     <TableCell>{task.nomTournee || 'N/A'}</TableCell>
