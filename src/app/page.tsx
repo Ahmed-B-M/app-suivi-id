@@ -32,14 +32,25 @@ import { DriverPerformanceTable } from "@/components/app/driver-performance-tabl
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "@/lib/grouping";
 import { calculateDashboardStats } from "@/lib/stats-calculator";
+import type { CategorizedComment } from "@/components/app/comment-analysis";
+import { CommentSummaryCard } from "@/components/app/comment-summary-card";
 
 
 export default function DashboardPage() {
+  const { firestore } = useFirebase();
   const { 
     allTasks: filteredData,
     allRounds: filteredRounds,
     isContextLoading,
    } = useFilters();
+
+  const commentsCollection = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return collection(firestore, 'categorized_comments');
+  }, [firestore]);
+
+  const { data: savedCommentsData, isLoading: isLoadingComments } = useCollection<CategorizedComment>(commentsCollection);
+
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
@@ -73,10 +84,10 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds);
-  }, [filteredData, filteredRounds]);
+    return calculateDashboardStats(filteredData, filteredRounds, savedCommentsData);
+  }, [filteredData, filteredRounds, savedCommentsData]);
 
-  const isLoading = isContextLoading;
+  const isLoading = isContextLoading || isLoadingComments;
   const error = null; 
 
   return (
@@ -186,6 +197,12 @@ export default function DashboardPage() {
             onTotalTasksClick={() => setIsAllTasksDetailsOpen(true)}
           />
 
+          {dashboardData.commentAnalysis && dashboardData.commentAnalysis.totalComments > 0 && (
+            <CommentSummaryCard
+              analysis={dashboardData.commentAnalysis}
+            />
+          )}
+
           <DriverPerformanceTable data={dashboardData.driverPerformance || []} isLoading={false} />
           
           <Tabs defaultValue="tasks" className="w-full">
@@ -258,3 +275,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    

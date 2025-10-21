@@ -1,9 +1,11 @@
 
 
+
 import type { Tache, Tournee } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName } from "./grouping";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
+import type { CategorizedComment } from "@/components/app/comment-analysis";
 
 const FAILED_PROGRESSIONS = ['FAILED', 'CANCELLED'];
 const FAILED_STATUSES = ['DELIVERY_FAILED', 'NOT_DELIVERED', 'CANCELLED', 'REJECTED'];
@@ -59,7 +61,7 @@ export function getCategoryFromKeywords(comment: string): string {
 }
 
 
-export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
+export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], savedCommentsData?: CategorizedComment[] | null) {
     if (!tasks || !rounds) {
       return { hasData: false };
     }
@@ -119,17 +121,14 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
 
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
     
-    // Logique corrigée pour les bacs manquants
     const tasksWithMissingBacs = tasks.flatMap(task => 
         (task.articles ?? [])
           .filter(item => item.statut === 'MISSING')
           .map(item => ({ task, bac: item }))
     );
 
-    // Logique corrigée pour les relivraisons
     const redeliveriesList = tasks.filter(t => (t.tentatives ?? 0) >= 2);
     
-    // Logique corrigée pour les livraisons sensibles
     const sensitiveDeliveriesList = tasks.filter(task => {
         if (!task.instructions) return false;
         const normalizedInstructions = normalizeText(task.instructions);
@@ -139,38 +138,32 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
     const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
 
-    // Taux d'alerte global
     const alertRate = numberOfRatings > 0 ? (qualityAlertTasks.length / numberOfRatings) * 100 : null;
 
-    // Group tasks by status for chart
     const tasksByStatus = Object.entries(tasks.reduce((acc, task) => {
         const status = task.status || "Unknown";
         acc[status] = (acc[status] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
-    // Group tasks by progression for chart
     const tasksByProgression = Object.entries(tasks.reduce((acc, task) => {
         const progression = task.progression || "Unknown";
         acc[progression] = (acc[progression] || 0) + 1;
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
-    // Group tasks by date
     const tasksOverTime = Object.entries(tasks.reduce((acc, task) => {
       const date = task.unplanned ? 'Unplanned' : (task.date ? task.date.split("T")[0] : "Unknown");
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([date, count]) => ({ date, count }));
 
-    // Group rounds by status
     const roundsByStatus = Object.entries(rounds.reduce((acc, round) => {
       const status = round.status || "Unknown";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
     
-    // Group rounds by date
     const roundsOverTime = Object.entries(rounds.reduce((acc, round) => {
       const date = round.date ? round.date.split("T")[0] : "Unknown";
       acc[date] = (acc[date] || 0) + 1;
@@ -211,8 +204,48 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
         }, {} as Record<string, number>)
     ).map(([name, fiveStarCount]) => ({ name, fiveStarCount })).sort((a, b) => b.fiveStarCount - a.fiveStarCount).slice(0, 5);
 
-
     const hasData = tasks.length > 0 || rounds.length > 0;
+    
+    // --- Comment Analysis Logic ---
+    const allNegativeComments = savedCommentsData ? [...savedCommentsData] : [];
+    const savedCommentIds = new Set(allNegativeComments.map(c => c.taskId));
+
+    qualityAlertTasks.forEach(task => {
+        if (!savedCommentIds.has(task.tacheId)) {
+            allNegativeComments.push({
+                id: task.tacheId,
+                taskId: task.tacheId,
+                comment: task.metaDonnees!.commentaireLivreur!,
+                rating: task.metaDonnees!.notationLivreur!,
+                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+                taskDate: task.date,
+                driverName: getDriverFullName(task),
+                status: 'à traiter',
+            });
+        }
+    });
+    
+    const totalComments = allNegativeComments.length;
+    const commentsByCategory = Object.entries(allNegativeComments.reduce((acc, comment) => {
+        acc[comment.category] = (acc[comment.category] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>))
+    .map(([category, count]) => ({
+        category,
+        count,
+        percentage: totalComments > 0 ? (count / totalComments) * 100 : 0
+    }))
+    .sort((a,b) => b.count - a.count);
+
+    const attitudeComments = allNegativeComments
+      .filter(c => c.category === 'Attitude livreur')
+      .map(c => ({
+        comment: c.comment,
+        driverName: c.driverName,
+        taskDate: c.taskDate,
+        roundName: tasks.find(t => t.tacheId === c.taskId)?.nomTournee
+      }));
+    // --- End Comment Analysis ---
 
     return {
       hasData,
@@ -260,5 +293,12 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[]) {
       roundsByStatus,
       roundsOverTime,
       driverPerformance,
+      commentAnalysis: {
+        totalComments,
+        commentsByCategory,
+        attitudeComments,
+      }
     };
 }
+
+    

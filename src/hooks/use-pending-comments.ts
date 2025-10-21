@@ -3,8 +3,9 @@
 
 import { useMemo } from "react";
 import { useCollection, useFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, where } from "firebase/firestore";
 import { Tache } from "@/lib/types";
+import { useFilters } from "@/context/filter-context";
 
 type CategorizedComment = {
   taskId: string;
@@ -18,6 +19,7 @@ type CategorizedComment = {
  */
 export function usePendingComments() {
   const { firestore } = useFirebase();
+  const { dateRange } = useFilters();
 
   const categorizedCommentsCollection = useMemo(() => 
     collection(firestore, "categorized_comments"), 
@@ -27,9 +29,19 @@ export function usePendingComments() {
     collection(firestore, "tasks"), 
     [firestore]
   );
+  
+  const firestoreFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    if (!from || !to) return [];
+    return [
+      where("date", ">=", from),
+      where("date", "<=", to)
+    ];
+  }, [dateRange]);
 
-  const { data: categorizedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection);
-  const { data: tasks, isLoading: isLoadingTasks } = useCollection<Tache>(tasksCollection);
+  const { data: categorizedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, firestoreFilters);
+  const { data: tasks, isLoading: isLoadingTasks } = useCollection<Tache>(tasksCollection, firestoreFilters);
 
   const count = useMemo(() => {
     // Return 0 if data is not yet loaded
@@ -58,3 +70,5 @@ export function usePendingComments() {
     isLoading: isLoadingCategorized || isLoadingTasks
   };
 }
+
+    
