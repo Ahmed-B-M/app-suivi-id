@@ -238,22 +238,31 @@ export function UnifiedExportForm({
         let documentsToDelete: string[] = [];
 
         try {
-            const fromString = format(fromDate, 'yyyy-MM-dd');
-            const toString = format(toDate, 'yyyy-MM-dd') + '\uf8ff';
-            const q = query(collectionRef, where("date", ">=", fromString), where("date", "<=", toString));
-
+            const fromISO = fromDate.toISOString();
+            const toISO = toDate.toISOString();
+            const q = query(collectionRef, where("date", ">=", fromISO), where("date", "<=", toISO + '\uf8ff'));
+            
             const querySnapshot = await getDocs(q);
-            querySnapshot.forEach(doc => existingDocsMap.set(doc.id, doc.data()));
+            querySnapshot.forEach(doc => {
+              // Spécificité pour les tâches : normaliser l'ID en retirant le '0' initial
+              const docId = collectionName === 'tasks' ? doc.id.replace(/^0+/, '') : doc.id;
+              existingDocsMap.set(docId, doc.data());
+            });
             onLogUpdate([`      - ${existingDocsMap.size} documents trouvés dans la base de données pour cette période.`]);
             
             const idsFromApi = new Set(dataFromApi.map(item => item[idKey]?.toString()).filter(Boolean));
+
             documentsToDelete = Array.from(existingDocsMap.keys()).filter(id => !idsFromApi.has(id));
 
             if(documentsToDelete.length > 0) {
               onLogUpdate([`      - 🗑️ ${documentsToDelete.length} documents marqués pour suppression.`]);
               const deleteBatch = writeBatch(firestore);
               documentsToDelete.forEach(id => {
-                deleteBatch.delete(doc(collectionRef, id));
+                // Pour la suppression, nous devons utiliser l'ID original du document
+                const originalId = querySnapshot.docs.find(d => (collectionName === 'tasks' ? d.id.replace(/^0+/, '') : d.id) === id)?.id;
+                if (originalId) {
+                  deleteBatch.delete(doc(collectionRef, originalId));
+                }
               });
               await deleteBatch.commit();
               onLogUpdate([`      - ✅ Suppression effectuée.`]);
@@ -307,7 +316,11 @@ export function UnifiedExportForm({
           const batch = writeBatch(firestore);
           
           batchData.forEach(item => {
-            const docId = item[idKey].toString();
+            let docId = item[idKey].toString();
+            // Spécificité pour les tâches : l'ID du document commence par '0'
+             if (collectionName === 'tasks') {
+                docId = '0' + docId;
+            }
             const docRef = doc(collectionRef, docId);
             const dataToSet = { ...item };
             if (dataToSet.date) {
