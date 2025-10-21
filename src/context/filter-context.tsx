@@ -5,7 +5,7 @@ import { createContext, useContext, useState, ReactNode, useMemo, useEffect } fr
 import type { DateRange } from 'react-day-picker';
 import { getDepotFromHub } from '@/lib/grouping';
 import { useCollection } from '@/firebase';
-import { collection, DocumentData, Query } from 'firebase/firestore';
+import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
 import { subDays } from 'date-fns';
@@ -38,7 +38,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const [filterType, setFilterType] = useState<FilterType>('tous');
   
-  // Set default date range to the last 7 days
   const [dateRange, _setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 7),
     to: new Date(),
@@ -55,8 +54,26 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return firestore ? collection(firestore, 'rounds') : null;
   }, [firestore]);
 
-  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection as Query<DocumentData>);
-  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection as Query<DocumentData>);
+  // Build filters dynamically based on dateRange
+  const firestoreFilters = useMemo(() => {
+    if (!dateRange?.from) return [];
+    
+    const { from, to } = dateRange;
+    const start = new Date(from);
+    start.setHours(0,0,0,0);
+
+    const end = to ? new Date(to) : new Date(from);
+    end.setHours(23,59,59,999);
+
+    return [
+      where("date", ">=", Timestamp.fromDate(start)),
+      where("date", "<=", Timestamp.fromDate(end))
+    ];
+  }, [dateRange]);
+
+
+  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters);
+  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters);
 
   const setDateRange = (newRange: DateRange | undefined) => {
     if (newRange?.from && newRange?.to && newRange.from > newRange.to) {
@@ -99,6 +116,35 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return tasksLastUpdate || roundsLastUpdate;
   }, [tasksLastUpdate, roundsLastUpdate]);
 
+  const filteredTasksByOtherCriteria = useMemo(() => {
+    let tasksToFilter = allTasks;
+    if (filterType !== 'tous') {
+      tasksToFilter = tasksToFilter.filter(item => getHubCategory(item.nomHub) === filterType);
+    }
+    if (selectedDepot !== "all") {
+       tasksToFilter = tasksToFilter.filter(item => getDepotFromHub(item.nomHub) === selectedDepot);
+    }
+    if (selectedStore !== "all") {
+      tasksToFilter = tasksToFilter.filter(item => item.nomHub === selectedStore);
+    }
+    return tasksToFilter;
+  }, [allTasks, filterType, selectedDepot, selectedStore]);
+  
+  const filteredRoundsByOtherCriteria = useMemo(() => {
+    let roundsToFilter = allRounds;
+    if (filterType !== 'tous') {
+      roundsToFilter = roundsToFilter.filter(item => getHubCategory(item.nomHub) === filterType);
+    }
+    if (selectedDepot !== "all") {
+       roundsToFilter = roundsToFilter.filter(item => getDepotFromHub(item.nomHub) === selectedDepot);
+    }
+    if (selectedStore !== "all") {
+      roundsToFilter = roundsToFilter.filter(item => item.nomHub === selectedStore);
+    }
+    return roundsToFilter;
+  }, [allRounds, filterType, selectedDepot, selectedStore]);
+
+
   return (
     <FilterContext.Provider
       value={{
@@ -113,8 +159,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         selectedStore,
         setSelectedStore,
         lastUpdateTime,
-        allTasks,
-        allRounds,
+        allTasks: filteredTasksByOtherCriteria,
+        allRounds: filteredRoundsByOtherCriteria,
         isContextLoading: isLoadingTasks || isLoadingRounds,
       }}
     >

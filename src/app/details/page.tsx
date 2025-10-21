@@ -17,62 +17,7 @@ import { DetailsRoundsTable } from "@/components/app/details-rounds-table";
 import { DetailsBacsTable } from "@/components/app/details-bacs-table";
 
 export default function DetailsPage() {
-  const { firestore } = useFirebase();
-  const { dateRange, filterType, selectedDepot, selectedStore, allTasks, allRounds, isContextLoading } = useFilters();
-
-  const filteredData = useMemo(() => {
-    const { from, to } = dateRange || {};
-
-    let filteredTasks = allTasks || [];
-    let filteredRounds = allRounds || [];
-
-    // Filter by date
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0,0,0,0);
-      
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23,59,59,999);
-      
-      const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date || item.dateCreation;
-        if (!itemDateString) return false;
-        try {
-            const itemDate = new Date(itemDateString);
-            return itemDate >= startOfDay && itemDate <= endOfDay;
-        } catch(e) {
-            return false;
-        }
-      };
-
-      filteredTasks = filteredTasks.filter(filterByDate);
-      filteredRounds = filteredRounds.filter(filterByDate);
-    }
-    
-    // Filter by type (depot/magasin)
-    if (filterType !== 'tous') {
-        const filterLogic = (item: Tache | Tournee) => getHubCategory(item.nomHub) === filterType;
-        filteredTasks = filteredTasks.filter(filterLogic);
-        filteredRounds = filteredRounds.filter(filterLogic);
-    }
-
-    // Filter by specific depot
-    if (selectedDepot !== "all") {
-      const filterLogic = (item: Tache | Tournee) => getDepotFromHub(item.nomHub) === selectedDepot;
-      filteredTasks = filteredTasks.filter(filterLogic);
-      filteredRounds = filteredRounds.filter(filterLogic);
-    }
-    
-    // Filter by specific store
-    if (selectedStore !== "all") {
-      const filterLogic = (item: Tache | Tournee) => item.nomHub === selectedStore;
-      filteredTasks = filteredTasks.filter(filterLogic);
-      filteredRounds = filteredRounds.filter(filterLogic);
-    }
-
-    return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [allTasks, allRounds, dateRange, filterType, selectedDepot, selectedStore]);
-
+  const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
 
   const isLoading = isContextLoading;
   const error = null; // Assuming no errors from context
@@ -112,21 +57,21 @@ export default function DetailsPage() {
       {!isLoading && !error && (
         <Tabs defaultValue="tasks" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="tasks">Tâches ({filteredData.tasks.length})</TabsTrigger>
-              <TabsTrigger value="rounds">Tournées ({filteredData.rounds.length})</TabsTrigger>
+              <TabsTrigger value="tasks">Tâches ({filteredTasks.length})</TabsTrigger>
+              <TabsTrigger value="rounds">Tournées ({filteredRounds.length})</TabsTrigger>
               <TabsTrigger value="bacs">Bacs & Articles</TabsTrigger>
             </TabsList>
 
             <TabsContent value="tasks" className="mt-4">
-               <DetailsTasksTable data={filteredData.tasks} />
+               <DetailsTasksTable data={filteredTasks} />
             </TabsContent>
 
             <TabsContent value="rounds" className="mt-4">
-                <DetailsRoundsTable data={filteredData.rounds} />
+                <DetailsRoundsTable data={filteredRounds} />
             </TabsContent>
 
              <TabsContent value="bacs" className="mt-4">
-                <DetailsBacsTable data={filteredData.tasks} />
+                <DetailsBacsTable data={filteredTasks} />
             </TabsContent>
         </Tabs>
       )}
@@ -134,5 +79,3 @@ export default function DetailsPage() {
     </main>
   );
 }
-
-    

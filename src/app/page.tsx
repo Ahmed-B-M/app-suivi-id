@@ -34,14 +34,9 @@ import { calculateDashboardStats } from "@/lib/stats-calculator";
 
 
 export default function DashboardPage() {
-  const { firestore } = useFirebase();
   const { 
-    dateRange, 
-    filterType,
-    selectedDepot, 
-    selectedStore,
-    allTasks,
-    allRounds,
+    allTasks: filteredData,
+    allRounds: filteredRounds,
     isContextLoading,
    } = useFilters();
 
@@ -58,61 +53,9 @@ export default function DashboardPage() {
   } | null>(null);
   const [statusDetails, setStatusDetails] = useState<{ status: string; tasks: Tache[], type: 'status' | 'progression' } | null>(null);
 
-  const filteredData = useMemo(() => {
-    const { from, to } = dateRange || {};
-
-    let filteredTasks = allTasks || [];
-    let filteredRounds = allRounds || [];
-
-    // Filter by date
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0,0,0,0);
-      
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23,59,59,999);
-      
-      const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date || ('dateCreation' in item && item.dateCreation);
-        if (!itemDateString) return false;
-        try {
-            const itemDate = new Date(itemDateString);
-            return itemDate >= startOfDay && itemDate <= endOfDay;
-        } catch (e) {
-            return false;
-        }
-      };
-
-      filteredTasks = filteredTasks.filter(filterByDate);
-      filteredRounds = filteredRounds.filter(filterByDate);
-    }
-    
-    // Filter by type (depot/magasin)
-    if (filterType !== 'tous') {
-        const filterLogic = (item: Tache | Tournee) => getHubCategory(item.nomHub) === filterType;
-        filteredTasks = filteredTasks.filter(filterLogic);
-        filteredRounds = filteredRounds.filter(filterLogic);
-    }
-
-    // Filter by specific depot
-    if (selectedDepot !== "all") {
-      const filterLogic = (item: Tache | Tournee) => getDepotFromHub(item.nomHub) === selectedDepot;
-      filteredTasks = filteredTasks.filter(filterLogic);
-      filteredRounds = filteredRounds.filter(filterLogic);
-    }
-    
-    // Filter by specific store
-    if (selectedStore !== "all") {
-      const filterLogic = (item: Tache | Tournee) => item.nomHub === selectedStore;
-      filteredTasks = filteredTasks.filter(filterLogic);
-      filteredRounds = filteredRounds.filter(filterLogic);
-    }
-
-    return { tasks: filteredTasks, rounds: filteredRounds };
-  }, [allTasks, allRounds, dateRange, filterType, selectedDepot, selectedStore]);
 
   const handleStatusClick = (status: string) => {
-      const tasksForStatus = filteredData.tasks.filter(task => {
+      const tasksForStatus = filteredData.filter(task => {
         if (status === 'Unknown') {
           return !task.status || task.status === 'Unknown';
         }
@@ -122,24 +65,24 @@ export default function DashboardPage() {
     };
 
   const handleProgressionClick = (progression: string) => {
-    const tasksForProgression = filteredData.tasks.filter(task => (task.progression || "Unknown") === progression);
+    const tasksForProgression = filteredData.filter(task => (task.progression || "Unknown") === progression);
     setStatusDetails({ status: progression, tasks: tasksForProgression, type: 'progression' });
   };
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData.tasks, filteredData.rounds);
-  }, [filteredData.tasks, filteredData.rounds]);
+    return calculateDashboardStats(filteredData, filteredRounds);
+  }, [filteredData, filteredRounds]);
 
   const isLoading = isContextLoading;
-  const error = null; // Assuming no error state from context for now
+  const error = null; 
 
   return (
     <main className="flex-1 container py-8">
       <RatingDetailsDialog
         isOpen={isRatingDetailsOpen}
         onOpenChange={setIsRatingDetailsOpen}
-        tasks={filteredData.tasks}
+        tasks={filteredData}
       />
       <PunctualityDetailsDialog
         isOpen={!!punctualityDetails}
@@ -179,7 +122,7 @@ export default function DashboardPage() {
       <AllRoundsDetailsDialog
         isOpen={isAllRoundsDetailsOpen}
         onOpenChange={setIsAllRoundsDetailsOpen}
-        rounds={filteredData.rounds}
+        rounds={filteredRounds}
       />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -300,7 +243,7 @@ export default function DashboardPage() {
       {!isLoading && !error && dashboardData && !dashboardData.hasData && (
           <Card>
               <CardContent className="pt-6">
-                  <p className="text-muted-foreground">Aucune donnée trouvée dans la base de données pour la période sélectionnée. Veuillez ajuster les filtres ou exporter de nouvelles données.</p>
+                  <p className="text-muted-foreground">Aucune donnée trouvée pour la période et les filtres sélectionnés.</p>
               </CardContent>
           </Card>
       )}

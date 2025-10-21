@@ -33,7 +33,7 @@ interface LocalCategorizedComment extends CategorizedComment {
 
 export default function QualityPage() {
   const { firestore } = useFirebase();
-  const { dateRange, filterType, selectedDepot, selectedStore, allTasks, isContextLoading } = useFilters();
+  const { dateRange, allTasks, isContextLoading } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
@@ -53,37 +53,6 @@ export default function QualityPage() {
     if (!allTasks || isContextLoading) return;
 
     let filtered = allTasks;
-    const { from, to } = dateRange || {};
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23, 59, 59, 999);
-      
-      filtered = filtered.filter(task => {
-        const itemDateString = task.date || task.dateCreation;
-        if (!itemDateString) return false;
-        try {
-            const itemDate = new Date(itemDateString);
-            return itemDate >= startOfDay && itemDate <= endOfDay;
-        } catch(e) {
-            return false;
-        }
-      });
-    }
-    
-    if (filterType !== 'tous') {
-      filtered = filtered.filter(task => getHubCategory(task.nomHub) === filterType);
-    }
-
-    if (selectedDepot !== "all") {
-      filtered = filtered.filter(task => getDepotFromHub(task.nomHub) === selectedDepot);
-    }
-    
-    if (selectedStore !== "all") {
-      filtered = filtered.filter(task => task.nomHub === selectedStore);
-    }
 
      // Merge logic
     setCategorizedComments(prevComments => {
@@ -122,7 +91,7 @@ export default function QualityPage() {
         return newComments.filter(c => filtered.some(t => t.tacheId === c.taskId));
     });
 
-  }, [allTasks, dateRange, filterType, selectedDepot, selectedStore, isContextLoading, savedCommentIds]);
+  }, [allTasks, isContextLoading, savedCommentIds]);
 
 
   const handleCategoryChange = (taskId: string, newCategory: string) => {
@@ -164,39 +133,7 @@ export default function QualityPage() {
     if (!allTasks || isContextLoading) return null;
 
     let filteredTasks = allTasks;
-    const { from, to } = dateRange || {};
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23, 59, 59, 999);
-      
-      filteredTasks = filteredTasks.filter(task => {
-        const itemDateString = task.date || task.dateCreation;
-        if (!itemDateString) return false;
-        try {
-            const itemDate = new Date(itemDateString);
-            return itemDate >= startOfDay && itemDate <= endOfDay;
-        } catch(e) {
-            return false;
-        }
-      });
-    }
     
-    if (filterType !== 'tous') {
-      filteredTasks = filteredTasks.filter(task => getHubCategory(task.nomHub) === filterType);
-    }
-
-    if (selectedDepot !== "all") {
-      filteredTasks = filteredTasks.filter(task => getDepotFromHub(task.nomHub) === selectedDepot);
-    }
-    
-    if (selectedStore !== "all") {
-      filteredTasks = filteredTasks.filter(task => task.nomHub === selectedStore);
-    }
-
-
     const driverTasks: Record<string, Tache[]> = {};
     filteredTasks.forEach(task => {
         const driverName = getDriverFullName(task);
@@ -299,7 +236,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, isContextLoading, dateRange, filterType, selectedDepot, selectedStore]);
+  }, [allTasks, isContextLoading, dateRange]);
 
 
   const filteredQualityData = useMemo(() => {

@@ -88,7 +88,7 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     const tasksWeightByRound = new Map<string, number>();
     for (const task of tasks) {
        if (!task.nomTournee || !task.date || !task.nomHub) continue;
-       const roundKey = `${task.nomTournee}-${task.date.split('T')[0]}-${task.nomHub}`;
+       const roundKey = `${task.nomTournee}-${new Date(task.date).toISOString().split('T')[0]}-${task.nomHub}`;
        const taskWeight = task.dimensions?.poids ?? 0;
        if (taskWeight > 0) tasksWeightByRound.set(roundKey, (tasksWeightByRound.get(roundKey) || 0) + taskWeight);
     }
@@ -96,7 +96,7 @@ const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', al
     const relevantRoundsForWeight = rounds.filter(r => typeof r.vehicle?.dimensions?.poids === 'number');
     for (const round of relevantRoundsForWeight) {
         if (!round.name || !round.date || !round.nomHub) continue;
-        const roundKey = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
+        const roundKey = `${round.name}-${new Date(round.date).toISOString().split('T')[0]}-${round.nomHub}`;
         const totalWeight = tasksWeightByRound.get(roundKey) || 0;
         if (totalWeight > round.vehicle!.dimensions!.poids!) overweightRoundsCount++;
     }
@@ -261,38 +261,14 @@ const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow
 
 
 export default function SummaryPage() {
-  const { dateRange, allTasks: tasks, allRounds: rounds, isContextLoading } = useFilters();
+  const { allTasks, allRounds, isContextLoading } = useFilters();
 
   const { depotSummary, warehouseSummaryByDepot } = useMemo(() => {
-    if (!tasks || !rounds) {
+    if (!allTasks || !allRounds) {
       return { depotSummary: [], warehouseSummaryByDepot: new Map() };
     }
-
-    const { from, to } = dateRange || {};
-    let filteredRounds = rounds;
-    let filteredTasks = tasks;
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date;
-        if (!itemDateString) return false;
-        try {
-          const itemDate = new Date(itemDateString);
-          return itemDate >= startOfDay && itemDate <= endOfDay;
-        } catch(e) {
-          return false;
-        }
-      };
-      filteredRounds = rounds.filter(filterByDate);
-      filteredTasks = tasks.filter(filterByDate);
-    }
     
-    const allHubs = new Set(filteredTasks.map(t => t.nomHub).filter(Boolean) as string[]);
+    const allHubs = new Set(allTasks.map(t => t.nomHub).filter(Boolean) as string[]);
     const depotToHubsMap = new Map<string, Set<string>>();
 
     for (const hubName of allHubs) {
@@ -307,13 +283,13 @@ export default function SummaryPage() {
     const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
 
     for (const depotName of depotToHubsMap.keys()) {
-        depotMetrics.push(calculateMetricsForEntity(depotName, 'depot', filteredTasks, filteredRounds));
+        depotMetrics.push(calculateMetricsForEntity(depotName, 'depot', allTasks, allRounds));
         
         const hubSet = depotToHubsMap.get(depotName) || new Set();
         const hubMetrics: SummaryMetrics[] = [];
         for (const hubName of hubSet) {
              if(hubName !== depotName || hubSet.size === 1) {
-              hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', filteredTasks, filteredRounds));
+              hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', allTasks, allRounds));
             }
         }
         warehouseSummaryByDepot.set(depotName, hubMetrics.sort((a,b) => b.totalRounds - a.totalRounds));
@@ -323,7 +299,7 @@ export default function SummaryPage() {
         depotSummary: depotMetrics.sort((a,b) => b.totalRounds - a.totalRounds),
         warehouseSummaryByDepot
     };
-  }, [tasks, rounds, dateRange]);
+  }, [allTasks, allRounds]);
 
 
   const isLoading = isContextLoading;
@@ -432,5 +408,3 @@ export default function SummaryPage() {
     </main>
   );
 }
-
-    

@@ -60,7 +60,7 @@ const categoryOptions = [
 
 export default function CommentManagementPage() {
   const { firestore } = useFirebase();
-  const { dateRange, allTasks: tasks, isContextLoading: isLoadingTasks } = useFilters();
+  const { allTasks: tasks, isContextLoading: isLoadingTasks } = useFilters();
   const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('tous');
   
   const categorizedCommentsCollection = useMemo(() => collection(firestore, "categorized_comments"), [firestore]);
@@ -103,24 +103,6 @@ export default function CommentManagementPage() {
 
   const filteredComments = useMemo(() => {
     let commentsToFilter = combinedComments;
-    const { from, to } = dateRange || {};
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23, 59, 59, 999);
-      
-      commentsToFilter = commentsToFilter.filter(comment => {
-        if (!comment.taskDate) return false;
-        try {
-            const commentDate = new Date(comment.taskDate);
-            return commentDate >= startOfDay && commentDate <= endOfDay;
-        } catch (e) {
-            return false;
-        }
-      });
-    }
     
     if (statusFilter !== 'tous') {
       commentsToFilter = commentsToFilter.filter(comment => comment.status === statusFilter);
@@ -132,7 +114,7 @@ export default function CommentManagementPage() {
         return dateB - dateA;
     });
 
-  }, [combinedComments, dateRange, statusFilter]);
+  }, [combinedComments, statusFilter]);
 
   useEffect(() => {
     setEditableComments(filteredComments);
@@ -255,7 +237,7 @@ export default function CommentManagementPage() {
                   </SelectContent>
                 </Select>
               </TableCell>
-              <TableCell>{comment.taskDate}</TableCell>
+              <TableCell>{comment.taskDate ? new Date(comment.taskDate).toLocaleDateString() : 'N/A'}</TableCell>
               <TableCell>{comment.driverName}</TableCell>
               <TableCell>
                 <Button onClick={() => handleSave(comment)} disabled={isPending && savingId === comment.id}>

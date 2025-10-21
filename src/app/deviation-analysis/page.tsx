@@ -94,36 +94,11 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
 
 
 export default function DeviationAnalysisPage() {
-  const { dateRange, allTasks: tasks, allRounds: rounds, isContextLoading } = useFilters();
+  const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues } = useMemo(() => {
-    if (!tasks || !rounds) {
+    if (!filteredTasks || !filteredRounds) {
       return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [] };
-    }
-
-    const { from, to } = dateRange || {};
-    let filteredRounds = rounds;
-    let filteredTasks = tasks;
-
-    if (from) {
-      const startOfDay = new Date(from);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = to ? new Date(to) : new Date(from);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const filterByDate = (item: Tache | Tournee) => {
-        const itemDateString = item.date;
-        if (!itemDateString) return false;
-        try {
-            const itemDate = new Date(itemDateString);
-            return itemDate >= startOfDay && itemDate <= endOfDay;
-        } catch(e) {
-            return false;
-        }
-      };
-
-      filteredRounds = rounds.filter(filterByDate);
-      filteredTasks = tasks.filter(filterByDate);
     }
 
     // --- Weight Deviation Logic ---
@@ -132,7 +107,7 @@ export default function DeviationAnalysisPage() {
        if (!task.nomTournee || !task.date || !task.nomHub) {
         continue;
       }
-      const roundKey = `${task.nomTournee}-${task.date.split('T')[0]}-${task.nomHub}`;
+      const roundKey = `${task.nomTournee}-${new Date(task.date).toISOString().split('T')[0]}-${task.nomHub}`;
       const taskWeight = task.dimensions?.poids ?? 0;
 
       if (taskWeight > 0) {
@@ -152,7 +127,7 @@ export default function DeviationAnalysisPage() {
         continue;
       }
       
-      const roundKey = `${round.name}-${round.date.split('T')[0]}-${round.nomHub}`;
+      const roundKey = `${round.name}-${new Date(round.date).toISOString().split('T')[0]}-${round.nomHub}`;
       const totalWeight = tasksWeightByRound.get(roundKey) || 0;
       const isOverweight = totalWeight > roundCapacity;
 
@@ -253,7 +228,7 @@ export default function DeviationAnalysisPage() {
         warehouseSummary: calculateSummary(warehouseAggregation),
         punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
     };
-  }, [tasks, rounds, dateRange]);
+  }, [filteredTasks, filteredRounds]);
 
   const isLoading = isContextLoading;
   const error = null;
@@ -417,5 +392,3 @@ export default function DeviationAnalysisPage() {
     </main>
   );
 }
-
-    
