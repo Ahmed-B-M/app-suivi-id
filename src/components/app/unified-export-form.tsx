@@ -22,6 +22,7 @@ import {
   where,
   documentId,
   Timestamp,
+  limit,
 } from "firebase/firestore";
 import equal from "deep-equal";
 
@@ -57,10 +58,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirebase, useUser, errorEmitter, FirestorePermissionError, useFilters } from "@/firebase";
 import { Tache, Tournee } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { startOfDay, endOfDay } from 'date-fns';
+import { getDepotFromHub, getHubCategory } from "@/lib/grouping";
 
 type UnifiedExportFormProps = {
   onExportStart: () => void;
@@ -82,7 +84,6 @@ function normalizeDatesInObject(obj: any): any {
     return obj;
   }
   if (obj instanceof Date || (obj && typeof obj.toDate === 'function')) {
-      // Convert Timestamps or Dates to a consistent ISO string format
       const date = obj.toDate ? obj.toDate() : obj;
       return date.toISOString();
   }
@@ -112,13 +113,17 @@ export function UnifiedExportForm({
   const { toast } = useToast();
   const { firestore } = useFirebase();
   const { isUserLoading } = useUser();
-   const [autoSaveTrigger, setAutoSaveTrigger] = useState(false);
+  const [autoSaveTrigger, setAutoSaveTrigger] = useState(false);
+  const { filterType, selectedDepot, selectedStore } = useFilters();
 
   const form = useForm<UnifiedExportFormValues>({
     resolver: zodResolver(unifiedExportFormSchema),
     defaultValues: {
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
-      dateRange: undefined,
+      dateRange: {
+        from: new Date('2025-10-21T12:00:00Z'),
+        to: new Date('2025-10-21T12:00:00Z'),
+      },
       taskStatus: "all",
       roundStatus: "all",
       taskId: "",
@@ -131,12 +136,10 @@ export function UnifiedExportForm({
   const dateRange = watch("dateRange");
 
   useEffect(() => {
-    // Set default date range on the client to avoid hydration mismatch
     const today = new Date('2025-10-21T12:00:00Z');
-    form.setValue("dateRange", {
-      from: today,
-      to: today,
-    });
+    if (!form.getValues("dateRange.from")) {
+      form.setValue("dateRange", { from: today, to: today });
+    }
   }, [form]);
   
   useEffect(() => {
@@ -169,7 +172,7 @@ export function UnifiedExportForm({
         description: result.error,
       });
     } else if (result.data) {
-       onLogUpdate([`\n⏱️  Attente de 5 secondes avant la sauvegarde automatique...`]);
+       onLogUpdate([`\n⏱️  Sauvegarde automatique dans 5 secondes...`]);
        await delay(5000);
        setAutoSaveTrigger(true); // Trigger the save
     }
@@ -258,15 +261,19 @@ export function UnifiedExportForm({
         const existingDocsMap = new Map<string, any>();
         
         try {
-            const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
+            const queryConstraints = [
+                where("date", ">=", fromDate),
+                where("date", "<=", toDate),
+                limit(10000) // Increased limit
+            ];
+
+            const q = query(collectionRef, ...queryConstraints);
+
             const querySnapshot = await getDocs(q);
+
             querySnapshot.forEach(doc => {
               const docData = doc.data();
-              // The key for the map MUST match the key format from the API data
-              let keyInMap = collectionName === 'tasks'
-                ? docData[idKey]?.toString().replace(/^0+/, '')
-                : docData[idKey];
-
+              const keyInMap = String(docData[idKey] || doc.id).replace(/^0+/, '');
               if(keyInMap) {
                 existingDocsMap.set(keyInMap, { ...docData, __docId: doc.id });
               }
@@ -276,12 +283,10 @@ export function UnifiedExportForm({
         } catch(e) {
           success = false;
           onLogUpdate([`      - ❌ Erreur lors de la recherche des documents existants : ${(e as Error).message}`]);
-          // No return here, we might still be able to add new docs
         }
 
-        // Now, compare and decide what to add/update/delete
-        const apiIds = new Set(dataFromApi.map(item => item[idKey]?.toString().replace(/^0+/, '')));
-        const firestoreIds = new Set(Array.from(existingDocsMap.keys()).map(id => id.toString().replace(/^0+/, '')));
+        const apiIds = new Set(dataFromApi.map(item => String(item[idKey]).replace(/^0+/, '')));
+        const firestoreIds = new Set(Array.from(existingDocsMap.keys()));
 
         const idsToDelete = [...firestoreIds].filter(id => !apiIds.has(id));
         
@@ -311,7 +316,7 @@ export function UnifiedExportForm({
         const itemsToUpdate: any[] = [];
         
         dataFromApi.forEach(item => {
-            const idFromApi = item[idKey]?.toString().replace(/^0+/, '');
+            const idFromApi = String(item[idKey]).replace(/^0+/, '');
             if (!idFromApi) return;
 
             const existingDocData = existingDocsMap.get(idFromApi);
@@ -348,19 +353,18 @@ export function UnifiedExportForm({
           const batch = writeBatch(firestore);
           
           batchData.forEach(item => {
-            // Firestore document ID should have the leading zero for tasks
-            const docIdForFirestore = collectionName === 'tasks' 
-              ? `0${item[idKey]}` 
-              : item[idKey].toString();
-              
+            const docIdForFirestore = String(item[idKey]);
             const docRef = doc(collectionRef, docIdForFirestore);
-            const dataToSet: { [key: string]: any } = {};
             
-            // Convert date strings back to Date objects for Firestore Timestamps
+            const dataToSet: { [key: string]: any } = {};
             Object.keys(item).forEach(key => {
                 const value = item[key];
                 if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-                    dataToSet[key] = new Date(value);
+                    try {
+                        dataToSet[key] = new Date(value);
+                    } catch (e) {
+                        dataToSet[key] = value;
+                    }
                 } else {
                     dataToSet[key] = value;
                 }
@@ -581,5 +585,3 @@ export function UnifiedExportForm({
     </Card>
   );
 }
-
-    
