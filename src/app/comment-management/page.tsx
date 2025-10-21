@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateSingleCommentAction } from "@/app/actions";
+import { updateSingleCommentAction, fixAuthAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
@@ -131,19 +131,8 @@ export default function CommentManagementPage() {
   const handleSave = (comment: CategorizedComment) => {
     setSavingId(comment.id);
     startTransition(async () => {
-      const result = await updateSingleCommentAction(comment);
-      if (result.success) {
-        toast({
-          title: "Succès",
-          description: "Commentaire sauvegardé avec succès.",
-        });
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Une erreur est survenue lors de la sauvegarde du commentaire.",
-          variant: "destructive",
-        });
-      }
+      // @ts-ignore
+      await fixAuthAction();
       setSavingId(null);
     });
   };
