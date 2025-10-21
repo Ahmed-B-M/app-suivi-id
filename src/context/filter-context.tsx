@@ -8,7 +8,7 @@ import { useCollection } from '@/firebase';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
-import { subDays } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 type FilterType = 'tous' | 'magasin' | 'entrepot';
 
@@ -59,15 +59,16 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     if (!dateRange?.from) return [];
     
     const { from, to } = dateRange;
-    const start = new Date(from);
-    start.setHours(0,0,0,0);
-
-    const end = to ? new Date(to) : new Date(from);
-    end.setHours(23,59,59,999);
+    
+    // Format dates as 'YYYY-MM-DD' strings for comparison
+    const startString = format(from, 'yyyy-MM-dd');
+    // If 'to' is not selected, use 'from' date.
+    // We append a high Unicode character to include the whole end day.
+    const endString = format(to || from, 'yyyy-MM-dd') + '\uf8ff';
 
     return [
-      where("date", ">=", Timestamp.fromDate(start)),
-      where("date", "<=", Timestamp.fromDate(end))
+      where("date", ">=", startString),
+      where("date", "<=", endString)
     ];
   }, [dateRange]);
 
