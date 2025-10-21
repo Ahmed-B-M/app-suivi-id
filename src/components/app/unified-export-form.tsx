@@ -60,6 +60,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { Tache, Tournee } from "@/lib/types";
 import { DateRange } from "react-day-picker";
+import { startOfDay, endOfDay } from 'date-fns';
 
 type UnifiedExportFormProps = {
   onExportStart: () => void;
@@ -74,6 +75,31 @@ type UnifiedExportFormProps = {
 };
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+// Helper to normalize date formats in objects for comparison
+function normalizeDatesInObject(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (obj instanceof Date || (obj && typeof obj.toDate === 'function')) {
+      return (obj.toDate ? obj.toDate() : obj).toISOString();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeDatesInObject);
+  }
+  const newObj: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+           newObj[key] = new Date(value).toISOString();
+       } else {
+           newObj[key] = normalizeDatesInObject(value);
+       }
+    }
+  }
+  return newObj;
+}
 
 export function UnifiedExportForm({
   onExportStart,
@@ -109,7 +135,7 @@ export function UnifiedExportForm({
 
   useEffect(() => {
     // Set default date range on the client to avoid hydration mismatch
-    const today = new Date();
+    const today = new Date('2025-10-21T12:00:00Z');
     form.setValue("dateRange", {
       from: today,
       to: today,
@@ -227,10 +253,8 @@ export function UnifiedExportForm({
           return false;
         }
 
-        const fromDate = new Date(dateRange.from);
-        fromDate.setHours(0,0,0,0);
-        const toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
-        toDate.setHours(23,59,59,999);
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
 
         onLogUpdate([`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`]);
         
@@ -238,18 +262,19 @@ export function UnifiedExportForm({
         let documentsToDelete: { docIdInFirestore: string, keyInMap: string }[] = [];
 
         try {
-            const fromISO = fromDate.toISOString();
-            const toISO = toDate.toISOString();
-            const q = query(collectionRef, where("date", ">=", fromISO), where("date", "<=", toISO + '\uf8ff'));
+            const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
             
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(doc => {
               const docData = doc.data();
               // The key for the map MUST match the key format from the API data
-              const keyInMap = collectionName === 'tasks' 
-                ? docData[idKey]?.toString().replace(/^0+/, '') // e.g., '623750981'
-                : docData[idKey]; // For rounds, it's just the ID, e.g., '68ef81bed2e4aec48d0cdbeb'
-              
+              let keyInMap;
+              if (collectionName === 'tasks') {
+                  keyInMap = docData[idKey]?.toString().replace(/^0+/, '');
+              } else {
+                  keyInMap = docData[idKey];
+              }
+
               if(keyInMap) {
                 existingDocsMap.set(keyInMap, { ...docData, __docId: doc.id });
               }
@@ -297,7 +322,10 @@ export function UnifiedExportForm({
                 const { __docId, ...comparableExisting } = existingDocData; // exclude helper field
                 const comparableApiItem = { ...item };
 
-                if (!equal(comparableExisting, comparableApiItem)) {
+                const normalizedExisting = normalizeDatesInObject(comparableExisting);
+                const normalizedApi = normalizeDatesInObject(comparableApiItem);
+
+                if (!equal(normalizedExisting, normalizedApi)) {
                     itemsToUpdate.push(item);
                     updatedCount++;
                 } else {
@@ -327,9 +355,13 @@ export function UnifiedExportForm({
             }
             const docRef = doc(collectionRef, docIdForFirestore);
             const dataToSet = { ...item };
-            if (dataToSet.date) {
-                dataToSet.date = new Date(dataToSet.date);
-            }
+            // Convert date strings back to Date objects for Firestore Timestamps
+            Object.keys(dataToSet).forEach(key => {
+                const value = dataToSet[key];
+                if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                    dataToSet[key] = new Date(value);
+                }
+            });
             batch.set(docRef, dataToSet, { merge: true });
           });
 
@@ -359,7 +391,7 @@ export function UnifiedExportForm({
 
 
   const handleResetClick = () => {
-    const today = new Date();
+    const today = new Date('2025-10-21T12:00:00Z');
     form.reset({
         apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
         dateRange: { from: today, to: today },
@@ -546,3 +578,5 @@ export function UnifiedExportForm({
     </Card>
   );
 }
+
+    
