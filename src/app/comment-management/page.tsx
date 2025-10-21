@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
@@ -20,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateSingleCommentAction, fixAuthAction } from "@/app/actions";
+import { updateSingleCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
@@ -131,8 +130,19 @@ export default function CommentManagementPage() {
   const handleSave = (comment: CategorizedComment) => {
     setSavingId(comment.id);
     startTransition(async () => {
-      // @ts-ignore
-      await fixAuthAction();
+      const result = await updateSingleCommentAction(comment);
+      if (result.success) {
+        toast({
+          title: "Succès",
+          description: "Le commentaire a été sauvegardé.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur de sauvegarde",
+          description: result.error,
+        });
+      }
       setSavingId(null);
     });
   };
