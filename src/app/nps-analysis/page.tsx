@@ -1,17 +1,18 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useFilters } from '@/context/filter-context';
 import { Tache } from '@/lib/types';
 import { getCarrierFromDriver, getDepotFromHub, getDriverFullName } from '@/lib/grouping';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, CheckCircle, FileUp, Loader2, Rocket } from 'lucide-react';
 import { NpsVerbatimAnalysis } from '@/components/app/nps-verbatim-analysis';
+import { useCollection, useFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 type NpsDataRow = {
     'Num_commande': string;
@@ -38,15 +39,22 @@ type ProcessedNpsData = {
 };
 
 export default function NpsAnalysisPage() {
+    const { firestore } = useFirebase();
     const [files, setFiles] = useState<File[] | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [processedData, setProcessedData] = useState<ProcessedNpsData[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const { allTasks } = useFilters();
+
+    const tasksCollection = useMemo(() => {
+        return firestore ? collection(firestore, 'tasks') : null;
+    }, [firestore]);
+
+    const { data: allTasks, loading: isLoadingTasks } = useCollection<Tache>(tasksCollection);
     
     const taskMap = useMemo(() => {
+        if (isLoadingTasks || !allTasks) return new Map();
         return new Map(allTasks.map(task => [task.tacheId, task]));
-    }, [allTasks]);
+    }, [allTasks, isLoadingTasks]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -70,6 +78,11 @@ export default function NpsAnalysisPage() {
     const handleProcessFiles = async () => {
         if (!files || files.length === 0) {
             setError("Veuillez sélectionner un ou plusieurs fichiers.");
+            return;
+        }
+
+        if (isLoadingTasks) {
+            setError("Les données des tâches sont encore en cours de chargement. Veuillez réessayer dans un instant.");
             return;
         }
 
@@ -113,7 +126,7 @@ export default function NpsAnalysisPage() {
 
             setProcessedData(linkedData);
             if (notFoundCount > 0) {
-                 setError(`${notFoundCount} commandes des fichiers CSV n'ont pas été trouvées dans les données de la période sélectionnée et ont été ignorées.`);
+                 setError(`${notFoundCount} commandes des fichiers CSV n'ont pas été trouvées dans la base de données et ont été ignorées.`);
             }
         } catch (err: any) {
             setError(`Erreur lors de la lecture d'un fichier CSV: ${err.message}`);
@@ -164,20 +177,19 @@ export default function NpsAnalysisPage() {
                 <div className="lg:col-span-1">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><FileUp /> Importer un fichier NPS</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><FileUp /> Importer Fichiers NPS</CardTitle>
                             <CardDescription>
-                                Chargez vos fichiers CSV de retours clients pour calculer le NPS.
-                                Assurez-vous que les données de tâches pour la période correspondante sont chargées.
+                                Chargez un ou plusieurs fichiers CSV de retours clients pour calculer le NPS. Le système recherchera les correspondances dans toute la base de données.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <Input type="file" accept=".csv" onChange={handleFileChange} multiple />
-                            <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0} className="w-full">
-                                {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
-                                {isProcessing ? 'Traitement en cours...' : 'Lancer l\'analyse'}
+                            <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0 || isLoadingTasks} className="w-full">
+                                {isProcessing || isLoadingTasks ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
+                                {isLoadingTasks ? 'Chargement des tâches...' : (isProcessing ? 'Traitement en cours...' : 'Lancer l\'analyse')}
                             </Button>
-                            {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Erreur</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-                            {processedData.length > 0 && (
+                            {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Avertissement</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+                            {processedData.length > 0 && !error && (
                                 <Alert variant="default">
                                     <CheckCircle className="h-4 w-4" />
                                     <AlertTitle>Traitement réussi</AlertTitle>
@@ -206,6 +218,9 @@ export default function NpsAnalysisPage() {
                                             <span className={`font-bold ${score > 0 ? 'text-green-600' : 'text-destructive'}`}>{score.toFixed(1)}</span>
                                         </div>
                                     ))}
+                                     {Object.keys(npsScores.byEntity).length === 0 && (
+                                        <p className="text-sm text-muted-foreground text-center pt-4">Aucun score à afficher.</p>
+                                    )}
                                 </div>
                             </div>
                          </CardContent>
