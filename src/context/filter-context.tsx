@@ -50,10 +50,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [filterType, setFilterType] = useState<FilterType>('tous');
   
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('day');
-  const [date, setDate] = useState<Date | undefined>(new Date('2025-10-21T12:00:00Z'));
+  const [date, setDate] = useState<Date | undefined>(new Date());
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfDay(new Date('2025-10-21T12:00:00Z')),
-    to: endOfDay(new Date('2025-10-21T12:00:00Z')),
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
   });
 
   const [selectedDepot, setSelectedDepot] = useState('all');

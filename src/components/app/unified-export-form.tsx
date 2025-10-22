@@ -122,8 +122,8 @@ export function UnifiedExportForm({
     defaultValues: {
       apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
       dateRange: {
-        from: new Date('2025-10-21T12:00:00Z'),
-        to: new Date('2025-10-21T12:00:00Z'),
+        from: new Date(),
+        to: new Date(),
       },
       taskStatus: "all",
       roundStatus: "all",
@@ -137,7 +137,7 @@ export function UnifiedExportForm({
   const dateRange = watch("dateRange");
 
   useEffect(() => {
-    const today = new Date('2025-10-21T12:00:00Z');
+    const today = new Date();
     if (!form.getValues("dateRange.from")) {
       form.setValue("dateRange", { from: today, to: today });
     }
@@ -399,7 +399,7 @@ export function UnifiedExportForm({
 
 
   const handleResetClick = () => {
-    const today = new Date('2025-10-21T12:00:00Z');
+    const today = new Date();
     form.reset({
         apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
         dateRange: { from: today, to: today },
