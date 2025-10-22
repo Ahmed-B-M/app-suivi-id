@@ -104,7 +104,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [firestore]);
 
 
-  const firestoreFilters = useMemo(() => {
+  const firestoreDateFilters = useMemo(() => {
     const from = dateRange?.from;
     const to = dateRange?.to;
     
@@ -129,12 +129,24 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("associationDate", "<=", format(to, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
+  
+  const verbatimFirestoreFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    
+    if (!from || !to) return [];
+    
+    return [
+      where("taskDate", ">=", from),
+      where("taskDate", "<=", to)
+    ];
+  }, [dateRange]);
 
 
-  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters, refreshKey);
-  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters, refreshKey);
+  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters, refreshKey);
+  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters, refreshKey);
   const { data: allNpsData = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
-  const { data: processedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
+  const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
 
   
   const categorizedCommentsCollection = useMemo(() => 
@@ -198,6 +210,37 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return roundsToFilter;
   }, [allRounds, filterType, selectedDepot, selectedStore]);
 
+  const filteredProcessedVerbatims = useMemo(() => {
+    let verbatimsToFilter = allProcessedVerbatims;
+
+    // Filter by date range first
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    if (from && to) {
+        verbatimsToFilter = verbatimsToFilter.filter(v => {
+            if (!v.taskDate) return false;
+            const taskDate = new Date(v.taskDate);
+            return taskDate >= from && taskDate <= to;
+        });
+    }
+
+    // Then filter by type, depot, and store
+    if (filterType !== 'tous') {
+      verbatimsToFilter = verbatimsToFilter.filter(v => {
+        const hubCategory = v.depot === 'Magasin' ? 'magasin' : 'entrepot';
+        return hubCategory === filterType;
+      });
+    }
+    if (selectedDepot !== "all") {
+       verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
+    }
+    if (selectedStore !== "all") {
+      verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
+    }
+    return verbatimsToFilter;
+  }, [allProcessedVerbatims, dateRange, filterType, selectedDepot, selectedStore]);
+
+
   const allComments = useMemo(() => {
     if (!filteredTasksByOtherCriteria || !savedComments) return [];
     
@@ -254,7 +297,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allRounds: filteredRoundsByOtherCriteria,
         allComments: allComments,
         allNpsData,
-        processedVerbatims,
+        processedVerbatims: filteredProcessedVerbatims,
         isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingProcessedVerbatims,
         refreshData,
       }}

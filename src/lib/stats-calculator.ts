@@ -249,23 +249,8 @@ export function calculateDashboardStats(
     // --- End Comment Analysis ---
 
     // --- NPS Calculation ---
-    const allNpsVerbatims = allNpsData.flatMap(d => d.verbatims);
+    const filteredNpsVerbatims = allNpsData.flatMap(d => d.verbatims);
     
-    let filteredNpsVerbatims = allNpsVerbatims;
-    if (filterType !== 'tous' || selectedDepot !== 'all' || selectedStore !== 'all') {
-        filteredNpsVerbatims = allNpsVerbatims.filter(verbatim => {
-             const depot = verbatim.depot;
-             const store = verbatim.store;
-             const hubCategory = depot === 'Magasin' ? 'magasin' : 'entrepot';
-
-             if (filterType !== 'tous' && hubCategory !== filterType) return false;
-             if (selectedDepot !== 'all' && depot !== selectedDepot) return false;
-             if (selectedStore !== 'all' && store !== selectedStore) return false;
-             
-             return true;
-        });
-    }
-
     const npsResponseCount = filteredNpsVerbatims.length;
     let nps: number | null = null;
     if (npsResponseCount > 0) {
