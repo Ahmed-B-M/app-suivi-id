@@ -12,17 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useMemo } from "react";
-
-export type CategorizedComment = {
-  id: string;
-  taskId: string;
-  comment: string;
-  rating: number;
-  category: string;
-  taskDate?: string;
-  driverName?: string;
-  status: "à traiter" | "traité";
-};
+import type { CategorizedComment as CategorizedCommentType } from "@/hooks/use-pending-comments";
 
 
 export const categories = [
@@ -42,6 +32,8 @@ export const categories = [
     "Non pertinent",
     "Autre",
 ] as const;
+
+export type CategorizedComment = CategorizedCommentType;
 
 interface CommentAnalysisProps {
   data: CategorizedComment[];

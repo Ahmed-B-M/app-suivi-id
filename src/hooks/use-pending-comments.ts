@@ -15,7 +15,7 @@ export type CategorizedComment = {
   comment: string;
   rating: number;
   category: string;
-  taskDate?: string;
+  taskDate?: string | Date;
   driverName?: string;
   status: "à traiter" | "traité";
 };
