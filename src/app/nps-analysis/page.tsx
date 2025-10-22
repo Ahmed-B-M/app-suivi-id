@@ -38,7 +38,7 @@ type ProcessedNpsData = {
 };
 
 export default function NpsAnalysisPage() {
-    const [file, setFile] = useState<File | null>(null);
+    const [files, setFiles] = useState<File[] | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [processedData, setProcessedData] = useState<ProcessedNpsData[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -50,66 +50,76 @@ export default function NpsAnalysisPage() {
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setFile(event.target.files[0]);
+            setFiles(Array.from(event.target.files));
             setProcessedData([]);
             setError(null);
         }
     };
 
-    const handleProcessFile = () => {
-        if (!file) {
-            setError("Veuillez sélectionner un fichier.");
+    const processFile = (file: File): Promise<NpsDataRow[]> => {
+        return new Promise((resolve, reject) => {
+            Papa.parse<NpsDataRow>(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => resolve(results.data),
+                error: (err: any) => reject(err),
+            });
+        });
+    }
+
+    const handleProcessFiles = async () => {
+        if (!files || files.length === 0) {
+            setError("Veuillez sélectionner un ou plusieurs fichiers.");
             return;
         }
 
         setIsProcessing(true);
         setError(null);
+        setProcessedData([]);
 
-        Papa.parse<NpsDataRow>(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-                const linkedData: ProcessedNpsData[] = [];
-                let notFoundCount = 0;
+        try {
+            const allResults = await Promise.all(files.map(file => processFile(file)));
+            const combinedData = allResults.flat();
 
-                results.data.forEach(row => {
-                    const taskId = row.Num_commande;
-                    if (taskMap.has(taskId)) {
-                        const task = taskMap.get(taskId)!;
-                        const npsScore = parseInt(row.NOTE_RECOMMANDATION, 10);
-                        let npsCategory: ProcessedNpsData['npsCategory'];
-                        
-                        if (npsScore >= 9) npsCategory = 'Promoter';
-                        else if (npsScore >= 7) npsCategory = 'Passive';
-                        else npsCategory = 'Detractor';
+            const linkedData: ProcessedNpsData[] = [];
+            let notFoundCount = 0;
 
-                        linkedData.push({
-                            taskId,
-                            npsScore,
-                            npsCategory,
-                            verbatim: row.VERBATIM,
-                            store: row.MAG,
-                            taskDate: task.date ? new Date(task.date).toISOString() : "N/A",
-                            carrier: getCarrierFromDriver(task.livreur?.nom),
-                            depot: getDepotFromHub(task.nomHub),
-                            driver: getDriverFullName(task),
-                        });
-                    } else {
-                        notFoundCount++;
-                    }
-                });
+            combinedData.forEach(row => {
+                const taskId = row.Num_commande;
+                if (taskMap.has(taskId)) {
+                    const task = taskMap.get(taskId)!;
+                    const npsScore = parseInt(row.NOTE_RECOMMANDATION, 10);
+                    let npsCategory: ProcessedNpsData['npsCategory'];
+                    
+                    if (npsScore >= 9) npsCategory = 'Promoter';
+                    else if (npsScore >= 7) npsCategory = 'Passive';
+                    else npsCategory = 'Detractor';
 
-                setProcessedData(linkedData);
-                if (notFoundCount > 0) {
-                     setError(`${notFoundCount} commandes du fichier CSV n'ont pas été trouvées dans les données de la période sélectionnée et ont été ignorées.`);
+                    linkedData.push({
+                        taskId,
+                        npsScore,
+                        npsCategory,
+                        verbatim: row.VERBATIM,
+                        store: row.MAG,
+                        taskDate: task.date ? new Date(task.date as string).toISOString() : "N/A",
+                        carrier: getCarrierFromDriver(task.livreur?.nom),
+                        depot: getDepotFromHub(task.nomHub),
+                        driver: getDriverFullName(task),
+                    });
+                } else {
+                    notFoundCount++;
                 }
-                setIsProcessing(false);
-            },
-            error: (err: any) => {
-                setError(`Erreur lors de la lecture du fichier CSV: ${err.message}`);
-                setIsProcessing(false);
+            });
+
+            setProcessedData(linkedData);
+            if (notFoundCount > 0) {
+                 setError(`${notFoundCount} commandes des fichiers CSV n'ont pas été trouvées dans les données de la période sélectionnée et ont été ignorées.`);
             }
-        });
+        } catch (err: any) {
+            setError(`Erreur lors de la lecture d'un fichier CSV: ${err.message}`);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const npsScores = useMemo(() => {
@@ -156,13 +166,13 @@ export default function NpsAnalysisPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><FileUp /> Importer un fichier NPS</CardTitle>
                             <CardDescription>
-                                Chargez votre fichier CSV de retours clients pour calculer le NPS.
+                                Chargez vos fichiers CSV de retours clients pour calculer le NPS.
                                 Assurez-vous que les données de tâches pour la période correspondante sont chargées.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <Input type="file" accept=".csv" onChange={handleFileChange} />
-                            <Button onClick={handleProcessFile} disabled={isProcessing || !file} className="w-full">
+                            <Input type="file" accept=".csv" onChange={handleFileChange} multiple />
+                            <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0} className="w-full">
                                 {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
                                 {isProcessing ? 'Traitement en cours...' : 'Lancer l\'analyse'}
                             </Button>
