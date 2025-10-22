@@ -93,37 +93,17 @@ export function generateQualityEmailBody(
         if (currentDepotAlerts && currentDepotAlerts.carriers.some(c => c.drivers.some(d => d.alertCount > 0))) {
             body += `V. RÉCURRENCE DES MAUVAISES NOTES (Livreurs avec au moins 1 note < 4)\n\n`;
             
-            const header = 
-                "Transporteur".padEnd(15) + 
-                "Livreur (Total Notes)".padEnd(30) + 
-                "NPS".padStart(8) + 
-                "Ponctualité".padStart(15) + 
-                "Note Moyenne".padStart(15) +
-                "Mauvaises Notes".padStart(18) +
-                "  Catégories Commentaires\n";
-
-            body += header;
-            body += "-".repeat(header.length + 10) + "\n";
-
             for (const carrier of currentDepotAlerts.carriers) {
                  for (const driver of carrier.drivers) {
                      if (driver.alertCount > 0) {
                         const driverStats = depot.carriers.flatMap(c => c.drivers).find(d => d.name === driver.name);
-                        const driverLine = 
-                            carrier.name.padEnd(15) +
-                            `${driver.name} (${driver.totalRatings})`.padEnd(30) +
-                            formatValue(driverStats?.npsScore).padStart(8) +
-                            formatValue(driverStats?.punctualityRate, '%').padStart(15) +
-                            formatValue(driver.averageRating, '', 2).padStart(15) +
-                            String(driver.alertCount).padStart(18) +
-                            "  " +
-                            Object.entries(driver.commentCategories).sort((a, b) => b[1] - a[1]).map(([cat, count]) => `${count} ${cat}`).join(', ') +
-                            "\n";
-                        body += driverLine;
+                        body += `  * LIVREUR : ${driver.name} (${carrier.name}) - ${driver.alertCount} mauvaise(s) note(s) sur ${driver.totalRatings} au total\n`;
+                        body += `    - Performance  : Note Moy. ${formatValue(driver.averageRating, '', 2)}, NPS ${formatValue(driverStats?.npsScore)}, Ponctualité ${formatValue(driverStats?.punctualityRate, '%')}\n`;
+                        const categories = Object.entries(driver.commentCategories).sort((a,b) => b[1] - a[1]).map(([cat, count]) => `${count}x ${cat}`).join(', ');
+                        body += `    - Catégories   : ${categories}\n\n`;
                      }
                  }
             }
-             body += "\n";
         }
     }
 
