@@ -12,6 +12,7 @@ import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format } from "date-fns";
+import type { ProcessedNpsData } from "./nps-analysis/page";
 
 
 /**
@@ -508,4 +509,30 @@ export async function updateSingleCommentAction(
       error: error.message || "Failed to update the comment in Firestore.",
     };
   }
+}
+
+
+// --- Save NPS data to Firestore ---
+export async function saveNpsDataAction(
+    payload: {
+        associationDate: string;
+        verbatims: ProcessedNpsData[];
+    }
+) {
+    try {
+        const { firestore } = await initializeFirebaseOnServer();
+        const docId = format(new Date(payload.associationDate), 'yyyy-MM-dd');
+        const docRef = firestore.collection("nps_data").doc(docId);
+        
+        await docRef.set(payload, { merge: true });
+
+        return { success: true, error: null };
+
+    } catch (error: any) {
+        console.error("Error saving NPS data:", error);
+        return {
+            success: false,
+            error: error.message || "Failed to save NPS data to Firestore.",
+        };
+    }
 }
