@@ -19,11 +19,14 @@ import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
 import { startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { EmailPreviewDialog } from "@/components/app/email-preview-dialog";
 
 export default function QualityPage() {
   const { allTasks, allRounds, allComments, allNpsData, processedVerbatims, isContextLoading, dateRange } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [emailHtmlContent, setEmailHtmlContent] = useState('');
 
   const qualityData = useMemo(() => {
     if (!allTasks || isContextLoading) return null;
@@ -265,15 +268,18 @@ export default function QualityPage() {
         processedVerbatims,
         { from: dateRange.from, to: dateRange.to }
     );
-
-    // Create a blob with the HTML content to copy it to clipboard
-    const blob = new Blob([emailBodyHtml], { type: 'text/html' });
+    setEmailHtmlContent(emailBodyHtml);
+    setIsPreviewOpen(true);
+  };
+  
+  const handleCopyToClipboard = (htmlContent: string) => {
+    const blob = new Blob([htmlContent], { type: 'text/html' });
     const clipboardItem = new ClipboardItem({ 'text/html': blob });
 
     navigator.clipboard.write([clipboardItem]).then(() => {
         toast({
             title: "Rapport copié !",
-            description: "Le corps de l'e-mail a été copié dans votre presse-papiers. Collez-le dans votre client de messagerie.",
+            description: "Le corps de l'e-mail a été copié dans votre presse-papiers.",
         });
     }).catch(err => {
         console.error('Failed to copy email body: ', err);
@@ -290,6 +296,12 @@ export default function QualityPage() {
 
   return (
     <main className="flex-1 container py-8">
+       <EmailPreviewDialog
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        htmlContent={emailHtmlContent}
+        onCopy={handleCopyToClipboard}
+      />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Analyse de la Qualité</h1>
         <div className="flex items-center gap-2">
@@ -304,7 +316,7 @@ export default function QualityPage() {
            </div>
            <Button onClick={handleGenerateEmail} disabled={!filteredQualityData}>
              <ClipboardCopy className="mr-2 h-4 w-4" />
-             Copier le rapport par e-mail
+             Générer le rapport par e-mail
            </Button>
         </div>
       </div>
@@ -322,5 +334,3 @@ export default function QualityPage() {
     </main>
   );
 }
-
-    
