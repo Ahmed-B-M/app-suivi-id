@@ -1,8 +1,7 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
-import { useCollection, useFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -23,8 +22,6 @@ import { updateSingleCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Tache } from "@/lib/types";
-import { getDriverFullName } from "@/lib/grouping";
 import { Loader2 } from "lucide-react";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
@@ -50,7 +47,7 @@ const categoryOptions = [
 
 export default function CommentManagementPage() {
   const { allComments, isContextLoading } = useFilters();
-  const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('tous');
+  const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('à traiter');
   
   const [editableComments, setEditableComments] = useState<
     CategorizedComment[]
@@ -67,8 +64,8 @@ export default function CommentManagementPage() {
     }
     
     return commentsToFilter.sort((a, b) => {
-        const dateA = a.taskDate ? new Date(a.taskDate).getTime() : 0;
-        const dateB = b.taskDate ? new Date(b.taskDate).getTime() : 0;
+        const dateA = a.taskDate ? new Date(a.taskDate as string).getTime() : 0;
+        const dateB = b.taskDate ? new Date(b.taskDate as string).getTime() : 0;
         return dateB - dateA;
     });
 
@@ -95,7 +92,7 @@ export default function CommentManagementPage() {
         comment: comment.comment,
         rating: comment.rating,
         category: comment.category,
-        taskDate: comment.taskDate ? new Date(comment.taskDate).toISOString() : undefined,
+        taskDate: comment.taskDate ? new Date(comment.taskDate as string).toISOString() : undefined,
         driverName: comment.driverName,
       };
 
@@ -119,7 +116,7 @@ export default function CommentManagementPage() {
   const isLoading = isContextLoading;
   
   if (isLoading) {
-    return <div>Chargement...</div>;
+    return <div className="container mx-auto py-10 text-center">Chargement...</div>;
   }
 
   return (
@@ -147,71 +144,81 @@ export default function CommentManagementPage() {
           </Button>
         </div>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Statut</TableHead>
-            <TableHead>Task ID</TableHead>
-            <TableHead className="w-[40%]">Commentaire</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead>Catégorie</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Chauffeur</TableHead>
-            <TableHead>Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {editableComments.map((comment) => (
-            <TableRow key={comment.id}>
-              <TableCell>
-                <Badge
-                  variant={
-                    comment.status === "traité" ? "default" : "destructive"
-                  }
-                >
-                  {comment.status}
-                </Badge>
-              </TableCell>
-              <TableCell>{comment.taskId}</TableCell>
-              <TableCell>
-                <p className="whitespace-pre-wrap">{comment.comment}</p>
-              </TableCell>
-              <TableCell>
-                <Badge variant={comment.rating < 4 ? "destructive" : "default"}>
-                  {comment.rating} / 5
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Select
-                  value={comment.category}
-                  onValueChange={(value) =>
-                    handleCategoryChange(comment.id, value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez une catégorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TableCell>
-              <TableCell>{comment.taskDate ? new Date(comment.taskDate).toLocaleDateString() : 'N/A'}</TableCell>
-              <TableCell>{comment.driverName}</TableCell>
-              <TableCell>
-                <Button onClick={() => handleSave(comment)} disabled={isPending && savingId === comment.id}>
-                   {isPending && savingId === comment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Sauvegarder
-                </Button>
-              </TableCell>
+      <div className="border rounded-md">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Statut</TableHead>
+              <TableHead>Task ID</TableHead>
+              <TableHead className="w-[40%]">Commentaire</TableHead>
+              <TableHead>Note</TableHead>
+              <TableHead>Catégorie</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Chauffeur</TableHead>
+              <TableHead>Action</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {editableComments.length > 0 ? (
+              editableComments.map((comment) => (
+                <TableRow key={comment.id}>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        comment.status === "traité" ? "default" : "destructive"
+                      }
+                    >
+                      {comment.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{comment.taskId}</TableCell>
+                  <TableCell>
+                    <p className="whitespace-pre-wrap">{comment.comment}</p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={comment.rating < 4 ? "destructive" : "default"}>
+                      {comment.rating} / 5
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={comment.category}
+                      onValueChange={(value) =>
+                        handleCategoryChange(comment.id, value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionnez une catégorie" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>{comment.taskDate ? new Date(comment.taskDate as string).toLocaleDateString() : 'N/A'}</TableCell>
+                  <TableCell>{comment.driverName}</TableCell>
+                  <TableCell>
+                    <Button onClick={() => handleSave(comment)} disabled={isPending && savingId === comment.id}>
+                       {isPending && savingId === comment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Sauvegarder
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+                <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center">
+                        Aucun commentaire à afficher pour ce filtre.
+                    </TableCell>
+                </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

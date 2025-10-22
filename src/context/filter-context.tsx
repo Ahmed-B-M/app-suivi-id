@@ -104,6 +104,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return firestore ? collection(firestore, 'processed_nps_verbatims') : null;
   }, [firestore]);
 
+  const categorizedCommentsCollection = useMemo(() => 
+    firestore ? collection(firestore, "categorized_comments") : null,
+    [firestore]
+  );
+
 
   const firestoreDateFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -116,18 +121,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("date", "<=", to)
     ];
   }, [dateRange]);
-
-  const commentDateFilters = useMemo(() => {
-    const from = dateRange?.from;
-    const to = dateRange?.to;
-    
-    if (!from || !to) return [];
-    
-    return [
-      where("taskDate", ">=", from),
-      where("taskDate", "<=", to)
-    ];
-  }, [dateRange]);
   
   const npsFirestoreFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -135,40 +128,20 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
     if (!from || !to) return [];
 
-    // Since associationDate is stored as "yyyy-MM-dd", we must format the dates
-    // to strings for a correct lexicographical comparison.
     return [
       where("associationDate", ">=", format(from, 'yyyy-MM-dd')),
       where("associationDate", "<=", format(to, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
   
-  const verbatimFirestoreFilters = useMemo(() => {
-    const from = dateRange?.from;
-    const to = dateRange?.to;
-    
-    if (!from || !to) return [];
-    
-    return [
-      where("taskDate", ">=", from),
-      where("taskDate", "<=", to)
-    ];
-  }, [dateRange]);
-
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters, refreshKey);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters, refreshKey);
   const { data: allNpsData = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
   const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
+  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, [], refreshKey);
 
   
-  const categorizedCommentsCollection = useMemo(() => 
-    firestore ? collection(firestore, "categorized_comments") : null,
-    [firestore]
-  );
-  
-  const { data: savedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, commentDateFilters, refreshKey);
-
   const availableDepots = useMemo(
     () => {
         if (!allTasks) return [];
@@ -255,54 +228,62 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
 
   const allComments = useMemo(() => {
-    if (isLoadingCategorized || isLoadingTasks || !savedComments || !allTasks) return [];
+    if (isLoadingCategorized || !allSavedComments) return [];
 
-    const finalCommentsMap = new Map<string, CategorizedComment>();
-
-    // Start with all saved comments within the date range as the source of truth
-    savedComments.forEach(c => {
-        finalCommentsMap.set(c.taskId, { ...c, id: c.id || c.taskId });
+    // Date-filter the saved comments first
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    
+    const filteredSavedComments = allSavedComments.filter(comment => {
+        if (!comment.taskDate) return false;
+        const commentDate = new Date(comment.taskDate as string);
+        if(from && commentDate < from) return false;
+        if(to && commentDate > to) return false;
+        return true;
     });
 
-    // Now, add any NEW negative comments from tasks that haven't been saved yet
-    allTasks
+    // Now, filter by other criteria (depot, store) based on the task data we have for them
+    const finalComments = filteredSavedComments.filter(comment => {
+      const task = allTasks.find(t => t.tacheId === comment.taskId);
+      // We keep the comment if its task is not found, assuming it might be outside the task date range but still relevant
+      // or if the task is found and matches the filters
+      if (!task) return true; 
+
+      if (filterType !== 'tous') {
+        if (getHubCategory(task.nomHub) !== filterType) return false;
+      }
+      if (selectedDepot !== "all") {
+        if (getDepotFromHub(task.nomHub) !== selectedDepot) return false;
+      }
+      if (selectedStore !== "all") {
+        if (task.nomHub !== selectedStore) return false;
+      }
+      return true;
+    });
+    
+    // Add new negative comments from the currently loaded tasks
+     const savedTaskIds = new Set(allSavedComments.map(c => c.taskId));
+     const newNegativeComments = allTasks
         .filter(task => {
-            // Must be a new comment (not in our map) and have a rating
-            return !finalCommentsMap.has(task.tacheId) &&
+            return !savedTaskIds.has(task.tacheId) &&
                 typeof task.metaDonnees?.notationLivreur === 'number' &&
                 task.metaDonnees.notationLivreur < 4 &&
                 task.metaDonnees.commentaireLivreur;
         })
-        .forEach(task => {
-            finalCommentsMap.set(task.tacheId, {
-                id: task.tacheId,
-                taskId: task.tacheId,
-                comment: task.metaDonnees!.commentaireLivreur!,
-                rating: task.metaDonnees!.notationLivreur!,
-                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                taskDate: task.date,
-                driverName: getDriverFullName(task),
-                status: 'à traiter' as const,
-            });
-        });
+        .map(task => ({
+            id: task.tacheId,
+            taskId: task.tacheId,
+            comment: task.metaDonnees!.commentaireLivreur!,
+            rating: task.metaDonnees!.notationLivreur!,
+            category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+            taskDate: task.date,
+            driverName: getDriverFullName(task),
+            status: 'à traiter' as const,
+        }));
     
-    // Convert the map back to an array and apply the other filters
-    return Array.from(finalCommentsMap.values()).filter(comment => {
-        const task = allTasks.find(t => t.tacheId === comment.taskId);
-        if (!task) return false; // If the original task isn't in the date range, exclude the comment
+    return [...finalComments, ...newNegativeComments];
 
-        if (filterType !== 'tous') {
-            if (getHubCategory(task.nomHub) !== filterType) return false;
-        }
-        if (selectedDepot !== "all") {
-            if (getDepotFromHub(task.nomHub) !== selectedDepot) return false;
-        }
-        if (selectedStore !== "all") {
-            if (task.nomHub !== selectedStore) return false;
-        }
-        return true;
-    });
-}, [savedComments, allTasks, isLoadingCategorized, isLoadingTasks, filterType, selectedDepot, selectedStore]);
+}, [allSavedComments, allTasks, isLoadingCategorized, dateRange, filterType, selectedDepot, selectedStore]);
 
 
   return (
@@ -325,7 +306,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         lastUpdateTime,
         allTasks: filteredTasksByOtherCriteria,
         allRounds: filteredRoundsByOtherCriteria,
-        allComments: allComments,
+        allComments,
         allNpsData,
         processedVerbatims: filteredProcessedVerbatims,
         isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingProcessedVerbatims,
