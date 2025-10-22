@@ -521,7 +521,8 @@ export async function saveNpsDataAction(
 ) {
     try {
         const { firestore } = await initializeFirebaseOnServer();
-        const docId = format(new Date(payload.associationDate), 'yyyy-MM-dd');
+        // Use substring to avoid timezone issues when creating the ID from the ISO string
+        const docId = payload.associationDate.substring(0, 10);
         const docRef = firestore.collection("nps_data").doc(docId);
         
         await docRef.set(payload, { merge: true });
