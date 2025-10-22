@@ -36,6 +36,36 @@ type VerbatimsByCategoryChartProps = {
   data: { name: string; value: number }[];
 };
 
+// Custom label renderer for the pie chart to show percentages
+const renderCustomizedLabel = ({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: any) => {
+  if (percent < 0.05) return null; // Don't render label for small slices
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor={x > cx ? "start" : "end"}
+      dominantBaseline="central"
+      className="text-xs font-bold"
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
+
 export function VerbatimsByCategoryChart({ data }: VerbatimsByCategoryChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -86,6 +116,8 @@ export function VerbatimsByCategoryChart({ data }: VerbatimsByCategoryChartProps
               innerRadius="50%"
               strokeWidth={5}
               className="cursor-pointer"
+              labelLine={false}
+              label={renderCustomizedLabel}
             >
                 {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

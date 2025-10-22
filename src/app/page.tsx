@@ -203,6 +203,13 @@ export default function DashboardPage() {
             />
           )}
 
+          {dashboardData.verbatimAnalysis && (dashboardData.verbatimAnalysis.byCategory.length > 0 || dashboardData.verbatimAnalysis.byResponsibility.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <VerbatimsByCategoryChart data={dashboardData.verbatimAnalysis.byCategory} />
+              <VerbatimsByResponsibilityChart data={dashboardData.verbatimAnalysis.byResponsibility} />
+            </div>
+          )}
+
           <DriverPerformanceTable data={dashboardData.driverPerformance || []} isLoading={false} />
           
           <Tabs defaultValue="tasks" className="w-full">
@@ -262,13 +269,6 @@ export default function DashboardPage() {
               </div>
             </TabsContent>
           </Tabs>
-
-          {dashboardData.verbatimAnalysis && (dashboardData.verbatimAnalysis.byCategory.length > 0 || dashboardData.verbatimAnalysis.byResponsibility.length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <VerbatimsByCategoryChart data={dashboardData.verbatimAnalysis.byCategory} />
-              <VerbatimsByResponsibilityChart data={dashboardData.verbatimAnalysis.byResponsibility} />
-            </div>
-          )}
 
         </div>
       )}
