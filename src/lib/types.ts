@@ -213,7 +213,7 @@ export interface Round {
   [key: string]: any;
 }
 
-export type NpsData = {
+export type NpsVerbatim = {
     taskId: string;
     npsScore: number;
     npsCategory: 'Promoter' | 'Passive' | 'Detractor';
@@ -224,3 +224,9 @@ export type NpsData = {
     depot?: string;
     driver?: string;
 };
+
+export type NpsData = {
+    id: string;
+    associationDate: string | Date | Timestamp;
+    verbatims: NpsVerbatim[];
+}

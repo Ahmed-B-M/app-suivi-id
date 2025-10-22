@@ -1,11 +1,5 @@
 
-
-
-
-
-
-
-import type { Tache, Tournee } from "@/lib/types";
+import type { Tache, Tournee, NpsData } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName } from "./grouping";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
@@ -68,7 +62,7 @@ export function getCategoryFromKeywords(comment: string | undefined | null): str
 }
 
 
-export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNegativeComments: CategorizedComment[]) {
+export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNegativeComments: CategorizedComment[], allNpsData: NpsData[]) {
     if (!tasks || !rounds) {
       return { hasData: false };
     }
@@ -244,6 +238,18 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
     });
     // --- End Comment Analysis ---
 
+    // --- NPS Calculation ---
+    const allNpsVerbatims = allNpsData.flatMap(d => d.verbatims);
+    const npsResponseCount = allNpsVerbatims.length;
+    let nps: number | null = null;
+    if (npsResponseCount > 0) {
+        const promoterCount = allNpsVerbatims.filter(v => v.npsCategory === 'Promoter').length;
+        const detractorCount = allNpsVerbatims.filter(v => v.npsCategory === 'Detractor').length;
+        nps = ((promoterCount / npsResponseCount) - (detractorCount / npsResponseCount)) * 100;
+    }
+    // --- End NPS Calculation ---
+
+
     return {
       hasData,
       stats: {
@@ -271,6 +277,8 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
         numberOfRatings,
         ratingRate,
         alertRate,
+        nps,
+        npsResponseCount,
       },
       top5StarDrivers,
       earlyTasks,

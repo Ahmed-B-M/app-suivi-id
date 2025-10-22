@@ -41,6 +41,7 @@ export default function DashboardPage() {
     allTasks: filteredData,
     allRounds: filteredRounds,
     allComments: filteredComments,
+    allNpsData,
     isContextLoading,
    } = useFilters();
 
@@ -76,8 +77,8 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds, filteredComments);
-  }, [filteredData, filteredRounds, filteredComments]);
+    return calculateDashboardStats(filteredData, filteredRounds, filteredComments, allNpsData);
+  }, [filteredData, filteredRounds, filteredComments, allNpsData]);
 
   const isLoading = isContextLoading;
   const error = null; 

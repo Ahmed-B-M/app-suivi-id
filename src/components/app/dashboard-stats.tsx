@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   ArchiveX,
   Ban,
+  BarChart,
   BoxSelect,
   CheckCircle,
   Clock,
@@ -59,6 +60,8 @@ type DashboardStatsProps = {
     numberOfRatings: number;
     ratingRate: number | null;
     alertRate: number | null;
+    nps: number | null;
+    npsResponseCount: number;
   };
   topDrivers: { name: string; fiveStarCount: number }[];
   onRatingClick: () => void;
@@ -163,6 +166,16 @@ export function DashboardStats({
     }
     return "danger";
   };
+  
+    const getNpsVariant = (
+    value: number | null
+  ): "success" | "warning" | "danger" => {
+    if (value === null) return "danger";
+    if (value >= 50) return "success";
+    if (value >= 0) return "warning";
+    return "danger";
+  };
+
 
   return (
     <div className="space-y-6">
@@ -218,20 +231,15 @@ export function DashboardStats({
           }
         />
          <StatCard
-          title="Taux d'Alerte"
+          title="Score NPS"
           value={
-            stats.alertRate !== null
-              ? `${stats.alertRate.toFixed(2)}%`
+            stats.nps !== null
+              ? `${stats.nps.toFixed(1)}`
               : "N/A"
           }
-          icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
-          onClick={onQualityAlertClick}
-          variant={getVariant(stats.alertRate, {
-            success: 4,
-            warning: 8,
-            isHigherBetter: false,
-          })}
-          description={`${stats.qualityAlerts} alertes / ${stats.numberOfRatings} notes`}
+          icon={<BarChart className="h-4 w-4 text-muted-foreground" />}
+          variant={getNpsVariant(stats.nps)}
+          description={`${stats.npsResponseCount} réponses`}
         />
         <StatCard
           title="SCANBAC"
@@ -273,9 +281,9 @@ export function DashboardStats({
             <Separator />
             <MiniStat title="Tâches en retard" value={stats.lateTasksCount.toString()} icon={<TrendingDown className="h-5 w-5 text-orange-500" />} onClick={onLateClick}/>
             <Separator />
-            <MiniStat title="Taux de retard &gt; 1h" value={`${stats.lateOver1hRate?.toFixed(2) ?? 'N/A'}%`} icon={<TimerOff className="h-5 w-5 text-red-500" />} onClick={onLateOver1hClick}/>
+            <MiniStat title="Taux de retard > 1h" value={`${stats.lateOver1hRate?.toFixed(2) ?? 'N/A'}%`} icon={<TimerOff className="h-5 w-5 text-red-500" />} onClick={onLateOver1hClick}/>
             <Separator />
-            <MiniStat title="Alerte qualité (note &lt; 4)" value={stats.qualityAlerts.toString()} icon={<Megaphone className="h-5 w-5 text-destructive" />} onClick={onQualityAlertClick}/>
+            <MiniStat title="Alerte qualité (note < 4)" value={stats.qualityAlerts.toString()} icon={<Megaphone className="h-5 w-5 text-destructive" />} onClick={onQualityAlertClick}/>
           </CardContent>
         </Card>
         

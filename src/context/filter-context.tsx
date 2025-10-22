@@ -7,7 +7,7 @@ import { getDepotFromHub, getHubCategory, getDriverFullName } from '@/lib/groupi
 import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-collection';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee } from '@/lib/types';
+import type { Tache, Tournee, NpsData } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
@@ -38,6 +38,7 @@ interface FilterContextProps {
   allTasks: Tache[];
   allRounds: Tournee[];
   allComments: CategorizedComment[];
+  allNpsData: NpsData[];
   isContextLoading: boolean;
 
   refreshData: () => void;
@@ -92,6 +93,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const roundsCollection = useMemo(() => {
     return firestore ? collection(firestore, 'rounds') : null;
   }, [firestore]);
+  
+  const npsDataCollection = useMemo(() => {
+    return firestore ? collection(firestore, 'nps_data') : null;
+  }, [firestore]);
+
 
   const firestoreFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -104,12 +110,26 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("date", "<=", to)
     ];
   }, [dateRange]);
+  
+  const npsFirestoreFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    
+    if (!from || !to) return [];
+    
+    return [
+      where("associationDate", ">=", from),
+      where("associationDate", "<=", to)
+    ];
+  }, [dateRange]);
 
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters, refreshKey);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters, refreshKey);
+  const { data: allNpsData = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
+
   
-    const categorizedCommentsCollection = useMemo(() => 
+  const categorizedCommentsCollection = useMemo(() => 
     collection(firestore, "categorized_comments"), 
     [firestore]
   );
@@ -137,11 +157,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   );
   
   const lastUpdateTime = useMemo(() => {
-    if (tasksLastUpdate && roundsLastUpdate) {
-        return tasksLastUpdate > roundsLastUpdate ? tasksLastUpdate : roundsLastUpdate;
-    }
-    return tasksLastUpdate || roundsLastUpdate || null;
-  }, [tasksLastUpdate, roundsLastUpdate]);
+    const dates = [tasksLastUpdate, roundsLastUpdate, npsLastUpdate].filter(Boolean) as Date[];
+    if (dates.length === 0) return null;
+    return new Date(Math.max(...dates.map(d => d.getTime())));
+  }, [tasksLastUpdate, roundsLastUpdate, npsLastUpdate]);
 
   const filteredTasksByOtherCriteria = useMemo(() => {
     let tasksToFilter = allTasks;
@@ -226,7 +245,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allTasks: filteredTasksByOtherCriteria,
         allRounds: filteredRoundsByOtherCriteria,
         allComments: allComments,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized,
+        allNpsData,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps,
         refreshData,
       }}
     >
