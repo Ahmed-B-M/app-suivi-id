@@ -1,6 +1,6 @@
 
 
-import type { Tache, Tournee, NpsData } from "@/lib/types";
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "./grouping";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
@@ -68,6 +68,7 @@ export function calculateDashboardStats(
     rounds: Tournee[], 
     allNegativeComments: CategorizedComment[],
     allNpsData: NpsData[],
+    processedVerbatims: ProcessedNpsVerbatim[],
     filterType: 'tous' | 'magasin' | 'entrepot',
     selectedDepot: string,
     selectedStore: string
@@ -274,6 +275,20 @@ export function calculateDashboardStats(
     }
     // --- End NPS Calculation ---
 
+    // --- Processed Verbatims Analysis ---
+    const verbatimsByCategory = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
+        acc[verbatim.category] = (acc[verbatim.category] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
+
+    const verbatimsByResponsibility = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
+        verbatim.responsibilities.forEach(resp => {
+             acc[resp] = (acc[resp] || 0) + 1;
+        });
+        return acc;
+    }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
+    // --- End Processed Verbatims Analysis ---
+
 
     return {
       hasData,
@@ -327,6 +342,10 @@ export function calculateDashboardStats(
         totalComments,
         commentsByCategory,
         attitudeComments,
+      },
+      verbatimAnalysis: {
+        byCategory: verbatimsByCategory,
+        byResponsibility: verbatimsByResponsibility,
       }
     };
 }

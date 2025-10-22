@@ -35,6 +35,8 @@ import { getDriverFullName, getHubCategory, getDepotFromHub } from "@/lib/groupi
 import { calculateDashboardStats } from "@/lib/stats-calculator";
 import type { CategorizedComment } from "@/components/app/comment-analysis";
 import { CommentSummaryCard } from "@/components/app/comment-summary-card";
+import { VerbatimsByCategoryChart } from "@/components/app/verbatims-by-category-chart";
+import { VerbatimsByResponsibilityChart } from "@/components/app/verbatims-by-responsibility-chart";
 
 
 export default function DashboardPage() {
@@ -43,6 +45,7 @@ export default function DashboardPage() {
     allRounds: filteredRounds,
     allComments,
     allNpsData,
+    processedVerbatims,
     isContextLoading,
     filterType,
     selectedDepot,
@@ -81,8 +84,8 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds, allComments, allNpsData, filterType, selectedDepot, selectedStore);
-  }, [filteredData, filteredRounds, allComments, allNpsData, filterType, selectedDepot, selectedStore]);
+    return calculateDashboardStats(filteredData, filteredRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore);
+  }, [filteredData, filteredRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore]);
 
   const isLoading = isContextLoading;
   const error = null; 
@@ -259,6 +262,14 @@ export default function DashboardPage() {
               </div>
             </TabsContent>
           </Tabs>
+
+          {dashboardData.verbatimAnalysis && (dashboardData.verbatimAnalysis.byCategory.length > 0 || dashboardData.verbatimAnalysis.byResponsibility.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <VerbatimsByCategoryChart data={dashboardData.verbatimAnalysis.byCategory} />
+              <VerbatimsByResponsibilityChart data={dashboardData.verbatimAnalysis.byResponsibility} />
+            </div>
+          )}
+
         </div>
       )}
 

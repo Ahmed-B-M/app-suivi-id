@@ -7,7 +7,7 @@ import { getDepotFromHub, getHubCategory, getDriverFullName } from '@/lib/groupi
 import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-collection';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee, NpsData } from '@/lib/types';
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
@@ -39,6 +39,7 @@ interface FilterContextProps {
   allRounds: Tournee[];
   allComments: CategorizedComment[];
   allNpsData: NpsData[];
+  processedVerbatims: ProcessedNpsVerbatim[];
   isContextLoading: boolean;
 
   refreshData: () => void;
@@ -98,6 +99,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return firestore ? collection(firestore, 'nps_data') : null;
   }, [firestore]);
 
+  const processedVerbatimsCollection = useMemo(() => {
+    return firestore ? collection(firestore, 'processed_nps_verbatims') : null;
+  }, [firestore]);
+
 
   const firestoreFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -129,6 +134,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters, refreshKey);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters, refreshKey);
   const { data: allNpsData = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
+  const { data: processedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
 
   
   const categorizedCommentsCollection = useMemo(() => 
@@ -248,7 +254,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allRounds: filteredRoundsByOtherCriteria,
         allComments: allComments,
         allNpsData,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps,
+        processedVerbatims,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingProcessedVerbatims,
         refreshData,
       }}
     >
