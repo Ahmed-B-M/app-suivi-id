@@ -357,6 +357,26 @@
             }
         },
         "required": ["associationDate", "verbatims"]
+    },
+    "ProcessedNpsVerbatim": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProcessedNpsVerbatim",
+      "type": "object",
+      "description": "Represents a detractor's verbatim that has been processed with responsibility and category.",
+      "properties": {
+        "taskId": { "type": "string", "description": "The original task ID, used as the document ID." },
+        "npsScore": { "type": "number" },
+        "verbatim": { "type": "string" },
+        "responsibilities": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["à traiter", "traité"] },
+        "store": { "type": "string" },
+        "taskDate": { "type": "string", "format": "date-time" },
+        "carrier": { "type": "string" },
+        "depot": { "type": "string" },
+        "driver": { "type": "string" }
+      },
+      "required": ["taskId", "npsScore", "verbatim", "status"]
     }
   },
   "auth": {
@@ -423,6 +443,20 @@
             {
               "name": "date",
               "description": "The date of the NPS analysis batch."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/processed_nps_verbatims/{taskId}",
+        "definition": {
+          "entityName": "ProcessedNpsVerbatim",
+          "schema": { "$ref": "#/backend/entities/ProcessedNpsVerbatim" },
+          "description": "Stores processed NPS detractor verbatims. The document ID is the task ID to ensure uniqueness.",
+          "params": [
+            {
+              "name": "taskId",
+              "description": "The unique identifier for the task this verbatim belongs to."
             }
           ]
         }

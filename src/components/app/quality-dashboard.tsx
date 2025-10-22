@@ -96,8 +96,8 @@ const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = fa
   
   if (value !== null) {
     if (isNps) {
-        if (value >= 50) colorClass = "bg-green-600 text-white";
-        else if (value >= 0) colorClass = "bg-yellow-500 text-black";
+        if (value >= 65) colorClass = "bg-green-600 text-white"; // NPS Goal
+        else if (value >= 30) colorClass = "bg-yellow-500 text-black";
         else colorClass = "bg-red-600 text-white";
     } else if (isRate) { // For percentage-based rates
       if (isLowerBetter) { // Lower is better (e.g., forced address rate)
@@ -195,7 +195,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
         );
     }
     
-    const getScoreVariant = (score: number | null) => {
+    const getRatingVariant = (score: number | null) => {
         if(score === null) return 'danger';
         if (score >= 4.8) return 'success';
         if (score >= 4.5) return 'warning';
@@ -204,10 +204,24 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
 
     const getNpsVariant = (score: number | null) => {
         if(score === null) return 'danger';
-        if (score >= 50) return 'success';
-        if (score >= 0) return 'warning';
+        if (score >= 65) return 'success'; // Target
+        if (score >= 30) return 'warning';
         return 'danger';
     };
+
+    const getPunctualityVariant = (score: number | null) => {
+        if(score === null) return 'danger';
+        if (score >= 95) return 'success';
+        if (score >= 90) return 'warning';
+        return 'danger';
+    }
+    
+    const getForcedVariant = (score: number | null) => {
+        if(score === null) return 'danger';
+        if (score <= 5) return 'success';
+        if (score <= 10) return 'warning';
+        return 'danger';
+    }
 
 
     return (
@@ -216,12 +230,12 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                 <CardTitle>Synthèse de la Qualité</CardTitle>
                 <CardDescription>Vue d'ensemble des indicateurs de performance qualité, agrégés par dépôt et transporteur.</CardDescription>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 pt-4">
-                    <StatCard title="Note Moyenne Globale" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getScoreVariant(data.summary.averageRating)} />
+                    <StatCard title="Note Moyenne Globale" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getRatingVariant(data.summary.averageRating)} />
                     <StatCard title="Score NPS Global" value={data.summary.npsScore?.toFixed(1) ?? 'N/A'} icon={<BarChart />} variant={getNpsVariant(data.summary.npsScore)} />
-                    <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getScoreVariant((data.summary.punctualityRate ?? 0)/20)} />
-                    <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getScoreVariant((data.summary.scanbacRate ?? 0)/20)} />
-                    <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getScoreVariant(5 - (data.summary.forcedAddressRate ?? 100)/5)} />
-                    <StatCard title="Forçage Sans Contact" value={`${data.summary.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%`} icon={<Ban />} variant={getScoreVariant(5 - (data.summary.forcedContactlessRate ?? 100)/5)} />
+                    <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getPunctualityVariant(data.summary.punctualityRate)} />
+                    <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getPunctualityVariant(data.summary.scanbacRate)} />
+                    <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getForcedVariant(data.summary.forcedAddressRate)} />
+                    <StatCard title="Forçage Sans Contact" value={`${data.summary.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%`} icon={<Ban />} variant={getForcedVariant(data.summary.forcedContactlessRate)} />
                 </div>
             </CardHeader>
             <CardContent>

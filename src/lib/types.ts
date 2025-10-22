@@ -230,3 +230,20 @@ export type NpsData = {
     associationDate: string | Date | Timestamp;
     verbatims: NpsVerbatim[];
 }
+
+
+export type ProcessedNpsVerbatim = {
+    id: string; // document id
+    taskId: string;
+    npsScore: number;
+    verbatim: string;
+    responsibilities: string[];
+    category: string;
+    status: 'à traiter' | 'traité';
+    // other fields from NpsVerbatim if needed
+    store: string;
+    taskDate: string;
+    carrier?: string;
+    depot?: string;
+    driver?: string;
+}

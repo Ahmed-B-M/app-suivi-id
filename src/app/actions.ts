@@ -13,6 +13,7 @@ import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
+import type { ProcessedVerbatim } from "./verbatim-treatment/page";
 
 
 /**
@@ -536,4 +537,30 @@ export async function saveNpsDataAction(
             error: error.message || "Failed to save NPS data to Firestore.",
         };
     }
+}
+
+
+// --- Save a single Processed Verbatim to Firestore ---
+export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
+  try {
+    const { firestore } = await initializeFirebaseOnServer();
+    
+    // Use taskId as the document ID to ensure uniqueness and easy lookups
+    const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
+    
+    const dataToSave: Omit<ProcessedVerbatim, 'id'> = {
+      ...verbatim,
+      status: 'traité' // Set status to 'traité' on save
+    };
+    
+    await docRef.set(dataToSave, { merge: true });
+    return { success: true, error: null };
+
+  } catch (error: any) {
+    console.error("Error saving processed verbatim:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to save processed verbatim to Firestore.",
+    };
+  }
 }

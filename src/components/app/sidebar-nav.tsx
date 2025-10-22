@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -10,8 +9,9 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
+import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
 
 const links = [
@@ -56,6 +56,12 @@ const links = [
     label: "Analyse NPS",
     icon: <BarChart />,
   },
+   {
+    href: "/verbatim-treatment",
+    label: "Traitement Verbatims",
+    icon: <CheckSquare />,
+    isVerbatimLink: true,
+  },
   {
     href: "/verbatims",
     label: "Verbatims NPS",
@@ -70,7 +76,8 @@ const links = [
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { count: pendingCommentsCount, isLoading } = usePendingComments();
+  const { count: pendingCommentsCount, isLoading: isCommentsLoading } = usePendingComments();
+  const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -86,9 +93,14 @@ export function SidebarNav() {
                 >
                   {link.icon}
                   <span>{link.label}</span>
-                   {link.isCommentLink && !isLoading && pendingCommentsCount > 0 && (
+                   {link.isCommentLink && !isCommentsLoading && pendingCommentsCount > 0 && (
                      <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
                        {pendingCommentsCount}
+                     </Badge>
+                  )}
+                  {link.isVerbatimLink && !isVerbatimsLoading && pendingVerbatimsCount > 0 && (
+                     <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs" variant="destructive">
+                       {pendingVerbatimsCount}
                      </Badge>
                   )}
                 </SidebarMenuButton>
