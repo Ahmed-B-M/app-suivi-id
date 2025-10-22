@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -115,6 +116,18 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("date", "<=", to)
     ];
   }, [dateRange]);
+
+  const commentDateFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    
+    if (!from || !to) return [];
+    
+    return [
+      where("taskDate", ">=", from),
+      where("taskDate", "<=", to)
+    ];
+  }, [dateRange]);
   
   const npsFirestoreFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -154,7 +167,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     [firestore]
   );
   
-  const { data: savedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection);
+  const { data: savedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, commentDateFilters, refreshKey);
 
   const availableDepots = useMemo(
     () => {
@@ -243,62 +256,37 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const allComments = useMemo(() => {
     if (!filteredTasksByOtherCriteria || !savedComments) return [];
-    
-    const savedCommentsMap = new Map(savedComments.map(c => [c.taskId, c]));
-    
-    const negativeCommentsFromTasks = filteredTasksByOtherCriteria
-      .filter(task => 
-        typeof task.metaDonnees?.notationLivreur === 'number' &&
-        task.metaDonnees.notationLivreur < 4 &&
-        task.metaDonnees.commentaireLivreur
-      )
-      .map(task => {
-        const savedComment = savedCommentsMap.get(task.tacheId);
-        // If the comment is already saved, prioritize its data, especially the status
-        if (savedComment) {
-            return {
-                id: savedComment.id || task.tacheId,
-                taskId: task.tacheId,
-                comment: savedComment.comment,
-                rating: savedComment.rating,
-                category: savedComment.category,
-                taskDate: savedComment.taskDate || task.date,
-                driverName: savedComment.driverName || getDriverFullName(task),
-                status: savedComment.status,
-            };
-        } else {
-            // This is a new, unsaved negative comment
-            return {
-                id: task.tacheId,
-                taskId: task.tacheId,
-                comment: task.metaDonnees!.commentaireLivreur!,
-                rating: task.metaDonnees!.notationLivreur!,
-                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                taskDate: task.date,
-                driverName: getDriverFullName(task),
-                status: 'à traiter' as const,
-            };
-        }
-    });
-
-    // Add saved comments that might not have a corresponding task in the current filter
-    // but should still be displayed if they match the date range.
-    savedComments.forEach(savedComment => {
-      // Check if this saved comment is already in our list
-      if (!negativeCommentsFromTasks.some(c => c.taskId === savedComment.taskId)) {
-        // If not, and it's within the date range, add it
-        const commentDate = savedComment.taskDate ? new Date(savedComment.taskDate as string) : null;
-        if (commentDate && dateRange?.from && dateRange?.to && commentDate >= dateRange.from && commentDate <= dateRange.to) {
-          negativeCommentsFromTasks.push({
-             ...savedComment,
-              id: savedComment.id || savedComment.taskId
-          });
-        }
-      }
-    });
-
-    return negativeCommentsFromTasks;
-  }, [filteredTasksByOtherCriteria, savedComments, dateRange]);
+  
+    // Start with all saved comments within the date range as the source of truth
+    const finalCommentsMap = new Map<string, CategorizedComment>();
+    savedComments.forEach(c => finalCommentsMap.set(c.taskId, { ...c, id: c.id || c.taskId }));
+  
+    // Now, add any NEW negative comments from tasks that haven't been saved yet
+    const newNegativeCommentsFromTasks = filteredTasksByOtherCriteria
+      .filter(task => {
+        // Must be a new comment (not in our map)
+        return !finalCommentsMap.has(task.tacheId) &&
+               typeof task.metaDonnees?.notationLivreur === 'number' &&
+               task.metaDonnees.notationLivreur < 4 &&
+               task.metaDonnees.commentaireLivreur;
+      })
+      .forEach(task => {
+        // Add this new, unsaved comment to our map
+        finalCommentsMap.set(task.tacheId, {
+          id: task.tacheId,
+          taskId: task.tacheId,
+          comment: task.metaDonnees!.commentaireLivreur!,
+          rating: task.metaDonnees!.notationLivreur!,
+          category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+          taskDate: task.date,
+          driverName: getDriverFullName(task),
+          status: 'à traiter' as const,
+        });
+      });
+  
+    // Convert the map back to an array
+    return Array.from(finalCommentsMap.values());
+  }, [filteredTasksByOtherCriteria, savedComments]);
 
 
   return (
@@ -316,7 +304,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         selectedDepot,
         setSelectedDepot,
         availableStores,
-        selectedStore,
+        setSelectedStore,
         setSelectedStore,
         lastUpdateTime,
         allTasks: filteredTasksByOtherCriteria,
@@ -340,3 +328,5 @@ export function useFilters() {
   }
   return context;
 }
+
+    
