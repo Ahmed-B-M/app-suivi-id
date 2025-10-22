@@ -266,15 +266,11 @@ export default function QualityPage() {
         { from: dateRange.from, to: dateRange.to }
     );
 
-    // Create a blob with the HTML content
+    // Create a blob with the HTML content to copy it to clipboard
     const blob = new Blob([emailBodyHtml], { type: 'text/html' });
-    
-    // Use the Clipboard API to copy the rich text
-    navigator.clipboard.write([
-        new ClipboardItem({
-            'text/html': blob
-        })
-    ]).then(() => {
+    const clipboardItem = new ClipboardItem({ 'text/html': blob });
+
+    navigator.clipboard.write([clipboardItem]).then(() => {
         toast({
             title: "Rapport copié !",
             description: "Le corps de l'e-mail a été copié dans votre presse-papiers. Collez-le dans votre client de messagerie.",
@@ -326,3 +322,5 @@ export default function QualityPage() {
     </main>
   );
 }
+
+    
