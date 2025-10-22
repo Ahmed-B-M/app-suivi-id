@@ -128,6 +128,30 @@ export function generateQualityEmailBody(
             { label: 'Retard > 1h', value: formatValue(depot.lateOver1hRate, '%', 1), color: getForcedMetricColor(depot.lateOver1hRate) }
         ]);
 
+        // --- Carrier KPIs ---
+        let carrierKpisSections = '';
+        if(depot.carriers.length > 1) { // Only show carrier breakdown if there's more than one
+             carrierKpisSections = `<h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.BLUE_TITLE}; margin: 20px 0 10px 0; ${FONT_FAMILY}">Indicateurs par Transporteur</h4>`;
+             depot.carriers.forEach(carrier => {
+                 const carrierKpis = createKpiGrid([
+                    { label: 'Note Moy.', value: formatValue(carrier.averageRating, '', 2), color: getRatingColor(carrier.averageRating) },
+                    { label: 'NPS', value: formatValue(carrier.npsScore, '', 1), color: getNpsColor(carrier.npsScore) },
+                    { label: 'Ponctualité', value: formatValue(carrier.punctualityRate, '%', 1), color: getPunctualityColor(carrier.punctualityRate) },
+                    { label: 'SCANBAC', value: formatValue(carrier.scanbacRate, '%', 1), color: getPunctualityColor(carrier.scanbacRate) },
+                    { label: 'Forçage Adr.', value: formatValue(carrier.forcedAddressRate, '%', 1), color: getForcedMetricColor(carrier.forcedAddressRate) },
+                    { label: 'Forçage Cmd', value: formatValue(carrier.forcedContactlessRate, '%', 1), color: getForcedMetricColor(carrier.forcedContactlessRate) },
+                    { label: 'Retard > 1h', value: formatValue(carrier.lateOver1hRate, '%', 1), color: getForcedMetricColor(carrier.lateOver1hRate) }
+                ]);
+                carrierKpisSections += `
+                    <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #fcfdff;">
+                        <p style="font-size: 14px; font-weight: 600; color: #4A5568; margin: 0 0 10px 0; ${FONT_FAMILY}">${carrier.name}</p>
+                        ${carrierKpis}
+                    </div>
+                `;
+             });
+        }
+
+
         // --- Categories ---
         const depotComments = allComments.filter(c => depot.carriers.some(carrier => carrier.drivers.some(driver => driver.name === c.driverName)));
         const commentsByCategory: Record<string, number> = {};
@@ -202,6 +226,7 @@ export function generateQualityEmailBody(
                 Dépôt: ${depot.name.toUpperCase()}
             </h2>
             ${createCard(depotKpis, 'Indicateurs Clés du Dépôt')}
+            ${carrierKpisSections ? createCard(carrierKpisSections) : ''}
             ${createCard(analysisContent, 'Analyse des Retours Clients')}
             ${createCard(recurrenceTable, 'Récurrence des Mauvaises Notes (Note < 4)')}
         `;
