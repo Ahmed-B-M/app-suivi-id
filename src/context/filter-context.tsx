@@ -139,6 +139,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters, refreshKey);
   const { data: allNpsData = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
   const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
+  // Fetch ALL categorized comments, filtering will happen client-side after merging
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, [], refreshKey);
 
   
@@ -228,59 +229,76 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
 
   const allComments = useMemo(() => {
-    if (isLoadingCategorized) return [];
+    if (isLoadingCategorized || isLoadingTasks) return [];
   
-    // 1. Filter saved comments by date range. This is our source of truth for "traité" status.
+    // 1. Create a map of all saved comments for quick lookup. This is the source of truth for status.
+    const savedCommentsMap = new Map<string, CategorizedComment>();
+    allSavedComments.forEach(comment => {
+      // Ensure the ID is a string, as Firestore IDs are strings.
+      const taskId = String(comment.taskId || comment.id);
+      savedCommentsMap.set(taskId, {
+        ...comment,
+        id: taskId, // Normalize ID
+        taskId: taskId,
+      });
+    });
+  
+    // 2. Create a comprehensive list of all potential comments from tasks with negative feedback.
+    const commentsFromTasks = allTasks.reduce((acc, task) => {
+      const isNegativeComment = typeof task.metaDonnees?.notationLivreur === 'number' &&
+                                task.metaDonnees.notationLivreur < 4 &&
+                                task.metaDonnees.commentaireLivreur;
+  
+      if (isNegativeComment) {
+        const taskId = String(task.tacheId);
+        const savedComment = savedCommentsMap.get(taskId);
+  
+        // If it's already saved, use the saved data (especially the status). Otherwise, create a new 'à traiter' comment.
+        if (savedComment) {
+          acc.set(taskId, savedComment);
+        } else {
+          acc.set(taskId, {
+            id: taskId,
+            taskId: taskId,
+            comment: task.metaDonnees!.commentaireLivreur!,
+            rating: task.metaDonnees!.notationLivreur!,
+            category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+            taskDate: task.date,
+            driverName: getDriverFullName(task),
+            status: 'à traiter' as const,
+          });
+        }
+      }
+      return acc;
+    }, new Map<string, CategorizedComment>());
+  
+    // 3. Add any saved comments whose original task might be outside the current date range filter.
+    // This ensures that "traité" comments always appear if their save date is within range.
+    allSavedComments.forEach(savedComment => {
+      const taskId = String(savedComment.taskId || savedComment.id);
+      if (!commentsFromTasks.has(taskId)) {
+        commentsFromTasks.set(taskId, {
+          ...savedComment,
+          id: taskId,
+          taskId: taskId,
+        });
+      }
+    });
+  
+    // 4. Convert map to array and apply date filtering as the final step.
     const from = dateRange?.from;
     const to = dateRange?.to;
-    const savedCommentsInDateRange = allSavedComments.filter(comment => {
-      if (!comment.taskDate) return false;
+    const finalCommentList = Array.from(commentsFromTasks.values()).filter(comment => {
+      if (!comment.taskDate) return false; // Comments must have a date
       const commentDate = new Date(comment.taskDate as string);
-      if (from && commentDate < from) return false;
-      if (to && commentDate > to) return false;
+      if (from && commentDate < startOfDay(from)) return false;
+      if (to && commentDate > endOfDay(to)) return false;
       return true;
     });
-
-    const savedTaskIds = new Set(savedCommentsInDateRange.map(c => c.taskId));
   
-    // 2. Filter tasks based on all criteria (date, depot, store, etc.)
-    // We use `allTasks` here which is already filtered by date.
-    let tasksToConsider = allTasks;
-     if (filterType !== 'tous') {
-      tasksToConsider = tasksToConsider.filter(item => getHubCategory(item.nomHub) === filterType);
-    }
-    if (selectedDepot !== "all") {
-       tasksToConsider = tasksToConsider.filter(item => getDepotFromHub(item.nomHub) === selectedDepot);
-    }
-    if (selectedStore !== "all") {
-      tasksToConsider = tasksToConsider.filter(item => item.nomHub === selectedStore);
-    }
-
+    return finalCommentList;
   
-    // 3. Identify new negative comments from the filtered tasks that are NOT already saved.
-    const newNegativeComments = tasksToConsider
-      .filter(task => {
-        return !savedTaskIds.has(task.tacheId) &&
-          typeof task.metaDonnees?.notationLivreur === 'number' &&
-          task.metaDonnees.notationLivreur < 4 &&
-          task.metaDonnees.commentaireLivreur;
-      })
-      .map(task => ({
-        id: task.tacheId, // ensure a unique id for React keys
-        taskId: task.tacheId,
-        comment: task.metaDonnees!.commentaireLivreur!,
-        rating: task.metaDonnees!.notationLivreur!,
-        category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-        taskDate: task.date,
-        driverName: getDriverFullName(task),
-        status: 'à traiter' as const,
-      }));
-  
-    // 4. Combine the lists. The saved comments list (with correct statuses) is the base.
-    // Then we add the new, unsaved comments.
-    return [...savedCommentsInDateRange, ...newNegativeComments];
-  
-  }, [allSavedComments, allTasks, isLoadingCategorized, dateRange, filterType, selectedDepot, selectedStore]);
+  }, [allTasks, allSavedComments, isLoadingTasks, isLoadingCategorized, dateRange]);
 
 
   return (
@@ -322,3 +340,5 @@ export function useFilters() {
   }
   return context;
 }
+
+    
