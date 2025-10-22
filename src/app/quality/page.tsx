@@ -13,15 +13,17 @@ import { DriverPerformanceRankings } from "@/components/app/driver-performance-r
 import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
-import { Download, Search } from "lucide-react";
+import { Download, Search, ClipboardCopy } from "lucide-react";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
 import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
 import { startOfDay, endOfDay } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 export default function QualityPage() {
   const { allTasks, allRounds, allComments, allNpsData, processedVerbatims, isContextLoading, dateRange } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
 
   const qualityData = useMemo(() => {
     if (!allTasks || isContextLoading) return null;
@@ -247,30 +249,44 @@ export default function QualityPage() {
 
 
   const handleGenerateEmail = () => {
-    if (!filteredQualityData || !alertData || !dateRange?.from || !dateRange?.to) return;
+    if (!filteredQualityData || !alertData || !dateRange?.from || !dateRange?.to) {
+        toast({
+            title: "Données manquantes",
+            description: "Impossible de générer le rapport. Assurez-vous que des données sont chargées.",
+            variant: "destructive",
+        });
+        return;
+    }
     
-    const emailBody = generateQualityEmailBody(
+    const emailBodyHtml = generateQualityEmailBody(
         filteredQualityData, 
         alertData, 
         allComments, 
         processedVerbatims,
         { from: dateRange.from, to: dateRange.to }
     );
-    const subject = `Rapport Qualité du ${dateRange.from.toLocaleDateString('fr-FR')} au ${dateRange.to.toLocaleDateString('fr-FR')}`;
+
+    // Create a blob with the HTML content
+    const blob = new Blob([emailBodyHtml], { type: 'text/html' });
     
-    const blob = new Blob([emailBody], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    const fileName = `rapport_qualite_${dateRange.from.toLocaleDateString('fr-FR')}.html`;
-    link.download = fileName;
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Use the Clipboard API to copy the rich text
+    navigator.clipboard.write([
+        new ClipboardItem({
+            'text/html': blob
+        })
+    ]).then(() => {
+        toast({
+            title: "Rapport copié !",
+            description: "Le corps de l'e-mail a été copié dans votre presse-papiers. Collez-le dans votre client de messagerie.",
+        });
+    }).catch(err => {
+        console.error('Failed to copy email body: ', err);
+        toast({
+            title: "Erreur de copie",
+            description: "Impossible de copier le rapport dans le presse-papiers.",
+            variant: "destructive",
+        });
+    });
   };
 
 
@@ -291,8 +307,8 @@ export default function QualityPage() {
               />
            </div>
            <Button onClick={handleGenerateEmail} disabled={!filteredQualityData}>
-             <Download className="mr-2 h-4 w-4" />
-             Télécharger le Rapport
+             <ClipboardCopy className="mr-2 h-4 w-4" />
+             Copier le rapport par e-mail
            </Button>
         </div>
       </div>
