@@ -20,7 +20,7 @@ import { generateQualityEmailBody } from "@/lib/mail-generator";
 import { startOfDay, endOfDay } from "date-fns";
 
 export default function QualityPage() {
-  const { allTasks, allComments, allNpsData, processedVerbatims, isContextLoading, dateRange } = useFilters();
+  const { allTasks, allRounds, allComments, allNpsData, processedVerbatims, isContextLoading, dateRange } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
 
   const qualityData = useMemo(() => {
@@ -260,6 +260,7 @@ export default function QualityPage() {
     
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
     
+    // Using location.href is safer for long HTML content in mailto links
     window.location.href = mailtoLink;
   };
 
