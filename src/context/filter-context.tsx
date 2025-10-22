@@ -179,6 +179,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return filteredTasksByOtherCriteria
       .filter(task => 
         typeof task.metaDonnees?.notationLivreur === 'number' &&
+        task.metaDonnees.notationLivreur < 4 &&
         task.metaDonnees.commentaireLivreur
       )
       .map(task => {
