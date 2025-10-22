@@ -515,14 +515,14 @@ export async function updateSingleCommentAction(
 // --- Save NPS data to Firestore ---
 export async function saveNpsDataAction(
     payload: {
-        associationDate: string;
+        associationDate: string; // Expecting 'yyyy-MM-dd' format
         verbatims: ProcessedNpsData[];
     }
 ) {
     try {
         const { firestore } = await initializeFirebaseOnServer();
-        // Use substring to avoid timezone issues when creating the ID from the ISO string
-        const docId = payload.associationDate.substring(0, 10);
+        // The associationDate is already in 'yyyy-MM-dd' format, safe to use as ID.
+        const docId = payload.associationDate;
         const docRef = firestore.collection("nps_data").doc(docId);
         
         await docRef.set(payload, { merge: true });

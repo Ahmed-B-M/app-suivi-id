@@ -157,7 +157,7 @@ export default function NpsAnalysisPage() {
 
         startSavingTransition(async () => {
             const result = await saveNpsDataAction({
-                associationDate: associationDate.toISOString(),
+                associationDate: format(associationDate, 'yyyy-MM-dd'),
                 verbatims: processedData
             });
 
