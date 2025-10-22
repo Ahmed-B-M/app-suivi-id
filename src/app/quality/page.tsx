@@ -13,7 +13,7 @@ import { DriverPerformanceRankings } from "@/components/app/driver-performance-r
 import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
-import { Mail, Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
 import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
@@ -258,10 +258,19 @@ export default function QualityPage() {
     );
     const subject = `Rapport Qualité du ${dateRange.from.toLocaleDateString('fr-FR')} au ${dateRange.to.toLocaleDateString('fr-FR')}`;
     
-    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+    const blob = new Blob([emailBody], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
     
-    // Using location.href is safer for long HTML content in mailto links
-    window.location.href = mailtoLink;
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = `rapport_qualite_${dateRange.from.toLocaleDateString('fr-FR')}.html`;
+    link.download = fileName;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
 
@@ -282,8 +291,8 @@ export default function QualityPage() {
               />
            </div>
            <Button onClick={handleGenerateEmail} disabled={!filteredQualityData}>
-             <Mail className="mr-2 h-4 w-4" />
-             Générer l'E-mail
+             <Download className="mr-2 h-4 w-4" />
+             Télécharger le Rapport
            </Button>
         </div>
       </div>
