@@ -163,7 +163,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   
   const categorizedCommentsCollection = useMemo(() => 
-    collection(firestore, "categorized_comments"), 
+    firestore ? collection(firestore, "categorized_comments") : null,
     [firestore]
   );
   
@@ -255,38 +255,54 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
 
   const allComments = useMemo(() => {
-    if (!filteredTasksByOtherCriteria || !savedComments) return [];
-  
-    // Start with all saved comments within the date range as the source of truth
+    if (isLoadingCategorized || isLoadingTasks || !savedComments || !allTasks) return [];
+
     const finalCommentsMap = new Map<string, CategorizedComment>();
-    savedComments.forEach(c => finalCommentsMap.set(c.taskId, { ...c, id: c.id || c.taskId }));
-  
+
+    // Start with all saved comments within the date range as the source of truth
+    savedComments.forEach(c => {
+        finalCommentsMap.set(c.taskId, { ...c, id: c.id || c.taskId });
+    });
+
     // Now, add any NEW negative comments from tasks that haven't been saved yet
-    const newNegativeCommentsFromTasks = filteredTasksByOtherCriteria
-      .filter(task => {
-        // Must be a new comment (not in our map)
-        return !finalCommentsMap.has(task.tacheId) &&
-               typeof task.metaDonnees?.notationLivreur === 'number' &&
-               task.metaDonnees.notationLivreur < 4 &&
-               task.metaDonnees.commentaireLivreur;
-      })
-      .forEach(task => {
-        // Add this new, unsaved comment to our map
-        finalCommentsMap.set(task.tacheId, {
-          id: task.tacheId,
-          taskId: task.tacheId,
-          comment: task.metaDonnees!.commentaireLivreur!,
-          rating: task.metaDonnees!.notationLivreur!,
-          category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-          taskDate: task.date,
-          driverName: getDriverFullName(task),
-          status: 'à traiter' as const,
+    allTasks
+        .filter(task => {
+            // Must be a new comment (not in our map) and have a rating
+            return !finalCommentsMap.has(task.tacheId) &&
+                typeof task.metaDonnees?.notationLivreur === 'number' &&
+                task.metaDonnees.notationLivreur < 4 &&
+                task.metaDonnees.commentaireLivreur;
+        })
+        .forEach(task => {
+            finalCommentsMap.set(task.tacheId, {
+                id: task.tacheId,
+                taskId: task.tacheId,
+                comment: task.metaDonnees!.commentaireLivreur!,
+                rating: task.metaDonnees!.notationLivreur!,
+                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+                taskDate: task.date,
+                driverName: getDriverFullName(task),
+                status: 'à traiter' as const,
+            });
         });
-      });
-  
-    // Convert the map back to an array
-    return Array.from(finalCommentsMap.values());
-  }, [filteredTasksByOtherCriteria, savedComments]);
+    
+    // Convert the map back to an array and apply the other filters
+    return Array.from(finalCommentsMap.values()).filter(comment => {
+        const task = allTasks.find(t => t.tacheId === comment.taskId);
+        if (!task) return false; // If the original task isn't in the date range, exclude the comment
+
+        if (filterType !== 'tous') {
+            if (getHubCategory(task.nomHub) !== filterType) return false;
+        }
+        if (selectedDepot !== "all") {
+            if (getDepotFromHub(task.nomHub) !== selectedDepot) return false;
+        }
+        if (selectedStore !== "all") {
+            if (task.nomHub !== selectedStore) return false;
+        }
+        return true;
+    });
+}, [savedComments, allTasks, isLoadingCategorized, isLoadingTasks, filterType, selectedDepot, selectedStore]);
 
 
   return (
@@ -328,5 +344,3 @@ export function useFilters() {
   }
   return context;
 }
-
-    
