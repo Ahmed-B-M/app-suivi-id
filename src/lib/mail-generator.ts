@@ -113,6 +113,52 @@ export function generateQualityEmailBody(
 ): string {
     const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR')} au ${new Date(dateRange.to).toLocaleDateString('fr-FR')}`;
 
+    // --- Global Summary Section ---
+    const globalKpis = createKpiGrid([
+        { label: 'Note Moy.', value: formatValue(qualityData.summary.averageRating, '', 2), color: getRatingColor(qualityData.summary.averageRating) },
+        { label: 'NPS', value: formatValue(qualityData.summary.npsScore, '', 1), color: getNpsColor(qualityData.summary.npsScore) },
+        { label: 'Ponctualité', value: formatValue(qualityData.summary.punctualityRate, '%', 1), color: getPunctualityColor(qualityData.summary.punctualityRate) },
+        { label: 'SCANBAC', value: formatValue(qualityData.summary.scanbacRate, '%', 1), color: getPunctualityColor(qualityData.summary.scanbacRate) },
+        { label: 'Forçage Adr.', value: formatValue(qualityData.summary.forcedAddressRate, '%', 1), color: getForcedMetricColor(qualityData.summary.forcedAddressRate) },
+        { label: 'Forçage Cmd', value: formatValue(qualityData.summary.forcedContactlessRate, '%', 1), color: getForcedMetricColor(qualityData.summary.forcedContactlessRate) },
+        { label: 'Retard > 1h', value: formatValue(qualityData.summary.lateOver1hRate, '%', 1), color: getForcedMetricColor(qualityData.summary.lateOver1hRate) }
+    ]);
+    
+    const globalCommentsByCategory: Record<string, number> = {};
+    allComments.forEach(c => { globalCommentsByCategory[c.category] = (globalCommentsByCategory[c.category] || 0) + 1; });
+    const globalCommentsCategoryData = Object.entries(globalCommentsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
+        name, count, percentage: allComments.length > 0 ? (count / allComments.length) * 100 : 0
+    }));
+
+    const globalVerbatimsByCategory: Record<string, number> = {};
+    processedVerbatims.forEach(v => { globalVerbatimsByCategory[v.category] = (globalVerbatimsByCategory[v.category] || 0) + 1; });
+    const globalVerbatimsCategoryData = Object.entries(globalVerbatimsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
+        name, count, percentage: processedVerbatims.length > 0 ? (count / processedVerbatims.length) * 100 : 0
+    }));
+
+     const globalAnalysisContent = `
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
+                    ${createCategoryTable("Commentaires Négatifs", globalCommentsCategoryData, allComments.length)}
+                </td>
+                <td style="width: 50%; vertical-align: top; padding-left: 20px;">
+                    ${createCategoryTable("Verbatims Détracteurs", globalVerbatimsCategoryData, processedVerbatims.length)}
+                </td>
+            </tr>
+        </table>
+    `;
+
+    const globalSummarySection = `
+        <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.BLUE_TITLE}; margin: 20px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
+            Synthèse Globale
+        </h2>
+        ${createCard(globalKpis, 'Indicateurs Clés Globaux')}
+        ${createCard(globalAnalysisContent, 'Analyse Globale des Retours Clients')}
+    `;
+
+
+    // --- Depot Sections ---
     let depotSections = '';
     const depotAlerts = new Map(alertData.map(depot => [depot.name, depot]));
 
@@ -243,6 +289,7 @@ export function generateQualityEmailBody(
             <div style="max-width: 850px; margin: auto; background-color: transparent;">
                 <h1 style="font-size: 28px; font-weight: 800; color: ${COLORS.BLUE_TITLE}; margin: 0; ${FONT_FAMILY}">Rapport Qualité</h1>
                 <p style="font-size: 14px; color: ${COLORS.GRAY_TEXT}; margin: 5px 0 30px 0; ${FONT_FAMILY}">Période du ${formattedDateRange}</p>
+                ${globalSummarySection}
                 ${depotSections}
                 <p style="text-align: center; color: #A0AEC0; font-size: 12px; margin-top: 30px; ${FONT_FAMILY}">Généré par ID-pilote</p>
             </div>
