@@ -246,7 +246,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     
     const savedCommentsMap = new Map(savedComments.map(c => [c.taskId, c]));
     
-    return filteredTasksByOtherCriteria
+    const negativeCommentsFromTasks = filteredTasksByOtherCriteria
       .filter(task => 
         typeof task.metaDonnees?.notationLivreur === 'number' &&
         task.metaDonnees.notationLivreur < 4 &&
@@ -254,12 +254,20 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       )
       .map(task => {
         const savedComment = savedCommentsMap.get(task.tacheId);
+        // If the comment is already saved, prioritize its data, especially the status
         if (savedComment) {
             return {
-                ...savedComment,
-                id: savedComment.id || task.tacheId
+                id: savedComment.id || task.tacheId,
+                taskId: task.tacheId,
+                comment: savedComment.comment,
+                rating: savedComment.rating,
+                category: savedComment.category,
+                taskDate: savedComment.taskDate || task.date,
+                driverName: savedComment.driverName || getDriverFullName(task),
+                status: savedComment.status,
             };
         } else {
+            // This is a new, unsaved negative comment
             return {
                 id: task.tacheId,
                 taskId: task.tacheId,
@@ -272,7 +280,25 @@ export function FilterProvider({ children }: { children: ReactNode }) {
             };
         }
     });
-  }, [filteredTasksByOtherCriteria, savedComments]);
+
+    // Add saved comments that might not have a corresponding task in the current filter
+    // but should still be displayed if they match the date range.
+    savedComments.forEach(savedComment => {
+      // Check if this saved comment is already in our list
+      if (!negativeCommentsFromTasks.some(c => c.taskId === savedComment.taskId)) {
+        // If not, and it's within the date range, add it
+        const commentDate = savedComment.taskDate ? new Date(savedComment.taskDate as string) : null;
+        if (commentDate && dateRange?.from && dateRange?.to && commentDate >= dateRange.from && commentDate <= dateRange.to) {
+          negativeCommentsFromTasks.push({
+             ...savedComment,
+              id: savedComment.id || savedComment.taskId
+          });
+        }
+      }
+    });
+
+    return negativeCommentsFromTasks;
+  }, [filteredTasksByOtherCriteria, savedComments, dateRange]);
 
 
   return (

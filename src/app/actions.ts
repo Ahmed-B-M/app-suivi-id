@@ -462,6 +462,7 @@ export async function saveCategorizedCommentsAction(
     categorizedComments.forEach(comment => {
       if (comment.taskId) {
         const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
+        // Ensure a default status is set when saving
         batch.set(docRef, { ...comment, status: 'à traiter' }, { merge: true });
       }
     });
