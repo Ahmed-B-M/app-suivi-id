@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { Badge } from "@/components/ui/badge";
 
@@ -55,6 +55,11 @@ const links = [
     href: "/nps-analysis",
     label: "Analyse NPS",
     icon: <BarChart />,
+  },
+  {
+    href: "/verbatims",
+    label: "Verbatims NPS",
+    icon: <MessagesSquare />,
   },
   {
     href: "/settings",

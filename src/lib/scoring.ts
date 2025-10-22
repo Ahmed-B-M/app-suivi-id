@@ -13,6 +13,7 @@ export interface DriverStats {
   forcedAddressRate: number | null;
   forcedContactlessRate: number | null;
   score?: number;
+  npsScore?: number | null;
 }
 
 /**
@@ -20,7 +21,7 @@ export interface DriverStats {
  * @param tasks - The tasks performed by a single driver.
  * @returns A raw stats object, without the composite score.
  */
-export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<DriverStats, 'score'> {
+export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<DriverStats, 'score' | 'npsScore'> {
   const completed = tasks.filter(t => t.progression === 'COMPLETED');
   const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
 

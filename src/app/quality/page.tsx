@@ -17,16 +17,14 @@ import { Search } from "lucide-react";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
 
 export default function QualityPage() {
-  const { allTasks, allComments, isContextLoading } = useFilters();
+  const { allTasks, allComments, allNpsData, isContextLoading } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
 
   const qualityData = useMemo(() => {
     if (!allTasks || isContextLoading) return null;
 
-    let filteredTasks = allTasks;
-    
     const driverTasks: Record<string, Tache[]> = {};
-    filteredTasks.forEach(task => {
+    allTasks.forEach(task => {
         const driverName = getDriverFullName(task);
         if (driverName) {
             if (!driverTasks[driverName]) driverTasks[driverName] = [];
@@ -34,8 +32,29 @@ export default function QualityPage() {
         }
     });
 
+    const driverNpsData: Record<string, { promoter: number, passive: number, detractor: number, count: number }> = {};
+    allNpsData.flatMap(d => d.verbatims).forEach(v => {
+        if (v.driver) {
+            if (!driverNpsData[v.driver]) {
+                driverNpsData[v.driver] = { promoter: 0, passive: 0, detractor: 0, count: 0 };
+            }
+            if (v.npsCategory === 'Promoter') driverNpsData[v.driver].promoter++;
+            else if (v.npsCategory === 'Passive') driverNpsData[v.driver].passive++;
+            else if (v.npsCategory === 'Detractor') driverNpsData[v.driver].detractor++;
+            driverNpsData[v.driver].count++;
+        }
+    });
+
     const rawDriverStats = Object.entries(driverTasks).map(([name, tasks]) => {
-      return calculateRawDriverStats(name, tasks);
+        const nps = driverNpsData[name];
+        let npsScore: number | null = null;
+        if (nps && nps.count > 0) {
+            npsScore = ((nps.promoter / nps.count) - (nps.detractor / nps.count)) * 100;
+        }
+        return {
+            ...calculateRawDriverStats(name, tasks),
+            npsScore,
+        };
     });
 
     const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
@@ -73,7 +92,7 @@ export default function QualityPage() {
       const totalRatings = drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0);
       const completedTasks = drivers.reduce((sum, d) => sum + (d.completedTasks || 0), 0);
       
-      const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings' | 'totalTasks' | 'completedTasks'>, weightKey: 'totalRatings' | 'completedTasks') => {
+      const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings' | 'totalTasks' | 'completedTasks' | 'npsScore'>, weightKey: 'totalRatings' | 'completedTasks') => {
         let totalWeightedSum = 0;
         let totalWeight = 0;
 
@@ -92,6 +111,9 @@ export default function QualityPage() {
       
       const averageRating = weightedAvg('averageRating', 'totalRatings');
       
+      const npsScores = drivers.map(d => d.npsScore).filter((s): s is number => s !== null);
+      const averageNps = npsScores.length > 0 ? npsScores.reduce((a,b) => a + b, 0) / npsScores.length : null;
+
       return {
         totalRatings,
         averageRating,
@@ -99,6 +121,7 @@ export default function QualityPage() {
         scanbacRate: weightedAvg('scanbacRate', 'completedTasks'),
         forcedAddressRate: weightedAvg('forcedAddressRate', 'completedTasks'),
         forcedContactlessRate: weightedAvg('forcedContactlessRate', 'completedTasks'),
+        npsScore: averageNps,
       };
     };
 
@@ -118,7 +141,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, isContextLoading]);
+  }, [allTasks, allNpsData, isContextLoading]);
 
 
   const filteredQualityData = useMemo(() => {

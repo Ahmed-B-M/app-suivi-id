@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Star, Building, Truck, User, AlertTriangle, Percent, Hash, Search, Award, Clock, Smartphone, MapPinOff, Ban, ListTodo } from "lucide-react";
+import { Star, Building, Truck, User, AlertTriangle, Percent, Hash, Search, Award, Clock, Smartphone, MapPinOff, Ban, ListTodo, BarChart } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { Input } from "../ui/input";
 import { DriverStats } from "@/lib/scoring";
@@ -34,18 +34,21 @@ import { cn } from "@/lib/utils";
 // Data structures
 interface DriverQuality extends DriverStats {
   score: number;
+  npsScore: number | null;
 }
 
 interface CarrierQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
   name: string;
   totalRatings: number;
   drivers: DriverQuality[];
+  npsScore: number | null;
 }
 
 interface DepotQuality extends Omit<DriverStats, 'name'|'totalTasks'|'completedTasks'|'score'> {
   name: string;
   totalRatings: number;
   carriers: CarrierQuality[];
+  npsScore: number | null;
 }
 
 export interface QualityData {
@@ -56,6 +59,7 @@ export interface QualityData {
     scanbacRate: number | null;
     forcedAddressRate: number | null;
     forcedContactlessRate: number | null;
+    npsScore: number | null;
   };
   details: DepotQuality[];
 }
@@ -87,11 +91,15 @@ const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, 
     )
 };
 
-const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = false }: { value: number | null, icon: React.ReactNode, tooltipText: string, isRate?: boolean, isLowerBetter?: boolean }) => {
+const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = false, isNps = false }: { value: number | null, icon: React.ReactNode, tooltipText: string, isRate?: boolean, isLowerBetter?: boolean, isNps?: boolean }) => {
   let colorClass = "bg-secondary text-secondary-foreground";
   
   if (value !== null) {
-    if (isRate) { // For percentage-based rates
+    if (isNps) {
+        if (value >= 50) colorClass = "bg-green-600 text-white";
+        else if (value >= 0) colorClass = "bg-yellow-500 text-black";
+        else colorClass = "bg-red-600 text-white";
+    } else if (isRate) { // For percentage-based rates
       if (isLowerBetter) { // Lower is better (e.g., forced address rate)
         if (value <= 2) colorClass = "bg-green-700 text-white";       // Excellent
         else if (value <= 5) colorClass = "bg-green-500 text-white";  // Good (target)
@@ -121,7 +129,7 @@ const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = fa
         <TooltipTrigger asChild>
             <Badge className={cn("flex gap-1.5 min-w-[70px] justify-center border-transparent", colorClass)}>
               {icon} 
-              {value !== null ? value.toFixed(isRate ? 1 : 2) : 'N/A'}
+              {value !== null ? value.toFixed(isNps ? 1 : isRate ? 1 : 2) : 'N/A'}
               {isRate && '%'}
             </Badge>
         </TooltipTrigger>
@@ -151,6 +159,7 @@ const Row = ({ name, data, icon, children }: { name: string, data: any, icon: Re
                         </div>
                         <div className="flex items-center gap-2">
                            <StatBadge value={data.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
+                           <StatBadge value={data.npsScore} icon={<BarChart />} tooltipText="Score NPS" isNps={true} />
                            <StatBadge value={data.punctualityRate} icon={<Clock />} tooltipText="Taux de Ponctualité" />
                            <StatBadge value={data.scanbacRate} icon={<Smartphone />} tooltipText="Taux de SCANBAC" />
                            <StatBadge value={data.forcedAddressRate} icon={<MapPinOff />} tooltipText="Taux 'Sur Place Forcé'" isLowerBetter />
@@ -193,13 +202,22 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
         return 'danger';
     };
 
+    const getNpsVariant = (score: number | null) => {
+        if(score === null) return 'danger';
+        if (score >= 50) return 'success';
+        if (score >= 0) return 'warning';
+        return 'danger';
+    };
+
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Synthèse de la Qualité</CardTitle>
                 <CardDescription>Vue d'ensemble des indicateurs de performance qualité, agrégés par dépôt et transporteur.</CardDescription>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 pt-4">
                     <StatCard title="Note Moyenne Globale" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getScoreVariant(data.summary.averageRating)} />
+                    <StatCard title="Score NPS Global" value={data.summary.npsScore?.toFixed(1) ?? 'N/A'} icon={<BarChart />} variant={getNpsVariant(data.summary.npsScore)} />
                     <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getScoreVariant((data.summary.punctualityRate ?? 0)/20)} />
                     <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getScoreVariant((data.summary.scanbacRate ?? 0)/20)} />
                     <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getScoreVariant(5 - (data.summary.forcedAddressRate ?? 100)/5)} />
@@ -220,6 +238,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                         <TableHead>Livreur</TableHead>
                                                         <TableHead className="text-right">Score</TableHead>
                                                         <TableHead className="text-right">Note Moy.</TableHead>
+                                                        <TableHead className="text-right">NPS</TableHead>
                                                         <TableHead className="text-right">Ponctualité</TableHead>
                                                         <TableHead className="text-right">SCANBAC</TableHead>
                                                         <TableHead className="text-right">Forçage Adr.</TableHead>
@@ -233,6 +252,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                             <TableCell className="font-medium">{driver.name}</TableCell>
                                                             <TableCell className="text-right font-bold"><Badge variant={getScoreVariant((driver.score ?? 0) / 20)}>{driver.score?.toFixed(1)}</Badge></TableCell>
                                                             <TableCell className="text-right font-mono">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.npsScore?.toFixed(1) ?? 'N/A'}</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
