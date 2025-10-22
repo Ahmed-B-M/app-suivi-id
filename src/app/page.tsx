@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -40,9 +41,12 @@ export default function DashboardPage() {
   const { 
     allTasks: filteredData,
     allRounds: filteredRounds,
-    allComments: filteredComments,
+    allComments,
     allNpsData,
     isContextLoading,
+    filterType,
+    selectedDepot,
+    selectedStore,
    } = useFilters();
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
@@ -77,8 +81,8 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds, filteredComments, allNpsData);
-  }, [filteredData, filteredRounds, filteredComments, allNpsData]);
+    return calculateDashboardStats(filteredData, filteredRounds, allComments, allNpsData, filterType, selectedDepot, selectedStore);
+  }, [filteredData, filteredRounds, allComments, allNpsData, filterType, selectedDepot, selectedStore]);
 
   const isLoading = isContextLoading;
   const error = null; 

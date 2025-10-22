@@ -1,7 +1,8 @@
 
+
 import type { Tache, Tournee, NpsData } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
-import { getDriverFullName } from "./grouping";
+import { getDriverFullName, getHubCategory, getDepotFromHub } from "./grouping";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
@@ -62,7 +63,15 @@ export function getCategoryFromKeywords(comment: string | undefined | null): str
 }
 
 
-export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNegativeComments: CategorizedComment[], allNpsData: NpsData[]) {
+export function calculateDashboardStats(
+    tasks: Tache[], 
+    rounds: Tournee[], 
+    allNegativeComments: CategorizedComment[],
+    allNpsData: NpsData[],
+    filterType: 'tous' | 'magasin' | 'entrepot',
+    selectedDepot: string,
+    selectedStore: string
+) {
     if (!tasks || !rounds) {
       return { hasData: false };
     }
@@ -240,11 +249,27 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
 
     // --- NPS Calculation ---
     const allNpsVerbatims = allNpsData.flatMap(d => d.verbatims);
-    const npsResponseCount = allNpsVerbatims.length;
+    
+    let filteredNpsVerbatims = allNpsVerbatims;
+    if (filterType !== 'tous' || selectedDepot !== 'all' || selectedStore !== 'all') {
+        filteredNpsVerbatims = allNpsVerbatims.filter(verbatim => {
+             const depot = verbatim.depot;
+             const store = verbatim.store;
+             const hubCategory = depot === 'Magasin' ? 'magasin' : 'entrepot';
+
+             if (filterType !== 'tous' && hubCategory !== filterType) return false;
+             if (selectedDepot !== 'all' && depot !== selectedDepot) return false;
+             if (selectedStore !== 'all' && store !== selectedStore) return false;
+             
+             return true;
+        });
+    }
+
+    const npsResponseCount = filteredNpsVerbatims.length;
     let nps: number | null = null;
     if (npsResponseCount > 0) {
-        const promoterCount = allNpsVerbatims.filter(v => v.npsCategory === 'Promoter').length;
-        const detractorCount = allNpsVerbatims.filter(v => v.npsCategory === 'Detractor').length;
+        const promoterCount = filteredNpsVerbatims.filter(v => v.npsCategory === 'Promoter').length;
+        const detractorCount = filteredNpsVerbatims.filter(v => v.npsCategory === 'Detractor').length;
         nps = ((promoterCount / npsResponseCount) - (detractorCount / npsResponseCount)) * 100;
     }
     // --- End NPS Calculation ---
