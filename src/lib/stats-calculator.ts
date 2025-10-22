@@ -3,6 +3,7 @@
 
 
 
+
 import type { Tache, Tournee } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName } from "./grouping";
@@ -66,7 +67,7 @@ export function getCategoryFromKeywords(comment: string): string {
 }
 
 
-export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], savedCommentsData?: CategorizedComment[] | null) {
+export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNegativeComments: CategorizedComment[] = []) {
     if (!tasks || !rounds) {
       return { hasData: false };
     }
@@ -212,25 +213,8 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], saved
     const hasData = tasks.length > 0 || rounds.length > 0;
     
     // --- Comment Analysis Logic ---
-    const allNegativeComments = savedCommentsData ? [...savedCommentsData] : [];
-    const savedCommentIds = new Set(allNegativeComments.map(c => c.taskId));
-
-    qualityAlertTasks.forEach(task => {
-        if (!savedCommentIds.has(task.tacheId)) {
-            allNegativeComments.push({
-                id: task.tacheId,
-                taskId: task.tacheId,
-                comment: task.metaDonnees!.commentaireLivreur!,
-                rating: task.metaDonnees!.notationLivreur!,
-                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                taskDate: task.date,
-                driverName: getDriverFullName(task),
-                status: 'à traiter',
-            });
-        }
-    });
-    
     const totalComments = allNegativeComments.length;
+    
     const commentsByCategory = Object.entries(allNegativeComments.reduce((acc, comment) => {
         acc[comment.category] = (acc[comment.category] || 0) + 1;
         return acc;
@@ -247,7 +231,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], saved
       .map(c => ({
         comment: c.comment,
         driverName: c.driverName,
-        taskDate: c.taskDate,
+        taskDate: c.taskDate as string,
         roundName: tasks.find(t => t.tacheId === c.taskId)?.nomTournee
       }));
     // --- End Comment Analysis ---

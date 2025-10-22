@@ -37,20 +37,12 @@ import { CommentSummaryCard } from "@/components/app/comment-summary-card";
 
 
 export default function DashboardPage() {
-  const { firestore } = useFirebase();
   const { 
     allTasks: filteredData,
     allRounds: filteredRounds,
+    allComments: filteredComments,
     isContextLoading,
    } = useFilters();
-
-  const commentsCollection = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return collection(firestore, 'categorized_comments');
-  }, [firestore]);
-
-  const { data: savedCommentsData, isLoading: isLoadingComments } = useCollection<CategorizedComment>(commentsCollection);
-
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
@@ -84,10 +76,10 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds, savedCommentsData);
-  }, [filteredData, filteredRounds, savedCommentsData]);
+    return calculateDashboardStats(filteredData, filteredRounds, filteredComments);
+  }, [filteredData, filteredRounds, filteredComments]);
 
-  const isLoading = isContextLoading || isLoadingComments;
+  const isLoading = isContextLoading;
   const error = null; 
 
   return (
@@ -275,5 +267,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
