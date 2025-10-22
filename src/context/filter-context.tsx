@@ -228,62 +228,59 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
 
   const allComments = useMemo(() => {
-    if (isLoadingCategorized || !allSavedComments) return [];
-
-    // Date-filter the saved comments first
+    if (isLoadingCategorized) return [];
+  
+    // 1. Filter saved comments by date range. This is our source of truth for "traité" status.
     const from = dateRange?.from;
     const to = dateRange?.to;
-    
-    const filteredSavedComments = allSavedComments.filter(comment => {
-        if (!comment.taskDate) return false;
-        const commentDate = new Date(comment.taskDate as string);
-        if(from && commentDate < from) return false;
-        if(to && commentDate > to) return false;
-        return true;
-    });
-
-    // Now, filter by other criteria (depot, store) based on the task data we have for them
-    const finalComments = filteredSavedComments.filter(comment => {
-      const task = allTasks.find(t => t.tacheId === comment.taskId);
-      // We keep the comment if its task is not found, assuming it might be outside the task date range but still relevant
-      // or if the task is found and matches the filters
-      if (!task) return true; 
-
-      if (filterType !== 'tous') {
-        if (getHubCategory(task.nomHub) !== filterType) return false;
-      }
-      if (selectedDepot !== "all") {
-        if (getDepotFromHub(task.nomHub) !== selectedDepot) return false;
-      }
-      if (selectedStore !== "all") {
-        if (task.nomHub !== selectedStore) return false;
-      }
+    const savedCommentsInDateRange = allSavedComments.filter(comment => {
+      if (!comment.taskDate) return false;
+      const commentDate = new Date(comment.taskDate as string);
+      if (from && commentDate < from) return false;
+      if (to && commentDate > to) return false;
       return true;
     });
-    
-    // Add new negative comments from the currently loaded tasks
-     const savedTaskIds = new Set(allSavedComments.map(c => c.taskId));
-     const newNegativeComments = allTasks
-        .filter(task => {
-            return !savedTaskIds.has(task.tacheId) &&
-                typeof task.metaDonnees?.notationLivreur === 'number' &&
-                task.metaDonnees.notationLivreur < 4 &&
-                task.metaDonnees.commentaireLivreur;
-        })
-        .map(task => ({
-            id: task.tacheId,
-            taskId: task.tacheId,
-            comment: task.metaDonnees!.commentaireLivreur!,
-            rating: task.metaDonnees!.notationLivreur!,
-            category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-            taskDate: task.date,
-            driverName: getDriverFullName(task),
-            status: 'à traiter' as const,
-        }));
-    
-    return [...finalComments, ...newNegativeComments];
 
-}, [allSavedComments, allTasks, isLoadingCategorized, dateRange, filterType, selectedDepot, selectedStore]);
+    const savedTaskIds = new Set(savedCommentsInDateRange.map(c => c.taskId));
+  
+    // 2. Filter tasks based on all criteria (date, depot, store, etc.)
+    // We use `allTasks` here which is already filtered by date.
+    let tasksToConsider = allTasks;
+     if (filterType !== 'tous') {
+      tasksToConsider = tasksToConsider.filter(item => getHubCategory(item.nomHub) === filterType);
+    }
+    if (selectedDepot !== "all") {
+       tasksToConsider = tasksToConsider.filter(item => getDepotFromHub(item.nomHub) === selectedDepot);
+    }
+    if (selectedStore !== "all") {
+      tasksToConsider = tasksToConsider.filter(item => item.nomHub === selectedStore);
+    }
+
+  
+    // 3. Identify new negative comments from the filtered tasks that are NOT already saved.
+    const newNegativeComments = tasksToConsider
+      .filter(task => {
+        return !savedTaskIds.has(task.tacheId) &&
+          typeof task.metaDonnees?.notationLivreur === 'number' &&
+          task.metaDonnees.notationLivreur < 4 &&
+          task.metaDonnees.commentaireLivreur;
+      })
+      .map(task => ({
+        id: task.tacheId, // ensure a unique id for React keys
+        taskId: task.tacheId,
+        comment: task.metaDonnees!.commentaireLivreur!,
+        rating: task.metaDonnees!.notationLivreur!,
+        category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+        taskDate: task.date,
+        driverName: getDriverFullName(task),
+        status: 'à traiter' as const,
+      }));
+  
+    // 4. Combine the lists. The saved comments list (with correct statuses) is the base.
+    // Then we add the new, unsaved comments.
+    return [...savedCommentsInDateRange, ...newNegativeComments];
+  
+  }, [allSavedComments, allTasks, isLoadingCategorized, dateRange, filterType, selectedDepot, selectedStore]);
 
 
   return (
