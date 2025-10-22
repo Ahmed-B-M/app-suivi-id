@@ -13,11 +13,13 @@ import { DriverPerformanceRankings } from "@/components/app/driver-performance-r
 import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Mail, Search } from "lucide-react";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
+import { Button } from "@/components/ui/button";
+import { generateQualityEmailBody } from "@/lib/mail-generator";
 
 export default function QualityPage() {
-  const { allTasks, allComments, allNpsData, isContextLoading } = useFilters();
+  const { allTasks, allComments, allNpsData, processedVerbatims, isContextLoading } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
 
   const qualityData = useMemo(() => {
@@ -245,6 +247,19 @@ export default function QualityPage() {
   }, [allTasks, isContextLoading, allComments]);
 
 
+  const handleGenerateEmail = () => {
+    if (!filteredQualityData || !alertData) return;
+    
+    const emailBody = generateQualityEmailBody(filteredQualityData, alertData, allComments, processedVerbatims);
+    const subject = "Rapport Qualité Hebdomadaire";
+    
+    // Using mailto to open default email client
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+    
+    window.location.href = mailtoLink;
+  };
+
+
   const isLoading = isContextLoading;
 
   return (
@@ -261,6 +276,10 @@ export default function QualityPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
            </div>
+           <Button onClick={handleGenerateEmail} disabled={!filteredQualityData}>
+             <Mail className="mr-2 h-4 w-4" />
+             Générer l'E-mail
+           </Button>
         </div>
       </div>
       <div className="space-y-8">
