@@ -212,12 +212,15 @@ export interface Round {
   // Add other round properties as needed
   [key: string]: any;
 }
-    
-    
 
-    
-
-    
-
-
-
+export type NpsData = {
+    taskId: string;
+    npsScore: number;
+    npsCategory: 'Promoter' | 'Passive' | 'Detractor';
+    verbatim: string;
+    store: string;
+    taskDate: string;
+    carrier?: string;
+    depot?: string;
+    driver?: string;
+};

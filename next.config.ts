@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    // This is to ensure papaparse is treated as an external module
+    // and not bundled, which can cause issues with Next.js 13+ App Router.
+    if (!isServer) {
+        config.externals.push({
+            'papaparse': 'Papa',
+        });
+    }
+    return config;
+  }
 };
 
 export default nextConfig;
