@@ -15,17 +15,10 @@ import { QualityDashboard, QualityData } from "@/components/app/quality-dashboar
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
-import { usePendingComments } from "@/hooks/use-pending-comments";
-
 
 export default function QualityPage() {
-  const { allTasks, isContextLoading } = useFilters();
+  const { allTasks, allComments, isContextLoading } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const { 
-    allComments: categorizedComments, 
-    isLoading: isLoadingComments 
-  } = usePendingComments();
 
   const qualityData = useMemo(() => {
     if (!allTasks || isContextLoading) return null;
@@ -149,7 +142,7 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (!allTasks || isContextLoading || !categorizedComments) return { driverRankings: null, alertData: [] };
+    if (!allTasks || isContextLoading || !allComments) return { driverRankings: null, alertData: [] };
     
     const driverTasks: Record<string, Tache[]> = {};
     allTasks.forEach(task => {
@@ -174,7 +167,7 @@ export default function QualityPage() {
 
     const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};
     
-    categorizedComments.forEach(comment => {
+    allComments.forEach(comment => {
         if (comment.rating >= 4) return;
 
         const task = allTasks.find(t => t.tacheId === comment.taskId);
@@ -226,10 +219,10 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isContextLoading, categorizedComments]);
+  }, [allTasks, isContextLoading, allComments]);
 
 
-  const isLoading = isContextLoading || isLoadingComments;
+  const isLoading = isContextLoading;
 
   return (
     <main className="flex-1 container py-8">
@@ -251,7 +244,7 @@ export default function QualityPage() {
         <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
-            data={categorizedComments.filter(c => c.rating < 4)}
+            data={allComments.filter(c => c.rating < 4)}
         />
         <DriverPerformanceRankings 
             data={driverRankings || []}
@@ -261,5 +254,3 @@ export default function QualityPage() {
     </main>
   );
 }
-
-    

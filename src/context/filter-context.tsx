@@ -3,12 +3,15 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { getDepotFromHub, getHubCategory } from '@/lib/grouping';
+import { getDepotFromHub, getHubCategory, getDriverFullName } from '@/lib/grouping';
 import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-collection';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { getCategoryFromKeywords } from '@/lib/stats-calculator';
+import type { CategorizedComment } from '@/hooks/use-pending-comments';
+
 
 type FilterType = 'tous' | 'magasin' | 'entrepot';
 type DateFilterMode = 'day' | 'range';
@@ -34,6 +37,7 @@ interface FilterContextProps {
   lastUpdateTime: Date | null;
   allTasks: Tache[];
   allRounds: Tournee[];
+  allComments: CategorizedComment[];
   isContextLoading: boolean;
 
   refreshData: () => void;
@@ -105,6 +109,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreFilters, refreshKey);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreFilters, refreshKey);
   
+    const categorizedCommentsCollection = useMemo(() => 
+    collection(firestore, "categorized_comments"), 
+    [firestore]
+  );
+  
+  const { data: savedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection);
+
   const availableDepots = useMemo(
     () => {
         if (!allTasks) return [];
@@ -160,6 +171,38 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return roundsToFilter;
   }, [allRounds, filterType, selectedDepot, selectedStore]);
 
+  const allComments = useMemo(() => {
+    if (!filteredTasksByOtherCriteria || !savedComments) return [];
+    
+    const savedCommentsMap = new Map(savedComments.map(c => [c.taskId, c]));
+    
+    return filteredTasksByOtherCriteria
+      .filter(task => 
+        typeof task.metaDonnees?.notationLivreur === 'number' &&
+        task.metaDonnees.commentaireLivreur
+      )
+      .map(task => {
+        const savedComment = savedCommentsMap.get(task.tacheId);
+        if (savedComment) {
+            return {
+                ...savedComment,
+                id: savedComment.id || task.tacheId
+            };
+        } else {
+            return {
+                id: task.tacheId,
+                taskId: task.tacheId,
+                comment: task.metaDonnees!.commentaireLivreur!,
+                rating: task.metaDonnees!.notationLivreur!,
+                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+                taskDate: task.date,
+                driverName: getDriverFullName(task),
+                status: 'à traiter' as const,
+            };
+        }
+    });
+  }, [filteredTasksByOtherCriteria, savedComments]);
+
 
   return (
     <FilterContext.Provider
@@ -181,7 +224,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         lastUpdateTime,
         allTasks: filteredTasksByOtherCriteria,
         allRounds: filteredRoundsByOtherCriteria,
-        isContextLoading: isLoadingTasks || isLoadingRounds,
+        allComments: allComments,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized,
         refreshData,
       }}
     >

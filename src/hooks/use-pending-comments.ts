@@ -6,8 +6,6 @@ import { useCollection, useFirebase } from "@/firebase";
 import { collection, where } from "firebase/firestore";
 import { Tache } from "@/lib/types";
 import { useFilters } from "@/context/filter-context";
-import { getDriverFullName } from "@/lib/grouping";
-import { getCategoryFromKeywords } from "@/lib/stats-calculator";
 
 export type CategorizedComment = {
   id: string;
@@ -36,50 +34,25 @@ export function usePendingComments() {
   
   const { data: savedComments, isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection);
 
-  const allComments = useMemo(() => {
-    if (!allTasks || !savedComments) return [];
-    
-    const savedCommentsMap = new Map(savedComments.map(c => [c.taskId, c]));
-    
-    return allTasks
-      .filter(task => 
-        typeof task.metaDonnees?.notationLivreur === 'number' &&
-        task.metaDonnees.commentaireLivreur
-      )
-      .map(task => {
-        const savedComment = savedCommentsMap.get(task.tacheId);
-        if (savedComment) {
-            return {
-                ...savedComment,
-                id: savedComment.id || task.tacheId
-            };
-        } else {
-            return {
-                id: task.tacheId,
-                taskId: task.tacheId,
-                comment: task.metaDonnees!.commentaireLivreur!,
-                rating: task.metaDonnees!.notationLivreur!,
-                category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-                taskDate: task.date,
-                driverName: getDriverFullName(task),
-                status: 'à traiter' as const,
-            };
-        }
-    });
-  }, [allTasks, savedComments]);
-
-
   const pendingCount = useMemo(() => {
-     if (!allComments) return 0;
-     return allComments.filter(c => c.status === 'à traiter').length;
-  }, [allComments]);
+    if (!allTasks || !savedComments) return 0;
+    
+    const savedCommentIds = new Set(savedComments.map(c => c.taskId));
+    
+    const newNegativeComments = allTasks.filter(task => 
+      !savedCommentIds.has(task.tacheId) &&
+      typeof task.metaDonnees?.notationLivreur === 'number' &&
+      task.metaDonnees.notationLivreur < 4 &&
+      task.metaDonnees.commentaireLivreur
+    );
+
+    return newNegativeComments.length;
+
+  }, [allTasks, savedComments]);
 
 
   return {
     count: pendingCount,
-    allComments,
     isLoading: isLoadingCategorized || isLoadingTasks
   };
 }
-
-    

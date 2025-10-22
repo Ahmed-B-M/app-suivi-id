@@ -26,17 +26,8 @@ import { useFilters } from "@/context/filter-context";
 import { Tache } from "@/lib/types";
 import { getDriverFullName } from "@/lib/grouping";
 import { Loader2 } from "lucide-react";
+import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
-type CategorizedComment = {
-  id: string;
-  taskId: string;
-  comment: string;
-  rating: number;
-  category: string;
-  taskDate?: string;
-  driverName?: string;
-  status: "à traiter" | "traité";
-};
 
 const categoryOptions = [
     { value: "Attitude livreur", label: "Attitude livreur" },
@@ -58,13 +49,8 @@ const categoryOptions = [
 
 
 export default function CommentManagementPage() {
-  const { firestore } = useFirebase();
-  const { allTasks: tasks, isContextLoading: isLoadingTasks } = useFilters();
+  const { allComments, isContextLoading } = useFilters();
   const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('tous');
-  
-  const categorizedCommentsCollection = useMemo(() => collection(firestore, "categorized_comments"), [firestore]);
-
-  const { data: categorizedComments, isLoading: isLoadingCategorized, error: categorizedError } = useCollection<CategorizedComment>(categorizedCommentsCollection);
   
   const [editableComments, setEditableComments] = useState<
     CategorizedComment[]
@@ -73,35 +59,8 @@ export default function CommentManagementPage() {
   const [isPending, startTransition] = useTransition();
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const combinedComments = useMemo(() => {
-    if (!tasks || !categorizedComments) return [];
-
-    const categorizedIds = new Set(categorizedComments.map(c => c.taskId));
-
-    const newCommentsFromTasks: CategorizedComment[] = tasks
-      .filter(task => 
-        !categorizedIds.has(task.tacheId) &&
-        typeof task.metaDonnees?.notationLivreur === 'number' &&
-        task.metaDonnees.notationLivreur < 4 &&
-        task.metaDonnees.commentaireLivreur
-      )
-      .map(task => ({
-        id: task.tacheId,
-        taskId: task.tacheId,
-        comment: task.metaDonnees!.commentaireLivreur!,
-        rating: task.metaDonnees!.notationLivreur!,
-        category: 'Autre',
-        taskDate: task.date,
-        driverName: getDriverFullName(task),
-        status: 'à traiter',
-      }));
-
-      return [...categorizedComments, ...newCommentsFromTasks];
-
-  }, [categorizedComments, tasks]);
-
   const filteredComments = useMemo(() => {
-    let commentsToFilter = combinedComments;
+    let commentsToFilter = allComments;
     
     if (statusFilter !== 'tous') {
       commentsToFilter = commentsToFilter.filter(comment => comment.status === statusFilter);
@@ -113,7 +72,7 @@ export default function CommentManagementPage() {
         return dateB - dateA;
     });
 
-  }, [combinedComments, statusFilter]);
+  }, [allComments, statusFilter]);
 
   useEffect(() => {
     setEditableComments(filteredComments);
@@ -130,7 +89,17 @@ export default function CommentManagementPage() {
   const handleSave = (comment: CategorizedComment) => {
     setSavingId(comment.id);
     startTransition(async () => {
-      const result = await updateSingleCommentAction(comment);
+      // Create a plain object for the server action
+      const commentToSave = {
+        taskId: comment.taskId,
+        comment: comment.comment,
+        rating: comment.rating,
+        category: comment.category,
+        taskDate: comment.taskDate ? new Date(comment.taskDate).toISOString() : undefined,
+        driverName: comment.driverName,
+      };
+
+      const result = await updateSingleCommentAction(commentToSave);
       if (result.success) {
         toast({
           title: "Succès",
@@ -147,15 +116,10 @@ export default function CommentManagementPage() {
     });
   };
 
-  const isLoading = isLoadingCategorized || isLoadingTasks;
-  const error = categorizedError;
-
+  const isLoading = isContextLoading;
+  
   if (isLoading) {
     return <div>Chargement...</div>;
-  }
-
-  if (error) {
-    return <div>Erreur: {error.message}</div>;
   }
 
   return (
