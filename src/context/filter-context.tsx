@@ -50,7 +50,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [filterType, setFilterType] = useState<FilterType>('tous');
   
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('day');
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(startOfDay(new Date()));
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfDay(new Date()),
     to: endOfDay(new Date()),
