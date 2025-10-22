@@ -114,12 +114,14 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const npsFirestoreFilters = useMemo(() => {
     const from = dateRange?.from;
     const to = dateRange?.to;
-    
+
     if (!from || !to) return [];
-    
+
+    // Since associationDate is stored as "yyyy-MM-dd", we must format the dates
+    // to strings for a correct lexicographical comparison.
     return [
-      where("associationDate", ">=", from),
-      where("associationDate", "<=", to)
+      where("associationDate", ">=", format(from, 'yyyy-MM-dd')),
+      where("associationDate", "<=", format(to, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
 
