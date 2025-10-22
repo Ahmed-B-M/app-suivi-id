@@ -12,6 +12,7 @@ export interface DriverStats {
   scanbacRate: number | null;
   forcedAddressRate: number | null;
   forcedContactlessRate: number | null;
+  lateOver1hRate: number | null;
   score?: number;
   npsScore?: number | null;
 }
@@ -27,6 +28,8 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
 
   const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
   let punctual = 0;
+  let lateOver1h = 0;
+  
   completedWithTime.forEach(t => {
     try {
       const closure = new Date(t.dateCloture!);
@@ -40,6 +43,12 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
       
       if (closure >= lowerBound && closure <= upperBound) {
         punctual++;
+      } else if (closure > upperBound) {
+         // It's late, check if it's over 1h late
+         const minutesLate = differenceInMinutes(closure, upperBound);
+         if (minutesLate > 60) {
+            lateOver1h++;
+         }
       }
     } catch (e) {
       // Ignore tasks with invalid dates
@@ -56,6 +65,7 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
     scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
     forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
     forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
+    lateOver1hRate: completedWithTime.length > 0 ? (lateOver1h / completedWithTime.length) * 100 : null,
   };
 }
 

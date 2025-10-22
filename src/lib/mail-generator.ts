@@ -9,54 +9,40 @@ function formatValue(value: number | null | undefined, unit: string = '', decima
     return `${value.toFixed(decimals)}${unit}`;
 }
 
+const LINE_SEPARATOR = "------------------------------------------------------\n";
+
 export function generateQualityEmailBody(
     qualityData: QualityData,
     alertData: AlertData[],
     allComments: CategorizedComment[],
-    processedVerbatims: ProcessedNpsVerbatim[]
+    processedVerbatims: ProcessedNpsVerbatim[],
+    dateRange: { from: Date, to: Date }
 ): string {
-    let body = "Bonjour,\n\nVoici le rapport qualité hebdomadaire :\n\n";
+
+    const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR')} au ${new Date(dateRange.to).toLocaleDateString('fr-FR')}`;
+    let body = `Bonjour,\n\nVoici le rapport qualité pour la période du ${formattedDateRange} :\n\n`;
 
     const depotAlerts = new Map(alertData.map(depot => [depot.name, depot]));
 
     for (const depot of qualityData.details) {
-        body += `------------------------------------------------------\n`;
+        body += LINE_SEPARATOR;
         body += `DEPOT : ${depot.name.toUpperCase()}\n`;
-        body += `------------------------------------------------------\n\n`;
+        body += LINE_SEPARATOR;
 
         // Indicateurs Dépôt
-        body += `INDICATEURS CLÉS (Dépôt) :\n`;
-        body += `  - Note Moyenne : ${formatValue(depot.averageRating, '', 2)}\n`;
-        body += `  - Score NPS : ${formatValue(depot.npsScore)}\n`;
-        body += `  - Taux de Ponctualité : ${formatValue(depot.punctualityRate, '%')}\n\n`;
-
-        // Catégories Commentaires
-        const depotComments = allComments.filter(c => {
-            const depotName = depot.name;
-            // This is a simplification; you'd need a way to link comment to depot
-            // For now, let's assume we can filter them. This part needs robust logic.
-            return true; 
-        });
-
-        if (depotComments.length > 0) {
-            body += `RÉPARTITION DES COMMENTAIRES NÉGATIFS (${depotComments.length} au total) :\n`;
-            const commentsByCategory: Record<string, number> = {};
-            depotComments.forEach(c => {
-                commentsByCategory[c.category] = (commentsByCategory[c.category] || 0) + 1;
-            });
-            Object.entries(commentsByCategory)
-                .sort((a,b) => b[1] - a[1])
-                .forEach(([category, count]) => {
-                    const percentage = (count / depotComments.length) * 100;
-                    body += `  - ${category} : ${percentage.toFixed(1)}%\n`;
-                });
-            body += "\n";
-        }
+        body += "\nI. INDICATEURS CLÉS (Dépôt)\n";
+        body += `  - Note Moyenne          : ${formatValue(depot.averageRating, '', 2)}\n`;
+        body += `  - Score NPS             : ${formatValue(depot.npsScore)}\n`;
+        body += `  - Ponctualité           : ${formatValue(depot.punctualityRate, '%')}\n`;
+        body += `  - Taux de SCANBAC       : ${formatValue(depot.scanbacRate, '%')}\n`;
+        body += `  - Taux Sur Place Forcé  : ${formatValue(depot.forcedAddressRate, '%')}\n`;
+        body += `  - Taux Cmd. Forcées     : ${formatValue(depot.forcedContactlessRate, '%')}\n`;
+        body += `  - Taux Retard > 1h      : ${formatValue(depot.lateOver1hRate, '%')}\n\n`;
         
         // Catégories Verbatims
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
         if (depotVerbatims.length > 0) {
-             body += `RÉPARTITION DES VERBATIMS DÉTRACTEURS (${depotVerbatims.length} au total) :\n`;
+             body += `II. RÉPARTITION DES VERBATIMS DÉTRACTEURS (${depotVerbatims.length} au total)\n`;
              const verbatimsByCategory: Record<string, number> = {};
              depotVerbatims.forEach(v => {
                 verbatimsByCategory[v.category] = (verbatimsByCategory[v.category] || 0) + 1;
@@ -65,28 +51,30 @@ export function generateQualityEmailBody(
                 .sort((a,b) => b[1] - a[1])
                 .forEach(([category, count]) => {
                     const percentage = (count / depotVerbatims.length) * 100;
-                    body += `  - ${category} : ${percentage.toFixed(1)}%\n`;
+                    body += `  - ${category.padEnd(25, ' ')}: ${percentage.toFixed(1)}%\n`;
                 });
              body += "\n";
         }
 
         // Indicateurs Transporteurs
+        body += `III. PERFORMANCE PAR TRANSPORTEUR\n`;
         for (const carrier of depot.carriers) {
-            body += `Transporteur : ${carrier.name}\n`;
-            body += `  - Note Moyenne : ${formatValue(carrier.averageRating, '', 2)}\n`;
-            body += `  - Score NPS : ${formatValue(carrier.npsScore)}\n`;
-            body += `  - Taux de Ponctualité : ${formatValue(carrier.punctualityRate, '%')}\n\n`;
+            body += `  Transporteur : ${carrier.name}\n`;
+            body += `    - Indicateurs      : Note Moy. ${formatValue(carrier.averageRating, '', 2)}, NPS ${formatValue(carrier.npsScore)}, Ponctualité ${formatValue(carrier.punctualityRate, '%')}\n`;
+            body += `    - SCANBAC/Forçages : SCANBAC ${formatValue(carrier.scanbacRate, '%')}, Adr. Forcé ${formatValue(carrier.forcedAddressRate, '%')}, Cmd. Forcée ${formatValue(carrier.forcedContactlessRate, '%')}\n`;
         }
+        body += "\n";
         
         // Récurrence Mauvaises Notes
         const currentDepotAlerts = depotAlerts.get(depot.name);
-        if (currentDepotAlerts) {
-            body += `RÉCURRENCE DES MAUVAISES NOTES (Livreurs avec au moins 1 note < 4) :\n`;
+        if (currentDepotAlerts && currentDepotAlerts.carriers.some(c => c.drivers.some(d => d.alertCount > 0))) {
+            body += `IV. RÉCURRENCE DES MAUVAISES NOTES (Livreurs avec au moins 1 note < 4)\n`;
             for (const carrier of currentDepotAlerts.carriers) {
                  for (const driver of carrier.drivers) {
                      if (driver.alertCount > 0) {
                         body += `  - ${driver.name} (${carrier.name}) : ${driver.alertCount} alerte(s)\n`;
-                        Object.entries(driver.commentCategories).forEach(([cat, count]) => {
+                        const sortedCategories = Object.entries(driver.commentCategories).sort((a, b) => b[1] - a[1]);
+                        sortedCategories.forEach(([cat, count]) => {
                             body += `      * ${cat}: ${count}\n`;
                         });
                      }

@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Star, Building, Truck, User, AlertTriangle, Percent, Hash, Search, Award, Clock, Smartphone, MapPinOff, Ban, ListTodo, BarChart } from "lucide-react";
+import { Star, Building, Truck, User, AlertTriangle, Percent, Hash, Search, Award, Clock, Smartphone, MapPinOff, Ban, ListTodo, BarChart, TimerOff } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { Input } from "../ui/input";
 import { DriverStats } from "@/lib/scoring";
@@ -59,6 +59,7 @@ export interface QualityData {
     scanbacRate: number | null;
     forcedAddressRate: number | null;
     forcedContactlessRate: number | null;
+    lateOver1hRate: number | null;
     npsScore: number | null;
   };
   details: DepotQuality[];
@@ -164,6 +165,7 @@ const Row = ({ name, data, icon, children }: { name: string, data: any, icon: Re
                            <StatBadge value={data.scanbacRate} icon={<Smartphone />} tooltipText="Taux de SCANBAC" />
                            <StatBadge value={data.forcedAddressRate} icon={<MapPinOff />} tooltipText="Taux 'Sur Place Forcé'" isLowerBetter />
                            <StatBadge value={data.forcedContactlessRate} icon={<Ban />} tooltipText="Taux 'Cmd. Forcées'" isLowerBetter />
+                           <StatBadge value={data.lateOver1hRate} icon={<TimerOff />} tooltipText="Taux de Retard > 1h" isLowerBetter />
                            <Badge variant="outline" className="h-7">{data.totalRatings} notes</Badge>
                         </div>
                     </div>
@@ -229,13 +231,14 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
             <CardHeader>
                 <CardTitle>Synthèse de la Qualité</CardTitle>
                 <CardDescription>Vue d'ensemble des indicateurs de performance qualité, agrégés par dépôt et transporteur.</CardDescription>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-4 pt-4">
                     <StatCard title="Note Moyenne Globale" value={data.summary.averageRating?.toFixed(2) ?? 'N/A'} icon={<Star />} variant={getRatingVariant(data.summary.averageRating)} />
                     <StatCard title="Score NPS Global" value={data.summary.npsScore?.toFixed(1) ?? 'N/A'} icon={<BarChart />} variant={getNpsVariant(data.summary.npsScore)} />
                     <StatCard title="Ponctualité" value={`${data.summary.punctualityRate?.toFixed(1) ?? 'N/A'}%`} icon={<Clock />} variant={getPunctualityVariant(data.summary.punctualityRate)} />
                     <StatCard title="SCANBAC" value={`${data.summary.scanbacRate?.toFixed(1) ?? 'N/A'}%`} icon={<Smartphone />} variant={getPunctualityVariant(data.summary.scanbacRate)} />
                     <StatCard title="Forçage Adresse" value={`${data.summary.forcedAddressRate?.toFixed(1) ?? 'N/A'}%`} icon={<MapPinOff />} variant={getForcedVariant(data.summary.forcedAddressRate)} />
                     <StatCard title="Forçage Sans Contact" value={`${data.summary.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%`} icon={<Ban />} variant={getForcedVariant(data.summary.forcedContactlessRate)} />
+                    <StatCard title="Retard > 1h" value={`${data.summary.lateOver1hRate?.toFixed(1) ?? 'N/A'}%`} icon={<TimerOff />} variant={getForcedVariant(data.summary.lateOver1hRate)} />
                 </div>
             </CardHeader>
             <CardContent>
@@ -257,6 +260,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                         <TableHead className="text-right">SCANBAC</TableHead>
                                                         <TableHead className="text-right">Forçage Adr.</TableHead>
                                                         <TableHead className="text-right">Forçage Cmd.</TableHead>
+                                                        <TableHead className="text-right">Retard > 1h</TableHead>
                                                         <TableHead className="text-right">Notes</TableHead>
                                                      </TableRow>
                                                  </TableHeader>
@@ -271,6 +275,7 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                                                             <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                                                            <TableCell className="text-right font-mono">{driver.lateOver1hRate?.toFixed(1) ?? 'N/A'}%</TableCell>
                                                             <TableCell className="text-right font-mono">{driver.totalRatings}</TableCell>
                                                         </TableRow>
                                                      ))}

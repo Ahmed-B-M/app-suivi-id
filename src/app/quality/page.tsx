@@ -17,9 +17,10 @@ import { Mail, Search } from "lucide-react";
 import { getCategoryFromKeywords } from "@/lib/stats-calculator";
 import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
+import { startOfDay, endOfDay } from "date-fns";
 
 export default function QualityPage() {
-  const { allTasks, allComments, allNpsData, processedVerbatims, isContextLoading } = useFilters();
+  const { allTasks, allComments, allNpsData, processedVerbatims, isContextLoading, dateRange } = useFilters();
   const [searchQuery, setSearchQuery] = useState('');
 
   const qualityData = useMemo(() => {
@@ -91,7 +92,6 @@ export default function QualityPage() {
     });
 
     const calculateAggregatedStats = (drivers: typeof driverStatsList) => {
-      const totalRatings = drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0);
       const completedTasks = drivers.reduce((sum, d) => sum + (d.completedTasks || 0), 0);
       
       const weightedAvg = (kpi: keyof Omit<DriverStats, 'name' | 'score' | 'totalRatings' | 'totalTasks' | 'completedTasks' | 'npsScore'>, weightKey: 'totalRatings' | 'completedTasks') => {
@@ -111,18 +111,17 @@ export default function QualityPage() {
         return totalWeightedSum / totalWeight;
       };
       
-      const averageRating = weightedAvg('averageRating', 'totalRatings');
-      
       const npsScores = drivers.map(d => d.npsScore).filter((s): s is number => s !== null);
       const averageNps = npsScores.length > 0 ? npsScores.reduce((a,b) => a + b, 0) / npsScores.length : null;
 
       return {
-        totalRatings,
-        averageRating,
+        totalRatings: drivers.reduce((sum, d) => sum + (d.totalRatings || 0), 0),
+        averageRating: weightedAvg('averageRating', 'totalRatings'),
         punctualityRate: weightedAvg('punctualityRate', 'completedTasks'),
         scanbacRate: weightedAvg('scanbacRate', 'completedTasks'),
         forcedAddressRate: weightedAvg('forcedAddressRate', 'completedTasks'),
         forcedContactlessRate: weightedAvg('forcedContactlessRate', 'completedTasks'),
+        lateOver1hRate: weightedAvg('lateOver1hRate', 'completedTasks'),
         npsScore: averageNps,
       };
     };
@@ -248,12 +247,17 @@ export default function QualityPage() {
 
 
   const handleGenerateEmail = () => {
-    if (!filteredQualityData || !alertData) return;
+    if (!filteredQualityData || !alertData || !dateRange?.from || !dateRange?.to) return;
     
-    const emailBody = generateQualityEmailBody(filteredQualityData, alertData, allComments, processedVerbatims);
-    const subject = "Rapport Qualité Hebdomadaire";
+    const emailBody = generateQualityEmailBody(
+        filteredQualityData, 
+        alertData, 
+        allComments, 
+        processedVerbatims,
+        { from: dateRange.from, to: dateRange.to }
+    );
+    const subject = `Rapport Qualité du ${dateRange.from.toLocaleDateString('fr-FR')} au ${dateRange.to.toLocaleDateString('fr-FR')}`;
     
-    // Using mailto to open default email client
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
     
     window.location.href = mailtoLink;
