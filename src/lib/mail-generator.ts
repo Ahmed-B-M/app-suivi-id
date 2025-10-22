@@ -9,7 +9,7 @@ function formatValue(value: number | null | undefined, unit: string = '', decima
     return `${value.toFixed(decimals)}${unit}`;
 }
 
-const LINE_SEPARATOR = "------------------------------------------------------\n";
+const LINE_SEPARATOR = "\n" + "-".repeat(70) + "\n";
 
 export function generateQualityEmailBody(
     qualityData: QualityData,
@@ -20,7 +20,7 @@ export function generateQualityEmailBody(
 ): string {
 
     const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR')} au ${new Date(dateRange.to).toLocaleDateString('fr-FR')}`;
-    let body = `Bonjour,\n\nVoici le rapport qualité pour la période du ${formattedDateRange} :\n\n`;
+    let body = `Bonjour,\n\nVoici le rapport qualité pour la période du ${formattedDateRange} :\n`;
 
     const depotAlerts = new Map(alertData.map(depot => [depot.name, depot]));
 
@@ -39,10 +39,34 @@ export function generateQualityEmailBody(
         body += `  - Taux Cmd. Forcées     : ${formatValue(depot.forcedContactlessRate, '%')}\n`;
         body += `  - Taux Retard > 1h      : ${formatValue(depot.lateOver1hRate, '%')}\n\n`;
         
+        // Catégories Commentaires
+        const depotComments = allComments.filter(c => {
+             const depotName = depot.carriers.flatMap(c => c.drivers).find(d => d.name === c.driverName) 
+                ? depot.name
+                : null;
+            return depotName === depot.name;
+        });
+
+        if (depotComments.length > 0) {
+            body += `II. RÉPARTITION DES COMMENTAIRES NÉGATIFS (${depotComments.length} au total)\n`;
+            const commentsByCategory: Record<string, number> = {};
+            depotComments.forEach(c => {
+                commentsByCategory[c.category] = (commentsByCategory[c.category] || 0) + 1;
+            });
+            Object.entries(commentsByCategory)
+                .sort((a,b) => b[1] - a[1])
+                .forEach(([category, count]) => {
+                    const percentage = (count / depotComments.length) * 100;
+                    body += `  - ${category.padEnd(25, ' ')}: ${count} (${percentage.toFixed(1)}%)\n`;
+                });
+            body += "\n";
+        }
+
+
         // Catégories Verbatims
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
         if (depotVerbatims.length > 0) {
-             body += `II. RÉPARTITION DES VERBATIMS DÉTRACTEURS (${depotVerbatims.length} au total)\n`;
+             body += `III. RÉPARTITION DES VERBATIMS DÉTRACTEURS (${depotVerbatims.length} au total)\n`;
              const verbatimsByCategory: Record<string, number> = {};
              depotVerbatims.forEach(v => {
                 verbatimsByCategory[v.category] = (verbatimsByCategory[v.category] || 0) + 1;
@@ -51,32 +75,51 @@ export function generateQualityEmailBody(
                 .sort((a,b) => b[1] - a[1])
                 .forEach(([category, count]) => {
                     const percentage = (count / depotVerbatims.length) * 100;
-                    body += `  - ${category.padEnd(25, ' ')}: ${percentage.toFixed(1)}%\n`;
+                    body += `  - ${category.padEnd(25, ' ')}: ${count} (${percentage.toFixed(1)}%)\n`;
                 });
              body += "\n";
         }
 
         // Indicateurs Transporteurs
-        body += `III. PERFORMANCE PAR TRANSPORTEUR\n`;
+        body += `IV. PERFORMANCE PAR TRANSPORTEUR\n`;
         for (const carrier of depot.carriers) {
             body += `  Transporteur : ${carrier.name}\n`;
             body += `    - Indicateurs      : Note Moy. ${formatValue(carrier.averageRating, '', 2)}, NPS ${formatValue(carrier.npsScore)}, Ponctualité ${formatValue(carrier.punctualityRate, '%')}\n`;
-            body += `    - SCANBAC/Forçages : SCANBAC ${formatValue(carrier.scanbacRate, '%')}, Adr. Forcé ${formatValue(carrier.forcedAddressRate, '%')}, Cmd. Forcée ${formatValue(carrier.forcedContactlessRate, '%')}\n`;
+            body += `    - SCANBAC/Forçages : SCANBAC ${formatValue(carrier.scanbacRate, '%')}, Adr. Forcé ${formatValue(carrier.forcedAddressRate, '%')}, Cmd. Forcée ${formatValue(carrier.forcedContactlessRate, '%')}\n\n`;
         }
-        body += "\n";
         
         // Récurrence Mauvaises Notes
         const currentDepotAlerts = depotAlerts.get(depot.name);
         if (currentDepotAlerts && currentDepotAlerts.carriers.some(c => c.drivers.some(d => d.alertCount > 0))) {
-            body += `IV. RÉCURRENCE DES MAUVAISES NOTES (Livreurs avec au moins 1 note < 4)\n`;
+            body += `V. RÉCURRENCE DES MAUVAISES NOTES (Livreurs avec au moins 1 note < 4)\n\n`;
+            
+            const header = 
+                "Transporteur".padEnd(15) + 
+                "Livreur (Total Notes)".padEnd(30) + 
+                "NPS".padStart(8) + 
+                "Ponctualité".padStart(15) + 
+                "Note Moyenne".padStart(15) +
+                "Mauvaises Notes".padStart(18) +
+                "  Catégories Commentaires\n";
+
+            body += header;
+            body += "-".repeat(header.length + 10) + "\n";
+
             for (const carrier of currentDepotAlerts.carriers) {
                  for (const driver of carrier.drivers) {
                      if (driver.alertCount > 0) {
-                        body += `  - ${driver.name} (${carrier.name}) : ${driver.alertCount} alerte(s)\n`;
-                        const sortedCategories = Object.entries(driver.commentCategories).sort((a, b) => b[1] - a[1]);
-                        sortedCategories.forEach(([cat, count]) => {
-                            body += `      * ${cat}: ${count}\n`;
-                        });
+                        const driverStats = depot.carriers.flatMap(c => c.drivers).find(d => d.name === driver.name);
+                        const driverLine = 
+                            carrier.name.padEnd(15) +
+                            `${driver.name} (${driver.totalRatings})`.padEnd(30) +
+                            formatValue(driverStats?.npsScore).padStart(8) +
+                            formatValue(driverStats?.punctualityRate, '%').padStart(15) +
+                            formatValue(driver.averageRating, '', 2).padStart(15) +
+                            String(driver.alertCount).padStart(18) +
+                            "  " +
+                            Object.entries(driver.commentCategories).sort((a, b) => b[1] - a[1]).map(([cat, count]) => `${count} ${cat}`).join(', ') +
+                            "\n";
+                        body += driverLine;
                      }
                  }
             }
