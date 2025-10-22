@@ -107,7 +107,7 @@ export default function DeviationAnalysisPage() {
        if (!task.nomTournee || !task.date || !task.nomHub) {
         continue;
       }
-      const roundKey = `${task.nomTournee}-${new Date(task.date).toISOString().split('T')[0]}-${task.nomHub}`;
+      const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
       const taskWeight = task.dimensions?.poids ?? 0;
 
       if (taskWeight > 0) {
@@ -127,7 +127,7 @@ export default function DeviationAnalysisPage() {
         continue;
       }
       
-      const roundKey = `${round.name}-${new Date(round.date).toISOString().split('T')[0]}-${round.nomHub}`;
+      const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
       const totalWeight = tasksWeightByRound.get(roundKey) || 0;
       const isOverweight = totalWeight > roundCapacity;
 
@@ -187,15 +187,13 @@ export default function DeviationAnalysisPage() {
             // Check for earliness
             const windowStart = parseISO(task.creneauHoraire.debut);
             const earlyThreshold = subMinutes(windowStart, 15);
-            if (plannedArrive < earlyThreshold) {
-              const deviation = differenceInMinutes(earlyThreshold, plannedArrive);
-               if (deviation > 0) {
-                  punctualityResults.push({
-                    task,
-                    plannedArriveTime: stop.arriveTime,
-                    deviationMinutes: -deviation
-                  });
-              }
+            const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
+            if (deviationEarly > 0) {
+              punctualityResults.push({
+                task,
+                plannedArriveTime: stop.arriveTime,
+                deviationMinutes: -deviationEarly
+              });
               continue; // A task can't be both early and late
             }
 
@@ -203,15 +201,13 @@ export default function DeviationAnalysisPage() {
             if (task.creneauHoraire.fin) {
               const windowEnd = parseISO(task.creneauHoraire.fin);
               const lateThreshold = addMinutes(windowEnd, 15);
-               if (plannedArrive > lateThreshold) {
-                  const deviation = differenceInMinutes(plannedArrive, lateThreshold);
-                   if (deviation > 0) {
-                      punctualityResults.push({
-                        task,
-                        plannedArriveTime: stop.arriveTime,
-                        deviationMinutes: deviation
-                      });
-                  }
+              const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
+              if (deviationLate > 0) {
+                  punctualityResults.push({
+                    task,
+                    plannedArriveTime: stop.arriveTime,
+                    deviationMinutes: deviationLate
+                  });
               }
             }
           } catch (e) {
@@ -306,7 +302,7 @@ export default function DeviationAnalysisPage() {
                             <TableRow key={round.id}>
                             <TableCell>
                                 {round.date
-                                ? format(new Date(round.date), "dd/MM/yyyy")
+                                ? format(new Date(round.date as string), "dd/MM/yyyy")
                                 : "N/A"}
                             </TableCell>
                             <TableCell className="font-medium">{round.name}</TableCell>
@@ -362,7 +358,7 @@ export default function DeviationAnalysisPage() {
                             <TableRow key={task.tacheId}>
                             <TableCell>
                                 {task.date
-                                ? format(new Date(task.date), "dd/MM/yyyy")
+                                ? format(new Date(task.date as string), "dd/MM/yyyy")
                                 : "N/A"}
                             </TableCell>
                             <TableCell className="font-medium">{task.nomTournee}</TableCell>

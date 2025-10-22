@@ -4,11 +4,12 @@
 
 
 
+
 import type { Tache, Tournee } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName } from "./grouping";
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
-import type { CategorizedComment } from "@/components/app/comment-analysis";
+import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
 const FAILED_PROGRESSIONS = ['FAILED', 'CANCELLED'];
 const FAILED_STATUSES = ['DELIVERY_FAILED', 'NOT_DELIVERED', 'CANCELLED', 'REJECTED'];
@@ -34,7 +35,7 @@ function normalizeText(text: string): string {
  * @param comment - The customer comment string.
  * @returns The determined category.
  */
-export function getCategoryFromKeywords(comment: string): string {
+export function getCategoryFromKeywords(comment: string | undefined | null): string {
     if (!comment) {
       return 'Autre';
     }
@@ -67,7 +68,7 @@ export function getCategoryFromKeywords(comment: string): string {
 }
 
 
-export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNegativeComments: CategorizedComment[] = []) {
+export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNegativeComments: CategorizedComment[]) {
     if (!tasks || !rounds) {
       return { hasData: false };
     }
@@ -99,16 +100,19 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
             const earlyLimit = subMinutes(windowStart, 15);
             const lateLimit = addMinutes(windowEnd, 15);
             
-            if (closure < earlyLimit) {
-                earlyTasks.push({ task, minutes: differenceInMinutes(earlyLimit, closure) });
-            } else if (closure > lateLimit) {
-                const minutesLate = differenceInMinutes(closure, lateLimit);
-                lateTasks.push({ task, minutes: minutesLate });
-                if (minutesLate > 60) {
-                  lateTasksOver1h.push({ task, minutes: minutesLate });
-                }
+            const minutesEarly = differenceInMinutes(earlyLimit, closure);
+            if (minutesEarly > 0) {
+                earlyTasks.push({ task, minutes: minutesEarly });
             } else {
-                punctualCount++;
+                const minutesLate = differenceInMinutes(closure, lateLimit);
+                if (minutesLate > 0) {
+                    lateTasks.push({ task, minutes: minutesLate });
+                    if (minutesLate > 60) {
+                        lateTasksOver1h.push({ task, minutes: minutesLate });
+                    }
+                } else {
+                    punctualCount++;
+                }
             }
         } catch(e) {
             // Ignore date parsing errors
@@ -142,7 +146,8 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
     });
 
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
-    const qualityAlertTasks = tasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
+    const qualityAlertTasks = allNegativeComments.map(c => tasks.find(t => t.tacheId === c.taskId)).filter(Boolean) as Tache[];
+
 
     const alertRate = numberOfRatings > 0 ? (qualityAlertTasks.length / numberOfRatings) * 100 : null;
 
@@ -159,7 +164,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
     const tasksOverTime = Object.entries(tasks.reduce((acc, task) => {
-      const date = task.unplanned ? 'Unplanned' : (task.date ? task.date.split("T")[0] : "Unknown");
+      const date = task.unplanned ? 'Unplanned' : (task.date ? (task.date as string).split("T")[0] : "Unknown");
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([date, count]) => ({ date, count }));
@@ -171,7 +176,7 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
     
     const roundsOverTime = Object.entries(rounds.reduce((acc, round) => {
-      const date = round.date ? round.date.split("T")[0] : "Unknown";
+      const date = round.date ? (round.date as string).split("T")[0] : "Unknown";
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([date, count]) => ({ date, count }));
@@ -228,12 +233,15 @@ export function calculateDashboardStats(tasks: Tache[], rounds: Tournee[], allNe
 
     const attitudeComments = allNegativeComments
       .filter(c => c.category === 'Attitude livreur')
-      .map(c => ({
-        comment: c.comment,
-        driverName: c.driverName,
-        taskDate: c.taskDate as string,
-        roundName: tasks.find(t => t.tacheId === c.taskId)?.nomTournee
-      }));
+      .map(c => {
+        const task = tasks.find(t => t.tacheId === c.taskId);
+        return {
+          comment: c.comment,
+          driverName: c.driverName,
+          taskDate: c.taskDate as string,
+          roundName: task?.nomTournee
+        };
+    });
     // --- End Comment Analysis ---
 
     return {
