@@ -28,9 +28,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ThumbsDown, ChevronDown } from 'lucide-react';
+import { Loader2, ThumbsDown, ChevronDown, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveProcessedVerbatimAction } from '../actions';
+import { saveProcessedVerbatimAction, categorizeSingleCommentAction } from '../actions';
 import { ProcessedNpsVerbatim, NpsVerbatim } from '@/lib/types';
 import { format } from 'date-fns';
 import { categories } from '@/components/app/comment-analysis';
@@ -48,6 +48,7 @@ export default function VerbatimTreatmentPage() {
   const [editableVerbatims, setEditableVerbatims] = useState<ProcessedVerbatim[]>([]);
   const [statusFilter, setStatusFilter] = useState<'à traiter' | 'traité' | 'tous'>('à traiter');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const processedVerbatimsCollection = useMemo(() =>
@@ -103,12 +104,37 @@ export default function VerbatimTreatmentPage() {
       const result = await saveProcessedVerbatimAction(verbatim);
       if (result.success) {
         toast({ title: 'Succès', description: 'Verbatim sauvegardé.' });
+        // Optimistically update the status in the UI
+        setEditableVerbatims(prev => prev.map(v => v.id === verbatim.id ? { ...v, status: 'traité' } : v));
       } else {
         toast({ title: 'Erreur', description: result.error, variant: 'destructive' });
       }
       setSavingId(null);
     });
   };
+  
+  const handleSuggestCategory = async (verbatim: ProcessedVerbatim) => {
+    setAnalyzingId(verbatim.id);
+    try {
+      const result = await categorizeSingleCommentAction(verbatim.verbatim);
+      if (result.category) {
+        handleCategoryChange(verbatim.id, result.category);
+        toast({
+          title: "Suggestion de l'IA",
+          description: `Catégorie suggérée : "${result.category}".`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur d'analyse",
+        description: "Impossible d'obtenir une suggestion de l'IA.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
+
 
   const isLoading = isContextLoading || isLoadingSaved;
 
@@ -150,7 +176,7 @@ export default function VerbatimTreatmentPage() {
                     <TableHead className="w-[30%]">Verbatim</TableHead>
                     <TableHead>Note</TableHead>
                     <TableHead className="w-[15%]">Responsabilité</TableHead>
-                    <TableHead className="w-[15%]">Catégorie</TableHead>
+                    <TableHead className="w-[20%]">Catégorie</TableHead>
                     <TableHead>Action</TableHead>
                 </TableRow>
                 </TableHeader>
@@ -178,7 +204,7 @@ export default function VerbatimTreatmentPage() {
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="w-full justify-between">
-                                    <span>{verbatim.responsibilities.join(', ') || 'Sélectionner'}</span>
+                                    <span className="truncate">{verbatim.responsibilities.join(', ') || 'Sélectionner'}</span>
                                     <ChevronDown className="h-4 w-4" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -202,19 +228,34 @@ export default function VerbatimTreatmentPage() {
                         </DropdownMenu>
                      </TableCell>
                      <TableCell>
-                         <Select
-                            value={verbatim.category}
-                            onValueChange={(value) => handleCategoryChange(verbatim.id, value)}
-                         >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Sélectionnez une catégorie" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {categories.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-1">
+                             <Select
+                                value={verbatim.category}
+                                onValueChange={(value) => handleCategoryChange(verbatim.id, value)}
+                             >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sélectionnez une catégorie" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSuggestCategory(verbatim)}
+                                disabled={analyzingId === verbatim.id}
+                                title="Suggérer une catégorie"
+                            >
+                                {analyzingId === verbatim.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin"/>
+                                ) : (
+                                    <Sparkles className="h-4 w-4 text-primary"/>
+                                )}
+                            </Button>
+                        </div>
                      </TableCell>
                     <TableCell>
                         <Button onClick={() => handleSave(verbatim)} disabled={isPending && savingId === verbatim.id}>
