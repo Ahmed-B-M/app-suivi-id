@@ -4,11 +4,7 @@ import Script from 'next/script';
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
-import { FirebaseClientProvider } from "@/firebase/client-provider";
-import { AppHeader } from "@/components/app/header";
-import { FilterProvider } from "@/context/filter-context";
-import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
-import { SidebarNav } from "@/components/app/sidebar-nav";
+import { Providers } from "@/components/app/providers";
 
 export const metadata: Metadata = {
   title: "ID-pilote",
@@ -43,25 +39,10 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased min-h-screen bg-background")}>
-        <FirebaseClientProvider>
-          <FilterProvider>
-            <SidebarProvider>
-                <SidebarNav />
-                <SidebarInset>
-                  <AppHeader />
-                  <main className="flex-1">
-                    {children}
-                  </main>
-                  <Toaster />
-                   <footer className="py-6 border-t mt-8">
-                    <div className="container text-center text-sm text-muted-foreground">
-                      ID-pilote
-                    </div>
-                  </footer>
-                </SidebarInset>
-            </SidebarProvider>
-          </FilterProvider>
-        </FirebaseClientProvider>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );
