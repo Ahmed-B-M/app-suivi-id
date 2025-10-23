@@ -100,15 +100,11 @@ export default function CommentManagementPage() {
     setAnalyzingId(comment.id);
     try {
       const result = await categorizeSingleCommentAction(comment.comment);
-      if (result.category) {
-        // Since category can now be multiple, we add the suggestion if not present
-        const currentCategories = Array.isArray(comment.category) ? comment.category : (comment.category ? [comment.category] : []);
-        if (!currentCategories.includes(result.category)) {
-             handleCategoryChange(comment.id, [...currentCategories, result.category]);
-        }
+      if (result.categories) {
+         handleCategoryChange(comment.id, result.categories);
         toast({
           title: "Suggestion de l'IA",
-          description: `Catégorie suggérée ajoutée : "${result.category}".`,
+          description: `Catégories suggérées : "${result.categories.join(', ')}".`,
         });
       }
     } catch (error) {

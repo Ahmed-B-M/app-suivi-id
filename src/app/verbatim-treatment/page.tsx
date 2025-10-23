@@ -105,21 +105,23 @@ export default function VerbatimTreatmentPage() {
     });
   };
   
-  const handleSuggestCategory = async (verbatim: ProcessedVerbatim) => {
+  const handleSuggest = async (verbatim: ProcessedVerbatim) => {
     setAnalyzingId(verbatim.id);
     try {
       const result = await categorizeSingleCommentAction(verbatim.verbatim);
-      if (result.category) {
-        const suggestedCategory = result.category;
-        const currentCategories = verbatim.category || [];
-        if (!currentCategories.includes(suggestedCategory)) {
-          handleCategoryChange(verbatim.id, [...currentCategories, suggestedCategory]);
-        }
-        toast({
-          title: "Suggestion de l'IA",
-          description: `Catégorie suggérée ajoutée : "${suggestedCategory}".`,
-        });
+      
+      if (result.categories) {
+        handleCategoryChange(verbatim.id, result.categories);
       }
+      if(result.responsibilities) {
+        handleResponsibilityChange(verbatim.id, result.responsibilities);
+      }
+
+      toast({
+        title: "Suggestion de l'IA",
+        description: `Suggestions appliquées.`,
+      });
+
     } catch (error) {
       toast({
         title: "Erreur d'analyse",
@@ -206,20 +208,26 @@ export default function VerbatimTreatmentPage() {
                         />
                      </TableCell>
                      <TableCell>
-                        <div className="flex items-center gap-1">
-                             <MultiSelectCombobox
-                                options={categoryOptions}
-                                selected={verbatim.category}
-                                onChange={(value) => handleCategoryChange(verbatim.id, value)}
-                                placeholder="Sélectionner catégories..."
-                                className="w-full"
-                            />
-                            <Button
+                        <MultiSelectCombobox
+                            options={categoryOptions}
+                            selected={verbatim.category}
+                            onChange={(value) => handleCategoryChange(verbatim.id, value)}
+                            placeholder="Sélectionner..."
+                            className="w-full"
+                        />
+                     </TableCell>
+                    <TableCell>
+                       <div className="flex items-center gap-1">
+                          <Button onClick={() => handleSave(verbatim)} disabled={isPending && savingId === verbatim.id} size="sm">
+                          {isPending && savingId === verbatim.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Sauvegarder
+                          </Button>
+                           <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleSuggestCategory(verbatim)}
+                                onClick={() => handleSuggest(verbatim)}
                                 disabled={analyzingId === verbatim.id}
-                                title="Suggérer une catégorie"
+                                title="Suggérer catégories & responsabilités"
                             >
                                 {analyzingId === verbatim.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin"/>
@@ -228,12 +236,6 @@ export default function VerbatimTreatmentPage() {
                                 )}
                             </Button>
                         </div>
-                     </TableCell>
-                    <TableCell>
-                        <Button onClick={() => handleSave(verbatim)} disabled={isPending && savingId === verbatim.id}>
-                        {isPending && savingId === verbatim.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Sauvegarder
-                        </Button>
                     </TableCell>
                     </TableRow>
                 ))}
@@ -379,3 +381,4 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
     </Popover>
   );
 }
+
