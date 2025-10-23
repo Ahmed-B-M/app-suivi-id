@@ -15,13 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ThumbsDown, ChevronDown, Sparkles, X, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -30,7 +23,7 @@ import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
 import { format } from 'date-fns';
 import { categories } from '@/components/app/comment-analysis';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 
@@ -209,19 +202,10 @@ export default function VerbatimTreatmentPage() {
                      </TableCell>
                      <TableCell>
                         <div className="flex items-center gap-1">
-                             <Select
+                             <CategoryCombobox
                                 value={verbatim.category}
-                                onValueChange={(value) => handleCategoryChange(verbatim.id, value)}
-                             >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionnez une catégorie" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map(cat => (
-                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                onChange={(value) => handleCategoryChange(verbatim.id, value)}
+                            />
                             <Button
                                 size="icon"
                                 variant="ghost"
@@ -385,3 +369,82 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
   );
 }
 
+function CategoryCombobox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+
+  // Update internal input value when the external value changes
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  const handleSelect = (currentValue: string) => {
+    const newValue = currentValue === value ? "" : currentValue;
+    onChange(newValue);
+    setInputValue(newValue);
+    setOpen(false);
+  };
+  
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
+          <span className="truncate">{value || "Sélectionner..."}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command
+            filter={(value, search) => {
+                if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                return 0;
+            }}
+        >
+          <CommandInput 
+            placeholder="Rechercher ou créer..."
+            value={inputValue}
+            onValueChange={setInputValue}
+            onBlur={() => {
+                // On blur, if the inputValue is not in the options, we still want to set it.
+                onChange(inputValue);
+            }}
+          />
+          <CommandList>
+             <CommandEmpty>
+                <CommandItem
+                    onSelect={() => {
+                       onChange(inputValue);
+                       setOpen(false);
+                    }}
+                >
+                    Créer "{inputValue}"
+                </CommandItem>
+            </CommandEmpty>
+            <CommandGroup>
+              {categories.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={option}
+                  onSelect={handleSelect}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === option ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
