@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useTransition } from "react";
+import { useState, useEffect, useMemo, useTransition, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -15,30 +15,12 @@ import { updateSingleCommentAction, categorizeSingleCommentAction } from "@/app/
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Loader2, Sparkles, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Sparkles, Check, ChevronsUpDown, X } from "lucide-react";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-
-
-const categoryOptions = [
-    { value: "Attitude livreur", label: "Attitude livreur" },
-    { value: "Amabilité livreur", label: "Amabilité livreur" },
-    { value: "Casse produit", label: "Casse produit" },
-    { value: "Manquant produit", label: "Manquant produit" },
-    { value: "Manquant multiple", label: "Manquant multiple" },
-    { value: "Manquant bac", label: "Manquant bac" },
-    { value: "Non livré", label: "Non livré" },
-    { value: "Erreur de préparation", label: "Erreur de préparation" },
-    { value: "Erreur de livraison", label: "Erreur de livraison" },
-    { value: "Livraison en avance", label: "Livraison en avance" },
-    { value: "Livraison en retard", label: "Livraison en retard" },
-    { value: "Rupture chaine de froid", label: "Rupture chaine de froid" },
-    { value: "Process", label: "Process" },
-    { value: "Non pertinent", label: "Non pertinent" },
-    { value: "Autre", label: "Autre" },
-];
+import { categories as categoryOptions } from "@/components/app/comment-analysis";
 
 
 export default function CommentManagementPage() {
@@ -69,10 +51,14 @@ export default function CommentManagementPage() {
   }, [allComments, statusFilter]);
 
   useEffect(() => {
-    setEditableComments(filteredComments);
+    setEditableComments(filteredComments.map(c => ({
+      ...c,
+      category: Array.isArray(c.category) ? c.category : (c.category ? [c.category] : [])
+    })));
   }, [filteredComments]);
 
-  const handleCategoryChange = (id: string, value: string) => {
+
+  const handleCategoryChange = (id: string, value: string[]) => {
     setEditableComments((prev) =>
       prev.map((comment) =>
         comment.id === id ? { ...comment, category: value } : comment
@@ -115,10 +101,14 @@ export default function CommentManagementPage() {
     try {
       const result = await categorizeSingleCommentAction(comment.comment);
       if (result.category) {
-        handleCategoryChange(comment.id, result.category);
+        // Since category can now be multiple, we add the suggestion if not present
+        const currentCategories = Array.isArray(comment.category) ? comment.category : (comment.category ? [comment.category] : []);
+        if (!currentCategories.includes(result.category)) {
+             handleCategoryChange(comment.id, [...currentCategories, result.category]);
+        }
         toast({
           title: "Suggestion de l'IA",
-          description: `Catégorie suggérée : "${result.category}".`,
+          description: `Catégorie suggérée ajoutée : "${result.category}".`,
         });
       }
     } catch (error) {
@@ -202,9 +192,12 @@ export default function CommentManagementPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <CategoryCombobox
-                        value={comment.category}
+                      <MultiSelectCombobox
+                        options={categoryOptions}
+                        selected={comment.category}
                         onChange={(value) => handleCategoryChange(comment.id, value)}
+                        placeholder="Sélectionner catégories..."
+                        className="min-w-[250px]"
                       />
                        <Button
                           size="icon"
@@ -246,82 +239,129 @@ export default function CommentManagementPage() {
 }
 
 
-function CategoryCombobox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+interface MultiSelectComboboxProps {
+  options: readonly string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  className?: string;
+  placeholder?: string;
+}
+
+function MultiSelectCombobox({ options, selected, onChange, className, placeholder = "Select options" }: MultiSelectComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
+  const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Update internal input value when the external value changes
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
-
-  const handleSelect = (currentValue: string) => {
-    const newValue = currentValue === value ? "" : currentValue;
-    onChange(newValue);
-    setInputValue(newValue);
-    setOpen(false);
+  const handleSelect = (option: string) => {
+    const newSelected = selected.includes(option)
+      ? selected.filter(item => item !== option)
+      : [...selected, option];
+    onChange(newSelected);
   };
   
+  const handleCreate = (newValue: string) => {
+    if (newValue && !selected.includes(newValue)) {
+      onChange([...selected, newValue]);
+    }
+    setInputValue("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && inputValue) {
+      e.preventDefault();
+      handleCreate(inputValue);
+    }
+  };
+
+  const allOptions = useMemo(() => {
+    const combined = new Set([...options, ...selected]);
+    return Array.from(combined);
+  }, [options, selected]);
+
+  const filteredOptions = allOptions.filter(option => 
+    !selected.includes(option) && option.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[200px] justify-between"
-        >
-          <span className="truncate">{value || "Sélectionner..."}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+        <div className={cn("group border border-input px-2 py-1.5 text-sm ring-offset-background rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
+          <div className="flex gap-1 flex-wrap items-center min-h-[24px]">
+            {selected.map(item => (
+              <Badge
+                key={item}
+                variant="secondary"
+                className="rounded-sm"
+              >
+                {item}
+                <button
+                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  onClick={(e) => {
+                     e.preventDefault();
+                     handleSelect(item);
+                  }}
+                >
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              </Badge>
+            ))}
+             <div className="flex-1 min-w-[60px]">
+                <input
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={selected.length > 0 ? '' : placeholder}
+                    className="bg-transparent outline-none placeholder:text-muted-foreground w-full text-sm"
+                    onClick={() => setOpen(true)}
+                />
+            </div>
+          </div>
+        </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command
-            filter={(value, search) => {
+           filter={(value, search) => {
                 if (value.toLowerCase().includes(search.toLowerCase())) return 1;
                 return 0;
             }}
         >
-          <CommandInput 
-            placeholder="Rechercher ou créer..."
-            value={inputValue}
-            onValueChange={setInputValue}
-            onBlur={() => {
-                // On blur, if the inputValue is not in the options, we still want to set it.
-                onChange(inputValue);
-            }}
+           <CommandInput 
+                ref={inputRef}
+                placeholder="Rechercher ou créer..."
+                value={inputValue}
+                onValueChange={setInputValue}
           />
           <CommandList>
-             <CommandEmpty>
-                <CommandItem
-                    onSelect={() => {
-                       onChange(inputValue);
-                       setOpen(false);
-                    }}
-                >
+            <CommandEmpty>
+                <CommandItem onSelect={() => handleCreate(inputValue)}>
                     Créer "{inputValue}"
                 </CommandItem>
             </CommandEmpty>
             <CommandGroup>
-              {categoryOptions.map((option) => (
+              {filteredOptions.map(option => (
                 <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={handleSelect}
+                  key={option}
+                  onSelect={() => handleSelect(option)}
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
+                  {option}
                 </CommandItem>
               ))}
             </CommandGroup>
+             {selected.length > 0 && (
+                <>
+                <CommandSeparator />
+                <CommandGroup>
+                    <CommandItem onSelect={() => onChange([])} className="text-center justify-center text-destructive">
+                        Effacer la sélection
+                    </CommandItem>
+                </CommandGroup>
+                </>
+             )}
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
   );
 }
+

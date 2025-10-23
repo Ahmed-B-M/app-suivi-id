@@ -21,13 +21,13 @@ import { useToast } from '@/hooks/use-toast';
 import { saveProcessedVerbatimAction, categorizeSingleCommentAction } from '../actions';
 import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
 import { format } from 'date-fns';
-import { categories } from '@/components/app/comment-analysis';
+import { categories as categoryOptions } from '@/components/app/comment-analysis';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
 
-export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id'> & { id: string };
+export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category'> & { id: string, category: string[] };
 
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
@@ -54,15 +54,16 @@ export default function VerbatimTreatmentPage() {
 
   useEffect(() => {
     const savedVerbatimsMap = new Map(savedVerbatims.map(v => [v.taskId, v]));
-    const mergedVerbatims = detractorVerbatims.map(v => {
+    const mergedVerbatims: ProcessedVerbatim[] = detractorVerbatims.map(v => {
       const saved = savedVerbatimsMap.get(v.taskId);
+      const savedCategory = saved?.category || 'Autre';
       return {
         id: v.taskId, // Use taskId as the unique key for the row
         taskId: v.taskId,
         npsScore: v.npsScore,
         verbatim: v.verbatim,
         responsibilities: saved?.responsibilities || [],
-        category: saved?.category || 'Autre',
+        category: Array.isArray(savedCategory) ? savedCategory : [savedCategory],
         status: saved?.status || 'à traiter',
         store: v.store,
         taskDate: v.taskDate,
@@ -83,7 +84,7 @@ export default function VerbatimTreatmentPage() {
     );
   };
 
-  const handleCategoryChange = (id: string, newCategory: string) => {
+  const handleCategoryChange = (id: string, newCategory: string[]) => {
     setEditableVerbatims(prev =>
       prev.map(v => v.id === id ? { ...v, category: newCategory } : v)
     );
@@ -109,10 +110,13 @@ export default function VerbatimTreatmentPage() {
     try {
       const result = await categorizeSingleCommentAction(verbatim.verbatim);
       if (result.category) {
-        handleCategoryChange(verbatim.id, result.category);
+        const currentCategories = verbatim.category || [];
+        if (!currentCategories.includes(result.category)) {
+          handleCategoryChange(verbatim.id, [...currentCategories, result.category]);
+        }
         toast({
           title: "Suggestion de l'IA",
-          description: `Catégorie suggérée : "${result.category}".`,
+          description: `Catégorie suggérée ajoutée : "${result.category}".`,
         });
       }
     } catch (error) {
@@ -202,9 +206,12 @@ export default function VerbatimTreatmentPage() {
                      </TableCell>
                      <TableCell>
                         <div className="flex items-center gap-1">
-                             <CategoryCombobox
-                                value={verbatim.category}
+                             <MultiSelectCombobox
+                                options={categoryOptions}
+                                selected={verbatim.category}
                                 onChange={(value) => handleCategoryChange(verbatim.id, value)}
+                                placeholder="Sélectionner catégories..."
+                                className="w-full"
                             />
                             <Button
                                 size="icon"
@@ -244,7 +251,7 @@ export default function VerbatimTreatmentPage() {
 
 
 interface MultiSelectComboboxProps {
-  options: string[];
+  options: readonly string[];
   selected: string[];
   onChange: (selected: string[]) => void;
   className?: string;
@@ -264,7 +271,7 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
   };
   
   const handleCreate = (newValue: string) => {
-    if (newValue && !selected.includes(newValue)) { // No need to check if it's in options
+    if (newValue && !selected.includes(newValue)) {
       onChange([...selected, newValue]);
     }
     setInputValue("");
@@ -289,8 +296,8 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <div className={cn("group border border-input px-3 py-2 text-sm ring-offset-background rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
-          <div className="flex gap-1 flex-wrap">
+        <div className={cn("group border border-input px-2 py-1.5 text-sm ring-offset-background rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
+          <div className="flex gap-1 flex-wrap items-center min-h-[24px]">
             {selected.map(item => (
               <Badge
                 key={item}
@@ -316,7 +323,7 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={selected.length > 0 ? '' : placeholder}
-                    className="bg-transparent outline-none placeholder:text-muted-foreground w-full"
+                    className="bg-transparent outline-none placeholder:text-muted-foreground w-full text-sm"
                     onClick={() => setOpen(true)}
                 />
             </div>
@@ -369,82 +376,3 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
   );
 }
 
-function CategoryCombobox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
-
-  // Update internal input value when the external value changes
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
-
-  const handleSelect = (currentValue: string) => {
-    const newValue = currentValue === value ? "" : currentValue;
-    onChange(newValue);
-    setInputValue(newValue);
-    setOpen(false);
-  };
-  
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-        >
-          <span className="truncate">{value || "Sélectionner..."}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command
-            filter={(value, search) => {
-                if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-                return 0;
-            }}
-        >
-          <CommandInput 
-            placeholder="Rechercher ou créer..."
-            value={inputValue}
-            onValueChange={setInputValue}
-            onBlur={() => {
-                // On blur, if the inputValue is not in the options, we still want to set it.
-                onChange(inputValue);
-            }}
-          />
-          <CommandList>
-             <CommandEmpty>
-                <CommandItem
-                    onSelect={() => {
-                       onChange(inputValue);
-                       setOpen(false);
-                    }}
-                >
-                    Créer "{inputValue}"
-                </CommandItem>
-            </CommandEmpty>
-            <CommandGroup>
-              {categories.map((option) => (
-                <CommandItem
-                  key={option}
-                  value={option}
-                  onSelect={handleSelect}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === option ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}

@@ -238,7 +238,7 @@ export type ProcessedNpsVerbatim = {
     npsScore: number;
     verbatim: string;
     responsibilities: string[];
-    category: string;
+    category: string[];
     status: 'à traiter' | 'traité';
     // other fields from NpsVerbatim if needed
     store: string;

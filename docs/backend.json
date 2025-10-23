@@ -324,7 +324,7 @@
         "taskId": { "type": "string" },
         "comment": { "type": "string" },
         "rating": { "type": "number" },
-        "category": { "type": "string" },
+        "category": { "type": "array", "items": { "type": "string" } },
         "taskDate": { "type": "string", "format": "date-time" },
         "driverName": { "type": "string" }
       },
@@ -368,7 +368,7 @@
         "npsScore": { "type": "number" },
         "verbatim": { "type": "string" },
         "responsibilities": { "type": "array", "items": { "type": "string" } },
-        "category": { "type": "string" },
+        "category": { "type": "array", "items": { "type": "string" } },
         "status": { "type": "string", "enum": ["à traiter", "traité"] },
         "store": { "type": "string" },
         "taskDate": { "type": "string", "format": "date-time" },
