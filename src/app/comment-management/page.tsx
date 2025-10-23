@@ -11,19 +11,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { updateSingleCommentAction, categorizeSingleCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Check, ChevronsUpDown } from "lucide-react";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 
 const categoryOptions = [
@@ -206,23 +202,10 @@ export default function CommentManagementPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Select
+                      <CategoryCombobox
                         value={comment.category}
-                        onValueChange={(value) =>
-                          handleCategoryChange(comment.id, value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez une catégorie" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categoryOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(value) => handleCategoryChange(comment.id, value)}
+                      />
                        <Button
                           size="icon"
                           variant="ghost"
@@ -259,5 +242,75 @@ export default function CommentManagementPage() {
         </Table>
       </div>
     </div>
+  );
+}
+
+
+function CategoryCombobox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+
+  // Update internal input value when the external value changes
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  const handleSelect = (currentValue: string) => {
+    const newValue = currentValue === value ? "" : currentValue;
+    onChange(newValue);
+    setInputValue(newValue);
+    setOpen(false);
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const customValue = e.target.value;
+    setInputValue(customValue);
+    onChange(customValue);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-[200px] justify-between"
+        >
+          <span className="truncate">{value || "Sélectionner..."}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0">
+        <Command>
+          <CommandInput 
+            placeholder="Rechercher ou créer..."
+            value={inputValue}
+            onValueChange={setInputValue}
+            onBlur={() => onChange(inputValue)} // Update on blur
+          />
+          <CommandList>
+            <CommandEmpty>Aucune catégorie trouvée. Tapez pour en créer une.</CommandEmpty>
+            <CommandGroup>
+              {categoryOptions.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.value}
+                  onSelect={handleSelect}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

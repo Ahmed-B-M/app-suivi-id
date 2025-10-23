@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, useTransition, useEffect } from 'react';
+import { useState, useMemo, useTransition, useEffect, useRef } from 'react';
 import { useCollection } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
@@ -21,22 +22,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ThumbsDown, ChevronDown, Sparkles } from 'lucide-react';
+import { Loader2, ThumbsDown, ChevronDown, Sparkles, X, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveProcessedVerbatimAction, categorizeSingleCommentAction } from '../actions';
-import { ProcessedNpsVerbatim, NpsVerbatim } from '@/lib/types';
+import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
 import { format } from 'date-fns';
 import { categories } from '@/components/app/comment-analysis';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 
-export type ProcessedVerbatim = Omit<ProcessedNpsVerbatim, 'id'> & { id: string };
+export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id'> & { id: string };
 
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
@@ -55,7 +53,7 @@ export default function VerbatimTreatmentPage() {
     firestore ? collection(firestore, 'processed_nps_verbatims') : null,
     [firestore]
   );
-  const { data: savedVerbatims = [], loading: isLoadingSaved } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection);
+  const { data: savedVerbatims = [], loading: isLoadingSaved } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection);
 
   const detractorVerbatims = useMemo(() => {
     return allNpsData.flatMap(d => d.verbatims).filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
@@ -201,31 +199,13 @@ export default function VerbatimTreatmentPage() {
                         <Badge variant="destructive">{verbatim.npsScore}</Badge>
                     </TableCell>
                      <TableCell>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between">
-                                    <span className="truncate">{verbatim.responsibilities.join(', ') || 'Sélectionner'}</span>
-                                    <ChevronDown className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56">
-                                {responsibilityOptions.map(option => (
-                                    <DropdownMenuCheckboxItem
-                                        key={option}
-                                        checked={verbatim.responsibilities.includes(option)}
-                                        onCheckedChange={(checked) => {
-                                            const current = verbatim.responsibilities;
-                                            const newResponsibilities = checked 
-                                                ? [...current, option]
-                                                : current.filter(r => r !== option);
-                                            handleResponsibilityChange(verbatim.id, newResponsibilities);
-                                        }}
-                                    >
-                                        {option}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <MultiSelectCombobox
+                            options={responsibilityOptions}
+                            selected={verbatim.responsibilities}
+                            onChange={(newSelection) => handleResponsibilityChange(verbatim.id, newSelection)}
+                            placeholder="Sélectionner..."
+                            className="w-full"
+                        />
                      </TableCell>
                      <TableCell>
                         <div className="flex items-center gap-1">
@@ -275,5 +255,108 @@ export default function VerbatimTreatmentPage() {
         </div>
        )}
     </main>
+  );
+}
+
+
+interface MultiSelectComboboxProps {
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  className?: string;
+  placeholder?: string;
+}
+
+function MultiSelectCombobox({ options, selected, onChange, className, placeholder = "Select options" }: MultiSelectComboboxProps) {
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSelect = (option: string) => {
+    const newSelected = selected.includes(option)
+      ? selected.filter(item => item !== option)
+      : [...selected, option];
+    onChange(newSelected);
+  };
+  
+  const handleCreate = (newValue: string) => {
+    if (newValue && !selected.includes(newValue) && !options.includes(newValue)) {
+      onChange([...selected, newValue]);
+    }
+    setInputValue("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && inputValue) {
+      e.preventDefault();
+      handleCreate(inputValue);
+    }
+  };
+
+  const filteredOptions = options.filter(option => 
+    !selected.includes(option) && option.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className={cn("group border border-input px-3 py-2 text-sm ring-offset-background rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
+          <div className="flex gap-1 flex-wrap">
+            {selected.map(item => (
+              <Badge
+                key={item}
+                variant="secondary"
+                className="rounded-sm"
+              >
+                {item}
+                <button
+                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  onClick={(e) => {
+                     e.preventDefault();
+                     handleSelect(item);
+                  }}
+                >
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              </Badge>
+            ))}
+             <div className="flex-1 min-w-[60px]">
+                <input
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={selected.length > 0 ? '' : placeholder}
+                    className="bg-transparent outline-none placeholder:text-muted-foreground w-full"
+                    onClick={() => setOpen(true)}
+                />
+            </div>
+          </div>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandList>
+            <CommandEmpty>
+                {inputValue && !options.concat(selected).includes(inputValue) ? (
+                    <CommandItem onSelect={() => handleCreate(inputValue)}>
+                        Créer "{inputValue}"
+                    </CommandItem>
+                ) : "Aucun résultat."}
+            </CommandEmpty>
+            <CommandGroup>
+              {filteredOptions.map(option => (
+                <CommandItem
+                  key={option}
+                  onSelect={() => handleSelect(option)}
+                >
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
