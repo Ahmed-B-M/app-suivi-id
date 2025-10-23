@@ -137,7 +137,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters, refreshKey);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters, refreshKey);
-  const { data: allNpsData = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
+  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
   const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
   // Fetch ALL categorized comments, filtering will happen client-side after merging
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, [], refreshKey);
@@ -229,76 +229,111 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
 
   const allComments = useMemo(() => {
-    if (isLoadingCategorized || isLoadingTasks) return [];
-  
-    // 1. Create a map of all saved comments for quick lookup. This is the source of truth for status.
+    // 1. Create a map of all saved comments for quick lookup.
     const savedCommentsMap = new Map<string, CategorizedComment>();
     allSavedComments.forEach(comment => {
-      // Ensure the ID is a string, as Firestore IDs are strings.
       const taskId = String(comment.taskId || comment.id);
       savedCommentsMap.set(taskId, {
         ...comment,
-        id: taskId, // Normalize ID
+        id: taskId,
         taskId: taskId,
       });
     });
-  
-    // 2. Create a comprehensive list of all potential comments from tasks with negative feedback.
+
+    // 2. Process tasks to find comments, using saved data if available.
     const commentsFromTasks = allTasks.reduce((acc, task) => {
       const isNegativeComment = typeof task.metaDonnees?.notationLivreur === 'number' &&
                                 task.metaDonnees.notationLivreur < 4 &&
                                 task.metaDonnees.commentaireLivreur;
-  
-      if (isNegativeComment) {
-        const taskId = String(task.tacheId);
-        const savedComment = savedCommentsMap.get(taskId);
-  
-        // If it's already saved, use the saved data (especially the status). Otherwise, create a new 'à traiter' comment.
-        if (savedComment) {
-          acc.set(taskId, savedComment);
-        } else {
-          acc.set(taskId, {
-            id: taskId,
-            taskId: taskId,
-            comment: task.metaDonnees!.commentaireLivreur!,
-            rating: task.metaDonnees!.notationLivreur!,
-            category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-            taskDate: task.date,
-            driverName: getDriverFullName(task),
-            status: 'à traiter' as const,
-          });
+      
+      const taskId = String(task.tacheId);
+
+      if (savedCommentsMap.has(taskId)) {
+        // If it's already saved, ensure it's in our final list, regardless of whether it's a negative comment now.
+        if (!acc.has(taskId)) {
+          acc.set(taskId, savedCommentsMap.get(taskId)!);
         }
+      } else if (isNegativeComment) {
+        // If it's a new negative comment not in our saved list, add it as 'à traiter'.
+        acc.set(taskId, {
+          id: taskId,
+          taskId: taskId,
+          comment: task.metaDonnees!.commentaireLivreur!,
+          rating: task.metaDonnees!.notationLivreur!,
+          category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+          taskDate: task.date,
+          driverName: getDriverFullName(task),
+          status: 'à traiter' as const,
+        });
       }
       return acc;
     }, new Map<string, CategorizedComment>());
+    
+    // Convert map to array for final filtering
+    const finalCommentList = Array.from(commentsFromTasks.values());
+
+    // 3. Apply entity filters (depot, store, etc.) to the final merged list.
+    let filteredComments = finalCommentList;
+
+    if (filterType !== 'tous') {
+      // We need to associate comments with a hub category to filter them.
+      // We can use the original task data for this.
+      const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
+      filteredComments = filteredComments.filter(comment => {
+        const task = taskMap.get(comment.taskId);
+        if (!task) return false; // Or handle as per requirements
+        return getHubCategory(task.nomHub) === filterType;
+      });
+    }
+    if (selectedDepot !== "all") {
+       const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
+       filteredComments = filteredComments.filter(comment => {
+        const task = taskMap.get(comment.taskId);
+        if (!task) return false;
+        return getDepotFromHub(task.nomHub) === selectedDepot;
+      });
+    }
+    if (selectedStore !== "all") {
+      const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
+       filteredComments = filteredComments.filter(comment => {
+        const task = taskMap.get(comment.taskId);
+        if (!task) return false;
+        return task.nomHub === selectedStore;
+      });
+    }
+
+    return filteredComments;
   
-    // 3. Add any saved comments whose original task might be outside the current date range filter.
-    // This ensures that "traité" comments always appear if their save date is within range.
-    allSavedComments.forEach(savedComment => {
-      const taskId = String(savedComment.taskId || savedComment.id);
-      if (!commentsFromTasks.has(taskId)) {
-        commentsFromTasks.set(taskId, {
-          ...savedComment,
-          id: taskId,
-          taskId: taskId,
+  }, [allTasks, allSavedComments, filterType, selectedDepot, selectedStore]);
+
+
+  const allNpsData = useMemo(() => {
+    let verbatimsToFilter = npsDataFromDateRange.flatMap(d => d.verbatims);
+
+    if (filterType !== 'tous') {
+        verbatimsToFilter = verbatimsToFilter.filter(v => {
+            const hubCategory = v.depot === 'Magasin' ? 'magasin' : 'entrepot';
+            return hubCategory === filterType;
         });
-      }
-    });
-  
-    // 4. Convert map to array and apply date filtering as the final step.
-    const from = dateRange?.from;
-    const to = dateRange?.to;
-    const finalCommentList = Array.from(commentsFromTasks.values()).filter(comment => {
-      if (!comment.taskDate) return false; // Comments must have a date
-      const commentDate = new Date(comment.taskDate as string);
-      if (from && commentDate < startOfDay(from)) return false;
-      if (to && commentDate > endOfDay(to)) return false;
-      return true;
-    });
-  
-    return finalCommentList;
-  
-  }, [allTasks, allSavedComments, isLoadingTasks, isLoadingCategorized, dateRange]);
+    }
+    if (selectedDepot !== 'all') {
+        verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
+    }
+    if (selectedStore !== 'all') {
+        verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
+    }
+    
+    // We need to reconstruct the NpsData shape, even if it's just one entry
+    if (verbatimsToFilter.length === npsDataFromDateRange.flatMap(d => d.verbatims).length) {
+        return npsDataFromDateRange;
+    }
+
+    return [{
+        id: 'filtered',
+        associationDate: new Date(), // This date is temporary and not used for filtering
+        verbatims: verbatimsToFilter,
+    }];
+  }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
 
 
   return (
@@ -340,5 +375,3 @@ export function useFilters() {
   }
   return context;
 }
-
-    
