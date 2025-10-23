@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useEffect, useRef } from 'react';
-import { useCollection } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import { useFilters } from '@/context/filter-context';
@@ -280,7 +280,7 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
   };
   
   const handleCreate = (newValue: string) => {
-    if (newValue && !selected.includes(newValue) && !options.includes(newValue)) {
+    if (newValue && !selected.includes(newValue)) { // No need to check if it's in options
       onChange([...selected, newValue]);
     }
     setInputValue("");
@@ -293,7 +293,12 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
     }
   };
 
-  const filteredOptions = options.filter(option => 
+  const allOptions = useMemo(() => {
+    const combined = new Set([...options, ...selected]);
+    return Array.from(combined);
+  }, [options, selected]);
+
+  const filteredOptions = allOptions.filter(option => 
     !selected.includes(option) && option.toLowerCase().includes(inputValue.toLowerCase())
   );
 
@@ -335,14 +340,23 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
+        <Command
+           filter={(value, search) => {
+                if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                return 0;
+            }}
+        >
+           <CommandInput 
+                ref={inputRef}
+                placeholder="Rechercher ou créer..."
+                value={inputValue}
+                onValueChange={setInputValue}
+          />
           <CommandList>
             <CommandEmpty>
-                {inputValue && !options.concat(selected).includes(inputValue) ? (
-                    <CommandItem onSelect={() => handleCreate(inputValue)}>
-                        Créer "{inputValue}"
-                    </CommandItem>
-                ) : "Aucun résultat."}
+                <CommandItem onSelect={() => handleCreate(inputValue)}>
+                    Créer "{inputValue}"
+                </CommandItem>
             </CommandEmpty>
             <CommandGroup>
               {filteredOptions.map(option => (
@@ -354,9 +368,20 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
                 </CommandItem>
               ))}
             </CommandGroup>
+             {selected.length > 0 && (
+                <>
+                <CommandSeparator />
+                <CommandGroup>
+                    <CommandItem onSelect={() => onChange([])} className="text-center justify-center text-destructive">
+                        Effacer la sélection
+                    </CommandItem>
+                </CommandGroup>
+                </>
+             )}
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
   );
 }
+

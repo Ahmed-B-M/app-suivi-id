@@ -262,12 +262,6 @@ function CategoryCombobox({ value, onChange }: { value: string; onChange: (value
     setOpen(false);
   };
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const customValue = e.target.value;
-    setInputValue(customValue);
-    onChange(customValue);
-  };
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -282,15 +276,32 @@ function CategoryCombobox({ value, onChange }: { value: string; onChange: (value
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
-        <Command>
+        <Command
+            filter={(value, search) => {
+                if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                return 0;
+            }}
+        >
           <CommandInput 
             placeholder="Rechercher ou créer..."
             value={inputValue}
             onValueChange={setInputValue}
-            onBlur={() => onChange(inputValue)} // Update on blur
+            onBlur={() => {
+                // On blur, if the inputValue is not in the options, we still want to set it.
+                onChange(inputValue);
+            }}
           />
           <CommandList>
-            <CommandEmpty>Aucune catégorie trouvée. Tapez pour en créer une.</CommandEmpty>
+             <CommandEmpty>
+                <CommandItem
+                    onSelect={() => {
+                       onChange(inputValue);
+                       setOpen(false);
+                    }}
+                >
+                    Créer "{inputValue}"
+                </CommandItem>
+            </CommandEmpty>
             <CommandGroup>
               {categoryOptions.map((option) => (
                 <CommandItem
