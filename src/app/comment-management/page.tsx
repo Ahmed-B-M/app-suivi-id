@@ -18,11 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateSingleCommentAction } from "@/app/actions";
+import { updateSingleCommentAction, categorizeSingleCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
 
@@ -55,6 +55,7 @@ export default function CommentManagementPage() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
 
   const filteredComments = useMemo(() => {
     let commentsToFilter = allComments;
@@ -112,6 +113,29 @@ export default function CommentManagementPage() {
       setSavingId(null);
     });
   };
+  
+  const handleSuggestCategory = async (comment: CategorizedComment) => {
+    setAnalyzingId(comment.id);
+    try {
+      const result = await categorizeSingleCommentAction(comment.comment);
+      if (result.category) {
+        handleCategoryChange(comment.id, result.category);
+        toast({
+          title: "Suggestion de l'IA",
+          description: `Catégorie suggérée : "${result.category}".`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur d'analyse",
+        description: "Impossible d'obtenir une suggestion de l'IA.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
+
 
   const isLoading = isContextLoading;
   
@@ -181,23 +205,38 @@ export default function CommentManagementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Select
-                      value={comment.category}
-                      onValueChange={(value) =>
-                        handleCategoryChange(comment.id, value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez une catégorie" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoryOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1">
+                      <Select
+                        value={comment.category}
+                        onValueChange={(value) =>
+                          handleCategoryChange(comment.id, value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une catégorie" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categoryOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                       <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSuggestCategory(comment)}
+                          disabled={analyzingId === comment.id}
+                          title="Suggérer une catégorie"
+                      >
+                          {analyzingId === comment.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin"/>
+                          ) : (
+                              <Sparkles className="h-4 w-4 text-primary"/>
+                          )}
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell>{comment.taskDate ? new Date(comment.taskDate as string).toLocaleDateString() : 'N/A'}</TableCell>
                   <TableCell>{comment.driverName}</TableCell>
