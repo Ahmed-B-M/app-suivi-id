@@ -35,7 +35,7 @@ const CategorizeCommentInputSchema = z.object({
 export type CategorizeCommentInput = z.infer<typeof CategorizeCommentInputSchema>;
 
 const CategorizeCommentOutputSchema = z.object({
-  category: z.enum(categories).describe('The determined category for the comment.'),
+  category: z.string().describe('The determined category for the comment. It can be one of the predefined categories or a new relevant one.'),
 });
 export type CategorizeCommentOutput = z.infer<typeof CategorizeCommentOutputSchema>;
 
@@ -49,8 +49,10 @@ const prompt = ai.definePrompt({
   name: 'categorizeCommentPrompt',
   input: { schema: CategorizeCommentInputSchema },
   output: { schema: CategorizeCommentOutputSchema },
-  prompt: `You are a customer support analyst. Your task is to categorize a customer comment into one of the following categories: ${categories.join(', ')}.
-  Analyze the following comment and assign it to the most relevant category. If no category fits well, use 'Autre'. If the comment is irrelevant, use 'Non pertinent'.
+  prompt: `You are a customer support analyst. Your task is to categorize a customer comment.
+  First, try to assign the comment to one of the following predefined categories: ${categories.join(', ')}.
+  If none of the predefined categories are a good fit, create a new, concise, and relevant category.
+  If the comment is irrelevant, use 'Non pertinent'.
 
   Comment: "{{comment}}"
 

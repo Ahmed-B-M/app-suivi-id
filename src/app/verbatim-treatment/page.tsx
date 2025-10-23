@@ -56,7 +56,7 @@ export default function VerbatimTreatmentPage() {
     const savedVerbatimsMap = new Map(savedVerbatims.map(v => [v.taskId, v]));
     const mergedVerbatims: ProcessedVerbatim[] = detractorVerbatims.map(v => {
       const saved = savedVerbatimsMap.get(v.taskId);
-      const savedCategory = saved?.category || 'Autre';
+      const savedCategory = saved?.category || [];
       return {
         id: v.taskId, // Use taskId as the unique key for the row
         taskId: v.taskId,
@@ -110,13 +110,14 @@ export default function VerbatimTreatmentPage() {
     try {
       const result = await categorizeSingleCommentAction(verbatim.verbatim);
       if (result.category) {
+        const suggestedCategory = result.category;
         const currentCategories = verbatim.category || [];
-        if (!currentCategories.includes(result.category)) {
-          handleCategoryChange(verbatim.id, [...currentCategories, result.category]);
+        if (!currentCategories.includes(suggestedCategory)) {
+          handleCategoryChange(verbatim.id, [...currentCategories, suggestedCategory]);
         }
         toast({
           title: "Suggestion de l'IA",
-          description: `Catégorie suggérée ajoutée : "${result.category}".`,
+          description: `Catégorie suggérée ajoutée : "${suggestedCategory}".`,
         });
       }
     } catch (error) {
@@ -286,7 +287,7 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
 
   const allOptions = useMemo(() => {
     const combined = new Set([...options, ...selected]);
-    return Array.from(combined);
+    return Array.from(combined).sort();
   }, [options, selected]);
 
   const filteredOptions = allOptions.filter(option => 
@@ -309,6 +310,7 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
                   className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   onClick={(e) => {
                      e.preventDefault();
+                     e.stopPropagation();
                      handleSelect(item);
                   }}
                 >
@@ -345,9 +347,11 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
           />
           <CommandList>
             <CommandEmpty>
-                <CommandItem onSelect={() => handleCreate(inputValue)}>
-                    Créer "{inputValue}"
-                </CommandItem>
+                {inputValue && (
+                    <CommandItem onSelect={() => handleCreate(inputValue)}>
+                        Créer "{inputValue}"
+                    </CommandItem>
+                )}
             </CommandEmpty>
             <CommandGroup>
               {filteredOptions.map(option => (
@@ -375,4 +379,3 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
     </Popover>
   );
 }
-
