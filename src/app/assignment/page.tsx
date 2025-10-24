@@ -4,48 +4,24 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useFilters } from "@/context/filter-context";
-import { useCollection } from "@/firebase";
-import { collection, doc, writeBatch, updateDoc } from "firebase/firestore";
+import { doc, writeBatch, updateDoc } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
-import { Tournee } from "@/lib/types";
 import { getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, PlusCircle, Save } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
 
 export default function AssignmentPage() {
-    const { allRounds, isContextLoading } = useFilters();
+    const { allRounds } = useFilters();
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
 
     const [editedRounds, setEditedRounds] = useState<Record<string, string>>({});
-    
-    // --- BU Rounds Logic ---
-    const buCandidateRounds = useMemo(() => {
-        return allRounds.filter(round => round.name?.toUpperCase().startsWith('R'));
-    }, [allRounds]);
-
-    const handleBuStatusChange = (roundId: string, isActive: boolean) => {
-        if (!firestore) return;
-        
-        startTransition(async () => {
-            const roundRef = doc(firestore, "rounds", roundId);
-            try {
-                await updateDoc(roundRef, { buStatus: isActive ? 'active' : 'inactive' });
-                toast({ title: "Succès", description: `Statut de la tournée BU mis à jour.` });
-            } catch(error: any) {
-                toast({ title: "Erreur", description: error.message, variant: "destructive" });
-            }
-        });
-    }
 
     const handleCarrierChange = (roundId: string, newCarrier: string) => {
         setEditedRounds(prev => ({ ...prev, [roundId]: newCarrier }));
@@ -130,54 +106,6 @@ export default function AssignmentPage() {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Gestion des Tournées BU</CardTitle>
-                    <CardDescription>
-                        Activez ou désactivez les tournées BU détectées (nom commençant par "R"). Seules les tournées actives seront comptabilisées dans les prévisions.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <div className="flex justify-end mb-4">
-                        <Button disabled>
-                            <PlusCircle className="mr-2"/> Créer une tournée BU (Bientôt)
-                        </Button>
-                    </div>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nom de la Tournée</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Entrepôt</TableHead>
-                                <TableHead>Statut</TableHead>
-                                <TableHead className="text-right">Activée</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {buCandidateRounds.map((round) => (
-                                <TableRow key={round.id}>
-                                    <TableCell className="font-medium">{round.name}</TableCell>
-                                    <TableCell>{round.date ? format(new Date(round.date as string), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                    <TableCell>{round.nomHub || 'N/A'}</TableCell>
-                                    <TableCell><Badge variant="secondary">{round.status}</Badge></TableCell>
-                                    <TableCell className="text-right">
-                                        <Switch 
-                                            checked={round.buStatus !== 'inactive'}
-                                            onCheckedChange={(checked) => handleBuStatusChange(round.id, checked)}
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                             {buCandidateRounds.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">Aucune tournée BU potentielle trouvée pour cette période.</TableCell>
-                                </TableRow>
-                             )}
                         </TableBody>
                     </Table>
                 </CardContent>

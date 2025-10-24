@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -10,9 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Building, Truck } from "lucide-react";
 import { useCollection } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
-import type { ForecastRule } from "@/lib/types";
+import type { ForecastRule, Tournee } from "@/lib/types";
 
 
 export default function ForecastPage() {
@@ -20,17 +21,19 @@ export default function ForecastPage() {
   const { firestore } = useFirebase();
 
   const rulesCollection = useMemo(() => 
-    firestore ? collection(firestore, "forecast_rules") : null, 
+    firestore 
+      ? query(collection(firestore, "forecast_rules"), where("isActive", "==", true))
+      : null, 
     [firestore]
   );
-  const { data: rules, loading: rulesLoading } = useCollection<ForecastRule>(rulesCollection);
+  const { data: activeRules, loading: rulesLoading } = useCollection<ForecastRule>(rulesCollection);
 
 
   const forecastData = useMemo(() => {
-    if (!allRounds || rulesLoading || !rules) return {};
+    if (!allRounds || rulesLoading || !activeRules) return {};
 
-    const activeRules = rules.filter(r => r.isActive);
     const timeRules = activeRules.filter(r => r.type === 'time');
+    const buRules = activeRules.filter(r => r.type === 'type' && r.category === 'BU');
 
     const dataByDepot: Record<string, {
       total: number;
@@ -56,31 +59,40 @@ export default function ForecastPage() {
         dataByDepot[depot].carriers[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
       }
 
+      const depotCarrier = dataByDepot[depot].carriers[carrier];
       dataByDepot[depot].total++;
-      dataByDepot[depot].carriers[carrier].total++;
+      depotCarrier.total++;
       
       // Time-based classification (Matin/Soir)
       let isTimeAssigned = false;
+      const roundNameLower = round.name?.toLowerCase() || '';
       for (const rule of timeRules) {
-        if (round.nomHub && Array.isArray(rule.keywords) && rule.keywords.some(k => round.nomHub!.toLowerCase().includes(k.toLowerCase()))) {
-          if (rule.category === 'Matin') dataByDepot[depot].carriers[carrier].matin++;
-          else if (rule.category === 'Soir') dataByDepot[depot].carriers[carrier].soir++;
+        if (rule.keywords.some(k => roundNameLower.includes(k.toLowerCase()))) {
+          if (rule.category === 'Matin') depotCarrier.matin++;
+          else if (rule.category === 'Soir') depotCarrier.soir++;
           isTimeAssigned = true;
           break;
         }
       }
 
-      // BU classification based on direct field
-      if (round.buStatus === 'active') {
-         dataByDepot[depot].carriers[carrier].bu++;
-      } else {
-        // If it's not a BU round, it's a classique round.
-         dataByDepot[depot].carriers[carrier].classique++;
+      // BU classification
+      let isBuAssigned = false;
+      for (const rule of buRules) {
+        if(rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))){
+          depotCarrier.bu++;
+          isBuAssigned = true;
+          break;
+        }
+      }
+
+      // If not BU and time-based, it's classique
+      if(!isBuAssigned) {
+          depotCarrier.classique++;
       }
     });
 
     return dataByDepot;
-  }, [allRounds, rules, rulesLoading]);
+  }, [allRounds, activeRules, rulesLoading]);
   
   return (
     <main className="flex-1 container py-8">
