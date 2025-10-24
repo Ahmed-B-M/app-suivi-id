@@ -14,9 +14,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
           <div className="flex">
             <SidebarNav />
-            <div className="flex-1 flex flex-col">
+            <SidebarInset>
               <AppHeader />
-              <main className="flex-1">
+              <main className="flex-1 p-8 pt-6">
                 {children}
               </main>
                <footer className="py-6 border-t mt-8">
@@ -24,7 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   ID-pilote
                 </div>
               </footer>
-            </div>
+            </SidebarInset>
           </div>
         </SidebarProvider>
       </FilterProvider>
