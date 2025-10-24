@@ -3,55 +3,107 @@
 
 import { useMemo } from "react";
 import { useFilters } from "@/context/filter-context";
-import { VerbatimsByCategoryChart } from "@/components/app/verbatims-by-category-chart";
-import { VerbatimsByResponsibilityChart } from "@/components/app/verbatims-by-responsibility-chart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+
+interface CategoryData {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
+interface ResponsibilityData {
+  name: string;
+  count: number;
+  percentage: number;
+  categories: CategoryData[];
+}
 
 export default function VerbatimAnalysisPage() {
   const { allProcessedVerbatims, isContextLoading } = useFilters();
 
-  const analysisData = useMemo(() => {
-    const verbatimsToShow = allProcessedVerbatims;
+  const analysisData: ResponsibilityData[] = useMemo(() => {
+    const verbatimsToShow = allProcessedVerbatims.filter(v => v.status === 'traité');
 
-    if (isContextLoading || !verbatimsToShow) {
-      return { byCategory: [], byResponsibility: [] };
+    if (isContextLoading || !verbatimsToShow || verbatimsToShow.length === 0) {
+      return [];
     }
 
-    const byCategory = Object.entries(
-      verbatimsToShow.reduce((acc, verbatim) => {
-        const categories = Array.isArray(verbatim.category) 
-          ? verbatim.category 
-          : (typeof verbatim.category === 'string' ? [verbatim.category] : []);
-        categories.forEach(cat => {
-          if (cat) acc[cat] = (acc[cat] || 0) + 1;
-        });
-        return acc;
-      }, {} as Record<string, number>)
-    ).map(([name, value]) => ({ name, value }));
+    const totalVerbatims = verbatimsToShow.length;
+    const byResponsibility: Record<string, { count: number; categories: Record<string, number> }> = {};
 
-    const byResponsibility = Object.entries(
-      verbatimsToShow.reduce((acc, verbatim) => {
-        const responsibilities = Array.isArray(verbatim.responsibilities) 
-          ? verbatim.responsibilities 
-          : (typeof verbatim.responsibilities === 'string' ? [verbatim.responsibilities] : []);
-        responsibilities.forEach(resp => {
-          if (resp) acc[resp] = (acc[resp] || 0) + 1;
-        });
-        return acc;
-      }, {} as Record<string, number>)
-    ).map(([name, value]) => ({ name, value }));
+    verbatimsToShow.forEach((verbatim) => {
+      const responsibilities = Array.isArray(verbatim.responsibilities)
+        ? verbatim.responsibilities
+        : [verbatim.responsibilities];
+      const categories = Array.isArray(verbatim.category)
+        ? verbatim.category
+        : [verbatim.category];
 
-    return { byCategory, byResponsibility };
+      if (responsibilities.length === 0) {
+        responsibilities.push("Inconnu");
+      }
+      
+      responsibilities.forEach((resp) => {
+        if (!resp) return;
+        if (!byResponsibility[resp]) {
+          byResponsibility[resp] = { count: 0, categories: {} };
+        }
+        byResponsibility[resp].count++;
+
+        categories.forEach((cat) => {
+          if (!cat) return;
+          byResponsibility[resp].categories[cat] = (byResponsibility[resp].categories[cat] || 0) + 1;
+        });
+      });
+    });
+
+    return Object.entries(byResponsibility)
+      .map(([respName, data]) => {
+        const categoriesData = Object.entries(data.categories)
+          .map(([catName, catCount]) => ({
+            name: catName,
+            count: catCount,
+            percentage: (catCount / data.count) * 100,
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        return {
+          name: respName,
+          count: data.count,
+          percentage: (data.count / totalVerbatims) * 100,
+          categories: categoriesData,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+
   }, [allProcessedVerbatims, isContextLoading]);
 
   if (isContextLoading) {
     return (
       <main className="flex-1 container py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
+        <Skeleton className="h-[400px] w-full" />
       </main>
     );
   }
@@ -62,14 +114,52 @@ export default function VerbatimAnalysisPage() {
         <CardHeader>
           <CardTitle>Analyse des Verbatims Traités</CardTitle>
           <CardDescription>
-            Répartition des verbatims détracteurs qui ont été analysés et catégorisés.
+            Répartition des verbatims détracteurs qui ont été analysés et
+            catégorisés.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <VerbatimsByCategoryChart data={analysisData.byCategory} />
-            <VerbatimsByResponsibilityChart data={analysisData.byResponsibility} />
-          </div>
+          {analysisData.length === 0 ? (
+             <div className="flex items-center justify-center h-64">
+                <p className="text-muted-foreground">Aucune donnée de verbatim traité pour la période sélectionnée.</p>
+            </div>
+          ) : (
+            <Accordion type="multiple" className="w-full space-y-2">
+              {analysisData.map((resp) => (
+                <AccordionItem value={resp.name} key={resp.name} className="border rounded-md px-4">
+                  <AccordionTrigger className="py-4 text-lg font-semibold hover:no-underline">
+                     <div className="flex justify-between items-center w-full pr-2">
+                        <span>{resp.name}</span>
+                        <div className="flex items-center gap-4">
+                            <Badge variant="outline">{resp.count} verbatims</Badge>
+                            <Badge variant="default">{resp.percentage.toFixed(1)}%</Badge>
+                        </div>
+                     </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Catégorie</TableHead>
+                                <TableHead className="text-right">Nombre</TableHead>
+                                <TableHead className="text-right w-[120px]">Pourcentage</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {resp.categories.map(cat => (
+                                <TableRow key={cat.name}>
+                                    <TableCell>{cat.name}</TableCell>
+                                    <TableCell className="text-right">{cat.count}</TableCell>
+                                    <TableCell className="text-right font-medium">{cat.percentage.toFixed(1)}%</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
         </CardContent>
       </Card>
     </main>
