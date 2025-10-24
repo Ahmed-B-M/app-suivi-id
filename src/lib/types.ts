@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from "firebase/firestore";
 
 // Définition de la structure d'une Tâche avec les champs en français
@@ -237,8 +238,8 @@ export type ProcessedNpsVerbatim = {
     taskId: string;
     npsScore: number;
     verbatim: string;
-    responsibilities: string[];
-    category: string[];
+    responsibilities: string[] | string;
+    category: string[] | string;
     status: 'à traiter' | 'traité';
     // other fields from NpsVerbatim if needed
     store: string;

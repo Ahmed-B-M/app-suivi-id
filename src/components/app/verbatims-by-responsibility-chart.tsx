@@ -1,6 +1,7 @@
+
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, XAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 
 import {
   Card,
@@ -58,10 +59,18 @@ export function VerbatimsByResponsibilityChart({ data }: VerbatimsByResponsibili
             accessibilityLayer
             data={data}
             layout="vertical"
-            margin={{ left: 10 }}
+            margin={{ left: 10, right: 30 }}
           >
             <CartesianGrid horizontal={false} />
-            <XAxis type="number" hide />
+            <YAxis
+              dataKey="name"
+              type="category"
+              tickLine={false}
+              tickMargin={10}
+              axisLine={false}
+              tickFormatter={(value) => value.slice(0, 10)}
+            />
+            <XAxis type="number" dataKey="value" hide />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent indicator="dashed" />}

@@ -230,8 +230,9 @@ export function calculateDashboardStats(
     const totalComments = allNegativeComments.length;
     
     const commentsByCategory = Object.entries(allNegativeComments.reduce((acc, comment) => {
-        comment.category.forEach(cat => {
-             acc[cat] = (acc[cat] || 0) + 1;
+        const categories = Array.isArray(comment.category) ? comment.category : [comment.category];
+        categories.forEach(cat => {
+             if(cat) acc[cat] = (acc[cat] || 0) + 1;
         });
         return acc;
     }, {} as Record<string, number>))
@@ -243,7 +244,10 @@ export function calculateDashboardStats(
     .sort((a,b) => b.count - a.count);
 
     const attitudeComments = allNegativeComments
-      .filter(c => c.category.includes('Attitude livreur'))
+      .filter(c => {
+          const categories = Array.isArray(c.category) ? c.category : [c.category];
+          return categories.includes('Attitude livreur');
+      })
       .map(c => {
         const task = tasks.find(t => t.tacheId === c.taskId);
         return {
@@ -269,15 +273,17 @@ export function calculateDashboardStats(
 
     // --- Processed Verbatims Analysis ---
     const verbatimsByCategory = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
-        verbatim.category.forEach(cat => {
-            acc[cat] = (acc[cat] || 0) + 1;
+        const categories = Array.isArray(verbatim.category) ? verbatim.category : [verbatim.category];
+        categories.forEach(cat => {
+            if (cat) acc[cat] = (acc[cat] || 0) + 1;
         })
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
     const verbatimsByResponsibility = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
-        verbatim.responsibilities.forEach(resp => {
-             acc[resp] = (acc[resp] || 0) + 1;
+        const responsibilities = Array.isArray(verbatim.responsibilities) ? verbatim.responsibilities : [verbatim.responsibilities];
+        responsibilities.forEach(resp => {
+             if (resp) acc[resp] = (acc[resp] || 0) + 1;
         });
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
