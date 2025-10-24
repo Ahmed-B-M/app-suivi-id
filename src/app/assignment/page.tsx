@@ -65,9 +65,6 @@ export default function AssignmentPage() {
     const handleAddRule = () => {
         if (!newRule.name || !newRule.keywords || !firestore) return;
         
-        // Use a client-side safe method to generate a temporary ID.
-        // Firestore will generate its own final ID upon saving.
-        // This avoids the internal SDK error from `doc(collection(...)).id`.
         const tempId = `temp_${Date.now()}`;
 
         const ruleToAdd: ForecastRule = {
@@ -91,28 +88,26 @@ export default function AssignmentPage() {
         startTransition(async () => {
             const batch = writeBatch(firestore);
             rules.forEach(rule => {
-                // If the rule has a temporary ID, create a new doc ref.
-                // Otherwise, use the existing ID.
-                const isNew = rule.id.startsWith('temp_');
-                const ruleRef = isNew ? doc(collection(firestore, "forecast_rules")) : doc(firestore, "forecast_rules", rule.id);
-
-                // Firestore cannot save arrays with mixed types, ensure keywords is an array of strings.
                 const keywordsAsArray = typeof rule.keywords === 'string' 
                     ? (rule.keywords as string).split(',').map(k => k.trim()) 
                     : rule.keywords;
 
-                const dataToSave = {
-                  ...rule,
-                  id: ruleRef.id, // Use the final ID from the doc ref
-                  keywords: keywordsAsArray
-                };
-
-                batch.set(ruleRef, dataToSave);
+                if (rule.id.startsWith('temp_')) {
+                    // It's a new rule, create a new document reference
+                    const newRuleRef = doc(collection(firestore, "forecast_rules"));
+                    const { id, ...ruleData } = rule; // remove temporary id
+                    batch.set(newRuleRef, { ...ruleData, keywords: keywordsAsArray });
+                } else {
+                    // It's an existing rule, update it
+                    const ruleRef = doc(firestore, "forecast_rules", rule.id);
+                    batch.set(ruleRef, { ...rule, keywords: keywordsAsArray });
+                }
             });
             try {
                 await batch.commit();
                 toast({ title: "Succès", description: "Règles de prévision sauvegardées." });
             } catch (error: any) {
+                console.error("Error saving rules:", error);
                 toast({ title: "Erreur", description: `Erreur de sauvegarde des règles: ${error.message}`, variant: "destructive" });
             }
         });
