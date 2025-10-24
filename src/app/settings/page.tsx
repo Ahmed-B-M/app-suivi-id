@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FileSearch, PlusCircle, Save, Trash2, Edit } from "lucide-react";
 import type { Tache, Tournee, ForecastRule } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCollection, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase";
 import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -151,12 +151,12 @@ function ExportTab() {
 function DatabaseTab() {
   const { firestore } = useFirebase();
 
-  const tasksCollection = useMemoFirebase(() => {
+  const tasksCollection = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, "tasks"), orderBy("date", "desc"));
   }, [firestore]);
 
-  const roundsCollection = useMemoFirebase(() => {
+  const roundsCollection = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, "rounds"), orderBy("date", "desc"));
   }, [firestore]);
@@ -536,5 +536,3 @@ export default function SettingsPage() {
     </main>
   );
 }
-
-    
