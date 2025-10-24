@@ -76,7 +76,7 @@ export default function AssignmentPage() {
             isActive: newRule.isActive!
         };
         setRules([...rules, ruleToAdd]);
-        setNewRule({type: 'time', category: 'Matin', isActive: true});
+        setNewRule({type: 'time', category: 'Matin', isActive: true, name: '', keywords: []});
     }
     
     const handleDeleteRule = (id: string) => {
@@ -88,9 +88,12 @@ export default function AssignmentPage() {
         startTransition(async () => {
             const batch = writeBatch(firestore);
             rules.forEach(rule => {
-                const keywordsAsArray = typeof rule.keywords === 'string' 
-                    ? (rule.keywords as string).split(',').map(k => k.trim()) 
-                    : rule.keywords;
+                // Ensure keywords are always saved as an array of strings
+                const keywordsAsArray = Array.isArray(rule.keywords) 
+                    ? rule.keywords 
+                    : typeof rule.keywords === 'string' 
+                        ? (rule.keywords as string).split(',').map(k => k.trim()) 
+                        : [];
 
                 if (rule.id.startsWith('temp_')) {
                     // It's a new rule, create a new document reference
@@ -230,7 +233,7 @@ export default function AssignmentPage() {
                                     <Input placeholder="Nom de la nouvelle règle" value={newRule.name || ''} onChange={(e) => setNewRule(p => ({...p, name: e.target.value}))}/>
                                 </TableCell>
                                  <TableCell>
-                                    <Input placeholder="Mots-clés (ex: soir, j)" value={newRule.keywords as string || ''} onChange={(e) => setNewRule(p => ({...p, keywords: e.target.value.split(',').map(k=>k.trim())}))}/>
+                                    <Input placeholder="Mots-clés (ex: soir, j)" value={(Array.isArray(newRule.keywords) ? newRule.keywords.join(', ') : newRule.keywords) || ''} onChange={(e) => setNewRule(p => ({...p, keywords: e.target.value.split(',').map(k=>k.trim())}))}/>
                                 </TableCell>
                                 <TableCell>
                                     <Select value={newRule.category} onValueChange={(v) => setNewRule(p => ({...p, category: v as any}))}>
@@ -264,3 +267,5 @@ export default function AssignmentPage() {
         </main>
     )
 }
+
+    
