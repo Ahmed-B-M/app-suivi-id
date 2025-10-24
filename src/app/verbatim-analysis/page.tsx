@@ -12,7 +12,7 @@ export default function VerbatimAnalysisPage() {
   const { allProcessedVerbatims, isContextLoading } = useFilters();
 
   const analysisData = useMemo(() => {
-    const verbatimsToShow = allProcessedVerbatims.filter(v => v.status === 'traité');
+    const verbatimsToShow = allProcessedVerbatims;
 
     if (isContextLoading || !verbatimsToShow) {
       return { byCategory: [], byResponsibility: [] };
