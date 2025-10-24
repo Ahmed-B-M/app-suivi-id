@@ -296,7 +296,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
     if (filterType !== 'tous') {
         verbatimsToFilter = verbatimsToFilter.filter(v => {
-            const hubCategory = v.depot === 'Magasin' ? 'magasin' : 'entrepot';
+            const hubCategory = getHubCategory(v.store);
             return hubCategory === filterType;
         });
     }
@@ -317,33 +317,41 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         verbatims: verbatimsToFilter,
     }];
   }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
-
+  
   const allProcessedVerbatims = useMemo(() => {
-    const detractorVerbatims = allNpsData.flatMap(d => d.verbatims).filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
-
-    const savedVerbatimsMap = new Map(allSavedVerbatims.map(v => [v.taskId, v]));
-
-    const mergedVerbatims: ProcessedVerbatim[] = detractorVerbatims.map(v => {
-      const saved = savedVerbatimsMap.get(v.taskId);
-      const savedCategory = saved?.category || [];
-      return {
-        id: v.taskId,
-        taskId: v.taskId,
-        npsScore: v.npsScore,
-        verbatim: v.verbatim,
-        responsibilities: saved?.responsibilities || [],
-        category: Array.isArray(savedCategory) ? savedCategory : [savedCategory],
-        status: saved?.status || 'à traiter',
-        store: v.store,
-        taskDate: v.taskDate,
-        carrier: v.carrier,
-        depot: v.depot,
-        driver: v.driver,
-      };
+    const savedVerbatimsMap = new Map<string, ProcessedVerbatim>();
+    allSavedVerbatims.forEach(v => {
+        const category = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
+        savedVerbatimsMap.set(v.taskId, {
+            ...v,
+            category,
+        });
     });
 
-    return mergedVerbatims;
+    const detractorVerbatims = allNpsData
+        .flatMap(d => d.verbatims)
+        .filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
 
+    detractorVerbatims.forEach(v => {
+        if (!savedVerbatimsMap.has(v.taskId)) {
+            savedVerbatimsMap.set(v.taskId, {
+                id: v.taskId,
+                taskId: v.taskId,
+                npsScore: v.npsScore,
+                verbatim: v.verbatim,
+                responsibilities: [],
+                category: [],
+                status: 'à traiter',
+                store: v.store,
+                taskDate: v.taskDate,
+                carrier: v.carrier,
+                depot: v.depot,
+                driver: v.driver,
+            });
+        }
+    });
+
+    return Array.from(savedVerbatimsMap.values());
   }, [allNpsData, allSavedVerbatims]);
 
 
