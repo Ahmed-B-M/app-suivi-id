@@ -16,20 +16,32 @@ import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
 
 const links = [
+  // --- Vues d'Ensemble ---
   {
     href: "/",
     label: "Tableau de Bord",
     icon: <LayoutDashboard />,
   },
   {
-    href: "/billing",
-    label: "Facturation",
-    icon: <CreditCard />,
+    href: "/summary",
+    label: "Synthèse",
+    icon: <BarChartBig />,
   },
   {
     href: "/forecast",
     label: "FORECAST",
     icon: <TrendingUp />,
+  },
+  // --- Analyse & Opérations ---
+  {
+    href: "/deviation-analysis",
+    label: "Analyse des Écarts",
+    icon: <Scale />,
+  },
+  {
+    href: "/details",
+    label: "Détails",
+    icon: <ListChecks />,
   },
   {
     href: "/assignment",
@@ -37,24 +49,15 @@ const links = [
     icon: <HandPlatter />,
   },
   {
+    href: "/billing",
+    label: "Facturation",
+    icon: <CreditCard />,
+  },
+  // --- Qualité & Retours Clients ---
+  {
     href: "/quality",
     label: "Qualité",
     icon: <ShieldCheck />,
-  },
-  {
-    href: "/deviation-analysis",
-    label: "Analyse des Écarts",
-    icon: <Scale />,
-  },
-   {
-    href: "/summary",
-    label: "Synthèse",
-    icon: <BarChartBig />,
-  },
-  {
-    href: "/details",
-    label: "Détails",
-    icon: <ListChecks />,
   },
   {
     href: "/comment-management",
@@ -83,6 +86,7 @@ const links = [
     label: "Analyse Verbatims",
     icon: <PieChart />,
   },
+  // --- Configuration ---
   {
     href: "/settings",
     label: "Paramètres",
