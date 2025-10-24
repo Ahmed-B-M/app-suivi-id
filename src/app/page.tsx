@@ -38,6 +38,8 @@ import { CommentSummaryCard } from "@/components/app/comment-summary-card";
 import { VerbatimsByCategoryChart } from "@/components/app/verbatims-by-category-chart";
 import { VerbatimsByResponsibilityChart } from "@/components/app/verbatims-by-responsibility-chart";
 import { ScanbacDetailsDialog } from "@/components/app/scanbac-details-dialog";
+import { ForcedAddressDetailsDialog } from "@/components/app/forced-address-details-dialog";
+import { ForcedContactlessDetailsDialog } from "@/components/app/forced-contactless-details-dialog";
 
 
 export default function DashboardPage() {
@@ -62,6 +64,9 @@ export default function DashboardPage() {
   const [isAllRoundsDetailsOpen, setIsAllRoundsDetailsOpen] = useState(false);
   const [isAllTasksDetailsOpen, setIsAllTasksDetailsOpen] = useState(false);
   const [isScanbacDetailsOpen, setIsScanbacDetailsOpen] = useState(false);
+  const [isForcedAddressDetailsOpen, setIsForcedAddressDetailsOpen] = useState(false);
+  const [isForcedContactlessDetailsOpen, setIsForcedContactlessDetailsOpen] = useState(false);
+
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late' | 'late_over_1h';
     tasks: PunctualityTask[];
@@ -149,6 +154,16 @@ export default function DashboardPage() {
         onOpenChange={setIsScanbacDetailsOpen}
         tasks={dashboardData?.webCompletedTasks || []}
       />
+      <ForcedAddressDetailsDialog
+        isOpen={isForcedAddressDetailsOpen}
+        onOpenChange={setIsForcedAddressDetailsOpen}
+        tasks={dashboardData?.forcedAddressTasks || []}
+      />
+      <ForcedContactlessDetailsDialog
+        isOpen={isForcedContactlessDetailsOpen}
+        onOpenChange={setIsForcedContactlessDetailsOpen}
+        tasks={dashboardData?.forcedContactlessTasks || []}
+      />
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
       </div>
@@ -203,6 +218,8 @@ export default function DashboardPage() {
             onTotalRoundsClick={() => setIsAllRoundsDetailsOpen(true)}
             onTotalTasksClick={() => setIsAllTasksDetailsOpen(true)}
             onScanbacClick={() => setIsScanbacDetailsOpen(true)}
+            onForcedAddressClick={() => setIsForcedAddressDetailsOpen(true)}
+            onForcedContactlessClick={() => setIsForcedContactlessDetailsOpen(true)}
           />
 
           {dashboardData.commentAnalysis && dashboardData.commentAnalysis.totalComments > 0 && (

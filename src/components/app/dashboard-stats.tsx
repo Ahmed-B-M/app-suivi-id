@@ -80,6 +80,8 @@ type DashboardStatsProps = {
   onTotalRoundsClick: () => void;
   onTotalTasksClick: () => void;
   onScanbacClick: () => void;
+  onForcedAddressClick: () => void;
+  onForcedContactlessClick: () => void;
 };
 
 const StatCard = ({
@@ -154,6 +156,8 @@ export function DashboardStats({
   onTotalRoundsClick,
   onTotalTasksClick,
   onScanbacClick,
+  onForcedAddressClick,
+  onForcedContactlessClick,
 }: DashboardStatsProps) {
   const getVariant = (
     value: number | null,
@@ -265,12 +269,14 @@ export function DashboardStats({
             value={`${stats.forcedAddressRate?.toFixed(2) ?? 'N/A'}%`} 
             icon={<MapPinOff className="h-4 w-4 text-muted-foreground" />} 
             variant={getVariant(stats.forcedAddressRate, { success: 2, warning: 5, isHigherBetter: false })}
+            onClick={onForcedAddressClick}
           />
         <StatCard 
             title="Commandes forcées" 
             value={`${stats.forcedContactlessRate?.toFixed(2) ?? 'N/A'}%`} 
             icon={<Ban className="h-4 w-4 text-muted-foreground" />} 
             variant={getVariant(stats.forcedContactlessRate, { success: 2, warning: 5, isHigherBetter: false })}
+            onClick={onForcedContactlessClick}
         />
       </div>
 

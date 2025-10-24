@@ -131,8 +131,12 @@ export function calculateDashboardStats(
 
     const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
     const webCompletedTasks = completedTasks.filter(t => t.completePar === 'web');
-    const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
-    const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
+    
+    const forcedAddressTasks = completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false);
+    const forcedAddressRate = completedTasks.length > 0 ? (forcedAddressTasks.length / completedTasks.length) * 100 : null;
+    
+    const forcedContactlessTasks = completedTasks.filter(t => t.execution?.sansContact?.forced === true);
+    const forcedContactlessRate = completedTasks.length > 0 ? (forcedContactlessTasks.length / completedTasks.length) * 100 : null;
 
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
     
@@ -323,6 +327,8 @@ export function calculateDashboardStats(
       sensitiveDeliveriesList,
       qualityAlertTasks,
       webCompletedTasks,
+      forcedAddressTasks,
+      forcedContactlessTasks,
       tasksByStatus,
       tasksByProgression,
       tasksOverTime,
