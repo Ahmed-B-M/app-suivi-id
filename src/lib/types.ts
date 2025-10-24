@@ -107,6 +107,7 @@ export interface Tache {
 // Nouvelle interface épurée pour les tournées
 export interface Tournee {
   id: string;
+  carrierOverride?: string;
   date?: string | Date | Timestamp;
   hub?: any;
   nomHub?: string;
@@ -200,6 +201,15 @@ export interface Tournee {
     breaks?: boolean;
     labels?: any[];
   };
+}
+
+export interface ForecastRule {
+  id: string;
+  name: string;
+  type: 'time' | 'type';
+  keywords: string[];
+  category: 'Matin' | 'Soir' | 'BU' | 'Classique';
+  isActive: boolean;
 }
 
 

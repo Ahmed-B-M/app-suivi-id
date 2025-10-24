@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -9,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +26,15 @@ const links = [
     label: "Facturation",
     icon: <CreditCard />,
   },
-    {
+  {
     href: "/forecast",
     label: "Prévisions",
     icon: <TrendingUp />,
+  },
+  {
+    href: "/assignment",
+    label: "Affectation",
+    icon: <HandPlatter />,
   },
   {
     href: "/quality",

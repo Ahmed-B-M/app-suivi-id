@@ -1,4 +1,5 @@
 
+
 import type { Tache, Tournee } from "@/lib/types";
 
 export interface Depot {
@@ -89,6 +90,11 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
  */
 export function getCarrierFromDriver(driverNameOrRound: string | Tournee | undefined | null): string {
     let driverName: string | undefined | null = null;
+
+    // Check for carrierOverride first
+    if (driverNameOrRound && typeof driverNameOrRound === 'object' && 'carrierOverride' in driverNameOrRound && driverNameOrRound.carrierOverride) {
+        return driverNameOrRound.carrierOverride;
+    }
 
     if (typeof driverNameOrRound === 'string') {
         driverName = driverNameOrRound;
