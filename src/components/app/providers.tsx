@@ -12,8 +12,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <FirebaseClientProvider>
       <FilterProvider>
         <SidebarProvider>
+          <div className="flex">
             <SidebarNav />
-            <SidebarInset>
+            <div className="flex-1 flex flex-col">
               <AppHeader />
               <main className="flex-1">
                 {children}
@@ -23,7 +24,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   ID-pilote
                 </div>
               </footer>
-            </SidebarInset>
+            </div>
+          </div>
         </SidebarProvider>
       </FilterProvider>
     </FirebaseClientProvider>

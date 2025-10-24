@@ -96,7 +96,7 @@ export function SidebarNav() {
   const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="icon" variant="sidebar" side="left">
       <SidebarContent>
         <SidebarMenu>
           {links.map((link) => (
@@ -110,7 +110,7 @@ export function SidebarNav() {
                   {link.icon}
                   <span>{link.label}</span>
                    {link.isCommentLink && !isCommentsLoading && pendingCommentsCount > 0 && (
-                     <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
+                     <Badge variant="secondary" className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
                        {pendingCommentsCount}
                      </Badge>
                   )}
