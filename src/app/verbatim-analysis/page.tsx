@@ -44,7 +44,7 @@ export default function VerbatimAnalysisPage() {
   const { allProcessedVerbatims, isContextLoading } = useFilters();
 
   const analysisData: ResponsibilityData[] = useMemo(() => {
-    const verbatimsToShow = allProcessedVerbatims.filter(v => v.status === 'traité');
+    const verbatimsToShow = allProcessedVerbatims;
 
     if (isContextLoading || !verbatimsToShow || verbatimsToShow.length === 0) {
       return [];
@@ -54,28 +54,28 @@ export default function VerbatimAnalysisPage() {
     const byResponsibility: Record<string, { count: number; categories: Record<string, number> }> = {};
 
     verbatimsToShow.forEach((verbatim) => {
+      // Ensure responsibilities and categories are arrays
       const responsibilities = Array.isArray(verbatim.responsibilities)
         ? verbatim.responsibilities
-        : [verbatim.responsibilities];
+        : (verbatim.responsibilities ? [verbatim.responsibilities] : []);
+        
       const categories = Array.isArray(verbatim.category)
         ? verbatim.category
-        : [verbatim.category];
+        : (verbatim.category ? [verbatim.category] : []);
 
-      if (responsibilities.length === 0) {
-        responsibilities.push("Inconnu");
+      // Create a sorted, unique key for the combination of responsibilities
+      const responsibilityKey = responsibilities.length > 0 
+        ? [...new Set(responsibilities)].sort().join('/') 
+        : "Inconnu";
+
+      if (!byResponsibility[responsibilityKey]) {
+        byResponsibility[responsibilityKey] = { count: 0, categories: {} };
       }
-      
-      responsibilities.forEach((resp) => {
-        if (!resp) return;
-        if (!byResponsibility[resp]) {
-          byResponsibility[resp] = { count: 0, categories: {} };
-        }
-        byResponsibility[resp].count++;
+      byResponsibility[responsibilityKey].count++;
 
-        categories.forEach((cat) => {
-          if (!cat) return;
-          byResponsibility[resp].categories[cat] = (byResponsibility[resp].categories[cat] || 0) + 1;
-        });
+      categories.forEach((cat) => {
+        if (!cat) return;
+        byResponsibility[responsibilityKey].categories[cat] = (byResponsibility[responsibilityKey].categories[cat] || 0) + 1;
       });
     });
 
