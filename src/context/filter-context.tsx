@@ -42,8 +42,6 @@ interface FilterContextProps {
   allNpsData: NpsData[];
   processedVerbatims: ProcessedNpsVerbatim[];
   isContextLoading: boolean;
-
-  refreshData: () => void;
 }
 
 const FilterContext = createContext<FilterContextProps | undefined>(undefined);
@@ -61,12 +59,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const refreshData = () => {
-    clearCollectionCache();
-    setRefreshKey(prevKey => prevKey + 1);
-  };
   
   useEffect(() => {
     if (dateFilterMode === 'day' && date) {
@@ -76,7 +68,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         setDateRange({ from, to });
       }
     }
-  }, [date, dateFilterMode]);
+  }, [date, dateFilterMode, dateRange]);
 
   useEffect(() => {
     if (dateFilterMode === 'range' && dateRange?.from) {
@@ -85,11 +77,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
          setDate(fromDate);
        }
     } else if (dateFilterMode === 'range' && !dateRange?.from) {
-        // Ensure a default range is set if user switches to range with no selection
         const today = new Date();
         setDateRange({ from: subDays(today, 7), to: today });
     }
-  }, [dateRange, dateFilterMode]);
+  }, [dateRange, dateFilterMode, date]);
 
 
   const tasksCollection = useMemo(() => {
@@ -120,9 +111,12 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     
     if (!from) return [];
     
+    const startDate = startOfDay(from);
+    const endDate = endOfDay(to ?? from);
+    
     return [
-      where("date", ">=", from),
-      where("date", "<=", to ?? from) // Use 'from' if 'to' is not set
+      where("date", ">=", startDate),
+      where("date", "<=", endDate)
     ];
   }, [dateRange]);
   
@@ -139,12 +133,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [dateRange]);
   
 
-  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters, refreshKey);
-  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters, refreshKey);
-  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters, refreshKey);
-  const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, [], refreshKey);
-  // Fetch ALL categorized comments, filtering will happen client-side after merging
-  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, [], refreshKey);
+  const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
+  const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
+  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
+  const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, []);
+  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
   const availableDepots = useMemo(
@@ -204,7 +197,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const filteredProcessedVerbatims = useMemo(() => {
     let verbatimsToFilter = allProcessedVerbatims;
 
-    // Filter by date range first
     const from = dateRange?.from;
     const to = dateRange?.to;
     if (from) {
@@ -216,13 +208,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         });
     }
 
-    // Then filter by type, depot, and store
-    if (filterType !== 'tous') {
-      verbatimsToFilter = verbatimsToFilter.filter(v => {
-        const hubCategory = v.depot === 'Magasin' ? 'magasin' : 'entrepot';
-        return hubCategory === filterType;
-      });
-    }
     if (selectedDepot !== "all") {
        verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
     }
@@ -230,11 +215,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
     }
     return verbatimsToFilter;
-  }, [allProcessedVerbatims, dateRange, filterType, selectedDepot, selectedStore]);
+  }, [allProcessedVerbatims, dateRange, selectedDepot, selectedStore]);
 
 
   const allComments = useMemo(() => {
-    // 1. Create a map of all saved comments for quick lookup.
     const savedCommentsMap = new Map<string, CategorizedComment>();
     allSavedComments.forEach(comment => {
       const taskId = String(comment.taskId || comment.id);
@@ -245,7 +229,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    // 2. Process tasks to find comments, using saved data if available.
     const commentsFromTasks = allTasks.reduce((acc, task) => {
       const isNegativeComment = typeof task.metaDonnees?.notationLivreur === 'number' &&
                                 task.metaDonnees.notationLivreur < 4 &&
@@ -254,12 +237,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       const taskId = String(task.tacheId);
 
       if (savedCommentsMap.has(taskId)) {
-        // If it's already saved, ensure it's in our final list, regardless of whether it's a negative comment now.
         if (!acc.has(taskId)) {
           acc.set(taskId, savedCommentsMap.get(taskId)!);
         }
       } else if (isNegativeComment) {
-        // If it's a new negative comment not in our saved list, add it as 'à traiter'.
         acc.set(taskId, {
           id: taskId,
           taskId: taskId,
@@ -274,19 +255,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       return acc;
     }, new Map<string, CategorizedComment>());
     
-    // Convert map to array for final filtering
     const finalCommentList = Array.from(commentsFromTasks.values());
 
-    // 3. Apply entity filters (depot, store, etc.) to the final merged list.
     let filteredComments = finalCommentList;
 
     if (filterType !== 'tous') {
-      // We need to associate comments with a hub category to filter them.
-      // We can use the original task data for this.
       const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
       filteredComments = filteredComments.filter(comment => {
         const task = taskMap.get(comment.taskId);
-        if (!task) return false; // Or handle as per requirements
+        if (!task) return false;
         return getHubCategory(task.nomHub) === filterType;
       });
     }
@@ -328,14 +305,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
     }
     
-    // We need to reconstruct the NpsData shape, even if it's just one entry
     if (verbatimsToFilter.length === npsDataFromDateRange.flatMap(d => d.verbatims).length) {
         return npsDataFromDateRange;
     }
 
     return [{
         id: 'filtered',
-        associationDate: new Date(), // This date is temporary and not used for filtering
+        associationDate: new Date(),
         verbatims: verbatimsToFilter,
     }];
   }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
@@ -365,7 +341,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allNpsData,
         processedVerbatims: filteredProcessedVerbatims,
         isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingProcessedVerbatims,
-        refreshData,
       }}
     >
       {children}
