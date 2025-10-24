@@ -54,7 +54,6 @@ export default function VerbatimAnalysisPage() {
     const byResponsibility: Record<string, { count: number; categories: Record<string, number> }> = {};
 
     verbatimsToShow.forEach((verbatim) => {
-      // Ensure responsibilities and categories are arrays
       const responsibilities = Array.isArray(verbatim.responsibilities)
         ? verbatim.responsibilities
         : (verbatim.responsibilities ? [verbatim.responsibilities] : []);
@@ -63,9 +62,10 @@ export default function VerbatimAnalysisPage() {
         ? verbatim.category
         : (verbatim.category ? [verbatim.category] : []);
 
-      // Create a sorted, unique key for the combination of responsibilities
-      const responsibilityKey = responsibilities.length > 0 
-        ? [...new Set(responsibilities)].sort().join('/') 
+      const validResponsibilities = responsibilities.filter(r => r && typeof r === 'string');
+
+      const responsibilityKey = validResponsibilities.length > 0 
+        ? [...new Set(validResponsibilities)].sort().join('/') 
         : "Inconnu";
 
       if (!byResponsibility[responsibilityKey]) {
@@ -73,10 +73,16 @@ export default function VerbatimAnalysisPage() {
       }
       byResponsibility[responsibilityKey].count++;
 
-      categories.forEach((cat) => {
-        if (!cat) return;
-        byResponsibility[responsibilityKey].categories[cat] = (byResponsibility[responsibilityKey].categories[cat] || 0) + 1;
-      });
+      const validCategories = categories.filter(c => c && typeof c === 'string');
+
+      if (validCategories.length > 0) {
+        validCategories.forEach((cat) => {
+            byResponsibility[responsibilityKey].categories[cat] = (byResponsibility[responsibilityKey].categories[cat] || 0) + 1;
+        });
+      } else {
+        const otherCategory = "Non catégorisé";
+        byResponsibility[responsibilityKey].categories[otherCategory] = (byResponsibility[responsibilityKey].categories[otherCategory] || 0) + 1;
+      }
     });
 
     return Object.entries(byResponsibility)
