@@ -167,7 +167,7 @@ export default function AssignmentPage() {
                                     <TableCell><Badge variant="secondary">{round.status}</Badge></TableCell>
                                     <TableCell className="text-right">
                                         <Switch 
-                                            checked={round.buStatus === 'active'}
+                                            checked={round.buStatus !== 'inactive'}
                                             onCheckedChange={(checked) => handleBuStatusChange(round.id, checked)}
                                         />
                                     </TableCell>
