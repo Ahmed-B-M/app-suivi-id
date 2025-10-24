@@ -101,9 +101,9 @@ const StatCard = ({
 }) => {
   const valueColor =
     variant === "success"
-      ? "text-green-600"
+      ? "text-blue-600"
       : variant === "danger"
-      ? "text-red-600"
+      ? "text-destructive"
       : variant === "warning"
       ? "text-orange-500"
       : "";
@@ -287,7 +287,7 @@ export function DashboardStats({
             <CardTitle>Performance &amp; Qualité</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <MiniStat title="Tâches en avance" value={stats.earlyTasksCount.toString()} icon={<TrendingUp className="h-5 w-5 text-green-500" />} onClick={onEarlyClick}/>
+            <MiniStat title="Tâches en avance" value={stats.earlyTasksCount.toString()} icon={<TrendingUp className="h-5 w-5 text-blue-500" />} onClick={onEarlyClick}/>
             <Separator />
             <MiniStat title="Tâches en retard" value={stats.lateTasksCount.toString()} icon={<TrendingDown className="h-5 w-5 text-orange-500" />} onClick={onLateClick}/>
             <Separator />

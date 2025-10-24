@@ -32,16 +32,16 @@ const StatCell = ({ value, unit, isRate = true, isLowerBetter = false }: { value
     if (value !== null) {
         if (isRate) {
              if (isLowerBetter) {
-                if (value < 5) colorClass = "text-green-600";
+                if (value < 5) colorClass = "text-blue-600";
                 else if (value < 15) colorClass = "text-orange-500";
                 else colorClass = "text-destructive";
             } else {
-                if (value > 95) colorClass = "text-green-600";
+                if (value > 95) colorClass = "text-blue-600";
                 else if (value > 85) colorClass = "text-orange-500";
                 else colorClass = "text-destructive";
             }
         } else { // For ratings
-             if (value > 4.79) colorClass = "text-green-600";
+             if (value > 4.79) colorClass = "text-blue-600";
              else if (value > 4.5) colorClass = "text-orange-500";
              else colorClass = "text-destructive";
         }
@@ -167,7 +167,7 @@ export function DriverPerformanceTable({ data, isLoading }: DriverPerformanceTab
 
   return (
     <div className="space-y-8">
-        {top5.length > 0 && <DriverTable drivers={top5} title="Top 5 Livreurs" icon={<TrendingUp className="text-green-600"/>} />}
+        {top5.length > 0 && <DriverTable drivers={top5} title="Top 5 Livreurs" icon={<TrendingUp className="text-blue-600"/>} />}
         {flop5.length > 0 && data.length > 5 && <DriverTable drivers={flop5} title="Flop 5 Livreurs" icon={<TrendingDown className="text-destructive"/>} />}
     </div>
   );
