@@ -20,32 +20,33 @@ const COLORS = {
     BORDER: '#E2E8F0',
     BACKGROUND: '#F7FAFC',
     WHITE: '#FFFFFF',
+    BLUE_KPI: '#2B6CB0', // Changed from GREEN for success
 };
 
 function getRatingColor(value: number | null | undefined): string {
     if (value === null || value === undefined) return COLORS.RED;
-    if (value >= 4.8) return COLORS.GREEN;
+    if (value >= 4.8) return COLORS.BLUE_KPI;
     if (value >= 4.5) return COLORS.YELLOW;
     return COLORS.RED;
 }
 
 function getNpsColor(value: number | null | undefined): string {
     if (value === null || value === undefined) return COLORS.RED;
-    if (value >= 65) return COLORS.GREEN;
+    if (value >= 65) return COLORS.BLUE_KPI;
     if (value >= 30) return COLORS.YELLOW;
     return COLORS.RED;
 }
 
 function getPunctualityColor(value: number | null | undefined): string {
     if (value === null || value === undefined) return COLORS.RED;
-    if (value >= 95) return COLORS.GREEN;
+    if (value >= 95) return COLORS.BLUE_KPI;
     if (value >= 90) return COLORS.YELLOW;
     return COLORS.RED;
 }
 
 function getForcedMetricColor(value: number | null | undefined): string {
     if (value === null || value === undefined) return COLORS.RED;
-    if (value <= 5) return COLORS.GREEN;
+    if (value <= 5) return COLORS.BLUE_KPI;
     if (value <= 10) return COLORS.YELLOW;
     return COLORS.RED;
 }
@@ -137,7 +138,7 @@ export function generateQualityEmailBody(
 
     const globalVerbatimsByCategory: Record<string, number> = {};
     processedVerbatims.forEach(v => {
-        const categories = Array.isArray(v.category) ? v.category : [v.category];
+        const categories = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
         categories.forEach(cat => {
             if(cat) globalVerbatimsByCategory[cat] = (globalVerbatimsByCategory[cat] || 0) + 1;
         })
