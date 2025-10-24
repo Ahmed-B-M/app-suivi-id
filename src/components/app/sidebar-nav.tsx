@@ -28,12 +28,12 @@ const links = [
   },
   {
     href: "/forecast",
-    label: "Prévisions",
+    label: "FORECAST",
     icon: <TrendingUp />,
   },
   {
     href: "/assignment",
-    label: "Affectation",
+    label: "Gestion des Tournées",
     icon: <HandPlatter />,
   },
   {
@@ -64,7 +64,7 @@ const links = [
   },
   {
     href: "/nps-analysis",
-    label: "Analyse NPS",
+    label: "Intégration NPS",
     icon: <BarChart />,
   },
    {
