@@ -27,7 +27,7 @@ export default function ForecastPage() {
 
 
   const forecastData = useMemo(() => {
-    if (!allRounds || rulesLoading) return {};
+    if (!allRounds || rulesLoading || !rules) return {};
 
     const activeRules = rules.filter(r => r.isActive);
     const timeRules = activeRules.filter(r => r.type === 'time');
@@ -59,10 +59,10 @@ export default function ForecastPage() {
 
       dataByDepot[depot].total++;
       dataByDepot[depot].carriers[carrier].total++;
-
+      
       let isTimeAssigned = false;
       for (const rule of timeRules) {
-        if (round.nomHub && rule.keywords.some(k => round.nomHub!.toLowerCase().includes(k.toLowerCase()))) {
+        if (round.nomHub && Array.isArray(rule.keywords) && rule.keywords.some(k => round.nomHub!.toLowerCase().includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') dataByDepot[depot].carriers[carrier].matin++;
           else if (rule.category === 'Soir') dataByDepot[depot].carriers[carrier].soir++;
           isTimeAssigned = true;
@@ -72,12 +72,14 @@ export default function ForecastPage() {
 
       let isTypeAssigned = false;
       for (const rule of typeRules) {
-        if (round.name && rule.keywords.some(k => round.name!.toLowerCase().startsWith(k.toLowerCase()))) {
+        if (round.name && Array.isArray(rule.keywords) && rule.keywords.some(k => round.name!.toLowerCase().startsWith(k.toLowerCase()))) {
           if (rule.category === 'BU') dataByDepot[depot].carriers[carrier].bu++;
           isTypeAssigned = true;
           break;
         }
       }
+
+      // If no type rule matched, it's a "Classique"
       if (!isTypeAssigned) {
         dataByDepot[depot].carriers[carrier].classique++;
       }
