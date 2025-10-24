@@ -63,18 +63,23 @@ export default function AssignmentPage() {
     };
 
     const handleAddRule = () => {
-        if (newRule.name && newRule.keywords) {
-            const ruleToAdd: ForecastRule = {
-                id: doc(collection(firestore!, 'forecast_rules')).id,
-                name: newRule.name,
-                type: newRule.type!,
-                keywords: newRule.keywords as any, // Temp cast
-                category: newRule.category!,
-                isActive: newRule.isActive!
-            };
-            setRules([...rules, ruleToAdd]);
-            setNewRule({type: 'time', category: 'Matin', isActive: true});
-        }
+        if (!newRule.name || !newRule.keywords || !firestore) return;
+        
+        // Use a client-side safe method to generate a temporary ID.
+        // Firestore will generate its own final ID upon saving.
+        // This avoids the internal SDK error from `doc(collection(...)).id`.
+        const tempId = `temp_${Date.now()}`;
+
+        const ruleToAdd: ForecastRule = {
+            id: tempId,
+            name: newRule.name,
+            type: newRule.type!,
+            keywords: Array.isArray(newRule.keywords) ? newRule.keywords : (newRule.keywords as string).split(',').map(k => k.trim()),
+            category: newRule.category!,
+            isActive: newRule.isActive!
+        };
+        setRules([...rules, ruleToAdd]);
+        setNewRule({type: 'time', category: 'Matin', isActive: true});
     }
     
     const handleDeleteRule = (id: string) => {
@@ -86,13 +91,23 @@ export default function AssignmentPage() {
         startTransition(async () => {
             const batch = writeBatch(firestore);
             rules.forEach(rule => {
-                const ruleRef = doc(firestore, "forecast_rules", rule.id);
+                // If the rule has a temporary ID, create a new doc ref.
+                // Otherwise, use the existing ID.
+                const isNew = rule.id.startsWith('temp_');
+                const ruleRef = isNew ? doc(collection(firestore, "forecast_rules")) : doc(firestore, "forecast_rules", rule.id);
+
                 // Firestore cannot save arrays with mixed types, ensure keywords is an array of strings.
                 const keywordsAsArray = typeof rule.keywords === 'string' 
                     ? (rule.keywords as string).split(',').map(k => k.trim()) 
                     : rule.keywords;
 
-                batch.set(ruleRef, { ...rule, keywords: keywordsAsArray });
+                const dataToSave = {
+                  ...rule,
+                  id: ruleRef.id, // Use the final ID from the doc ref
+                  keywords: keywordsAsArray
+                };
+
+                batch.set(ruleRef, dataToSave);
             });
             try {
                 await batch.commit();
