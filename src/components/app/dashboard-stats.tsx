@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import {
@@ -78,6 +79,7 @@ type DashboardStatsProps = {
   onQualityAlertClick: () => void;
   onTotalRoundsClick: () => void;
   onTotalTasksClick: () => void;
+  onScanbacClick: () => void;
 };
 
 const StatCard = ({
@@ -151,6 +153,7 @@ export function DashboardStats({
   onQualityAlertClick,
   onTotalRoundsClick,
   onTotalTasksClick,
+  onScanbacClick,
 }: DashboardStatsProps) {
   const getVariant = (
     value: number | null,
@@ -255,6 +258,7 @@ export function DashboardStats({
             isHigherBetter: true,
           })}
           description="Validation via l'app mobile"
+          onClick={onScanbacClick}
         />
          <StatCard 
             title="Sur place forcé" 

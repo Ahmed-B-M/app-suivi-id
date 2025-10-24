@@ -30,9 +30,9 @@ function normalizeText(text: string): string {
  * @param comment - The customer comment string.
  * @returns The determined category.
  */
-export function getCategoryFromKeywords(comment: string | undefined | null): string {
+export function getCategoryFromKeywords(comment: string | undefined | null): string[] {
     if (!comment) {
-      return 'Autre';
+      return ['Autre'];
     }
     const lowerComment = comment.toLowerCase();
     
@@ -55,11 +55,11 @@ export function getCategoryFromKeywords(comment: string | undefined | null): str
 
     for (const category in categoryKeywords) {
         if (categoryKeywords[category].some(keyword => lowerComment.includes(keyword))) {
-            return category;
+            return [category];
         }
     }
     
-    return 'Autre';
+    return ['Autre'];
 }
 
 
@@ -130,6 +130,7 @@ export function calculateDashboardStats(
     const completedRounds = rounds.filter(r => r.status === "COMPLETED");
 
     const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
+    const webCompletedTasks = completedTasks.filter(t => t.completePar === 'web');
     const forcedAddressRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completedTasks.length) * 100 : null;
     const forcedContactlessRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.execution?.sansContact?.forced === true).length / completedTasks.length) * 100 : null;
 
@@ -225,7 +226,9 @@ export function calculateDashboardStats(
     const totalComments = allNegativeComments.length;
     
     const commentsByCategory = Object.entries(allNegativeComments.reduce((acc, comment) => {
-        acc[comment.category] = (acc[comment.category] || 0) + 1;
+        comment.category.forEach(cat => {
+             acc[cat] = (acc[cat] || 0) + 1;
+        });
         return acc;
     }, {} as Record<string, number>))
     .map(([category, count]) => ({
@@ -236,7 +239,7 @@ export function calculateDashboardStats(
     .sort((a,b) => b.count - a.count);
 
     const attitudeComments = allNegativeComments
-      .filter(c => c.category === 'Attitude livreur')
+      .filter(c => c.category.includes('Attitude livreur'))
       .map(c => {
         const task = tasks.find(t => t.tacheId === c.taskId);
         return {
@@ -262,7 +265,9 @@ export function calculateDashboardStats(
 
     // --- Processed Verbatims Analysis ---
     const verbatimsByCategory = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
-        acc[verbatim.category] = (acc[verbatim.category] || 0) + 1;
+        verbatim.category.forEach(cat => {
+            acc[cat] = (acc[cat] || 0) + 1;
+        })
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
@@ -317,6 +322,7 @@ export function calculateDashboardStats(
       redeliveriesList,
       sensitiveDeliveriesList,
       qualityAlertTasks,
+      webCompletedTasks,
       tasksByStatus,
       tasksByProgression,
       tasksOverTime,
