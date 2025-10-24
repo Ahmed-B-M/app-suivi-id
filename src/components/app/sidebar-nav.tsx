@@ -54,7 +54,7 @@ const links = [
   },
   {
     href: "/nps-analysis",
-    label: "Integration NPS",
+    label: "Analyse NPS",
     icon: <BarChart />,
   },
    {
