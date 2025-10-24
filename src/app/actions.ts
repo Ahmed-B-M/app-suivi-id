@@ -549,7 +549,7 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     // Use taskId as the document ID to ensure uniqueness and easy lookups
     const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
     
-    const dataToSave: Omit<ProcessedVerbatim, 'id'> = {
+    const dataToSave: ProcessedVerbatim = {
       ...verbatim,
       status: 'traité' // Set status to 'traité' on save
     };
@@ -566,3 +566,4 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
   }
 }
 
+    
