@@ -318,30 +318,36 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     }];
   }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
   
-  const allProcessedVerbatims = useMemo(() => {
-    const savedVerbatimsMap = new Map<string, ProcessedVerbatim>();
+ const allProcessedVerbatims = useMemo(() => {
+    // Start with a map of verbatims that are already saved in Firestore.
+    // This ensures their 'traité' status is preserved.
+    const verbatimsMap = new Map<string, ProcessedVerbatim>();
     allSavedVerbatims.forEach(v => {
-        const category = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
-        savedVerbatimsMap.set(v.taskId, {
+        verbatimsMap.set(v.taskId, {
             ...v,
-            category,
+            // Ensure 'category' and 'responsibilities' are always arrays for consistency
+            category: Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []),
+            responsibilities: Array.isArray(v.responsibilities) ? v.responsibilities : (v.responsibilities ? [v.responsibilities] : []),
         });
     });
 
+    // Get all detractor verbatims from the current NPS data scope (filtered by date, etc.).
     const detractorVerbatims = allNpsData
         .flatMap(d => d.verbatims)
         .filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
 
+    // Add only the NEW detractor verbatims to the map with 'à traiter' status.
     detractorVerbatims.forEach(v => {
-        if (!savedVerbatimsMap.has(v.taskId)) {
-            savedVerbatimsMap.set(v.taskId, {
+        // If the verbatim is NOT already in our map, it's a new one.
+        if (!verbatimsMap.has(v.taskId)) {
+            verbatimsMap.set(v.taskId, {
                 id: v.taskId,
                 taskId: v.taskId,
                 npsScore: v.npsScore,
                 verbatim: v.verbatim,
                 responsibilities: [],
                 category: [],
-                status: 'à traiter',
+                status: 'à traiter', // Default status for new items
                 store: v.store,
                 taskDate: v.taskDate,
                 carrier: v.carrier,
@@ -351,8 +357,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    return Array.from(savedVerbatimsMap.values());
-  }, [allNpsData, allSavedVerbatims]);
+    // Return the combined list of verbatims
+    return Array.from(verbatimsMap.values());
+}, [allNpsData, allSavedVerbatims]);
 
 
   return (

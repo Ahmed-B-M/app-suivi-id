@@ -1,81 +1,70 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
- *
- * Core Philosophy: This ruleset allows completely open access to the database.
- *   This is for rapid prototyping ONLY and provides absolutely no data protection.
- *   It is CRITICAL to replace these rules with a proper security model before deployment.
- *
- * Data Structure: Top-level collections are used for each entity type: 'tasks', 'rounds',
- *   'categorized_comments', 'nps_data', and 'processed_nps_verbatims'.
- *
- * Key Security Decisions:
- *   - All reads and writes are allowed for all users.
- *   - No schema validation is performed.
- *
- * WARNING: These rules are INSECURE and should NEVER be used in a production environment.
+ * @description This ruleset enforces public read access for all collections and owner-only write access.
+ * @dataStructure The Firestore database contains top-level collections for tasks, rounds, categorized comments, NPS data, and processed NPS verbatims.
+ * @keySecurityDecisions All collections are publicly readable. Writes are generally disallowed without specific authorization logic to be added in the future.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows all read and write operations on the tasks collection.
+     * @description Allows public read access to tasks, but restricts write access.
      * @path /tasks/{taskId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None - All operations are allowed.
-     * @principle Allows any access for prototyping.
+     * @allow (get, list) - Any user can read task data.
+     * @deny (create, update, delete) - No user can create, update, or delete task data without further authorization.
+     * @principle Allows public reads with restricted writes.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows all read and write operations on the rounds collection.
+     * @description Allows public read access to rounds, but restricts write access.
      * @path /rounds/{roundId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None - All operations are allowed.
-     * @principle Allows any access for prototyping.
+     * @allow (get, list) - Any user can read round data.
+     * @deny (create, update, delete) - No user can create, update, or delete round data without further authorization.
+     * @principle Allows public reads with restricted writes.
      */
     match /rounds/{roundId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows all read and write operations on the categorized_comments collection.
+     * @description Allows public read access to categorized comments, but restricts write access.
      * @path /categorized_comments/{taskId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None - All operations are allowed.
-     * @principle Allows any access for prototyping.
+     * @allow (get, list) - Any user can read categorized comments.
+     * @deny (create, update, delete) - No user can create, update, or delete categorized comments without further authorization.
+     * @principle Allows public reads with restricted writes.
      */
     match /categorized_comments/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows all read and write operations on the nps_data collection.
+     * @description Allows public read access to NPS data, but restricts write access.
      * @path /nps_data/{date}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None - All operations are allowed.
-     * @principle Allows any access for prototyping.
+     * @allow (get, list) - Any user can read NPS data.
+     * @deny (create, update, delete) - No user can create, update, or delete NPS data without further authorization.
+     * @principle Allows public reads with restricted writes.
      */
     match /nps_data/{date} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
 
-   /**
-     * @description Allows all read and write operations on the processed_nps_verbatims collection.
+    /**
+     * @description Allows public read access to processed NPS verbatims, but restricts write access.
      * @path /processed_nps_verbatims/{taskId}
-     * @allow (get, list, create, update, delete) - Any user can perform any operation.
-     * @deny None - All operations are allowed.
-     * @principle Allows any access for prototyping.
+     * @allow (get, list) - Any user can read processed NPS verbatims.
+     * @deny (create, update, delete) - No user can create, update, or delete processed NPS verbatims without further authorization.
+     * @principle Allows public reads with restricted writes.
      */
     match /processed_nps_verbatims/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if true;
+      allow create, update, delete: if false;
     }
   }
 }
