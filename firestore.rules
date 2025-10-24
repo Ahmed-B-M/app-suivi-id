@@ -1,8 +1,81 @@
+/**
+ * @fileoverview Firestore Security Rules for Prototyping.
+ *
+ * Core Philosophy: This ruleset allows completely open access to the database.
+ *   This is for rapid prototyping ONLY and provides absolutely no data protection.
+ *   It is CRITICAL to replace these rules with a proper security model before deployment.
+ *
+ * Data Structure: Top-level collections are used for each entity type: 'tasks', 'rounds',
+ *   'categorized_comments', 'nps_data', and 'processed_nps_verbatims'.
+ *
+ * Key Security Decisions:
+ *   - All reads and writes are allowed for all users.
+ *   - No schema validation is performed.
+ *
+ * WARNING: These rules are INSECURE and should NEVER be used in a production environment.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    /**
+     * @description Allows all read and write operations on the tasks collection.
+     * @path /tasks/{taskId}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None - All operations are allowed.
+     * @principle Allows any access for prototyping.
+     */
+    match /tasks/{taskId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows all read and write operations on the rounds collection.
+     * @path /rounds/{roundId}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None - All operations are allowed.
+     * @principle Allows any access for prototyping.
+     */
+    match /rounds/{roundId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows all read and write operations on the categorized_comments collection.
+     * @path /categorized_comments/{taskId}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None - All operations are allowed.
+     * @principle Allows any access for prototyping.
+     */
+    match /categorized_comments/{taskId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+    /**
+     * @description Allows all read and write operations on the nps_data collection.
+     * @path /nps_data/{date}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None - All operations are allowed.
+     * @principle Allows any access for prototyping.
+     */
+    match /nps_data/{date} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
+    }
+
+   /**
+     * @description Allows all read and write operations on the processed_nps_verbatims collection.
+     * @path /processed_nps_verbatims/{taskId}
+     * @allow (get, list, create, update, delete) - Any user can perform any operation.
+     * @deny None - All operations are allowed.
+     * @principle Allows any access for prototyping.
+     */
+    match /processed_nps_verbatims/{taskId} {
+      allow get, list: if true;
+      allow create, update, delete: if true;
     }
   }
 }
