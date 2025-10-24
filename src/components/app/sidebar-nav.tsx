@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -53,7 +54,7 @@ const links = [
   },
   {
     href: "/nps-analysis",
-    label: "Analyse NPS",
+    label: "Integration NPS",
     icon: <BarChart />,
   },
    {
