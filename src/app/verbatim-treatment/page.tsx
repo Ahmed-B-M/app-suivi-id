@@ -2,9 +2,6 @@
 "use client";
 
 import { useState, useMemo, useTransition, useEffect, useRef } from 'react';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection } from 'firebase/firestore';
-import { useFirebase } from '@/firebase/provider';
 import { useFilters } from '@/context/filter-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,8 +29,7 @@ export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
 export default function VerbatimTreatmentPage() {
-  const { firestore } = useFirebase();
-  const { allNpsData, isContextLoading } = useFilters();
+  const { allProcessedVerbatims, isContextLoading } = useFilters();
   const { toast } = useToast();
 
   const [editableVerbatims, setEditableVerbatims] = useState<ProcessedVerbatim[]>([]);
@@ -42,41 +38,10 @@ export default function VerbatimTreatmentPage() {
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const processedVerbatimsCollection = useMemo(() =>
-    firestore ? collection(firestore, 'processed_nps_verbatims') : null,
-    [firestore]
-  );
-  const { data: savedVerbatims = [], loading: isLoadingSaved } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection);
-
-  const detractorVerbatims = useMemo(() => {
-    return allNpsData.flatMap(d => d.verbatims).filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
-  }, [allNpsData]);
-
   useEffect(() => {
-    const savedVerbatimsMap = new Map(savedVerbatims.map(v => [v.taskId, v]));
-    const mergedVerbatims: ProcessedVerbatim[] = detractorVerbatims.map(v => {
-      const saved = savedVerbatimsMap.get(v.taskId);
-      const savedCategory = saved?.category || [];
-      return {
-        id: v.taskId, // Use taskId as the unique key for the row
-        taskId: v.taskId,
-        npsScore: v.npsScore,
-        verbatim: v.verbatim,
-        responsibilities: saved?.responsibilities || [],
-        category: Array.isArray(savedCategory) ? savedCategory : [savedCategory],
-        status: saved?.status || 'à traiter',
-        store: v.store,
-        taskDate: v.taskDate,
-        carrier: v.carrier,
-        depot: v.depot,
-        driver: v.driver,
-      };
-    });
-
-    const filtered = mergedVerbatims.filter(v => statusFilter === 'tous' || v.status === statusFilter);
+    const filtered = allProcessedVerbatims.filter(v => statusFilter === 'tous' || v.status === statusFilter);
     setEditableVerbatims(filtered);
-
-  }, [detractorVerbatims, savedVerbatims, statusFilter]);
+  }, [allProcessedVerbatims, statusFilter]);
 
   const handleResponsibilityChange = (id: string, newResponsibilities: string[]) => {
     setEditableVerbatims(prev =>
@@ -134,7 +99,7 @@ export default function VerbatimTreatmentPage() {
   };
 
 
-  const isLoading = isContextLoading || isLoadingSaved;
+  const isLoading = isContextLoading;
 
   return (
     <main className="container mx-auto py-10">
@@ -201,7 +166,7 @@ export default function VerbatimTreatmentPage() {
                      <TableCell>
                         <MultiSelectCombobox
                             options={responsibilityOptions}
-                            selected={verbatim.responsibilities}
+                            selected={Array.isArray(verbatim.responsibilities) ? verbatim.responsibilities : [verbatim.responsibilities].filter(Boolean)}
                             onChange={(newSelection) => handleResponsibilityChange(verbatim.id, newSelection)}
                             placeholder="Sélectionner..."
                             className="w-full"
@@ -381,4 +346,3 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
     </Popover>
   );
 }
-

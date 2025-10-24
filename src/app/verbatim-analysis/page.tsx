@@ -9,15 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function VerbatimAnalysisPage() {
-  const { processedVerbatims, isContextLoading } = useFilters();
+  const { allProcessedVerbatims, isContextLoading } = useFilters();
 
   const analysisData = useMemo(() => {
-    if (isContextLoading || !processedVerbatims) {
+    const verbatimsToShow = allProcessedVerbatims.filter(v => v.status === 'traité');
+
+    if (isContextLoading || !verbatimsToShow) {
       return { byCategory: [], byResponsibility: [] };
     }
 
     const byCategory = Object.entries(
-      processedVerbatims.reduce((acc, verbatim) => {
+      verbatimsToShow.reduce((acc, verbatim) => {
         const categories = Array.isArray(verbatim.category) ? verbatim.category : [verbatim.category];
         categories.forEach(cat => {
           if (cat) acc[cat] = (acc[cat] || 0) + 1;
@@ -27,7 +29,7 @@ export default function VerbatimAnalysisPage() {
     ).map(([name, value]) => ({ name, value }));
 
     const byResponsibility = Object.entries(
-      processedVerbatims.reduce((acc, verbatim) => {
+      verbatimsToShow.reduce((acc, verbatim) => {
         const responsibilities = Array.isArray(verbatim.responsibilities) ? verbatim.responsibilities : [verbatim.responsibilities];
         responsibilities.forEach(resp => {
           if (resp) acc[resp] = (acc[resp] || 0) + 1;
@@ -37,7 +39,7 @@ export default function VerbatimAnalysisPage() {
     ).map(([name, value]) => ({ name, value }));
 
     return { byCategory, byResponsibility };
-  }, [processedVerbatims, isContextLoading]);
+  }, [allProcessedVerbatims, isContextLoading]);
 
   if (isContextLoading) {
     return (

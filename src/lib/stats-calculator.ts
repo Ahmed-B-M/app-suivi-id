@@ -272,7 +272,9 @@ export function calculateDashboardStats(
     // --- End NPS Calculation ---
 
     // --- Processed Verbatims Analysis ---
-    const verbatimsByCategory = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
+    const verbatimsToShow = processedVerbatims.filter(v => v.status === 'traité');
+
+    const verbatimsByCategory = Object.entries(verbatimsToShow.reduce((acc, verbatim) => {
         const categories = Array.isArray(verbatim.category) ? verbatim.category : [verbatim.category];
         categories.forEach(cat => {
             if (cat) acc[cat] = (acc[cat] || 0) + 1;
@@ -280,7 +282,7 @@ export function calculateDashboardStats(
         return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
-    const verbatimsByResponsibility = Object.entries(processedVerbatims.reduce((acc, verbatim) => {
+    const verbatimsByResponsibility = Object.entries(verbatimsToShow.reduce((acc, verbatim) => {
         const responsibilities = Array.isArray(verbatim.responsibilities) ? verbatim.responsibilities : [verbatim.responsibilities];
         responsibilities.forEach(resp => {
              if (resp) acc[resp] = (acc[resp] || 0) + 1;

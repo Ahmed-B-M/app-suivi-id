@@ -8,10 +8,11 @@ import { getDepotFromHub, getHubCategory, getDriverFullName } from '@/lib/groupi
 import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-collection';
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim } from '@/lib/types';
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
+import { ProcessedVerbatim } from '@/app/verbatim-treatment/page';
 
 
 type FilterType = 'tous' | 'magasin' | 'entrepot';
@@ -40,7 +41,8 @@ interface FilterContextProps {
   allRounds: Tournee[];
   allComments: CategorizedComment[];
   allNpsData: NpsData[];
-  processedVerbatims: ProcessedNpsVerbatim[];
+  processedVerbatims: SavedProcessedNpsVerbatim[];
+  allProcessedVerbatims: ProcessedVerbatim[];
   isContextLoading: boolean;
 }
 
@@ -136,7 +138,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
-  const { data: allProcessedVerbatims = [], loading: isLoadingProcessedVerbatims } = useCollection<ProcessedNpsVerbatim>(processedVerbatimsCollection, []);
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, []);
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
@@ -194,8 +196,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return roundsToFilter;
   }, [allRounds, filterType, selectedDepot, selectedStore]);
 
-  const filteredProcessedVerbatims = useMemo(() => {
-    let verbatimsToFilter = allProcessedVerbatims;
+  const processedVerbatims = useMemo(() => {
+    let verbatimsToFilter = allSavedVerbatims;
 
     const from = dateRange?.from;
     const to = dateRange?.to;
@@ -215,7 +217,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
     }
     return verbatimsToFilter;
-  }, [allProcessedVerbatims, dateRange, selectedDepot, selectedStore]);
+  }, [allSavedVerbatims, dateRange, selectedDepot, selectedStore]);
 
 
   const allComments = useMemo(() => {
@@ -316,6 +318,34 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     }];
   }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
 
+  const allProcessedVerbatims = useMemo(() => {
+    const detractorVerbatims = allNpsData.flatMap(d => d.verbatims).filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
+
+    const savedVerbatimsMap = new Map(allSavedVerbatims.map(v => [v.taskId, v]));
+
+    const mergedVerbatims: ProcessedVerbatim[] = detractorVerbatims.map(v => {
+      const saved = savedVerbatimsMap.get(v.taskId);
+      const savedCategory = saved?.category || [];
+      return {
+        id: v.taskId,
+        taskId: v.taskId,
+        npsScore: v.npsScore,
+        verbatim: v.verbatim,
+        responsibilities: saved?.responsibilities || [],
+        category: Array.isArray(savedCategory) ? savedCategory : [savedCategory],
+        status: saved?.status || 'à traiter',
+        store: v.store,
+        taskDate: v.taskDate,
+        carrier: v.carrier,
+        depot: v.depot,
+        driver: v.driver,
+      };
+    });
+
+    return mergedVerbatims;
+
+  }, [allNpsData, allSavedVerbatims]);
+
 
   return (
     <FilterContext.Provider
@@ -339,8 +369,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allRounds: filteredRoundsByOtherCriteria,
         allComments,
         allNpsData,
-        processedVerbatims: filteredProcessedVerbatims,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingProcessedVerbatims,
+        processedVerbatims,
+        allProcessedVerbatims,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims,
       }}
     >
       {children}
