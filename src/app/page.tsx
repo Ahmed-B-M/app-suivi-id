@@ -35,8 +35,7 @@ import { getDriverFullName, getHubCategory, getDepotFromHub } from "@/lib/groupi
 import { calculateDashboardStats } from "@/lib/stats-calculator";
 import type { CategorizedComment } from "@/components/app/comment-analysis";
 import { CommentSummaryCard } from "@/components/app/comment-summary-card";
-import { VerbatimsByCategoryChart } from "@/components/app/verbatims-by-category-chart";
-import { VerbatimsByResponsibilityChart } from "@/components/app/verbatims-by-responsibility-chart";
+import { VerbatimSummaryTable } from "@/components/app/verbatim-summary-table";
 import { ScanbacDetailsDialog } from "@/components/app/scanbac-details-dialog";
 import { ForcedAddressDetailsDialog } from "@/components/app/forced-address-details-dialog";
 import { ForcedContactlessDetailsDialog } from "@/components/app/forced-contactless-details-dialog";
@@ -228,11 +227,8 @@ export default function DashboardPage() {
             />
           )}
 
-          {dashboardData.verbatimAnalysis && (dashboardData.verbatimAnalysis.byCategory.length > 0 || dashboardData.verbatimAnalysis.byResponsibility.length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <VerbatimsByCategoryChart data={dashboardData.verbatimAnalysis.byCategory} />
-              <VerbatimsByResponsibilityChart data={dashboardData.verbatimAnalysis.byResponsibility} />
-            </div>
+          {dashboardData.verbatimAnalysis && dashboardData.verbatimAnalysis.total > 0 && (
+              <VerbatimSummaryTable analysis={dashboardData.verbatimAnalysis} />
           )}
 
           <DriverPerformanceTable data={dashboardData.driverPerformance || []} isLoading={false} />

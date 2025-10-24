@@ -274,21 +274,26 @@ export function calculateDashboardStats(
     // --- Processed Verbatims Analysis ---
     const verbatimsToShow = processedVerbatims.filter(v => v.status === 'traité');
 
-    const verbatimsByCategory = Object.entries(verbatimsToShow.reduce((acc, verbatim) => {
-        const categories = Array.isArray(verbatim.category) ? verbatim.category : [verbatim.category];
+    const byCategoryMap: Record<string, number> = {};
+    verbatimsToShow.forEach(v => {
+        const categories = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
         categories.forEach(cat => {
-            if (cat) acc[cat] = (acc[cat] || 0) + 1;
-        })
-        return acc;
-    }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
-
-    const verbatimsByResponsibility = Object.entries(verbatimsToShow.reduce((acc, verbatim) => {
-        const responsibilities = Array.isArray(verbatim.responsibilities) ? verbatim.responsibilities : [verbatim.responsibilities];
-        responsibilities.forEach(resp => {
-             if (resp) acc[resp] = (acc[resp] || 0) + 1;
+            if (cat) byCategoryMap[cat] = (byCategoryMap[cat] || 0) + 1;
         });
-        return acc;
-    }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
+    });
+    const verbatimsByCategory = Object.entries(byCategoryMap)
+        .map(([name, count]) => ({ name, count, percentage: verbatimsToShow.length > 0 ? (count / verbatimsToShow.length) * 100 : 0 }))
+        .sort((a, b) => b.count - a.count);
+
+    const byResponsibilityMap: Record<string, number> = {};
+    verbatimsToShow.forEach(v => {
+        const responsibilities = Array.isArray(v.responsibilities) ? v.responsibilities : (v.responsibilities ? [v.responsibilities] : []);
+        const key = responsibilities.length > 0 ? [...new Set(responsibilities)].sort().join('/') : 'Inconnu';
+        byResponsibilityMap[key] = (byResponsibilityMap[key] || 0) + 1;
+    });
+    const verbatimsByResponsibility = Object.entries(byResponsibilityMap)
+        .map(([name, count]) => ({ name, count, percentage: verbatimsToShow.length > 0 ? (count / verbatimsToShow.length) * 100 : 0 }))
+        .sort((a, b) => b.count - a.count);
     // --- End Processed Verbatims Analysis ---
 
 
@@ -349,6 +354,7 @@ export function calculateDashboardStats(
         attitudeComments,
       },
       verbatimAnalysis: {
+        total: verbatimsToShow.length,
         byCategory: verbatimsByCategory,
         byResponsibility: verbatimsByResponsibility,
       }
