@@ -296,6 +296,36 @@ export function calculateDashboardStats(
         .sort((a, b) => b.count - a.count);
     // --- End Processed Verbatims Analysis ---
 
+    // --- Overload Calculations ---
+    const tasksDataByRound = new Map<string, { weight: number, bacs: number }>();
+    tasks.forEach(task => {
+        if (task.nomTournee && task.date && task.nomHub) {
+            const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
+            if (!tasksDataByRound.has(roundKey)) {
+                tasksDataByRound.set(roundKey, { weight: 0, bacs: 0 });
+            }
+            const data = tasksDataByRound.get(roundKey)!;
+            data.weight += task.dimensions?.poids ?? 0;
+            data.bacs += (task.articles ?? []).filter(a => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
+        }
+    });
+
+    let overweightRoundsCount = 0;
+    let overbacsRoundsCount = 0;
+    rounds.forEach(round => {
+        const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
+        const roundData = tasksDataByRound.get(roundKey);
+        if (roundData) {
+            if (roundData.weight > 1250) {
+                overweightRoundsCount++;
+            }
+            if (roundData.bacs > 105) {
+                overbacsRoundsCount++;
+            }
+        }
+    });
+    // --- End Overload Calculations ---
+
 
     return {
       hasData,
@@ -326,6 +356,8 @@ export function calculateDashboardStats(
         alertRate,
         nps,
         npsResponseCount,
+        overweightRounds: overweightRoundsCount,
+        overbacsRounds: overbacsRoundsCount,
       },
       top5StarDrivers,
       earlyTasks,

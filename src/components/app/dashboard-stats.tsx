@@ -30,7 +30,9 @@ import {
   TimerOff,
   Trophy,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Weight,
+  Boxes,
 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
@@ -63,6 +65,8 @@ type DashboardStatsProps = {
     alertRate: number | null;
     nps: number | null;
     npsResponseCount: number;
+    overweightRounds: number;
+    overbacsRounds: number;
   };
   topDrivers: { name: string; fiveStarCount: number }[];
   onRatingClick: () => void;
@@ -187,7 +191,7 @@ export function DashboardStats({
   return (
     <div className="space-y-6">
       {/* Main KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatCard
           title="Taux d'échec"
           value={
@@ -264,6 +268,9 @@ export function DashboardStats({
           description="Validation via l'app mobile"
           onClick={onScanbacClick}
         />
+      </div>
+
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
          <StatCard 
             title="Sur place forcé" 
             value={`${stats.forcedAddressRate?.toFixed(2) ?? 'N/A'}%`} 
@@ -278,7 +285,22 @@ export function DashboardStats({
             variant={getVariant(stats.forcedContactlessRate, { success: 2, warning: 5, isHigherBetter: false })}
             onClick={onForcedContactlessClick}
         />
-      </div>
+         <StatCard 
+            title="Surcharge Poids (>1250kg)" 
+            value={`${stats.overweightRounds}`} 
+            icon={<Weight className="h-4 w-4 text-muted-foreground" />} 
+            variant={stats.overweightRounds > 0 ? 'danger' : 'success'}
+            // onClick={onOverweightClick} // TODO: Implement this
+          />
+        <StatCard 
+            title="Surcharge Bacs (>105)" 
+            value={`${stats.overbacsRounds}`} 
+            icon={<Boxes className="h-4 w-4 text-muted-foreground" />} 
+            variant={stats.overbacsRounds > 0 ? 'danger' : 'success'}
+            // onClick={onOverbacsClick} // TODO: Implement this
+        />
+       </div>
+
 
       {/* Secondary KPIs and Anomalies */}
       <div className="grid gap-4 md:grid-cols-3">
