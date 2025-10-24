@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -134,11 +133,25 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     ];
   }, [dateRange]);
   
+  const verbatimsDateFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    
+    if (!from) return [];
+    
+    const startDate = startOfDay(from);
+    const endDate = endOfDay(to ?? from);
+    
+    return [
+      where("taskDate", ">=", startDate.toISOString()),
+      where("taskDate", "<=", endDate.toISOString())
+    ];
+  }, [dateRange]);
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
-  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, []);
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, verbatimsDateFilters);
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
@@ -199,17 +212,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const processedVerbatims = useMemo(() => {
     let verbatimsToFilter = allSavedVerbatims;
 
-    const from = dateRange?.from;
-    const to = dateRange?.to;
-    if (from) {
-        const endDate = to ?? from;
-        verbatimsToFilter = verbatimsToFilter.filter(v => {
-            if (!v.taskDate) return false;
-            const taskDate = new Date(v.taskDate);
-            return taskDate >= startOfDay(from) && taskDate <= endOfDay(endDate);
-        });
-    }
-
     if (selectedDepot !== "all") {
        verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
     }
@@ -217,7 +219,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
     }
     return verbatimsToFilter;
-  }, [allSavedVerbatims, dateRange, selectedDepot, selectedStore]);
+  }, [allSavedVerbatims, selectedDepot, selectedStore]);
 
 
   const allComments = useMemo(() => {
@@ -319,26 +321,23 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
   
  const allProcessedVerbatims = useMemo(() => {
-    // Start with a map of verbatims that are already saved in Firestore.
-    // This ensures their 'traité' status is preserved.
+    // 1. Start with a map of verbatims already saved in Firestore, filtered by date/depot/store
     const verbatimsMap = new Map<string, ProcessedVerbatim>();
-    allSavedVerbatims.forEach(v => {
+    processedVerbatims.forEach(v => {
         verbatimsMap.set(v.taskId, {
             ...v,
-            // Ensure 'category' and 'responsibilities' are always arrays for consistency
             category: Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []),
             responsibilities: Array.isArray(v.responsibilities) ? v.responsibilities : (v.responsibilities ? [v.responsibilities] : []),
         });
     });
-
-    // Get all detractor verbatims from the current NPS data scope (filtered by date, etc.).
+    
+    // 2. Get all detractor verbatims from the current NPS data scope (already filtered by date, etc.).
     const detractorVerbatims = allNpsData
         .flatMap(d => d.verbatims)
         .filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
 
-    // Add only the NEW detractor verbatims to the map with 'à traiter' status.
+    // 3. Add only the NEW detractor verbatims to the map with 'à traiter' status.
     detractorVerbatims.forEach(v => {
-        // If the verbatim is NOT already in our map, it's a new one.
         if (!verbatimsMap.has(v.taskId)) {
             verbatimsMap.set(v.taskId, {
                 id: v.taskId,
@@ -347,7 +346,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
                 verbatim: v.verbatim,
                 responsibilities: [],
                 category: [],
-                status: 'à traiter', // Default status for new items
+                status: 'à traiter',
                 store: v.store,
                 taskDate: v.taskDate,
                 carrier: v.carrier,
@@ -357,9 +356,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    // Return the combined list of verbatims
     return Array.from(verbatimsMap.values());
-}, [allNpsData, allSavedVerbatims]);
+}, [allNpsData, processedVerbatims]);
 
 
   return (
@@ -401,3 +399,5 @@ export function useFilters() {
   }
   return context;
 }
+
+    

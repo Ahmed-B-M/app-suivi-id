@@ -24,7 +24,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 
 
-export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category'> & { id: string, category: string[] };
+export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category' | 'responsibilities'> & { 
+  id: string, 
+  category: string[],
+  responsibilities: string[]
+};
 
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
@@ -61,7 +65,6 @@ export default function VerbatimTreatmentPage() {
       const result = await saveProcessedVerbatimAction(verbatim);
       if (result.success) {
         toast({ title: 'Succès', description: 'Verbatim sauvegardé.' });
-        // Optimistically update the status in the UI
         setEditableVerbatims(prev => prev.map(v => v.id === verbatim.id ? { ...v, status: 'traité' } : v));
       } else {
         toast({ title: 'Erreur', description: result.error, variant: 'destructive' });
@@ -166,7 +169,7 @@ export default function VerbatimTreatmentPage() {
                      <TableCell>
                         <MultiSelectCombobox
                             options={responsibilityOptions}
-                            selected={Array.isArray(verbatim.responsibilities) ? verbatim.responsibilities : [verbatim.responsibilities].filter(Boolean)}
+                            selected={verbatim.responsibilities}
                             onChange={(newSelection) => handleResponsibilityChange(verbatim.id, newSelection)}
                             placeholder="Sélectionner..."
                             className="w-full"
@@ -346,3 +349,5 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
     </Popover>
   );
 }
+
+    

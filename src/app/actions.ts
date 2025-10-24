@@ -546,12 +546,11 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
   try {
     const { firestore } = await initializeFirebaseOnServer();
     
-    // Use taskId as the document ID to ensure uniqueness and easy lookups
     const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
     
     const dataToSave: ProcessedVerbatim = {
       ...verbatim,
-      status: 'traité' // Set status to 'traité' on save
+      status: 'traité'
     };
     
     await docRef.set(dataToSave, { merge: true });
