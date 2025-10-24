@@ -125,13 +125,23 @@ export function generateQualityEmailBody(
     ]);
     
     const globalCommentsByCategory: Record<string, number> = {};
-    allComments.forEach(c => { globalCommentsByCategory[c.category] = (globalCommentsByCategory[c.category] || 0) + 1; });
+    allComments.forEach(c => {
+        const categories = Array.isArray(c.category) ? c.category : [c.category];
+        categories.forEach(cat => {
+             if(cat) globalCommentsByCategory[cat] = (globalCommentsByCategory[cat] || 0) + 1;
+        })
+    });
     const globalCommentsCategoryData = Object.entries(globalCommentsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
         name, count, percentage: allComments.length > 0 ? (count / allComments.length) * 100 : 0
     }));
 
     const globalVerbatimsByCategory: Record<string, number> = {};
-    processedVerbatims.forEach(v => { globalVerbatimsByCategory[v.category] = (globalVerbatimsByCategory[v.category] || 0) + 1; });
+    processedVerbatims.forEach(v => {
+        const categories = Array.isArray(v.category) ? v.category : [v.category];
+        categories.forEach(cat => {
+            if(cat) globalVerbatimsByCategory[cat] = (globalVerbatimsByCategory[cat] || 0) + 1;
+        })
+    });
     const globalVerbatimsCategoryData = Object.entries(globalVerbatimsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
         name, count, percentage: processedVerbatims.length > 0 ? (count / processedVerbatims.length) * 100 : 0
     }));
@@ -198,17 +208,27 @@ export function generateQualityEmailBody(
         }
 
 
-        // --- Categories ---
+        // --- Categories for this Depot ---
         const depotComments = allComments.filter(c => depot.carriers.some(carrier => carrier.drivers.some(driver => driver.name === c.driverName)));
         const commentsByCategory: Record<string, number> = {};
-        depotComments.forEach(c => { commentsByCategory[c.category] = (commentsByCategory[c.category] || 0) + 1; });
+        depotComments.forEach(c => {
+            const categories = Array.isArray(c.category) ? c.category : [c.category];
+            categories.forEach(cat => {
+                if(cat) commentsByCategory[cat] = (commentsByCategory[cat] || 0) + 1;
+            });
+        });
         const commentsCategoryData = Object.entries(commentsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
             name, count, percentage: depotComments.length > 0 ? (count / depotComments.length) * 100 : 0
         }));
 
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
         const verbatimsByCategory: Record<string, number> = {};
-        depotVerbatims.forEach(v => { verbatimsByCategory[v.category] = (verbatimsByCategory[v.category] || 0) + 1; });
+        depotVerbatims.forEach(v => {
+            const categories = Array.isArray(v.category) ? v.category : [v.category];
+            categories.forEach(cat => {
+                if(cat) verbatimsByCategory[cat] = (verbatimsByCategory[cat] || 0) + 1;
+            });
+        });
         const verbatimsCategoryData = Object.entries(verbatimsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
             name, count, percentage: depotVerbatims.length > 0 ? (count / depotVerbatims.length) * 100 : 0
         }));
