@@ -108,6 +108,7 @@ export interface Tache {
 export interface Tournee {
   id: string;
   carrierOverride?: string;
+  buStatus?: 'active' | 'inactive';
   date?: string | Date | Timestamp;
   hub?: any;
   nomHub?: string;

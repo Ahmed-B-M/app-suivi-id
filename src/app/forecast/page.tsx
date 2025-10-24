@@ -31,7 +31,6 @@ export default function ForecastPage() {
 
     const activeRules = rules.filter(r => r.isActive);
     const timeRules = activeRules.filter(r => r.type === 'time');
-    const typeRules = activeRules.filter(r => r.type === 'type');
 
     const dataByDepot: Record<string, {
       total: number;
@@ -60,6 +59,7 @@ export default function ForecastPage() {
       dataByDepot[depot].total++;
       dataByDepot[depot].carriers[carrier].total++;
       
+      // Time-based classification (Matin/Soir)
       let isTimeAssigned = false;
       for (const rule of timeRules) {
         if (round.nomHub && Array.isArray(rule.keywords) && rule.keywords.some(k => round.nomHub!.toLowerCase().includes(k.toLowerCase()))) {
@@ -70,18 +70,12 @@ export default function ForecastPage() {
         }
       }
 
-      let isTypeAssigned = false;
-      for (const rule of typeRules) {
-        if (round.name && Array.isArray(rule.keywords) && rule.keywords.some(k => round.name!.toLowerCase().startsWith(k.toLowerCase()))) {
-          if (rule.category === 'BU') dataByDepot[depot].carriers[carrier].bu++;
-          isTypeAssigned = true;
-          break;
-        }
-      }
-
-      // If no type rule matched, it's a "Classique"
-      if (!isTypeAssigned) {
-        dataByDepot[depot].carriers[carrier].classique++;
+      // BU classification based on direct field
+      if (round.buStatus === 'active') {
+         dataByDepot[depot].carriers[carrier].bu++;
+      } else {
+        // If it's not a BU round, it's a classique round.
+         dataByDepot[depot].carriers[carrier].classique++;
       }
     });
 
@@ -95,7 +89,7 @@ export default function ForecastPage() {
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Prévisions par Dépôt et Transporteur</CardTitle>
-          <CardDescription>Analyse quantitative des tournées prévisionnelles basée sur les règles d'affectation.</CardDescription>
+          <CardDescription>Analyse quantitative des tournées prévisionnelles basée sur les affectations et classifications.</CardDescription>
         </CardHeader>
         <CardContent>
            <Accordion type="multiple" className="w-full space-y-4">
