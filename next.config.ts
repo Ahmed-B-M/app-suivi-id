@@ -31,11 +31,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    turbopack: {
-      externals: ['papaparse'],
-    },
-  },
 };
 
 export default nextConfig;
