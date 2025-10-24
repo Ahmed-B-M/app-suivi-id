@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Layers, Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History, RefreshCw } from "lucide-react";
+import { Layers, Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useFilters } from "@/context/filter-context";
@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DEPOTS_LIST } from "@/lib/grouping";
-import { useState } from "react";
 import { Separator } from "../ui/separator";
 
 export function AppHeader() {
@@ -41,7 +40,6 @@ export function AppHeader() {
     selectedStore,
     setSelectedStore,
     lastUpdateTime,
-    refreshData,
   } = useFilters();
 
   const handleDepotChange = (value: string) => {
@@ -201,10 +199,6 @@ export function AppHeader() {
               ))}
             </SelectContent>
           </Select>
-
-           <Button variant="ghost" size="icon" onClick={refreshData} title="Actualiser les données">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
 
         </div>
       </div>

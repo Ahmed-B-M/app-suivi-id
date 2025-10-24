@@ -54,9 +54,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('day');
   const [date, setDate] = useState<Date | undefined>(startOfDay(new Date()));
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfDay(new Date()),
-    to: endOfDay(new Date()),
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const today = startOfDay(new Date());
+    return { from: today, to: endOfDay(today) };
   });
 
   const [selectedDepot, setSelectedDepot] = useState('all');
@@ -84,6 +84,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
        if (date?.getTime() !== fromDate.getTime()) {
          setDate(fromDate);
        }
+    } else if (dateFilterMode === 'range' && !dateRange?.from) {
+        // Ensure a default range is set if user switches to range with no selection
+        const today = new Date();
+        setDateRange({ from: subDays(today, 7), to: today });
     }
   }, [dateRange, dateFilterMode]);
 
@@ -114,11 +118,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     const from = dateRange?.from;
     const to = dateRange?.to;
     
-    if (!from || !to) return [];
+    if (!from) return [];
     
     return [
       where("date", ">=", from),
-      where("date", "<=", to)
+      where("date", "<=", to ?? from) // Use 'from' if 'to' is not set
     ];
   }, [dateRange]);
   
@@ -126,11 +130,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     const from = dateRange?.from;
     const to = dateRange?.to;
 
-    if (!from || !to) return [];
+    if (!from) return [];
 
     return [
       where("associationDate", ">=", format(from, 'yyyy-MM-dd')),
-      where("associationDate", "<=", format(to, 'yyyy-MM-dd'))
+      where("associationDate", "<=", format(to ?? from, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
   
@@ -203,11 +207,12 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     // Filter by date range first
     const from = dateRange?.from;
     const to = dateRange?.to;
-    if (from && to) {
+    if (from) {
+        const endDate = to ?? from;
         verbatimsToFilter = verbatimsToFilter.filter(v => {
             if (!v.taskDate) return false;
             const taskDate = new Date(v.taskDate);
-            return taskDate >= from && taskDate <= to;
+            return taskDate >= startOfDay(from) && taskDate <= endOfDay(endDate);
         });
     }
 
