@@ -388,6 +388,18 @@
         "content": { "type": "string", "description": "The content of the note." }
       },
       "required": ["date", "content"]
+    },
+    "ActionNoteDepot": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ActionNoteDepot",
+      "type": "object",
+      "description": "Represents a daily note or action plan related to driver feedback for a specific depot.",
+      "properties": {
+        "depot": { "type": "string", "description": "The name of the depot." },
+        "date": { "type": "string", "format": "date", "description": "The date of the note in YYYY-MM-DD format." },
+        "content": { "type": "string", "description": "The content of the note." }
+      },
+      "required": ["depot", "date", "content"]
     }
   },
   "auth": {
@@ -482,6 +494,20 @@
             {
               "name": "date",
               "description": "The date of the note."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/action_notes_depot/{depotDateId}",
+        "definition": {
+          "entityName": "ActionNoteDepot",
+          "schema": { "$ref": "#/backend/entities/ActionNoteDepot" },
+          "description": "Stores daily action notes for a specific depot. The document ID is a composite of `depot-date`.",
+          "params": [
+            {
+              "name": "depotDateId",
+              "description": "The unique identifier for the note, e.g., 'Aix-2024-08-01'."
             }
           ]
         }

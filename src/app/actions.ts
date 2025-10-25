@@ -577,14 +577,15 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
 }
 
 // --- Save Action Note to Firestore ---
-export async function saveActionNoteAction(note: { content: string; date: string }) {
+export async function saveActionNoteAction(note: { depot: string, content: string; date: string }) {
   try {
     const { firestore } = await initializeFirebaseOnServer();
-    const docId = note.date; // Use YYYY-MM-DD as the document ID
-    const docRef = firestore.collection("action_notes").doc(docId);
+    const docId = `${note.depot}-${note.date}`; // Use depot-YYYY-MM-DD as the document ID
+    const docRef = firestore.collection("action_notes_depot").doc(docId);
     
-    // Using set with merge to create or update the document for that day
+    // Using set with merge to create or update the document for that day and depot
     await docRef.set({
+      depot: note.depot,
       date: note.date,
       content: note.content
     }, { merge: true });

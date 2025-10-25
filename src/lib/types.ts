@@ -260,3 +260,10 @@ export type ProcessedNpsVerbatim = {
     driver?: string;
     associationDate: string;
 }
+
+export interface ActionNoteDepot {
+    id: string; // Will be `depot-date` format
+    depot: string;
+    date: string; // YYYY-MM-DD
+    content: string;
+}
