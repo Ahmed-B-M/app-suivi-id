@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DriverStats } from "@/lib/scoring";
-import { User, Award, Star, Clock, Smartphone, MapPinOff, Ban, ListTodo } from "lucide-react";
+import { User, Award, Star, Clock, Smartphone, MapPinOff, Ban, ListTodo, TrendingDown, TrendingUp } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -72,55 +72,65 @@ const ColumnHeader = ({ title, tooltipText, children, className }: { title: stri
     </TableHead>
 )
 
-const DriverTable = ({ drivers }: { drivers: DriverStats[] }) => (
-    <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Livreur</TableHead>
-            <ColumnHeader title="Score" tooltipText="Score composite basé sur toutes les performances (sur 100)." className="w-[100px]">
-              <Award className="h-4 w-4" />
-            </ColumnHeader>
-            <ColumnHeader title="Note Moy." tooltipText="Note moyenne attribuée par les clients (sur 5)." className="w-[120px]">
-              <Star className="h-4 w-4" />
-            </ColumnHeader>
-            <ColumnHeader title="Ponctualité" tooltipText="Pourcentage de livraisons effectuées dans la fenêtre de ponctualité." className="w-[120px]">
-              <Clock className="h-4 w-4" />
-            </ColumnHeader>
-            <ColumnHeader title="SCANBAC" tooltipText="Pourcentage de tâches finalisées via l'application mobile." className="w-[120px]">
-              <Smartphone className="h-4 w-4" />
-            </ColumnHeader>
-            <ColumnHeader title="Sur Place Forcé" tooltipText="Pourcentage de tâches où l'arrivée a été forcée." className="w-[120px]">
-              <MapPinOff className="h-4 w-4" />
-            </ColumnHeader>
-            <ColumnHeader title="Cmd. Forcées" tooltipText="Pourcentage de livraisons forcées sans contact." className="w-[120px]">
-              <Ban className="h-4 w-4" />
-            </ColumnHeader>
-             <ColumnHeader title="Tâches" tooltipText="Nombre de tâches terminées sur la période." className="w-[100px]">
-              <ListTodo className="h-4 w-4" />
-            </ColumnHeader>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {drivers.map((driver) => (
-            <TableRow key={driver.name}>
-              <TableCell className="font-medium flex items-center gap-2">
-                <User className="text-muted-foreground"/> {driver.name}
-              </TableCell>
-              <TableCell className="text-right font-bold text-lg">
-                <Badge variant={driver.score! >= 80 ? "default" : "secondary" } className="w-14 justify-center text-base">
-                    {driver.score!.toFixed(1)}
-                </Badge>
-              </TableCell>
-              <StatCell value={driver.averageRating} isRate={false}/>
-              <StatCell value={driver.punctualityRate} unit="%"/>
-              <StatCell value={driver.scanbacRate} unit="%"/>
-              <StatCell value={driver.forcedAddressRate} unit="%" isLowerBetter/>
-              <StatCell value={driver.forcedContactlessRate} unit="%" isLowerBetter/>
-              <TableCell className="text-right font-mono text-muted-foreground">{driver.completedTasks}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+const DriverTable = ({ drivers, title, icon }: { drivers: DriverStats[], title: string, icon: React.ReactNode }) => (
+    <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                {icon}
+                {title}
+            </CardTitle>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Livreur</TableHead>
+                    <ColumnHeader title="Score" tooltipText="Score composite basé sur toutes les performances (sur 100)." className="w-[100px]">
+                      <Award className="h-4 w-4" />
+                    </ColumnHeader>
+                    <ColumnHeader title="Note Moy." tooltipText="Note moyenne attribuée par les clients (sur 5)." className="w-[120px]">
+                      <Star className="h-4 w-4" />
+                    </ColumnHeader>
+                    <ColumnHeader title="Ponctualité" tooltipText="Pourcentage de livraisons effectuées dans la fenêtre de ponctualité." className="w-[120px]">
+                      <Clock className="h-4 w-4" />
+                    </ColumnHeader>
+                    <ColumnHeader title="SCANBAC" tooltipText="Pourcentage de tâches finalisées via l'application mobile." className="w-[120px]">
+                      <Smartphone className="h-4 w-4" />
+                    </ColumnHeader>
+                    <ColumnHeader title="Sur Place Forcé" tooltipText="Pourcentage de tâches où l'arrivée a été forcée." className="w-[120px]">
+                      <MapPinOff className="h-4 w-4" />
+                    </ColumnHeader>
+                    <ColumnHeader title="Cmd. Forcées" tooltipText="Pourcentage de livraisons forcées sans contact." className="w-[120px]">
+                      <Ban className="h-4 w-4" />
+                    </ColumnHeader>
+                     <ColumnHeader title="Tâches" tooltipText="Nombre de tâches terminées sur la période." className="w-[100px]">
+                      <ListTodo className="h-4 w-4" />
+                    </ColumnHeader>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {drivers.map((driver) => (
+                    <TableRow key={driver.name}>
+                      <TableCell className="font-medium flex items-center gap-2">
+                        <User className="text-muted-foreground"/> {driver.name}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-lg">
+                        <Badge variant={driver.score! >= 80 ? "default" : "secondary" } className="w-14 justify-center text-base">
+                            {driver.score!.toFixed(1)}
+                        </Badge>
+                      </TableCell>
+                      <StatCell value={driver.averageRating} isRate={false}/>
+                      <StatCell value={driver.punctualityRate} unit="%"/>
+                      <StatCell value={driver.scanbacRate} unit="%"/>
+                      <StatCell value={driver.forcedAddressRate} unit="%" isLowerBetter/>
+                      <StatCell value={driver.forcedContactlessRate} unit="%" isLowerBetter/>
+                      <TableCell className="text-right font-mono text-muted-foreground">{driver.completedTasks}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+        </CardContent>
+    </Card>
 );
 
 
@@ -189,15 +199,13 @@ export function DriverPerformanceRankings({ data, isLoading }: DriverPerformance
     <div className="space-y-8">
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    Classement Complet des Livreurs
-                </CardTitle>
+                <CardTitle>Classement Complet des Livreurs</CardTitle>
                 <CardDescription>
-                    Liste de tous les livreurs classés par leur score de performance global.
+                    Liste de tous les livreurs classés par leur score de performance global, calculé sur la base de multiples indicateurs.
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-                <DriverTable drivers={rankings.full} />
+                <DriverTable drivers={rankings.full} title="Classement Complet" icon={<Award />} />
             </CardContent>
         </Card>
         

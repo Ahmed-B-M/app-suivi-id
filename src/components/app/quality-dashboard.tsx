@@ -69,8 +69,6 @@ export interface QualityData {
 interface QualityDashboardProps {
   data: QualityData | null;
   isLoading: boolean;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
 }
 
 // Components
@@ -149,36 +147,63 @@ const getScoreVariant = (score: number) => {
     return 'danger';
 }
 
-const Row = ({ name, data, icon, children }: { name: string, data: any, icon: React.ReactNode, children: React.ReactNode }) => {
-    return (
-        <AccordionItem value={name} className="border-none">
-            <Card>
-                <AccordionTrigger className="p-0 hover:no-underline">
-                    <div className="flex items-center w-full p-2">
-                        <div className="flex-1 flex items-center gap-2 font-semibold">
-                            {icon} {name}
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <StatBadge value={data.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
-                           <StatBadge value={data.npsScore} icon={<BarChart />} tooltipText="Score NPS" isNps={true} />
-                           <StatBadge value={data.punctualityRate} icon={<Clock />} tooltipText="Taux de Ponctualité" />
-                           <StatBadge value={data.scanbacRate} icon={<Smartphone />} tooltipText="Taux de SCANBAC" />
-                           <StatBadge value={data.forcedAddressRate} icon={<MapPinOff />} tooltipText="Taux 'Sur Place Forcé'" isLowerBetter />
-                           <StatBadge value={data.forcedContactlessRate} icon={<Ban />} tooltipText="Taux 'Cmd. Forcées'" isLowerBetter />
-                           <StatBadge value={data.lateOver1hRate} icon={<TimerOff />} tooltipText="Taux de Retard > 1h" isLowerBetter />
-                           <Badge variant="outline" className="h-7">{data.totalRatings} notes</Badge>
-                        </div>
-                    </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                    {children}
-                </AccordionContent>
-            </Card>
-        </AccordionItem>
-    );
-};
+const RowSummary = ({ name, data, icon }: { name: string, data: any, icon: React.ReactNode }) => (
+    <div className="flex items-center w-full p-2">
+        <div className="flex-1 flex items-center gap-2 font-semibold">
+            {icon} {name}
+        </div>
+        <div className="flex items-center gap-2">
+            <StatBadge value={data.averageRating} icon={<Star />} tooltipText="Note Moyenne" isRate={false} />
+            <StatBadge value={data.npsScore} icon={<BarChart />} tooltipText="Score NPS" isNps={true} />
+            <StatBadge value={data.punctualityRate} icon={<Clock />} tooltipText="Taux de Ponctualité" />
+            <StatBadge value={data.scanbacRate} icon={<Smartphone />} tooltipText="Taux de SCANBAC" />
+            <StatBadge value={data.forcedAddressRate} icon={<MapPinOff />} tooltipText="Taux 'Sur Place Forcé'" isLowerBetter />
+            <StatBadge value={data.forcedContactlessRate} icon={<Ban />} tooltipText="Taux 'Cmd. Forcées'" isLowerBetter />
+            <StatBadge value={data.lateOver1hRate} icon={<TimerOff />} tooltipText="Taux de Retard > 1h" isLowerBetter />
+            <Badge variant="outline" className="h-7">{data.totalRatings} notes</Badge>
+        </div>
+    </div>
+);
 
-export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange }: QualityDashboardProps) {
+const DriverTable = ({ drivers }: { drivers: DriverQuality[] }) => (
+    <div className="px-4 py-2">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Livreur</TableHead>
+                    <TableHead className="text-right">Score</TableHead>
+                    <TableHead className="text-right">Note Moy.</TableHead>
+                    <TableHead className="text-right">NPS</TableHead>
+                    <TableHead className="text-right">Ponctualité</TableHead>
+                    <TableHead className="text-right">SCANBAC</TableHead>
+                    <TableHead className="text-right">Forçage Adr.</TableHead>
+                    <TableHead className="text-right">Forçage Cmd.</TableHead>
+                    <TableHead className="text-right">Retard > 1h</TableHead>
+                    <TableHead className="text-right">Notes</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {drivers.map(driver => (
+                    <TableRow key={driver.name}>
+                        <TableCell className="font-medium">{driver.name}</TableCell>
+                        <TableCell className="text-right font-bold"><Badge variant={getScoreVariant((driver.score ?? 0) / 20)}>{driver.score?.toFixed(1)}</Badge></TableCell>
+                        <TableCell className="text-right font-mono">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
+                        <TableCell className="text-right font-mono">{driver.npsScore?.toFixed(1) ?? 'N/A'}</TableCell>
+                        <TableCell className="text-right font-mono">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                        <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                        <TableCell className="text-right font-mono">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                        <TableCell className="text-right font-mono">{driver.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                        <TableCell className="text-right font-mono">{driver.lateOver1hRate?.toFixed(1) ?? 'N/A'}%</TableCell>
+                        <TableCell className="text-right font-mono">{driver.totalRatings}</TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+);
+
+
+export function QualityDashboard({ data, isLoading }: QualityDashboardProps) {
 
     if (isLoading) {
         return <Skeleton className="h-96 w-full" />;
@@ -241,53 +266,26 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
                     <StatCard title="Retard > 1h" value={`${data.summary.lateOver1hRate?.toFixed(1) ?? 'N/A'}%`} icon={<TimerOff />} variant={getForcedVariant(data.summary.lateOver1hRate)} />
                 </div>
             </CardHeader>
-            <CardContent>
-                <Accordion type="multiple" className="w-full space-y-4">
-                    {data.details.map(depot => (
-                        <Row key={depot.name} name={depot.name} data={depot} icon={<Building />}>
-                            <Accordion type="multiple" className="w-full space-y-2 px-4 pb-2">
-                                {depot.carriers.map(carrier => (
-                                     <Row key={carrier.name} name={carrier.name} data={carrier} icon={<Truck />}>
-                                        <div className="px-4 py-2">
-                                            <Table>
-                                                 <TableHeader>
-                                                     <TableRow>
-                                                        <TableHead>Livreur</TableHead>
-                                                        <TableHead className="text-right">Score</TableHead>
-                                                        <TableHead className="text-right">Note Moy.</TableHead>
-                                                        <TableHead className="text-right">NPS</TableHead>
-                                                        <TableHead className="text-right">Ponctualité</TableHead>
-                                                        <TableHead className="text-right">SCANBAC</TableHead>
-                                                        <TableHead className="text-right">Forçage Adr.</TableHead>
-                                                        <TableHead className="text-right">Forçage Cmd.</TableHead>
-                                                        <TableHead className="text-right">Retard > 1h</TableHead>
-                                                        <TableHead className="text-right">Notes</TableHead>
-                                                     </TableRow>
-                                                 </TableHeader>
-                                                 <TableBody>
-                                                     {carrier.drivers.map(driver => (
-                                                        <TableRow key={driver.name}>
-                                                            <TableCell className="font-medium">{driver.name}</TableCell>
-                                                            <TableCell className="text-right font-bold"><Badge variant={getScoreVariant((driver.score ?? 0) / 20)}>{driver.score?.toFixed(1)}</Badge></TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.averageRating?.toFixed(2) ?? 'N/A'}</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.npsScore?.toFixed(1) ?? 'N/A'}</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.punctualityRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.scanbacRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.forcedAddressRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.forcedContactlessRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.lateOver1hRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-                                                            <TableCell className="text-right font-mono">{driver.totalRatings}</TableCell>
-                                                        </TableRow>
-                                                     ))}
-                                                 </TableBody>
-                                            </Table>
+            <CardContent className="space-y-4">
+                {data.details.map(depot => (
+                    <Card key={depot.name}>
+                        <Accordion type="single" collapsible>
+                             <AccordionItem value={depot.name} className="border-none">
+                                <AccordionTrigger className="p-0 hover:no-underline">
+                                    <RowSummary name={depot.name} data={depot} icon={<Building />} />
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-2">
+                                    {depot.carriers.map(carrier => (
+                                        <div key={carrier.name} className="ml-6 border-l-2 pl-4">
+                                            <RowSummary name={carrier.name} data={carrier} icon={<Truck />} />
+                                            <DriverTable drivers={carrier.drivers} />
                                         </div>
-                                     </Row>
-                                ))}
-                            </Accordion>
-                        </Row>
-                    ))}
-                </Accordion>
+                                    ))}
+                                </AccordionContent>
+                             </AccordionItem>
+                        </Accordion>
+                    </Card>
+                ))}
             </CardContent>
         </Card>
     );
