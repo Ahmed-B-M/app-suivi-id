@@ -26,6 +26,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { responsibilityCategoryMapping } from "@/lib/responsibility-mapping";
+
 
 interface CategoryData {
   name: string;
@@ -49,8 +51,9 @@ export default function VerbatimAnalysisPage() {
     if (isContextLoading || !verbatimsToShow || verbatimsToShow.length === 0) {
       return [];
     }
-
+    
     const totalUniqueVerbatims = verbatimsToShow.length;
+
     const byResponsibility: Record<string, { verbatims: Set<string>; categories: Record<string, number> }> = {};
 
     verbatimsToShow.forEach((verbatim) => {
@@ -69,7 +72,15 @@ export default function VerbatimAnalysisPage() {
         byResponsibility[resp].verbatims.add(verbatim.taskId);
 
         categories.forEach(cat => {
-            byResponsibility[resp].categories[cat] = (byResponsibility[resp].categories[cat] || 0) + 1;
+            // Get the default responsibility for the category
+            const defaultResp = Object.keys(responsibilityCategoryMapping).find(key => 
+                responsibilityCategoryMapping[key as keyof typeof responsibilityCategoryMapping].includes(cat)
+            );
+
+            // Associate category only if it belongs to the current responsibility
+            if (resp === 'Inconnu' || defaultResp === resp) {
+                byResponsibility[resp].categories[cat] = (byResponsibility[resp].categories[cat] || 0) + 1;
+            }
         });
       });
     });
@@ -78,18 +89,20 @@ export default function VerbatimAnalysisPage() {
       .map(([respName, data]) => {
         const uniqueVerbatimCount = data.verbatims.size;
         
+        const totalCategoryAssignments = Object.values(data.categories).reduce((sum, count) => sum + count, 0);
+
         const categoriesData = Object.entries(data.categories)
           .map(([catName, catCount]) => ({
             name: catName,
             count: catCount,
-            percentage: uniqueVerbatimCount > 0 ? (catCount / uniqueVerbatimCount) * 100 : 0,
+            percentage: totalCategoryAssignments > 0 ? (catCount / totalCategoryAssignments) * 100 : 0,
           }))
           .sort((a, b) => b.count - a.count);
 
         return {
           name: respName,
           count: uniqueVerbatimCount, // This is the count of unique verbatims for this responsibility
-          percentage: (uniqueVerbatimCount / totalUniqueVerbatims) * 100,
+          percentage: totalUniqueVerbatims > 0 ? (uniqueVerbatimCount / totalUniqueVerbatims) * 100 : 0,
           categories: categoriesData,
         };
       })
