@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -106,7 +105,7 @@ export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
     return tasks.flatMap(task => 
         task.articles?.map(article => ({
             tacheId: task.tacheId,
-            date: task.date,
+            date: task.date as string,
             nomTournee: task.nomTournee,
             nom: article.nom,
             codeBarre: article.codeBarre,
