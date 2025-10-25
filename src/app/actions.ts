@@ -550,19 +550,27 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     
     const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
     
-    // We need to find the original NpsData document to get the associationDate.
-    const npsDataSnapshot = await firestore.collection("nps_data")
-        .where("verbatims", "array-contains", { taskId: verbatim.taskId })
-        .limit(1)
-        .get();
+    let associationDateToSave: string | undefined = verbatim.associationDate;
 
-    let associationDate: string | undefined;
-    if (!npsDataSnapshot.empty) {
-        const npsDoc = npsDataSnapshot.docs[0];
-        associationDate = npsDoc.id; // The ID of nps_data doc is the 'YYYY-MM-DD' date
+    // If associationDate is not present on the verbatim, try to find it.
+    if (!associationDateToSave) {
+        const npsDataSnapshot = await firestore.collection("nps_data")
+            .where("verbatims", "array-contains", { taskId: verbatim.taskId })
+            .limit(1)
+            .get();
+
+        if (!npsDataSnapshot.empty) {
+            const npsDoc = npsDataSnapshot.docs[0];
+            associationDateToSave = npsDoc.id; // The ID of nps_data doc is the 'YYYY-MM-DD' date
+        }
+    }
+    
+    // As a fallback, use the taskDate if no associationDate could be found
+    if (!associationDateToSave && verbatim.taskDate) {
+      associationDateToSave = format(new Date(verbatim.taskDate), 'yyyy-MM-dd');
     }
 
-    const dataToSave: Omit<ProcessedVerbatim, 'id'> & { associationDate?: string } = {
+    const dataToSave = {
       taskId: verbatim.taskId,
       npsScore: verbatim.npsScore,
       verbatim: verbatim.verbatim,
@@ -574,7 +582,7 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
       carrier: verbatim.carrier,
       depot: verbatim.depot,
       driver: verbatim.driver,
-      associationDate: associationDate,
+      associationDate: associationDateToSave,
     };
     
     await docRef.set(dataToSave, { merge: true });
@@ -588,3 +596,5 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     };
   }
 }
+
+    
