@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ThumbsDown, ChevronDown, Sparkles, X, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, ThumbsDown, ChevronDown, Sparkles, X, Check, ChevronsUpDown, User, Truck, Building, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveProcessedVerbatimAction, categorizeSingleCommentAction } from '../actions';
 import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
@@ -164,11 +164,11 @@ export default function VerbatimTreatmentPage() {
                         </Badge>
                     </TableCell>
                      <TableCell>
-                        <div className="font-medium">{verbatim.driver || 'N/A'}</div>
-                        <div className="text-sm text-muted-foreground">{verbatim.carrier || 'N/A'}</div>
-                        <div className="text-xs text-muted-foreground">{verbatim.depot || verbatim.store || 'N/A'}</div>
-                        <div className="text-xs text-muted-foreground">
-                            {format(new Date(verbatim.taskDate), 'dd/MM/yyyy')}
+                        <div className="flex flex-col gap-1 text-xs">
+                          <div className="flex items-center gap-1.5 font-medium"><User className="h-3 w-3 text-muted-foreground"/>{verbatim.driver || 'N/A'}</div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground"><Truck className="h-3 w-3"/>{verbatim.carrier || 'N/A'}</div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground"><Building className="h-3 w-3"/>{verbatim.depot || verbatim.store || 'N/A'}</div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3 w-3"/>{format(new Date(verbatim.taskDate), 'dd/MM/yyyy')}</div>
                         </div>
                     </TableCell>
                     <TableCell className="italic text-muted-foreground">"{verbatim.verbatim}"</TableCell>

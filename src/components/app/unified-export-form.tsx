@@ -116,6 +116,7 @@ export function UnifiedExportForm({
   const { isUserLoading } = useUser();
   const [autoSaveTrigger, setAutoSaveTrigger] = useState(false);
   const { filterType, selectedDepot, selectedStore } = useFilters();
+  const [saveCount, setSaveCount] = useState(0);
 
   const form = useForm<UnifiedExportFormValues>({
     resolver: zodResolver(unifiedExportFormSchema),
@@ -148,7 +149,7 @@ export function UnifiedExportForm({
       handleSaveToFirestore();
       setAutoSaveTrigger(false); // Reset trigger
     }
-  }, [autoSaveTrigger]);
+  }, [autoSaveTrigger, handleSaveToFirestore]);
 
 
   const onSubmit = async (values: UnifiedExportFormValues) => {
@@ -193,7 +194,7 @@ export function UnifiedExportForm({
     document.body.removeChild(link);
   };
   
-  const handleSaveToFirestore = () => {
+  async function handleSaveToFirestore() {
     if ((!taskJsonData || taskJsonData.length === 0) && (!roundJsonData || roundJsonData.length === 0)) {
         toast({ title: "Aucune donnée", description: "Aucune donnée à sauvegarder.", variant: "destructive" });
         return;
@@ -208,18 +209,20 @@ export function UnifiedExportForm({
       description: "La sauvegarde des données dans Firestore a commencé en arrière-plan.",
     });
 
-    saveData().then(anyError => {
-        if (!anyError) {
-            onLogUpdate([`\n🎉 Sauvegarde terminée !`]);
-            toast({ title: "Succès", description: "Les données ont été synchronisées avec Firestore." });
-        } else {
-            onLogUpdate([`\n❌ Sauvegarde terminée avec des erreurs.`]);
-             toast({ title: "Erreurs de Sauvegarde", description: "Certaines données n'ont pas pu être sauvegardées. Vérifiez les logs.", variant: "destructive" });
-        }
-    });
+    const anyError = await saveData();
+    if (!anyError) {
+        onLogUpdate([`\n🎉 Sauvegarde terminée !`]);
+        toast({ title: "Succès", description: "Les données ont été synchronisées avec Firestore." });
+    } else {
+        onLogUpdate([`\n❌ Sauvegarde terminée avec des erreurs.`]);
+         toast({ title: "Erreurs de Sauvegarde", description: "Certaines données n'ont pas pu être sauvegardées. Vérifiez les logs.", variant: "destructive" });
+    }
+  };
+
 
     async function saveData() {
         onSavingChange(true);
+        setSaveCount(0);
         onLogUpdate([`\n💾 Début de la sauvegarde intelligente dans Firestore...`]);
         if (!dateRange?.from) {
           onLogUpdate(["   - ❌ Erreur: Aucune plage de dates n'est sélectionnée pour la sauvegarde."]);
@@ -240,6 +243,7 @@ export function UnifiedExportForm({
         }
 
         onSavingChange(false);
+        setSaveCount(0);
         return anyError;
     }
 
@@ -347,6 +351,7 @@ export function UnifiedExportForm({
         }
         
         onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
+        setSaveCount(itemsToUpdate.length);
 
         const batchSize = 500;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
@@ -395,7 +400,6 @@ export function UnifiedExportForm({
         }
         return success;
     }
-  };
 
 
   const handleResetClick = () => {
@@ -566,7 +570,7 @@ export function UnifiedExportForm({
           <CardFooter className="flex flex-wrap justify-between gap-2">
             <Button type="submit" disabled={isLoading || isUserLoading} className="min-w-[200px]">
               {isExporting && <><Loader2 className="animate-spin" />Export en cours...</>}
-              {isSaving && <><Loader2 className="animate-spin" />Sauvegarde...</>}
+              {isSaving && <><Loader2 className="animate-spin" />Sauvegarde ({saveCount} éléments)...</>}
               {!isLoading && <><Rocket />Exporter & Sauvegarder</>}
             </Button>
             <div className="flex flex-wrap gap-2">
@@ -586,8 +590,3 @@ export function UnifiedExportForm({
     </Card>
   );
 }
-
-    
-
-    
-

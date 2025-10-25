@@ -63,22 +63,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     if (dateFilterMode === 'day' && date) {
-      const from = startOfDay(date);
-      const to = endOfDay(date);
-      if (!dateRange || !dateRange.from || !dateRange.to || !isEqual(dateRange.from, from) || !isEqual(dateRange.to, to)) {
-        setDateRange({ from, to });
-      }
+      setDateRange({ from: startOfDay(date), to: endOfDay(date) });
     }
-  }, [date, dateFilterMode, dateRange]);
+  }, [date, dateFilterMode]);
 
   useEffect(() => {
     if (dateFilterMode === 'range' && dateRange?.from) {
-       const fromDate = startOfDay(dateRange.from);
-       if (!date || !isEqual(date, fromDate)) {
-         setDate(fromDate);
-       }
+       setDate(startOfDay(dateRange.from));
     }
-  }, [dateRange, dateFilterMode, date]);
+  }, [dateRange, dateFilterMode]);
 
 
   const tasksCollection = useMemo(() => {
@@ -193,15 +186,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [allRounds, filterType, selectedDepot, selectedStore]);
 
   const processedVerbatims = useMemo(() => {
-    let verbatimsToFilter = allSavedVerbatims;
-
-    if (selectedDepot !== "all") {
-       verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
-    }
-    if (selectedStore !== "all") {
-      verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
-    }
-    return verbatimsToFilter;
+    // This hook already filters by associationDate based on the main dateRange
+    // So we just need to apply the depot/store filters.
+    return allSavedVerbatims.filter(v => {
+      if (selectedDepot !== "all" && v.depot !== selectedDepot) return false;
+      if (selectedStore !== "all" && v.store !== selectedStore) return false;
+      return true;
+    });
   }, [allSavedVerbatims, selectedDepot, selectedStore]);
 
 
