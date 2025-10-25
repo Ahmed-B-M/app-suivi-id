@@ -29,6 +29,16 @@ type RedeliveryDetailsDialogProps = {
   tasks: Tache[];
 };
 
+const countBacs = (task: Tache) => {
+    if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
+    return task.articles.reduce((acc, article) => {
+        if (article.type === 'BAC_SEC') acc.secs++;
+        else if (article.type === 'BAC_FRAIS') acc.frais++;
+        else if (article.type === 'BAC_SURGELE') acc.surgeles++;
+        return acc;
+    }, { secs: 0, frais: 0, surgeles: 0 });
+};
+
 export function RedeliveryDetailsDialog({
   isOpen,
   onOpenChange,
@@ -50,7 +60,7 @@ export function RedeliveryDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="max-w-6xl">
         <DialogHeader>
           <DialogTitle>Détail des Relivraisons</DialogTitle>
           <DialogDescription>
@@ -70,24 +80,33 @@ export function RedeliveryDetailsDialog({
                     <TableHead>Livreur</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead className="text-center">Tentatives</TableHead>
+                    <TableHead className="text-right">Bacs Secs</TableHead>
+                    <TableHead className="text-right">Bacs Frais</TableHead>
+                    <TableHead className="text-right">Surgelés</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedTasks.map((task) => (
-                    <TableRow key={task.tacheId}>
-                      <TableCell>
-                        {task.date ? format(new Date(task.date as string), "dd/MM/yyyy") : 'N/A'}
-                      </TableCell>
-                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
-                      <TableCell>{task.nomTournee || 'N/A'}</TableCell>
-                      <TableCell className="text-center">{task.sequence ?? 'N/A'}</TableCell>
-                      <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
-                      <TableCell>{task.contact?.personne || "N/A"}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="destructive">{task.tentatives}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {sortedTasks.map((task) => {
+                    const bacCounts = countBacs(task);
+                    return (
+                      <TableRow key={task.tacheId}>
+                        <TableCell>
+                          {task.date ? format(new Date(task.date as string), "dd/MM/yyyy") : 'N/A'}
+                        </TableCell>
+                        <TableCell>{task.nomHub || 'N/A'}</TableCell>
+                        <TableCell>{task.nomTournee || 'N/A'}</TableCell>
+                        <TableCell className="text-center">{task.sequence ?? 'N/A'}</TableCell>
+                        <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
+                        <TableCell>{task.contact?.personne || "N/A"}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="destructive">{task.tentatives}</Badge>
+                        </TableCell>
+                         <TableCell className="text-right font-mono">{bacCounts.secs}</TableCell>
+                        <TableCell className="text-right font-mono">{bacCounts.frais}</TableCell>
+                        <TableCell className="text-right font-mono">{bacCounts.surgeles}</TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             ) : (
