@@ -74,8 +74,7 @@ export function AppHeader() {
       <div className="container flex h-14 items-center justify-between">
         <div className="mr-4 hidden items-center md:flex">
           <Link href="/" className="flex items-center">
-             <Image src={Logo} alt="ID-360 Logo" width={32} height={32} className="mr-3"/>
-            <span className="font-bold text-lg text-primary">ID-pilote</span>
+             <Image src={Logo} alt="ID-360 Logo" width={96} height={96} className="mr-3"/>
           </Link>
         </div>
         <div className="flex-1 flex justify-end items-center gap-2">
