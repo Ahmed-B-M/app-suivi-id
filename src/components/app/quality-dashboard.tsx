@@ -76,7 +76,7 @@ interface QualityDashboardProps {
 // Components
 const StatCard = ({ title, value, icon, variant = 'default' }: { title: string, value: string, icon: React.ReactNode, variant?: 'default' | 'success' | 'danger' | 'warning' }) => {
     const valueColor = 
-      variant === 'success' ? 'text-blue-600' : 
+      variant === 'success' ? 'text-primary' : 
       variant === 'danger' ? 'text-destructive' : 
       variant === 'warning' ? 'text-orange-500' : '';
     return (
@@ -97,29 +97,29 @@ const StatBadge = ({ value, icon, tooltipText, isRate = true, isLowerBetter = fa
   
   if (value !== null) {
     if (isNps) {
-        if (value >= 65) colorClass = "bg-blue-600 text-white"; // NPS Goal
-        else if (value >= 30) colorClass = "bg-yellow-500 text-black";
-        else colorClass = "bg-red-600 text-white";
+        if (value >= 50) colorClass = "bg-primary text-primary-foreground";
+        else if (value >= 0) colorClass = "bg-yellow-500 text-black";
+        else colorClass = "bg-destructive text-destructive-foreground";
     } else if (isRate) { // For percentage-based rates
       if (isLowerBetter) { // Lower is better (e.g., forced address rate)
-        if (value <= 2) colorClass = "bg-blue-700 text-white";       // Excellent
-        else if (value <= 5) colorClass = "bg-blue-500 text-white";  // Good (target)
-        else if (value <= 10) colorClass = "bg-yellow-500 text-black"; // Average
-        else if (value <= 15) colorClass = "bg-orange-500 text-white"; // Warning
-        else colorClass = "bg-red-600 text-white";                   // Poor
+        if (value <= 2) colorClass = "bg-primary text-primary-foreground";
+        else if (value <= 5) colorClass = "bg-accent text-accent-foreground";
+        else if (value <= 10) colorClass = "bg-yellow-500 text-black";
+        else if (value <= 15) colorClass = "bg-orange-500 text-white";
+        else colorClass = "bg-destructive text-destructive-foreground";
       } else { // Higher is better (e.g., punctuality)
-        if (value >= 98) colorClass = "bg-blue-700 text-white";      // Excellent
-        else if (value >= 95) colorClass = "bg-blue-500 text-white"; // Good (target)
-        else if (value >= 90) colorClass = "bg-yellow-500 text-black";// Average
-        else if (value >= 85) colorClass = "bg-orange-500 text-white"; // Warning
-        else colorClass = "bg-red-600 text-white";                   // Poor
+        if (value >= 98) colorClass = "bg-primary text-primary-foreground";
+        else if (value >= 95) colorClass = "bg-accent text-accent-foreground";
+        else if (value >= 90) colorClass = "bg-yellow-500 text-black";
+        else if (value >= 85) colorClass = "bg-orange-500 text-white";
+        else colorClass = "bg-destructive text-destructive-foreground";
       }
     } else { // For ratings (not a rate, scale of 1-5)
-      if (value >= 4.9) colorClass = "bg-blue-700 text-white";      // Excellent
-      else if (value >= 4.8) colorClass = "bg-blue-500 text-white"; // Good (target)
-      else if (value >= 4.5) colorClass = "bg-yellow-500 text-black";// Average
-      else if (value >= 4.0) colorClass = "bg-orange-500 text-white"; // Warning
-      else colorClass = "bg-red-600 text-white";                   // Poor
+      if (value >= 4.9) colorClass = "bg-primary text-primary-foreground";
+      else if (value >= 4.8) colorClass = "bg-accent text-accent-foreground";
+      else if (value >= 4.5) colorClass = "bg-yellow-500 text-black";
+      else if (value >= 4.0) colorClass = "bg-orange-500 text-white";
+      else colorClass = "bg-destructive text-destructive-foreground";
     }
   }
 
@@ -206,8 +206,8 @@ export function QualityDashboard({ data, isLoading, searchQuery, onSearchChange 
 
     const getNpsVariant = (score: number | null) => {
         if(score === null) return 'danger';
-        if (score >= 65) return 'success'; // Target
-        if (score >= 30) return 'warning';
+        if (score >= 50) return 'success'; // Target
+        if (score >= 0) return 'warning';
         return 'danger';
     };
 

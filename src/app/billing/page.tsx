@@ -95,7 +95,7 @@ export default function BillingPage() {
 
     for (const round of filteredRounds) {
       const driverName = getDriverFullName(round);
-      const carrier = getCarrierFromDriver(driverName);
+      const carrier = getCarrierFromDriver(round);
       const depot = getDepotFromHub(round.nomHub);
       const hubCategory = getHubCategory(round.nomHub);
       const entityName = hubCategory === 'magasin' ? round.nomHub : depot;
@@ -212,8 +212,8 @@ export default function BillingPage() {
 
 
   return (
-    <main className="flex-1 container py-8">
-      <h1 className="text-3xl font-bold mb-8">Module de Facturation</h1>
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold">Module de Facturation</h1>
       
       {billingData && <BillingDashboard data={billingData} onExport={handleExport} />}
       
@@ -222,7 +222,7 @@ export default function BillingPage() {
       )}
 
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1">
           <Card>
             <CardHeader>
@@ -358,6 +358,6 @@ export default function BillingPage() {
           </Card>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

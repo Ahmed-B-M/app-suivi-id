@@ -3,9 +3,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
+import { useFilters } from "@/context/filter-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +16,6 @@ import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
 import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
 import type { Tache, Tournee } from "@/lib/types";
 import { RatingDetailsDialog } from "@/components/app/rating-details-dialog";
-import { calculateDriverScore, calculateRawDriverStats, type DriverStats } from "@/lib/scoring";
 import { PunctualityDetailsDialog, PunctualityTask } from "@/components/app/punctuality-details-dialog";
 import { StatusDetailsDialog } from "@/components/app/status-details-dialog";
 import { FailedDeliveryDetailsDialog } from "@/components/app/failed-delivery-details-dialog";
@@ -28,10 +25,7 @@ import { SensitiveDeliveriesDialog } from "@/components/app/sensitive-deliveries
 import { QualityAlertDialog } from "@/components/app/quality-alert-dialog";
 import { AllRoundsDetailsDialog } from "@/components/app/all-rounds-details-dialog";
 import { AllTasksDetailsDialog } from "@/components/app/all-tasks-details-dialog";
-import { useFilters } from "@/context/filter-context";
 import { DriverPerformanceTable } from "@/components/app/driver-performance-table";
-import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
-import { getDriverFullName, getHubCategory, getDepotFromHub } from "@/lib/grouping";
 import { calculateDashboardStats } from "@/lib/stats-calculator";
 import type { CategorizedComment } from "@/components/app/comment-analysis";
 import { CommentSummaryCard } from "@/components/app/comment-summary-card";
@@ -53,9 +47,6 @@ export default function DashboardPage() {
     allNpsData,
     processedVerbatims,
     isContextLoading,
-    filterType,
-    selectedDepot,
-    selectedStore,
    } = useFilters();
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
@@ -98,14 +89,14 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore);
-  }, [filteredData, filteredRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore]);
+    return calculateDashboardStats(filteredData, filteredRounds, allComments, allNpsData, processedVerbatims);
+  }, [filteredData, filteredRounds, allComments, allNpsData, processedVerbatims]);
 
   const isLoading = isContextLoading;
   const error = null; 
 
   return (
-    <main className="flex-1 container py-8">
+    <div className="flex-1 space-y-8">
       <RatingDetailsDialog
         isOpen={isRatingDetailsOpen}
         onOpenChange={setIsRatingDetailsOpen}
@@ -194,8 +185,8 @@ export default function DashboardPage() {
         allTasks={filteredData}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold">Tableau de Bord</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold tracking-tight">Tableau de Bord</h1>
       </div>
 
       {isLoading && (
@@ -336,6 +327,6 @@ export default function DashboardPage() {
               </CardContent>
           </Card>
       )}
-    </main>
+    </div>
   );
 }

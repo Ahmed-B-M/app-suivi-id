@@ -516,11 +516,11 @@ function ForecastRulesTab() {
 export default function SettingsPage() {
   return (
     <main className="flex-1 container py-8">
-      <h1 className="text-3xl font-bold mb-8">Paramètres</h1>
+      <h1 className="text-3xl font-bold mb-8">Paramètres et Outils</h1>
       <Tabs defaultValue="export" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="export">Configuration de l'Export</TabsTrigger>
-          <TabsTrigger value="database">Base de Données</TabsTrigger>
+          <TabsTrigger value="database">Explorateur de Données</TabsTrigger>
           <TabsTrigger value="forecast-rules">Règles de Prévision</TabsTrigger>
         </TabsList>
         <TabsContent value="export" className="mt-4">

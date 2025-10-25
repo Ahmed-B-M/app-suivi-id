@@ -28,7 +28,7 @@ export default function QualityPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [emailHtmlContent, setEmailHtmlContent] = useState('');
 
-  const qualityData = useMemo(() => {
+  const qualityData: QualityData | null = useMemo(() => {
     if (!allTasks || isContextLoading) return null;
 
     const driverTasks: Record<string, Tache[]> = {};
@@ -227,7 +227,12 @@ export default function QualityPage() {
 
         const driverEntry = alertAggregation[depot].carriers[carrierName].drivers[driverName];
         driverEntry.alertCount++;
-        driverEntry.commentCategories[comment.category] = (driverEntry.commentCategories[comment.category] || 0) + 1;
+        const categories = Array.isArray(comment.category) ? comment.category : [comment.category];
+        categories.forEach(cat => {
+          if (cat) {
+            driverEntry.commentCategories[cat] = (driverEntry.commentCategories[cat] || 0) + 1;
+          }
+        });
     });
 
     const finalAlertData: AlertData[] = Object.values(alertAggregation).map(depot => ({
@@ -295,14 +300,14 @@ export default function QualityPage() {
   const isLoading = isContextLoading;
 
   return (
-    <main className="flex-1 container py-8">
+    <div className="space-y-8">
        <EmailPreviewDialog
         isOpen={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
         htmlContent={emailHtmlContent}
         onCopy={handleCopyToClipboard}
       />
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-bold">Analyse de la Qualité</h1>
         <div className="flex items-center gap-2">
            <div className="relative">
@@ -321,7 +326,7 @@ export default function QualityPage() {
         </div>
       </div>
       <div className="space-y-8">
-        <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={onSearchChange} />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
             data={allComments.filter(c => c.rating < 4)}
@@ -331,6 +336,6 @@ export default function QualityPage() {
             isLoading={isLoading}
         />
       </div>
-    </main>
+    </div>
   );
 }

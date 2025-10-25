@@ -93,7 +93,7 @@ const links = [
   // --- Configuration ---
   {
     href: "/settings",
-    label: "Paramètres",
+    label: "Paramètres & Export",
     icon: <Settings />,
   },
 ];
@@ -104,7 +104,7 @@ export function SidebarNav() {
   const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar" side="left" className="h-screen sticky top-0">
+    <Sidebar collapsible="icon" variant="sidebar" side="left" className="h-screen sticky top-0 z-40">
        <SidebarHeader>
           <Link href="/" className="flex items-center gap-2 px-2">
             <span className="font-bold text-lg text-primary">ID 360</span>

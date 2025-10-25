@@ -8,7 +8,7 @@ import { SidebarNav } from "@/components/app/sidebar-nav";
 import { AppHeader } from "./header";
 import { SidebarInset } from "../ui/sidebar/index";
 
-export function Providers({ children }: { children: React.Node }) {
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <FirebaseClientProvider>
       <FilterProvider>
@@ -17,8 +17,10 @@ export function Providers({ children }: { children: React.Node }) {
             <SidebarNav />
             <SidebarInset>
               <AppHeader />
-              <main className="flex-1 p-8 pt-6 bg-background overflow-y-auto">
-                {children}
+              <main className="flex-1 overflow-y-auto">
+                <div className="container py-8">
+                  {children}
+                </div>
               </main>
                <footer className="py-6 border-t bg-background">
                 <div className="container text-center text-sm text-muted-foreground">

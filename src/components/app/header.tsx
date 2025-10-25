@@ -70,11 +70,11 @@ export function AppHeader() {
 
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-md">
-      <div className="container flex h-28 items-center justify-between">
+    <header className="sticky top-0 z-30 w-full border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <div className="container flex h-20 items-center justify-between">
         <div className="mr-4 hidden items-center md:flex">
           <Link href="/" className="flex items-center">
-            <Image src={Logo} alt="ID 360 Logo" width={96} height={96} />
+             <Image src={Logo} alt="ID 360 Logo" width={64} height={64} priority />
           </Link>
         </div>
         <div className="flex-1 flex justify-end items-center gap-2">

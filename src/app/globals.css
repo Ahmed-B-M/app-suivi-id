@@ -4,43 +4,43 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 13% 97%; /* #F5F7FA - Light Gray */
+    --foreground: 224 71% 4%; /* #0A0F1E - Almost Black */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 224 71% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 216 80% 48%; /* Blue from logo */
+    --popover-foreground: 224 71% 4%;
+    --primary: 210 45% 28%; /* #30475E - Deep Blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84% 60%; /* Red from logo */
+    --secondary: 215 28% 90%; /* #E1E5F2 */
+    --secondary-foreground: 210 45% 28%;
+    --muted: 215 28% 95%; /* #F0F2F5 */
+    --muted-foreground: 215 16% 47%;
+    --accent: 175 44% 41%; /* #26A69A - Teal */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%; /* #D32F2F */
     --destructive-foreground: 0 0% 100%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 216 80% 48%; /* Blue from logo */
+    --border: 215 20% 87%; /* #DAE1E7 */
+    --input: 215 20% 87%;
+    --ring: 210 45% 28%;
     --radius: 0.5rem;
 
     /* Chart Colors */
-    --chart-1: 216 80% 48%; /* Main Blue */
-    --chart-2: 0 84% 60%;   /* Main Red */
-    --chart-3: 215 28% 60%; /* Medium Blue-gray */
-    --chart-4: 210 30% 80%; /* Light Blue-gray */
-    --chart-5: 220 20% 40%; /* Dark Blue-gray */
+    --chart-1: 210 45% 28%; /* Deep Blue */
+    --chart-2: 175 44% 41%; /* Teal */
+    --chart-3: 0 72% 51%;   /* Red */
+    --chart-4: 30 90% 55%; /* Orange */
+    --chart-5: 260 50% 50%; /* Purple */
 
     /* Sidebar Colors */
-    --sidebar-background: 224 71% 11%; /* Very Dark Blue */
+    --sidebar-background: 224 71% 11%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 216 80% 48%;
+    --sidebar-primary: 175 44% 41%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 71% 20%; /* Darker Blue for hover */
+    --sidebar-accent: 224 71% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 224 71% 15%;
-    --sidebar-ring: 216 80% 48%;
+    --sidebar-ring: 175 44% 41%;
   }
 
   .dark {
@@ -66,10 +66,10 @@
 
     /* Chart Colors */
     --chart-1: 217 91% 60%;
-    --chart-2: 0 72% 51%;
-    --chart-3: 215 28% 50%;
-    --chart-4: 210 30% 70%;
-    --chart-5: 220 20% 30%;
+    --chart-2: 175 44% 60%;
+    --chart-3: 0 72% 51%;
+    --chart-4: 30 90% 65%;
+    --chart-5: 260 50% 60%;
 
     /* Sidebar Colors */
     --sidebar-background: 0 0% 98%;
