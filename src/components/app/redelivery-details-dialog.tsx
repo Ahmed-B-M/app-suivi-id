@@ -21,6 +21,7 @@ import {
 import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
 import { Badge } from "../ui/badge";
+import { useMemo } from "react";
 
 type RedeliveryDetailsDialogProps = {
   isOpen: boolean;
@@ -34,37 +35,52 @@ export function RedeliveryDetailsDialog({
   tasks,
 }: RedeliveryDetailsDialogProps) {
 
+  const sortedTasks = useMemo(() => {
+    if (!tasks) return [];
+    return [...tasks].sort((a, b) => {
+      const hubCompare = (a.nomHub || '').localeCompare(b.nomHub || '');
+      if (hubCompare !== 0) return hubCompare;
+
+      const roundCompare = (a.nomTournee || '').localeCompare(b.nomTournee || '');
+      if (roundCompare !== 0) return roundCompare;
+      
+      return (a.sequence ?? 0) - (b.sequence ?? 0);
+    });
+  }, [tasks]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Détail des Relivraisons</DialogTitle>
           <DialogDescription>
-            Voici la liste des {tasks.length} échecs de livraison avec 2 tentatives ou plus.
+            Voici la liste des {sortedTasks.length} échecs de livraison avec 2 tentatives ou plus, triés par tournée et séquence.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <div className="pr-6">
-            {tasks.length > 0 ? (
+            {sortedTasks.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Tournée</TableHead>
                     <TableHead>Entrepôt</TableHead>
+                    <TableHead>Tournée</TableHead>
+                    <TableHead>Seq.</TableHead>
                     <TableHead>Livreur</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead className="text-center">Tentatives</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tasks.map((task) => (
+                  {sortedTasks.map((task) => (
                     <TableRow key={task.tacheId}>
                       <TableCell>
-                        {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
+                        {task.date ? format(new Date(task.date as string), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
-                      <TableCell>{task.nomTournee || 'N/A'}</TableCell>
                       <TableCell>{task.nomHub || 'N/A'}</TableCell>
+                      <TableCell>{task.nomTournee || 'N/A'}</TableCell>
+                      <TableCell className="text-center">{task.sequence ?? 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
                       <TableCell>{task.contact?.personne || "N/A"}</TableCell>
                       <TableCell className="text-center">
