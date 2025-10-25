@@ -326,7 +326,7 @@ export default function QualityPage() {
         </div>
       </div>
       <div className="space-y-8">
-        <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={onSearchChange} />
+        <QualityDashboard data={filteredQualityData} isLoading={isLoading} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
         <CommentAnalysis 
             data={allComments.filter(c => c.rating < 4)}
