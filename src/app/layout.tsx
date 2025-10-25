@@ -9,6 +9,9 @@ import { Providers } from "@/components/app/providers";
 export const metadata: Metadata = {
   title: "ID-pilote",
   description: "Tableau de bord pour le suivi des opérations Urbantz.",
+  icons: {
+    icon: '/id-360.png',
+  },
 };
 
 export default function RootLayout({

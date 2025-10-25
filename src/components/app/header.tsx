@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Layers, Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History } from "lucide-react";
+import { Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useFilters } from "@/context/filter-context";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { DEPOTS_LIST } from "@/lib/grouping";
 import { Separator } from "../ui/separator";
+import Image from "next/image";
 
 export function AppHeader() {
   const {
@@ -72,7 +73,7 @@ export function AppHeader() {
       <div className="container flex h-14 items-center justify-between">
         <div className="mr-4 hidden items-center md:flex">
           <Link href="/" className="flex items-center">
-            <Layers className="h-6 w-6 mr-3 text-primary" />
+             <Image src="/id-360.png" alt="ID-360 Logo" width={32} height={32} className="h-8 w-8 mr-3"/>
             <span className="font-bold text-lg text-primary">ID-pilote</span>
           </Link>
         </div>
