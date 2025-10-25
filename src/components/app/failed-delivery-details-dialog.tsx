@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import type { Tache } from "@/lib/types";
 import {
   Dialog,
@@ -33,36 +34,47 @@ export function FailedDeliveryDetailsDialog({
   tasks,
 }: FailedDeliveryDetailsDialogProps) {
 
+  const sortedTasks = useMemo(() => {
+    if (!tasks) return [];
+    return [...tasks].sort((a, b) => {
+      const dateA = a.dateCloture ? new Date(a.dateCloture).getTime() : 0;
+      const dateB = b.dateCloture ? new Date(b.dateCloture).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [tasks]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Détail des Échecs de Livraison</DialogTitle>
           <DialogDescription>
-            Voici la liste des {tasks.length} tâches terminées avec un statut de non-livraison.
+            Voici la liste des {sortedTasks.length} tâches terminées avec un statut de non-livraison, triées par date de clôture.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <div className="pr-6">
-            {tasks.length > 0 ? (
+            {sortedTasks.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Date Clôture</TableHead>
                     <TableHead>Tournée</TableHead>
+                    <TableHead>Entrepôt</TableHead>
                     <TableHead>Séquence</TableHead>
                     <TableHead>Livreur</TableHead>
                     <TableHead>Téléphone Client</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tasks.map((task) => (
+                  {sortedTasks.map((task) => (
                     <TableRow key={task.tacheId}>
                       <TableCell>
-                        {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
+                        {task.dateCloture ? format(new Date(task.dateCloture), "dd/MM/yy HH:mm") : 'N/A'}
                       </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
-                      <TableCell>{task.sequence ?? 'N/A'}</TableCell>
+                      <TableCell>{task.nomHub || 'N/A'}</TableCell>
+                      <TableCell className="text-center">{task.sequence ?? 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
                       <TableCell>{task.contact?.telephone || "N/A"}</TableCell>
                     </TableRow>
