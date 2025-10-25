@@ -23,6 +23,7 @@ import {
 import { DEPOTS_LIST } from "@/lib/grouping";
 import { Separator } from "../ui/separator";
 import Image from "next/image";
+import Logo from '@/app/id-360.png';
 
 export function AppHeader() {
   const {
@@ -73,7 +74,7 @@ export function AppHeader() {
       <div className="container flex h-14 items-center justify-between">
         <div className="mr-4 hidden items-center md:flex">
           <Link href="/" className="flex items-center">
-             <Image src="/id-360.png" alt="ID-360 Logo" width={32} height={32} className="mr-3"/>
+             <Image src={Logo} alt="ID-360 Logo" width={32} height={32} className="mr-3"/>
             <span className="font-bold text-lg text-primary">ID-pilote</span>
           </Link>
         </div>

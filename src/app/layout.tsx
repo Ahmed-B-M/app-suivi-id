@@ -5,12 +5,13 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/app/providers";
+import Favicon from '@/app/id-360.png';
 
 export const metadata: Metadata = {
   title: "ID-pilote",
   description: "Tableau de bord pour le suivi des opérations Urbantz.",
   icons: {
-    icon: '/id-360.png',
+    icon: Favicon.src,
   },
 };
 

@@ -17,6 +17,7 @@ import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
+import Logo from '@/app/id-360.png';
 
 const links = [
   // --- Vues d'Ensemble ---
@@ -106,7 +107,7 @@ export function SidebarNav() {
     <Sidebar collapsible="icon" variant="sidebar" side="left" className="h-screen sticky top-0">
        <SidebarHeader>
           <Link href="/" className="flex items-center gap-2 px-2">
-            <Image src="/id-360.png" alt="ID-360 Logo" width={32} height={32} />
+            <Image src={Logo} alt="ID-360 Logo" width={32} height={32} />
             <span className="font-bold text-lg text-sidebar-foreground">ID-pilote</span>
           </Link>
       </SidebarHeader>
