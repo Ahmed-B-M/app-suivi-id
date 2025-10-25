@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -7,7 +6,7 @@ import { useFilters } from "@/context/filter-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, ShieldAlert, Siren } from "lucide-react";
 import { DashboardStats } from "@/components/app/dashboard-stats";
 import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
 import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
@@ -37,6 +36,19 @@ import { NpsByCarrierDetailsDialog } from "@/components/app/nps-by-carrier-detai
 import { OverweightRoundsDetailsDialog } from "@/components/app/overweight-rounds-details-dialog";
 import { OverbacsRoundsDetailsDialog } from "@/components/app/overbacs-rounds-details-dialog";
 import { CompletedRoundsDetailsDialog } from "@/components/app/completed-rounds-details-dialog";
+
+
+const AlertBadge = ({ count, label, icon }: { count: number, label: string, icon: React.ReactNode }) => {
+  if (count === 0) return null;
+  return (
+    <div className="relative flex items-center gap-2 rounded-full bg-destructive/10 text-destructive border border-destructive/20 px-3 py-1 text-sm font-semibold">
+      <div className="absolute -left-1 -top-1 h-3 w-3 rounded-full bg-destructive animate-ping"></div>
+      <div className="absolute -left-1 -top-1 h-3 w-3 rounded-full bg-destructive"></div>
+      {icon}
+      <span>{count} {label}</span>
+    </div>
+  );
+};
 
 
 export default function DashboardPage() {
@@ -188,8 +200,29 @@ export default function DashboardPage() {
         allTasks={allTasks}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Tableau de Bord</h1>
+       <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold tracking-tight">Tableau de Bord</h1>
+          {dashboardData?.stats && (
+            <>
+              <AlertBadge
+                count={dashboardData.stats.qualityAlerts}
+                label="Alertes Qualité"
+                icon={<AlertTriangle className="h-4 w-4" />}
+              />
+              <AlertBadge
+                count={dashboardData.stats.sensitiveDeliveries}
+                label="Livraisons Sensibles"
+                icon={<Siren className="h-4 w-4" />}
+              />
+               <AlertBadge
+                count={dashboardData.stats.failedTasks}
+                label="Échecs"
+                icon={<ShieldAlert className="h-4 w-4" />}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {isLoading && (
@@ -333,3 +366,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
