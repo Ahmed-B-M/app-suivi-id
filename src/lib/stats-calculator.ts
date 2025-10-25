@@ -271,6 +271,23 @@ export function calculateDashboardStats(
         const detractorCount = filteredNpsVerbatims.filter(v => v.npsCategory === 'Detractor').length;
         nps = ((promoterCount / npsResponseCount) - (detractorCount / npsResponseCount)) * 100;
     }
+
+    const npsByCarrierData = Object.values(filteredNpsVerbatims.reduce((acc, v) => {
+        const carrier = v.carrier || 'Inconnu';
+        if (!acc[carrier]) {
+            acc[carrier] = { name: carrier, promoters: 0, passives: 0, detractors: 0, total: 0 };
+        }
+        if (v.npsCategory === 'Promoter') acc[carrier].promoters++;
+        else if (v.npsCategory === 'Passive') acc[carrier].passives++;
+        else acc[carrier].detractors++;
+        acc[carrier].total++;
+        return acc;
+    }, {} as Record<string, { name: string; promoters: number; passives: number; detractors: number; total: number; }>))
+    .map(data => ({
+        ...data,
+        nps: data.total > 0 ? ((data.promoters / data.total) - (data.detractors / data.total)) * 100 : 0,
+    })).sort((a, b) => b.nps - a.nps);
+
     // --- End NPS Calculation ---
 
     // --- Processed Verbatims Analysis ---
@@ -361,6 +378,7 @@ export function calculateDashboardStats(
         overweightRounds: overweightRoundsCount,
         overbacsRounds: overbacsRoundsCount,
       },
+      npsByCarrier: npsByCarrierData,
       top5StarDrivers,
       earlyTasks,
       lateTasks,

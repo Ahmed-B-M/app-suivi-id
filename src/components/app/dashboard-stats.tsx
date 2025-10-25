@@ -86,6 +86,7 @@ type DashboardStatsProps = {
   onScanbacClick: () => void;
   onForcedAddressClick: () => void;
   onForcedContactlessClick: () => void;
+  onNpsClick: () => void;
 };
 
 const StatCard = ({
@@ -162,6 +163,7 @@ export function DashboardStats({
   onScanbacClick,
   onForcedAddressClick,
   onForcedContactlessClick,
+  onNpsClick,
 }: DashboardStatsProps) {
   const getVariant = (
     value: number | null,
@@ -251,6 +253,7 @@ export function DashboardStats({
           icon={<BarChart className="h-4 w-4 text-muted-foreground" />}
           variant={getNpsVariant(stats.nps)}
           description={`${stats.npsResponseCount} réponses`}
+          onClick={onNpsClick}
         />
         <StatCard
           title="SCANBAC"

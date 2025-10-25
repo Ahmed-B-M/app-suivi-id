@@ -39,6 +39,7 @@ import { VerbatimSummaryTable } from "@/components/app/verbatim-summary-table";
 import { ScanbacDetailsDialog } from "@/components/app/scanbac-details-dialog";
 import { ForcedAddressDetailsDialog } from "@/components/app/forced-address-details-dialog";
 import { ForcedContactlessDetailsDialog } from "@/components/app/forced-contactless-details-dialog";
+import { NpsByCarrierDetailsDialog } from "@/components/app/nps-by-carrier-details-dialog";
 
 
 export default function DashboardPage() {
@@ -55,6 +56,7 @@ export default function DashboardPage() {
    } = useFilters();
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
+  const [isNpsDetailsOpen, setIsNpsDetailsOpen] = useState(false);
   const [isFailedDeliveryDetailsOpen, setIsFailedDeliveryDetailsOpen] = useState(false);
   const [isMissingBacsDetailsOpen, setIsMissingBacsDetailsOpen] = useState(false);
   const [isRedeliveryDetailsOpen, setIsRedeliveryDetailsOpen] = useState(false);
@@ -102,6 +104,11 @@ export default function DashboardPage() {
         isOpen={isRatingDetailsOpen}
         onOpenChange={setIsRatingDetailsOpen}
         tasks={filteredData}
+      />
+      <NpsByCarrierDetailsDialog
+        isOpen={isNpsDetailsOpen}
+        onOpenChange={setIsNpsDetailsOpen}
+        data={dashboardData?.npsByCarrier || []}
       />
       <PunctualityDetailsDialog
         isOpen={!!punctualityDetails}
@@ -203,6 +210,7 @@ export default function DashboardPage() {
             stats={dashboardData.stats!}
             topDrivers={dashboardData.top5StarDrivers || []}
             onRatingClick={() => setIsRatingDetailsOpen(true)}
+            onNpsClick={() => setIsNpsDetailsOpen(true)}
             onEarlyClick={() => setPunctualityDetails({ type: 'early', tasks: dashboardData.earlyTasks || [] })}
             onLateClick={() => setPunctualityDetails({ type: 'late', tasks: dashboardData.lateTasks || [] })}
             onLateOver1hClick={() => setPunctualityDetails({ type: 'late_over_1h', tasks: dashboardData.lateTasksOver1h || [] })}
