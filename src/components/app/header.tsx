@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History, Layers } from "lucide-react";
@@ -53,7 +54,7 @@ export function AppHeader() {
 
   const handleStoreChange = (value: string) => {
     setSelectedStore(value);
-     if (value !== 'all') {
+     if (value !== 'all' && filterType !== 'entrepot') {
       setSelectedDepot('all'); 
     }
   };
@@ -186,7 +187,7 @@ export function AppHeader() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'entrepot'}>
+          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'tous'}>
             <SelectTrigger className="hidden lg:flex w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par entrepôt" />

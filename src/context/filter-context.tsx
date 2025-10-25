@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
@@ -60,6 +61,12 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
+  
+  // Reset secondary filters when main filter type changes
+  useEffect(() => {
+    setSelectedDepot('all');
+    setSelectedStore('all');
+  }, [filterType]);
   
   useEffect(() => {
     if (dateFilterMode === 'day' && date) {
@@ -131,25 +138,24 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
-  const availableDepots = useMemo(
-    () => {
-        if (!allTasks) return [];
-        const depots = allTasks.map(t => getDepotFromHub(t.nomHub));
-        const filteredDepots = depots.filter((d): d is string => !!d && d !== "Magasin");
-        return [...new Set(filteredDepots)].sort();
-    },
-    [allTasks]
-  );
+  const availableDepots = useMemo(() => {
+    if (!allTasks) return [];
+    const depots = allTasks.map(t => getDepotFromHub(t.nomHub));
+    const filteredDepots = depots.filter((d): d is string => !!d && d !== "Magasin");
+    return [...new Set(filteredDepots)].sort();
+  }, [allTasks]);
   
-  const availableStores = useMemo(
-    () => {
-        if (!allTasks) return [];
-        const stores = allTasks.filter(t => getDepotFromHub(t.nomHub) === 'Magasin').map(t => t.nomHub);
-        const filteredStores = stores.filter((s): s is string => !!s);
-        return [...new Set(filteredStores)].sort();
-    },
-    [allTasks]
-  );
+  const availableStores = useMemo(() => {
+    if (!allTasks) return [];
+    let relevantTasks = allTasks;
+    // If filtering by a specific depot, only show stores for that depot
+    if (filterType === 'entrepot' && selectedDepot !== 'all') {
+      relevantTasks = allTasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
+    }
+    const stores = relevantTasks.map(t => t.nomHub);
+    const filteredStores = stores.filter((s): s is string => !!s);
+    return [...new Set(filteredStores)].sort();
+  }, [allTasks, filterType, selectedDepot]);
   
   const lastUpdateTime = useMemo(() => {
     const dates = [tasksLastUpdate, roundsLastUpdate, npsLastUpdate].filter(Boolean) as Date[];
@@ -353,7 +359,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         selectedDepot,
         setSelectedDepot,
         availableStores,
-        setSelectedStore,
         setSelectedStore,
         lastUpdateTime,
         allTasks: filteredTasksByOtherCriteria,

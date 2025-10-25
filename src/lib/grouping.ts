@@ -47,7 +47,7 @@ export function getHubCategory(hubName: string | undefined | null): 'entrepot' |
   }
 
   // Specific rules for stores
-  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour')) {
+  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour') || hubName.toLowerCase().startsWith('lex')) {
     return 'magasin';
   }
 
@@ -75,7 +75,7 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
   }
 
   // Specific rules for stores
-  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour')) {
+  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour') || hubName.toLowerCase().startsWith('lex')) {
     return 'Magasin';
   }
 
