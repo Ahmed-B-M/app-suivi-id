@@ -12,12 +12,13 @@ import {
   SidebarHeader,
   SidebarTrigger
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import Logo from '@/app/id-360.png';
+import { useAuth } from "@/firebase";
 
 const links = [
   // --- Vues d'Ensemble ---
@@ -106,6 +107,7 @@ const links = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const auth = useAuth();
   const { count: pendingCommentsCount, isLoading: isCommentsLoading } = usePendingComments();
   const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
 
@@ -147,6 +149,16 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
+            <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => auth.signOut()}
+                  tooltip="Déconnexion"
+                  className="relative mt-4"
+                >
+                  <LogOut />
+                  <span>Déconnexion</span>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
     </Sidebar>

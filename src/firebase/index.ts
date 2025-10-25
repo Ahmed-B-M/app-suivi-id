@@ -17,8 +17,8 @@ function initializeFirebase() {
     firestore = getFirestore(firebaseApp);
     
     if (USE_EMULATOR) {
-        // connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-        // connectFirestoreEmulator(firestore, 'localhost', 8080);
+        connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+        connectFirestoreEmulator(firestore, 'localhost', 8080);
     }
 
   } else {

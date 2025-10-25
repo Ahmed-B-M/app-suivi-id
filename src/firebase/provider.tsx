@@ -1,10 +1,11 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -69,8 +70,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+    if (!auth || !firestore) { // If no Auth service instance, cannot determine user state
+      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth ou Firestore service non fourni.") });
       return;
     }
 
@@ -78,22 +79,29 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      async (firebaseUser) => { // Auth state determined - made async
+      async (firebaseUser) => { 
         if (firebaseUser) {
-          // If we have a user, we are done, set the state
+          // Check if user document exists in Firestore
+          const userRef = doc(firestore, "users", firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (!userSnap.exists()) {
+            // User document doesn't exist, create it
+            try {
+              await setDoc(userRef, {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || firebaseUser.email,
+                role: 'viewer' // Assign a default role
+              });
+            } catch (error) {
+              console.error("Erreur de création du profil utilisateur:", error);
+            }
+          }
           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         } else {
-          // If there is no user, it means we need to sign in anonymously.
-          // We will await this operation to ensure it completes before setting the state.
-          try {
-            const userCredential = await signInAnonymously(auth);
-            // After successful anonymous sign-in, set the user state.
-            setUserAuthState({ user: userCredential.user, isUserLoading: false, userError: null });
-          } catch (error) {
-             // If anonymous sign-in fails, it's a critical error.
-             console.error("FirebaseProvider: Anonymous sign-in failed:", error);
-             setUserAuthState({ user: null, isUserLoading: false, userError: error as Error });
-          }
+          // No user is signed in.
+          setUserAuthState({ user: null, isUserLoading: false, userError: null });
         }
       },
       (error) => { // Auth listener error
@@ -102,7 +110,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
     );
     return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+  }, [auth, firestore]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
