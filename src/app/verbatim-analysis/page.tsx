@@ -44,7 +44,7 @@ export default function VerbatimAnalysisPage() {
   const { allProcessedVerbatims, isContextLoading } = useFilters();
 
   const analysisData: ResponsibilityData[] = useMemo(() => {
-    const verbatimsToShow = allProcessedVerbatims;
+    const verbatimsToShow = allProcessedVerbatims.filter(v => v.status === 'traité');
 
     if (isContextLoading || !verbatimsToShow || verbatimsToShow.length === 0) {
       return [];
@@ -54,35 +54,27 @@ export default function VerbatimAnalysisPage() {
     const byResponsibility: Record<string, { count: number; categories: Record<string, number> }> = {};
 
     verbatimsToShow.forEach((verbatim) => {
-      const responsibilities = Array.isArray(verbatim.responsibilities)
+      const responsibilities = Array.isArray(verbatim.responsibilities) && verbatim.responsibilities.length > 0
         ? verbatim.responsibilities
-        : (verbatim.responsibilities ? [verbatim.responsibilities] : []);
+        : ["Inconnu"];
         
-      const categories = Array.isArray(verbatim.category)
+      const categories = Array.isArray(verbatim.category) && verbatim.category.length > 0
         ? verbatim.category
-        : (verbatim.category ? [verbatim.category] : []);
+        : ["Non catégorisé"];
 
-      const validResponsibilities = responsibilities.filter(r => r && typeof r === 'string');
+      const uniqueResponsibilities = [...new Set(responsibilities.filter(r => r && typeof r === 'string'))];
+      const uniqueCategories = [...new Set(categories.filter(c => c && typeof c === 'string'))];
 
-      const responsibilityKey = validResponsibilities.length > 0 
-        ? [...new Set(validResponsibilities)].sort().join('/') 
-        : "Inconnu";
+      uniqueResponsibilities.forEach(resp => {
+        if (!byResponsibility[resp]) {
+            byResponsibility[resp] = { count: 0, categories: {} };
+        }
+        byResponsibility[resp].count++;
 
-      if (!byResponsibility[responsibilityKey]) {
-        byResponsibility[responsibilityKey] = { count: 0, categories: {} };
-      }
-      byResponsibility[responsibilityKey].count++;
-
-      const validCategories = categories.filter(c => c && typeof c === 'string');
-
-      if (validCategories.length > 0) {
-        validCategories.forEach((cat) => {
-            byResponsibility[responsibilityKey].categories[cat] = (byResponsibility[responsibilityKey].categories[cat] || 0) + 1;
+        uniqueCategories.forEach(cat => {
+            byResponsibility[resp].categories[cat] = (byResponsibility[resp].categories[cat] || 0) + 1;
         });
-      } else {
-        const otherCategory = "Non catégorisé";
-        byResponsibility[responsibilityKey].categories[otherCategory] = (byResponsibility[responsibilityKey].categories[otherCategory] || 0) + 1;
-      }
+      });
     });
 
     return Object.entries(byResponsibility)
@@ -91,6 +83,7 @@ export default function VerbatimAnalysisPage() {
           .map(([catName, catCount]) => ({
             name: catName,
             count: catCount,
+            // The percentage is based on the number of verbatims for THIS responsibility
             percentage: (catCount / data.count) * 100,
           }))
           .sort((a, b) => b.count - a.count);
