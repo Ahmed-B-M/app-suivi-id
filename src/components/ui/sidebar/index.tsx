@@ -45,7 +45,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state, openMobile, setOpenMobile, setExpanded } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -85,8 +85,13 @@ const Sidebar = React.forwardRef<
     return (
       <div
         ref={ref}
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
         className={cn(
-          "group hidden md:block text-sidebar-foreground",
+          "group hidden md:flex flex-col text-sidebar-foreground bg-sidebar",
+          "h-full transition-all duration-200 ease-in-out",
+          state === "expanded" ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-width-icon)]",
+          variant === "sidebar" && "border-r",
           className
         )}
         data-state={state}
@@ -95,28 +100,14 @@ const Sidebar = React.forwardRef<
         data-side={side}
         {...props}
       >
-        {/* This is what handles the sidebar gap on desktop */}
         <div
+          data-sidebar="sidebar"
           className={cn(
-            "duration-200 relative h-svh bg-sidebar transition-[width] ease-linear",
-            "w-[var(--sidebar-width)]",
-            "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
-            variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]"
+            "flex h-full w-full flex-col",
+            "group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
           )}
         >
-          <div
-            data-sidebar="sidebar"
-            className={cn(
-              "flex h-full w-full flex-col", 
-              "group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow",
-              "group-data-[variant=sidebar]:border-r"
-            )}
-          >
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     )

@@ -6,6 +6,7 @@ import { FilterProvider } from "@/context/filter-context";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarNav } from "@/components/app/sidebar-nav";
 import { AppHeader } from "./header";
+import { SidebarInset } from "../ui/sidebar/index";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +15,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
           <div className="relative flex min-h-screen">
             <SidebarNav />
-            <div className="flex-1 flex flex-col">
+            <SidebarInset>
               <AppHeader />
               <main className="flex-1 p-8 pt-6 bg-muted/30 overflow-y-auto">
                 {children}
@@ -24,7 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
                   ID-pilote
                 </div>
               </footer>
-            </div>
+            </SidebarInset>
           </div>
         </SidebarProvider>
       </FilterProvider>

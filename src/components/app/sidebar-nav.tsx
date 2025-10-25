@@ -100,7 +100,7 @@ export function SidebarNav() {
   const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar" side="left" className="sticky top-0 h-screen">
+    <Sidebar collapsible="icon" variant="sidebar" side="left" className="h-screen sticky top-0">
       <SidebarContent>
         <SidebarMenu>
           {links.map((link) => (
