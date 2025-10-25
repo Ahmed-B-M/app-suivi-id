@@ -77,6 +77,7 @@ export default function CommentManagementPage() {
         category: comment.category,
         taskDate: comment.taskDate ? new Date(comment.taskDate as string).toISOString() : undefined,
         driverName: comment.driverName,
+        nomHub: comment.nomHub,
       };
 
       const result = await updateSingleCommentAction(commentToSave);
@@ -156,11 +157,12 @@ export default function CommentManagementPage() {
             <TableRow>
               <TableHead>Statut</TableHead>
               <TableHead>Task ID</TableHead>
-              <TableHead className="w-[40%]">Commentaire</TableHead>
+              <TableHead className="w-[30%]">Commentaire</TableHead>
               <TableHead>Note</TableHead>
               <TableHead>Catégorie</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Chauffeur</TableHead>
+              <TableHead>Entrepôt</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -193,7 +195,7 @@ export default function CommentManagementPage() {
                         selected={comment.category}
                         onChange={(value) => handleCategoryChange(comment.id, value)}
                         placeholder="Sélectionner catégories..."
-                        className="min-w-[250px]"
+                        className="min-w-[200px]"
                       />
                        <Button
                           size="icon"
@@ -212,6 +214,7 @@ export default function CommentManagementPage() {
                   </TableCell>
                   <TableCell>{comment.taskDate ? new Date(comment.taskDate as string).toLocaleDateString() : 'N/A'}</TableCell>
                   <TableCell>{comment.driverName}</TableCell>
+                  <TableCell>{comment.nomHub}</TableCell>
                   <TableCell>
                     <Button onClick={() => handleSave(comment)} disabled={isPending && savingId === comment.id}>
                        {isPending && savingId === comment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -222,7 +225,7 @@ export default function CommentManagementPage() {
               ))
             ) : (
                 <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={9} className="h-24 text-center">
                         Aucun commentaire à afficher pour ce filtre.
                     </TableCell>
                 </TableRow>
@@ -361,3 +364,5 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
   );
 }
 
+
+    

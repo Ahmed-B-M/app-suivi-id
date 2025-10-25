@@ -12,6 +12,7 @@ export type CategorizedComment = {
   category: string[] | string;
   taskDate?: string | Date;
   driverName?: string;
+  nomHub?: string;
   status: "à traiter" | "traité";
 };
 
@@ -36,5 +37,7 @@ export function usePendingComments() {
     isLoading: isContextLoading
   };
 }
+
+    
 
     

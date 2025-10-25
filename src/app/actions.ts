@@ -453,6 +453,7 @@ export async function saveCategorizedCommentsAction(
     category: string[];
     taskDate?: string;
     driverName?: string;
+    nomHub?: string;
   }[]
 ) {
   try {
@@ -487,6 +488,7 @@ export async function updateSingleCommentAction(
     category: string[];
     taskDate?: string;
     driverName?: string;
+    nomHub?: string;
   }
 ) {
   try {
@@ -564,5 +566,7 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     };
   }
 }
+
+    
 
     
