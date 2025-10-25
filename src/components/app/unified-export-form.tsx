@@ -137,12 +137,6 @@ export function UnifiedExportForm({
   const { watch } = form;
   const dateRange = watch("dateRange");
 
-  useEffect(() => {
-    const today = new Date();
-    if (!form.getValues("dateRange.from")) {
-      form.setValue("dateRange", { from: today, to: today });
-    }
-  }, [form]);
   
   useEffect(() => {
     if (autoSaveTrigger) {
