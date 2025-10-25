@@ -35,7 +35,7 @@ export function SensitiveDeliveriesDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-6xl">
         <DialogHeader>
           <DialogTitle>Détail des Livraisons Sensibles</DialogTitle>
           <DialogDescription>
@@ -53,18 +53,24 @@ export function SensitiveDeliveriesDialog({
                     <TableHead>Entrepôt</TableHead>
                     <TableHead>Livreur</TableHead>
                     <TableHead>Client</TableHead>
+                    <TableHead>Séquence</TableHead>
+                    <TableHead>Instruction</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tasks.map((task) => (
                     <TableRow key={task.tacheId}>
                       <TableCell>
-                        {task.date ? format(new Date(task.date), "dd/MM/yyyy") : 'N/A'}
+                        {task.date ? format(new Date(task.date as string), "dd/MM/yyyy") : 'N/A'}
                       </TableCell>
                       <TableCell>{task.nomTournee || 'N/A'}</TableCell>
                       <TableCell>{task.nomHub || 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
                       <TableCell>{task.contact?.personne || "N/A"}</TableCell>
+                      <TableCell>{task.sequence ?? 'N/A'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground italic">
+                        {task.instructions || 'N/A'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
