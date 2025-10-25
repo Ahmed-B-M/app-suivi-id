@@ -30,7 +30,6 @@ type RedeliveryDetailsDialogProps = {
   allTasks: Tache[]; 
 };
 
-// This function is correct and will now receive the full task data.
 const countBacs = (task: Tache) => {
     if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
     return task.articles.reduce((acc, article) => {
@@ -51,13 +50,10 @@ export function RedeliveryDetailsDialog({
   const sortedTasks = useMemo(() => {
     if (!tasks || !allTasks) return [];
     
-    // Create a map of all tasks for quick lookup
     const allTasksMap = new Map(allTasks.map(t => [t.tacheId, t]));
 
-    // Enrich the filtered 'tasks' with the full data from 'allTasks'
     const enrichedTasks = tasks.map(task => allTasksMap.get(task.tacheId)).filter((t): t is Tache => !!t);
 
-    // Now, sort the enriched tasks
     return [...enrichedTasks].sort((a, b) => {
       const hubA = a.nomHub || "";
       const hubB = b.nomHub || "";
@@ -137,5 +133,3 @@ export function RedeliveryDetailsDialog({
     </Dialog>
   );
 }
-
-
