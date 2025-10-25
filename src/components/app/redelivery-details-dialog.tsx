@@ -29,16 +29,6 @@ type RedeliveryDetailsDialogProps = {
   tasks: Tache[];
 };
 
-const countBacs = (task: Tache) => {
-    if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
-    return task.articles.reduce((acc, article) => {
-        if (article.type === 'BAC_SEC') acc.secs++;
-        else if (article.type === 'BAC_FRAIS') acc.frais++;
-        else if (article.type === 'BAC_SURGELE') acc.surgeles++;
-        return acc;
-    }, { secs: 0, frais: 0, surgeles: 0 });
-};
-
 export function RedeliveryDetailsDialog({
   isOpen,
   onOpenChange,
@@ -87,7 +77,10 @@ export function RedeliveryDetailsDialog({
                 </TableHeader>
                 <TableBody>
                   {sortedTasks.map((task) => {
-                    const bacCounts = countBacs(task);
+                    const bacsSecs = (task.articles || []).filter(a => a.type === 'BAC_SEC').length;
+                    const bacsFrais = (task.articles || []).filter(a => a.type === 'BAC_FRAIS').length;
+                    const bacsSurgeles = (task.articles || []).filter(a => a.type === 'BAC_SURGELE').length;
+                    
                     return (
                       <TableRow key={task.tacheId}>
                         <TableCell>
@@ -101,9 +94,9 @@ export function RedeliveryDetailsDialog({
                         <TableCell className="text-center">
                           <Badge variant="destructive">{task.tentatives}</Badge>
                         </TableCell>
-                         <TableCell className="text-right font-mono">{bacCounts.secs}</TableCell>
-                        <TableCell className="text-right font-mono">{bacCounts.frais}</TableCell>
-                        <TableCell className="text-right font-mono">{bacCounts.surgeles}</TableCell>
+                         <TableCell className="text-right font-mono">{bacsSecs}</TableCell>
+                        <TableCell className="text-right font-mono">{bacsFrais}</TableCell>
+                        <TableCell className="text-right font-mono">{bacsSurgeles}</TableCell>
                       </TableRow>
                     )
                   })}
