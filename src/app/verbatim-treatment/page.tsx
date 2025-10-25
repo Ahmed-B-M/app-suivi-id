@@ -65,7 +65,16 @@ export default function VerbatimTreatmentPage() {
       const result = await saveProcessedVerbatimAction(verbatim);
       if (result.success) {
         toast({ title: 'Succès', description: 'Verbatim sauvegardé.' });
-        setEditableVerbatims(prev => prev.map(v => v.id === verbatim.id ? { ...v, status: 'traité' } : v));
+        // Update local state to reflect the change immediately
+        const updatedVerbatims = editableVerbatims.map(v => 
+          v.id === verbatim.id ? { ...v, status: 'traité' as const } : v
+        );
+        // Then filter based on the current view
+        if (statusFilter === 'à traiter') {
+            setEditableVerbatims(updatedVerbatims.filter(v => v.status === 'à traiter'));
+        } else {
+            setEditableVerbatims(updatedVerbatims);
+        }
       } else {
         toast({ title: 'Erreur', description: result.error, variant: 'destructive' });
       }
@@ -349,5 +358,3 @@ function MultiSelectCombobox({ options, selected, onChange, className, placehold
     </Popover>
   );
 }
-
-    

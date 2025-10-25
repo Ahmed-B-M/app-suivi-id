@@ -529,7 +529,7 @@ export async function saveNpsDataAction(
         const docId = payload.associationDate;
         const docRef = firestore.collection("nps_data").doc(docId);
         
-        await docRef.set(payload, { merge: true });
+        await docRef.set({ ...payload, id: docId }, { merge: true });
 
         return { success: true, error: null };
 
@@ -550,10 +550,22 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     
     const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
     
-    const dataToSave: ProcessedVerbatim = {
+    const dataToSave: ProcessedVerbatim & { associationDate?: string } = {
       ...verbatim,
       status: 'traité'
     };
+    
+    // To ensure the verbatim can be found later, we need to associate it with an NPS import date.
+    // Let's find the original NpsData document that contains this verbatim's taskId.
+    const npsDataSnapshot = await firestore.collection("nps_data")
+        .where("verbatims", "array-contains", { taskId: verbatim.taskId })
+        .limit(1)
+        .get();
+
+    if (!npsDataSnapshot.empty) {
+        const npsDoc = npsDataSnapshot.docs[0];
+        dataToSave.associationDate = npsDoc.id; // The ID of nps_data doc is the 'YYYY-MM-DD' date
+    }
     
     await docRef.set(dataToSave, { merge: true });
     return { success: true, error: null };
@@ -566,7 +578,3 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     };
   }
 }
-
-    
-
-    

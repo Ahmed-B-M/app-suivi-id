@@ -8,7 +8,7 @@ import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-co
 import { collection, DocumentData, Query, Timestamp, where } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, isEqual } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
 import { ProcessedVerbatim } from '@/app/verbatim-treatment/page';
@@ -65,7 +65,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     if (dateFilterMode === 'day' && date) {
       const from = startOfDay(date);
       const to = endOfDay(date);
-      if (dateRange?.from?.getTime() !== from.getTime() || dateRange?.to?.getTime() !== to.getTime()) {
+      if (!dateRange || !dateRange.from || !dateRange.to || !isEqual(dateRange.from, from) || !isEqual(dateRange.to, to)) {
         setDateRange({ from, to });
       }
     }
@@ -74,12 +74,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (dateFilterMode === 'range' && dateRange?.from) {
        const fromDate = startOfDay(dateRange.from);
-       if (date?.getTime() !== fromDate.getTime()) {
+       if (!date || !isEqual(date, fromDate)) {
          setDate(fromDate);
        }
-    } else if (dateFilterMode === 'range' && !dateRange?.from) {
-        const today = new Date();
-        setDateRange({ from: subDays(today, 7), to: today });
     }
   }, [dateRange, dateFilterMode, date]);
 
@@ -139,12 +136,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     
     if (!from) return [];
     
-    const startDate = startOfDay(from);
-    const endDate = endOfDay(to ?? from);
-    
     return [
-      where("taskDate", ">=", startDate.toISOString()),
-      where("taskDate", "<=", endDate.toISOString())
+      where("associationDate", ">=", format(from, 'yyyy-MM-dd')),
+      where("associationDate", "<=", format(to ?? from, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
 
@@ -400,5 +394,3 @@ export function useFilters() {
   }
   return context;
 }
-
-    
