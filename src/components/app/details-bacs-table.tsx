@@ -72,9 +72,9 @@ const columns: ColumnDef<BacRow>[] = [
     accessorKey: "nomTournee",
     header: "Tournée",
   },
-  {
-    accessorKey: "nom",
-    header: "Nom Article",
+    {
+    accessorKey: "type",
+    header: "Type d'Article",
   },
   {
     accessorKey: "codeBarre",
