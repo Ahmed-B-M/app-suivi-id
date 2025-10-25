@@ -51,27 +51,25 @@ export default function VerbatimAnalysisPage() {
     }
 
     const totalVerbatims = verbatimsToShow.length;
-    const byResponsibility: Record<string, { count: number; categories: Record<string, number> }> = {};
+    const byResponsibility: Record<string, { verbatims: Set<string>; categories: Record<string, number> }> = {};
 
     verbatimsToShow.forEach((verbatim) => {
       const responsibilities = Array.isArray(verbatim.responsibilities) && verbatim.responsibilities.length > 0
-        ? verbatim.responsibilities
+        ? [...new Set(verbatim.responsibilities.filter(r => r && typeof r === 'string'))]
         : ["Inconnu"];
         
       const categories = Array.isArray(verbatim.category) && verbatim.category.length > 0
-        ? verbatim.category
+        ? [...new Set(verbatim.category.filter(c => c && typeof c === 'string'))]
         : ["Non catégorisé"];
 
-      const uniqueResponsibilities = [...new Set(responsibilities.filter(r => r && typeof r === 'string'))];
-      const uniqueCategories = [...new Set(categories.filter(c => c && typeof c === 'string'))];
-
-      uniqueResponsibilities.forEach(resp => {
+      responsibilities.forEach(resp => {
         if (!byResponsibility[resp]) {
-            byResponsibility[resp] = { count: 0, categories: {} };
+            byResponsibility[resp] = { verbatims: new Set(), categories: {} };
         }
-        byResponsibility[resp].count++;
+        // Add the verbatim's ID to the set to count unique verbatims per responsibility
+        byResponsibility[resp].verbatims.add(verbatim.taskId);
 
-        uniqueCategories.forEach(cat => {
+        categories.forEach(cat => {
             byResponsibility[resp].categories[cat] = (byResponsibility[resp].categories[cat] || 0) + 1;
         });
       });
@@ -79,19 +77,21 @@ export default function VerbatimAnalysisPage() {
 
     return Object.entries(byResponsibility)
       .map(([respName, data]) => {
+        const uniqueVerbatimCount = data.verbatims.size;
+        
         const categoriesData = Object.entries(data.categories)
           .map(([catName, catCount]) => ({
             name: catName,
             count: catCount,
-            // The percentage is based on the number of verbatims for THIS responsibility
-            percentage: (catCount / data.count) * 100,
+            // Calculate percentage based on the number of verbatims for THIS responsibility
+            percentage: uniqueVerbatimCount > 0 ? (catCount / uniqueVerbatimCount) * 100 : 0,
           }))
           .sort((a, b) => b.count - a.count);
 
         return {
           name: respName,
-          count: data.count,
-          percentage: (data.count / totalVerbatims) * 100,
+          count: uniqueVerbatimCount, // Use the count of unique verbatims
+          percentage: (uniqueVerbatimCount / totalVerbatims) * 100,
           categories: categoriesData,
         };
       })
