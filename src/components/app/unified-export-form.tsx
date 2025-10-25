@@ -134,8 +134,6 @@ export function UnifiedExportForm({
     },
   });
 
-  const { watch } = form;
-  const dateRange = watch("dateRange");
 
   
   useEffect(() => {
@@ -143,7 +141,7 @@ export function UnifiedExportForm({
       handleSaveToFirestore();
       setAutoSaveTrigger(false); // Reset trigger
     }
-  }, [autoSaveTrigger, handleSaveToFirestore]);
+  }, [autoSaveTrigger]);
 
 
   const onSubmit = async (values: UnifiedExportFormValues) => {
@@ -218,6 +216,7 @@ export function UnifiedExportForm({
         onSavingChange(true);
         setSaveCount(0);
         onLogUpdate([`\n💾 Début de la sauvegarde intelligente dans Firestore...`]);
+        const { dateRange } = form.getValues();
         if (!dateRange?.from) {
           onLogUpdate(["   - ❌ Erreur: Aucune plage de dates n'est sélectionnée pour la sauvegarde."]);
           onSavingChange(false);
@@ -347,7 +346,7 @@ export function UnifiedExportForm({
         onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
         setSaveCount(itemsToUpdate.length);
 
-        const batchSize = 500;
+        const batchSize = 250;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
           const batchData = itemsToUpdate.slice(i, i + batchSize);
           const batch = writeBatch(firestore);
@@ -397,10 +396,9 @@ export function UnifiedExportForm({
 
 
   const handleResetClick = () => {
-    const today = new Date();
     form.reset({
         apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
-        dateRange: { from: today, to: today },
+        dateRange: { from: new Date(), to: new Date() },
         taskStatus: "all",
         roundStatus: "all",
         taskId: "",
