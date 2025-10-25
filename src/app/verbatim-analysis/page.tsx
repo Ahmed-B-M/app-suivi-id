@@ -78,15 +78,11 @@ export default function VerbatimAnalysisPage() {
       .map(([respName, data]) => {
         const uniqueVerbatimCount = data.verbatims.size;
         
-        // Calculate the total number of category assignments for this responsibility
-        const totalCategoryAssignments = Object.values(data.categories).reduce((sum, count) => sum + count, 0);
-
         const categoriesData = Object.entries(data.categories)
           .map(([catName, catCount]) => ({
             name: catName,
             count: catCount,
-            // Calculate percentage based on the total number of category *assignments*
-            percentage: totalCategoryAssignments > 0 ? (catCount / totalCategoryAssignments) * 100 : 0,
+            percentage: uniqueVerbatimCount > 0 ? (catCount / uniqueVerbatimCount) * 100 : 0,
           }))
           .sort((a, b) => b.count - a.count);
 
