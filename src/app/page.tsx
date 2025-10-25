@@ -40,6 +40,8 @@ import { ScanbacDetailsDialog } from "@/components/app/scanbac-details-dialog";
 import { ForcedAddressDetailsDialog } from "@/components/app/forced-address-details-dialog";
 import { ForcedContactlessDetailsDialog } from "@/components/app/forced-contactless-details-dialog";
 import { NpsByCarrierDetailsDialog } from "@/components/app/nps-by-carrier-details-dialog";
+import { OverweightRoundsDetailsDialog } from "@/components/app/overweight-rounds-details-dialog";
+import { OverbacsRoundsDetailsDialog } from "@/components/app/overbacs-rounds-details-dialog";
 
 
 export default function DashboardPage() {
@@ -67,6 +69,8 @@ export default function DashboardPage() {
   const [isScanbacDetailsOpen, setIsScanbacDetailsOpen] = useState(false);
   const [isForcedAddressDetailsOpen, setIsForcedAddressDetailsOpen] = useState(false);
   const [isForcedContactlessDetailsOpen, setIsForcedContactlessDetailsOpen] = useState(false);
+  const [isOverweightDetailsOpen, setIsOverweightDetailsOpen] = useState(false);
+  const [isOverbacsDetailsOpen, setIsOverbacsDetailsOpen] = useState(false);
 
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late' | 'late_over_1h';
@@ -170,6 +174,17 @@ export default function DashboardPage() {
         onOpenChange={setIsForcedContactlessDetailsOpen}
         tasks={dashboardData?.forcedContactlessTasks || []}
       />
+       <OverweightRoundsDetailsDialog
+        isOpen={isOverweightDetailsOpen}
+        onOpenChange={setIsOverweightDetailsOpen}
+        data={dashboardData?.overweightRoundsList || []}
+      />
+      <OverbacsRoundsDetailsDialog
+        isOpen={isOverbacsDetailsOpen}
+        onOpenChange={setIsOverbacsDetailsOpen}
+        data={dashboardData?.overbacsRoundsList || []}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
       </div>
@@ -227,6 +242,8 @@ export default function DashboardPage() {
             onScanbacClick={() => setIsScanbacDetailsOpen(true)}
             onForcedAddressClick={() => setIsForcedAddressDetailsOpen(true)}
             onForcedContactlessClick={() => setIsForcedContactlessDetailsOpen(true)}
+            onOverweightClick={() => setIsOverweightDetailsOpen(true)}
+            onOverbacsClick={() => setIsOverbacsDetailsOpen(true)}
           />
 
           {dashboardData.commentAnalysis && dashboardData.commentAnalysis.totalComments > 0 && (

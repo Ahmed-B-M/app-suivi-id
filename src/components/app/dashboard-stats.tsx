@@ -87,6 +87,8 @@ type DashboardStatsProps = {
   onForcedAddressClick: () => void;
   onForcedContactlessClick: () => void;
   onNpsClick: () => void;
+  onOverweightClick: () => void;
+  onOverbacsClick: () => void;
 };
 
 const StatCard = ({
@@ -164,6 +166,8 @@ export function DashboardStats({
   onForcedAddressClick,
   onForcedContactlessClick,
   onNpsClick,
+  onOverweightClick,
+  onOverbacsClick,
 }: DashboardStatsProps) {
   const getVariant = (
     value: number | null,
@@ -293,14 +297,14 @@ export function DashboardStats({
             value={`${stats.overweightRounds}`} 
             icon={<Weight className="h-4 w-4 text-muted-foreground" />} 
             variant={stats.overweightRounds > 0 ? 'danger' : 'success'}
-            // onClick={onOverweightClick} // TODO: Implement this
+            onClick={onOverweightClick}
           />
         <StatCard 
             title="Surcharge Bacs (>105)" 
             value={`${stats.overbacsRounds}`} 
             icon={<Boxes className="h-4 w-4 text-muted-foreground" />} 
             variant={stats.overbacsRounds > 0 ? 'danger' : 'success'}
-            // onClick={onOverbacsClick} // TODO: Implement this
+            onClick={onOverbacsClick}
         />
        </div>
 
@@ -309,7 +313,7 @@ export function DashboardStats({
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Performance &amp; Qualité</CardTitle>
+            <CardTitle>Performance & Qualité</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <MiniStat title="Tâches en avance" value={stats.earlyTasksCount.toString()} icon={<TrendingUp className="h-5 w-5 text-blue-500" />} onClick={onEarlyClick}/>
@@ -324,7 +328,7 @@ export function DashboardStats({
         
         <Card>
           <CardHeader>
-            <CardTitle>Anomalies &amp; Suivi</CardTitle>
+            <CardTitle>Anomalies & Suivi</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <MiniStat title="Relivraisons" value={stats.redeliveries.toString()} icon={<Repeat className="h-5 w-5 text-blue-500" />} onClick={onRedeliveryClick}/>

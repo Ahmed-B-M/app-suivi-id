@@ -329,17 +329,18 @@ export function calculateDashboardStats(
         }
     });
 
-    let overweightRoundsCount = 0;
-    let overbacsRoundsCount = 0;
+    const overweightRoundsList: { round: Tournee, totalWeight: number }[] = [];
+    const overbacsRoundsList: { round: Tournee, totalBacs: number }[] = [];
+
     rounds.forEach(round => {
         const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
         const roundData = tasksDataByRound.get(roundKey);
         if (roundData) {
-            if (roundData.weight > 1250) {
-                overweightRoundsCount++;
+            if (round.vehicle?.dimensions?.poids && roundData.weight > round.vehicle.dimensions.poids) {
+                 overweightRoundsList.push({ round, totalWeight: roundData.weight });
             }
             if (roundData.bacs > 105) {
-                overbacsRoundsCount++;
+                overbacsRoundsList.push({ round, totalBacs: roundData.bacs });
             }
         }
     });
@@ -375,9 +376,11 @@ export function calculateDashboardStats(
         alertRate,
         nps,
         npsResponseCount,
-        overweightRounds: overweightRoundsCount,
-        overbacsRounds: overbacsRoundsCount,
+        overweightRounds: overweightRoundsList.length,
+        overbacsRounds: overbacsRoundsList.length,
       },
+      overweightRoundsList,
+      overbacsRoundsList,
       npsByCarrier: npsByCarrierData,
       top5StarDrivers,
       earlyTasks,
