@@ -227,7 +227,7 @@ export function generateQualityEmailBody(
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
         const verbatimsByCategory: Record<string, number> = {};
         depotVerbatims.forEach(v => {
-            const categories = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
+            const categories = Array.isArray(v.category) ? v.category : [v.category];
             categories.forEach(cat => {
                 if(cat) verbatimsByCategory[cat] = (verbatimsByCategory[cat] || 0) + 1;
             });
@@ -292,7 +292,7 @@ export function generateQualityEmailBody(
         
         depotSections += `
             <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 40px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
-                Dépôt: ${depot.name.toUpperCase()}
+                ${depot.name.toUpperCase()}
             </h2>
             ${createCard(depotKpis, 'Indicateurs Clés du Dépôt')}
             ${carrierKpisSections ? createCard(carrierKpisSections) : ''}
@@ -323,4 +323,5 @@ export function generateQualityEmailBody(
     return htmlBody;
 }
 
-    
+
+  
