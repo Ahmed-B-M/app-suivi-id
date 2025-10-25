@@ -258,4 +258,5 @@ export type ProcessedNpsVerbatim = {
     carrier?: string;
     depot?: string;
     driver?: string;
+    associationDate: string;
 }

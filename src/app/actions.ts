@@ -576,4 +576,27 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
   }
 }
 
+// --- Save Action Note to Firestore ---
+export async function saveActionNoteAction(note: { content: string; date: string }) {
+  try {
+    const { firestore } = await initializeFirebaseOnServer();
+    const docId = note.date; // Use YYYY-MM-DD as the document ID
+    const docRef = firestore.collection("action_notes").doc(docId);
+    
+    // Using set with merge to create or update the document for that day
+    await docRef.set({
+      date: note.date,
+      content: note.content
+    }, { merge: true });
+
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error saving action note:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to save action note to Firestore.",
+    };
+  }
+}
+
     

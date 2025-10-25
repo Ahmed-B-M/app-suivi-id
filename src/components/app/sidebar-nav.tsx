@@ -12,7 +12,7 @@ import {
   SidebarHeader,
   SidebarTrigger
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,11 @@ const links = [
     href: "/quality",
     label: "Qualité",
     icon: <ShieldCheck />,
+  },
+   {
+    href: "/driver-feedback",
+    label: "Suivi Livreurs",
+    icon: <Users />,
   },
   {
     href: "/comment-management",

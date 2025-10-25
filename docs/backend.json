@@ -377,6 +377,17 @@
         "driver": { "type": "string" }
       },
       "required": ["taskId", "npsScore", "verbatim", "status"]
+    },
+    "ActionNote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ActionNote",
+      "type": "object",
+      "description": "Represents a daily note or action plan related to driver feedback.",
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "The date of the note in YYYY-MM-DD format, used as the document ID." },
+        "content": { "type": "string", "description": "The content of the note." }
+      },
+      "required": ["date", "content"]
     }
   },
   "auth": {
@@ -457,6 +468,20 @@
             {
               "name": "taskId",
               "description": "The unique identifier for the task this verbatim belongs to."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/action_notes/{date}",
+        "definition": {
+          "entityName": "ActionNote",
+          "schema": { "$ref": "#/backend/entities/ActionNote" },
+          "description": "Stores daily action notes. The document ID is the date in 'YYYY-MM-DD' format.",
+          "params": [
+            {
+              "name": "date",
+              "description": "The date of the note."
             }
           ]
         }
