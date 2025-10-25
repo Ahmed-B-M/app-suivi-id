@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History } from "lucide-react";
+import { Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History, Layers } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useFilters } from "@/context/filter-context";
@@ -74,7 +74,8 @@ export function AppHeader() {
       <div className="container flex h-14 items-center justify-between">
         <div className="mr-4 hidden items-center md:flex">
           <Link href="/" className="flex items-center">
-             <Image src={Logo} alt="ID 360 Logo" width={96} height={96} className="mr-3"/>
+             <Layers className="h-6 w-6 mr-3 text-primary" />
+            <span className="font-bold text-lg text-primary">ID 360</span>
           </Link>
         </div>
         <div className="flex-1 flex justify-end items-center gap-2">
