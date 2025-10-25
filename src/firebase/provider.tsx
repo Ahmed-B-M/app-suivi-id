@@ -94,16 +94,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
               role: 'viewer'
             };
             
-            // Non-blocking write with detailed error handling
-            setDoc(userRef, newUserProfile)
-              .catch(error => {
-                const permissionError = new FirestorePermissionError({
-                  path: userRef.path,
-                  operation: 'create',
-                  requestResourceData: newUserProfile,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+            // Non-blocking write
+            setDoc(userRef, newUserProfile).catch(error => {
+              const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'create',
+                requestResourceData: newUserProfile,
               });
+              errorEmitter.emit('permission-error', permissionError);
+            });
           }
           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         } else {
