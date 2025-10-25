@@ -548,42 +548,21 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
   try {
     const { firestore } = await initializeFirebaseOnServer();
     
+    if (!verbatim.associationDate) {
+        throw new Error("La date d'association est manquante pour le verbatim. Impossible de sauvegarder.");
+    }
+    
     const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
-    
-    let associationDateToSave: string | undefined = verbatim.associationDate;
-
-    // If associationDate is not present on the verbatim, try to find it.
-    if (!associationDateToSave) {
-        const npsDataSnapshot = await firestore.collection("nps_data")
-            .where("verbatims", "array-contains", { taskId: verbatim.taskId })
-            .limit(1)
-            .get();
-
-        if (!npsDataSnapshot.empty) {
-            const npsDoc = npsDataSnapshot.docs[0];
-            associationDateToSave = npsDoc.id; // The ID of nps_data doc is the 'YYYY-MM-DD' date
-        }
-    }
-    
-    // As a fallback, use the taskDate if no associationDate could be found
-    if (!associationDateToSave && verbatim.taskDate) {
-      associationDateToSave = format(new Date(verbatim.taskDate), 'yyyy-MM-dd');
-    }
 
     const dataToSave = {
-      taskId: verbatim.taskId,
-      npsScore: verbatim.npsScore,
-      verbatim: verbatim.verbatim,
-      responsibilities: verbatim.responsibilities,
-      category: verbatim.category,
+      ...verbatim,
       status: 'traité',
-      store: verbatim.store,
-      taskDate: verbatim.taskDate,
-      carrier: verbatim.carrier,
-      depot: verbatim.depot,
-      driver: verbatim.driver,
-      associationDate: associationDateToSave,
+      // Ensure associationDate is a string in YYYY-MM-DD format
+      associationDate: format(new Date(verbatim.associationDate), 'yyyy-MM-dd'),
     };
+    
+    // We don't need the 'id' field in the Firestore document itself.
+    delete (dataToSave as any).id;
     
     await docRef.set(dataToSave, { merge: true });
     return { success: true, error: null };
@@ -596,5 +575,3 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     };
   }
 }
-
-    

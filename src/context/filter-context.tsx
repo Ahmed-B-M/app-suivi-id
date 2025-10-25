@@ -118,7 +118,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     ];
   }, [dateRange]);
   
-  const npsFirestoreFilters = useMemo(() => {
+  const associationDateFilters = useMemo(() => {
     const from = dateRange?.from;
     const to = dateRange?.to;
 
@@ -133,8 +133,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
-  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
-  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters);
+  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, associationDateFilters);
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, associationDateFilters);
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
@@ -316,29 +316,32 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     });
     
     // 2. Get all detractor verbatims from the current NPS data scope (already filtered by date, etc.).
-    const detractorVerbatims = allNpsData
-        .flatMap(d => d.verbatims)
-        .filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
+    allNpsData.forEach(npsFile => {
+        const dateOfAssociation = npsFile.id; // The ID is the 'yyyy-MM-dd' date string
+        const detractorVerbatims = npsFile.verbatims.filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
 
-    // 3. Add only the NEW detractor verbatims to the map with 'à traiter' status.
-    detractorVerbatims.forEach(v => {
-        if (!verbatimsMap.has(v.taskId)) {
-            verbatimsMap.set(v.taskId, {
-                id: v.taskId,
-                taskId: v.taskId,
-                npsScore: v.npsScore,
-                verbatim: v.verbatim,
-                responsibilities: [],
-                category: [],
-                status: 'à traiter',
-                store: v.store,
-                taskDate: v.taskDate,
-                carrier: v.carrier,
-                depot: v.depot,
-                driver: v.driver,
-            });
-        }
+        // 3. Add only the NEW detractor verbatims to the map with 'à traiter' status.
+        detractorVerbatims.forEach(v => {
+            if (!verbatimsMap.has(v.taskId)) {
+                verbatimsMap.set(v.taskId, {
+                    id: v.taskId,
+                    taskId: v.taskId,
+                    npsScore: v.npsScore,
+                    verbatim: v.verbatim,
+                    responsibilities: [],
+                    category: [],
+                    status: 'à traiter',
+                    store: v.store,
+                    taskDate: v.taskDate,
+                    carrier: v.carrier,
+                    depot: v.depot,
+                    driver: v.driver,
+                    associationDate: dateOfAssociation, // Systematically add the associationDate
+                });
+            }
+        });
     });
+
 
     return Array.from(verbatimsMap.values());
 }, [allNpsData, processedVerbatims]);
@@ -383,5 +386,3 @@ export function useFilters() {
   }
   return context;
 }
-
-    
