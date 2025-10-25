@@ -155,7 +155,9 @@ export function calculateDashboardStats(
     });
 
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
-    const qualityAlertTasks = allNegativeComments.map(c => tasks.find(t => t.tacheId === c.taskId)).filter(Boolean) as Tache[];
+    
+    const qualityAlertTaskIds = new Set(allNegativeComments.map(c => c.taskId));
+    const qualityAlertTasks = tasks.filter(t => qualityAlertTaskIds.has(t.tacheId));
 
 
     const alertRate = numberOfRatings > 0 ? (qualityAlertTasks.length / numberOfRatings) * 100 : null;
