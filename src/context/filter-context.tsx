@@ -130,22 +130,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     ];
   }, [dateRange]);
   
-  const verbatimsDateFilters = useMemo(() => {
-    const from = dateRange?.from;
-    const to = dateRange?.to;
-    
-    if (!from) return [];
-    
-    return [
-      where("associationDate", ">=", format(from, 'yyyy-MM-dd')),
-      where("associationDate", "<=", format(to ?? from, 'yyyy-MM-dd'))
-    ];
-  }, [dateRange]);
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
-  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, verbatimsDateFilters);
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters);
   const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
@@ -394,3 +383,5 @@ export function useFilters() {
   }
   return context;
 }
+
+    
