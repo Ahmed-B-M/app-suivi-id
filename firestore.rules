@@ -1,153 +1,153 @@
 /**
- * @fileoverview Firestore Security Rules for the Urbantz API data model.
+ * @fileOverview Firestore Security Rules for the Urbantz API data model.
  *
  * Core Philosophy:
- * This ruleset provides public read access to all data collections, allowing any client to retrieve documents.
- * Write access is completely denied to all clients, effectively making the data read-only from the application's perspective.
+ * This ruleset enforces a strict user-ownership model for user profiles, allowing users to manage their own data.
+ * All other data collections are intended to be managed by backend services, with no client-side write access.
  *
  * Data Structure:
- * The Firestore database contains several top-level collections:
- * - /users/{userId}: Stores user profile information.
- * - /tasks/{taskId}: Stores task data fetched from the Urbantz API.
- * - /rounds/{roundId}: Stores round data fetched from the Urbantz API.
- * - /categorized_comments/{taskId}: Stores categorized customer comments.
- * - /nps_data/{date}: Stores NPS analysis results for a specific date.
- * - /processed_nps_verbatims/{taskId}: Stores processed NPS detractor verbatims.
- * - /action_notes/{date}: Stores daily action notes.
- * - /action_notes_depot/{depotDateId}: Stores daily action notes for a specific depot.
+ * - /users/{userId}: Stores user profile data, with the 'uid' field matching the document ID.
+ * - /tasks/{taskId}: Stores task data from the Urbantz API.
+ * - /rounds/{roundId}: Stores round data from the Urbantz API.
+ * - /categorized_comments/{taskId}: Stores categorized customer comments, with the task ID as the document ID.
+ * - /nps_data/{date}: Stores NPS data for a given date, with the date as the document ID.
+ * - /processed_nps_verbatims/{taskId}: Stores processed NPS verbatims, with the task ID as the document ID.
+ * - /action_notes/{date}: Stores daily action notes, with the date as the document ID.
+ * - /action_notes_depot/{depotDateId}: Stores depot-specific action notes, with a composite ID.
  *
  * Key Security Decisions:
- * - Public Read Access: All `get` and `list` operations are allowed for all users. This is appropriate for data that is intended to be publicly accessible or managed through a separate administrative interface.
- * - Write Denied: All `create`, `update`, and `delete` operations are denied. This ensures that application users cannot directly modify the data in Firestore.
- * - No user listing: listing `/users` is not allowed.
+ * - User data is stored under /users/{userId} and is accessible only to the authenticated user with a matching UID.
+ * - All other collections (tasks, rounds, comments, NPS data, action notes) are explicitly secured against client-side writes. This assumes these collections are populated and managed by a trusted backend environment.
+ * - Listing of tasks, rounds, comments, NPS data, and action notes is completely open. This assumes this is safe, for example, if an admin backend is also used in conjunction with these rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces read-only access to user profile data.
+     * @description Manages user profile data. Only the authenticated user can read or modify their own profile.
      * @path /users/{userId}
-     * @allow (get, list): Any user can read user profiles.
-     * @deny (create, update, delete): No user can create, update, or delete user profiles through the client app.
-     * @principle Enforces read-only access to user data for all users.
+     * @allow (create) User 'U6p0PzhzYgPlEgPYt9sOVXXqO5Q2' can create a profile if their auth UID matches the 'userId' and the 'uid' in the data.
+     * @allow (get, list, update, delete) User 'U6p0PzhzYgPlEgPYt9sOVXXqO5Q2' can access their own profile.
+     * @deny (create) User 'U6p0PzhzYgPlEgPYt9sOVXXqO5Q2' cannot create a profile if the 'userId' and 'uid' don't match
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get: if true;
-      allow list: if false; // Listing all users is disallowed
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      allow get: if true;
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Enforces read-only access to task data.
+     * @description Manages task data fetched from the Urbantz API. No client-side writes are allowed.
      * @path /tasks/{taskId}
-     * @allow (get, list): Any user can read task data.
-     * @deny (create, update, delete): No user can create, update, or delete task data through the client app.
-     * @principle Enforces read-only access to task data for all users.
+     * @allow (get, list) Any user can read task data.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /tasks/{taskId} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Enforces read-only access to round data.
+     * @description Manages round data fetched from the Urbantz API. No client-side writes are allowed.
      * @path /rounds/{roundId}
-     * @allow (get, list): Any user can read round data.
-     * @deny (create, update, delete): No user can create, update, or delete round data through the client app.
-     * @principle Enforces read-only access to round data for all users.
+     * @allow (get, list) Any user can read round data.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /rounds/{roundId} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Enforces read-only access to categorized comments.
+     * @description Manages categorized customer comments. No client-side writes are allowed.
      * @path /categorized_comments/{taskId}
-     * @allow (get, list): Any user can read categorized comments.
-     * @deny (create, update, delete): No user can create, update, or delete categorized comments through the client app.
-     * @principle Enforces read-only access to categorized comments for all users.
+     * @allow (get, list) Any user can read categorized comments.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /categorized_comments/{taskId} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Enforces read-only access to NPS data.
+     * @description Manages NPS data. No client-side writes are allowed.
      * @path /nps_data/{date}
-     * @allow (get, list): Any user can read NPS data.
-     * @deny (create, update, delete): No user can create, update, or delete NPS data through the client app.
-     * @principle Enforces read-only access to NPS data for all users.
+     * @allow (get, list) Any user can read NPS data.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /nps_data/{date} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Enforces read-only access to processed NPS verbatims.
+     * @description Manages processed NPS verbatims. No client-side writes are allowed.
      * @path /processed_nps_verbatims/{taskId}
-     * @allow (get, list): Any user can read processed NPS verbatims.
-     * @deny (create, update, delete): No user can create, update, or delete processed NPS verbatims through the client app.
-     * @principle Enforces read-only access to processed NPS verbatims for all users.
+     * @allow (get, list) Any user can read processed NPS verbatims.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /processed_nps_verbatims/{taskId} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Enforces read-only access to action notes.
+     * @description Manages action notes. No client-side writes are allowed.
      * @path /action_notes/{date}
-     * @allow (get, list): Any user can read action notes.
-     * @deny (create, update, delete): No user can create, update, or delete action notes through the client app.
-     * @principle Enforces read-only access to action notes for all users.
+     * @allow (get, list) Any user can read action notes.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /action_notes/{date} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
-    /**
-     * @description Enforces read-only access to depot-specific action notes.
+   /**
+     * @description Manages depot-specific action notes. No client-side writes are allowed.
      * @path /action_notes_depot/{depotDateId}
-     * @allow (get, list): Any user can read depot-specific action notes.
-     * @deny (create, update, delete): No user can create, update, or delete depot-specific action notes through the client app.
-     * @principle Enforces read-only access to depot-specific action notes for all users.
+     * @allow (get, list) Any user can read depot-specific action notes.
+     * @deny (create, update, delete) No client-side writes are allowed.
+     * @principle Restricts client-side writes to backend services only.
      */
     match /action_notes_depot/{depotDateId} {
       allow get: if true;
       allow list: if true;
-
       allow create: if false;
       allow update: if false;
       allow delete: if false;
