@@ -96,7 +96,7 @@ function transformTaskData(rawTask: any): Tache {
       nom: item.name,
       statut: item.status,
       codeBarre: item.barcode,
-      type: item.type,
+      type: item.type, // This now correctly includes 'SURGELE'
       dimensions: item.dimensions ? {
         poids: item.dimensions.poids,
       } : undefined,
@@ -575,3 +575,5 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     };
   }
 }
+
+    
