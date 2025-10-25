@@ -89,6 +89,7 @@ type DashboardStatsProps = {
   onNpsClick: () => void;
   onOverweightClick: () => void;
   onOverbacsClick: () => void;
+  onCompletedRoundsClick: () => void;
 };
 
 const StatCard = ({
@@ -168,6 +169,7 @@ export function DashboardStats({
   onNpsClick,
   onOverweightClick,
   onOverbacsClick,
+  onCompletedRoundsClick,
 }: DashboardStatsProps) {
   const getVariant = (
     value: number | null,
@@ -293,14 +295,14 @@ export function DashboardStats({
             onClick={onForcedContactlessClick}
         />
          <StatCard 
-            title="Surcharge Poids (>1250kg)" 
+            title="Surcharge Poids (> 1250kg)" 
             value={`${stats.overweightRounds}`} 
             icon={<Weight className="h-4 w-4 text-muted-foreground" />} 
             variant={stats.overweightRounds > 0 ? 'danger' : 'success'}
             onClick={onOverweightClick}
           />
         <StatCard 
-            title="Surcharge Bacs (>105)" 
+            title="Surcharge Bacs (> 105)" 
             value={`${stats.overbacsRounds}`} 
             icon={<Boxes className="h-4 w-4 text-muted-foreground" />} 
             variant={stats.overbacsRounds > 0 ? 'danger' : 'success'}
@@ -384,7 +386,7 @@ export function DashboardStats({
           <StatCard title="Tâches Totales" value={stats.totalTasks.toString()} icon={<ListTodo className="h-4 w-4 text-muted-foreground" />} onClick={onTotalTasksClick} />
           <StatCard title="Tâches Terminées" value={stats.completedTasks.toString()} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
           <StatCard title="Tournées Totales" value={stats.totalRounds.toString()} icon={<Route className="h-4 w-4 text-muted-foreground" />} onClick={onTotalRoundsClick} />
-          <StatCard title="Tournées Terminées" value={stats.completedRounds.toString()} icon={<Trophy className="h-4 w-4 text-muted-foreground" />} />
+          <StatCard title="Tournées Terminées" value={stats.completedRounds.toString()} icon={<Trophy className="h-4 w-4 text-muted-foreground" />} onClick={onCompletedRoundsClick} />
        </div>
     </div>
   );

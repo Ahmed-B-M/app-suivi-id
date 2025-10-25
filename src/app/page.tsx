@@ -42,6 +42,7 @@ import { ForcedContactlessDetailsDialog } from "@/components/app/forced-contactl
 import { NpsByCarrierDetailsDialog } from "@/components/app/nps-by-carrier-details-dialog";
 import { OverweightRoundsDetailsDialog } from "@/components/app/overweight-rounds-details-dialog";
 import { OverbacsRoundsDetailsDialog } from "@/components/app/overbacs-rounds-details-dialog";
+import { CompletedRoundsDetailsDialog } from "@/components/app/completed-rounds-details-dialog";
 
 
 export default function DashboardPage() {
@@ -71,6 +72,7 @@ export default function DashboardPage() {
   const [isForcedContactlessDetailsOpen, setIsForcedContactlessDetailsOpen] = useState(false);
   const [isOverweightDetailsOpen, setIsOverweightDetailsOpen] = useState(false);
   const [isOverbacsDetailsOpen, setIsOverbacsDetailsOpen] = useState(false);
+  const [isCompletedRoundsDetailsOpen, setIsCompletedRoundsDetailsOpen] = useState(false);
 
   const [punctualityDetails, setPunctualityDetails] = useState<{
     type: 'early' | 'late' | 'late_over_1h';
@@ -184,6 +186,12 @@ export default function DashboardPage() {
         onOpenChange={setIsOverbacsDetailsOpen}
         data={dashboardData?.overbacsRoundsList || []}
       />
+      <CompletedRoundsDetailsDialog
+        isOpen={isCompletedRoundsDetailsOpen}
+        onOpenChange={setIsCompletedRoundsDetailsOpen}
+        rounds={dashboardData?.completedRoundsList || []}
+        allTasks={filteredData}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold">Tableau de Bord</h1>
@@ -244,6 +252,7 @@ export default function DashboardPage() {
             onForcedContactlessClick={() => setIsForcedContactlessDetailsOpen(true)}
             onOverweightClick={() => setIsOverweightDetailsOpen(true)}
             onOverbacsClick={() => setIsOverbacsDetailsOpen(true)}
+            onCompletedRoundsClick={() => setIsCompletedRoundsDetailsOpen(true)}
           />
 
           {dashboardData.commentAnalysis && dashboardData.commentAnalysis.totalComments > 0 && (

@@ -1,6 +1,7 @@
 
+
 import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
-import { Tache } from "./types";
+import { Tache, Tournee } from "./types";
 
 export interface DriverStats {
   name: string;
@@ -119,4 +120,44 @@ export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompl
   
   // Ensure the score is within the 0-100 range.
   return Math.max(0, Math.min(100, score));
+}
+
+
+export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averageRating: number | null, punctualityRate: number | null } {
+    const roundTasks = allTasks.filter(t => t.nomTournee === round.name && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString());
+
+    if (roundTasks.length === 0) {
+        return { averageRating: null, punctualityRate: null };
+    }
+
+    // Average Rating Calculation
+    const ratedTasks = roundTasks
+        .map(t => t.metaDonnees?.notationLivreur)
+        .filter((r): r is number => typeof r === 'number');
+    const averageRating = ratedTasks.length > 0
+        ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length
+        : null;
+
+    // Punctuality Calculation
+    const punctualityTasks = roundTasks.filter(t => t.progression === 'COMPLETED' && t.creneauHoraire?.debut && t.dateCloture);
+    let punctualCount = 0;
+    punctualityTasks.forEach(task => {
+        try {
+            const closure = new Date(task.dateCloture!);
+            const windowStart = new Date(task.creneauHoraire!.debut!);
+            const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+
+            const lowerBound = subMinutes(windowStart, 15);
+            const upperBound = addMinutes(windowEnd, 15);
+
+            if (closure >= lowerBound && closure <= upperBound) {
+                punctualCount++;
+            }
+        } catch (e) { /* ignore date parsing errors */ }
+    });
+    const punctualityRate = punctualityTasks.length > 0
+        ? (punctualCount / punctualityTasks.length) * 100
+        : null;
+
+    return { averageRating, punctualityRate };
 }

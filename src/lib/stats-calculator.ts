@@ -396,6 +396,7 @@ export function calculateDashboardStats(
       },
       overweightRoundsList,
       overbacsRoundsList,
+      completedRoundsList: completedRounds,
       npsByCarrier: npsByCarrierData,
       top5StarDrivers,
       earlyTasks,
