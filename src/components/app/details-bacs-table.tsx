@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -78,11 +79,6 @@ const columns: ColumnDef<BacRow>[] = [
   {
     accessorKey: "codeBarre",
     header: "Code-barres",
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => <Badge variant="secondary">{row.getValue("type")}</Badge>,
   },
   {
     accessorKey: "statut",
