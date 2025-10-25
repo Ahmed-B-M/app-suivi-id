@@ -67,6 +67,7 @@ const links = [
     href: "/driver-feedback",
     label: "Suivi Livreurs",
     icon: <Users />,
+    isDriverFeedbackLink: true, // Specific flag for this link
   },
   {
     href: "/comment-management",
@@ -133,6 +134,11 @@ export function SidebarNav() {
                      </Badge>
                   )}
                   {link.isVerbatimLink && !isVerbatimsLoading && pendingVerbatimsCount > 0 && (
+                     <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs" variant="destructive">
+                       {pendingVerbatimsCount}
+                     </Badge>
+                  )}
+                  {link.isDriverFeedbackLink && !isVerbatimsLoading && pendingVerbatimsCount > 0 && (
                      <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs" variant="destructive">
                        {pendingVerbatimsCount}
                      </Badge>
