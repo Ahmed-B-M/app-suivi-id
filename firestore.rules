@@ -1,71 +1,156 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
+ * @fileoverview Firestore Security Rules for the Urbantz API data model.
  *
  * Core Philosophy:
- * This ruleset provides completely open access to all data. This is suitable only for prototyping
- * environments where authentication and authorization are not yet implemented.
+ * This ruleset provides public read access to all data collections, allowing any client to retrieve documents.
+ * Write access is completely denied to all clients, effectively making the data read-only from the application's perspective.
  *
- * WARNING:
- * These rules grant full read and write access to your Firestore database.
- * This configuration is not suitable for production environments.
+ * Data Structure:
+ * The Firestore database contains several top-level collections:
+ * - /users/{userId}: Stores user profile information.
+ * - /tasks/{taskId}: Stores task data fetched from the Urbantz API.
+ * - /rounds/{roundId}: Stores round data fetched from the Urbantz API.
+ * - /categorized_comments/{taskId}: Stores categorized customer comments.
+ * - /nps_data/{date}: Stores NPS analysis results for a specific date.
+ * - /processed_nps_verbatims/{taskId}: Stores processed NPS detractor verbatims.
+ * - /action_notes/{date}: Stores daily action notes.
+ * - /action_notes_depot/{depotDateId}: Stores daily action notes for a specific depot.
+ *
+ * Key Security Decisions:
+ * - Public Read Access: All `get` and `list` operations are allowed for all users. This is appropriate for data that is intended to be publicly accessible or managed through a separate administrative interface.
+ * - Write Denied: All `create`, `update`, and `delete` operations are denied. This ensures that application users cannot directly modify the data in Firestore.
+ * - No user listing: listing `/users` is not allowed.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants full read and write access to all documents in the 'tasks' collection.
+     * @description Enforces read-only access to user profile data.
+     * @path /users/{userId}
+     * @allow (get, list): Any user can read user profiles.
+     * @deny (create, update, delete): No user can create, update, or delete user profiles through the client app.
+     * @principle Enforces read-only access to user data for all users.
+     */
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if false; // Listing all users is disallowed
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Enforces read-only access to task data.
      * @path /tasks/{taskId}
-     * @allow (get, list, create, update, delete) - Any unauthenticated user.
-     * @deny None. All operations are permitted.
-     * @principle Grants open access to all documents in the 'tasks' collection.
+     * @allow (get, list): Any user can read task data.
+     * @deny (create, update, delete): No user can create, update, or delete task data through the client app.
+     * @principle Enforces read-only access to task data for all users.
      */
     match /tasks/{taskId} {
-      allow get, list, create, update, delete: if true;
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants full read and write access to all documents in the 'rounds' collection.
+     * @description Enforces read-only access to round data.
      * @path /rounds/{roundId}
-     * @allow (get, list, create, update, delete) - Any unauthenticated user.
-     * @deny None. All operations are permitted.
-     * @principle Grants open access to all documents in the 'rounds' collection.
+     * @allow (get, list): Any user can read round data.
+     * @deny (create, update, delete): No user can create, update, or delete round data through the client app.
+     * @principle Enforces read-only access to round data for all users.
      */
     match /rounds/{roundId} {
-      allow get, list, create, update, delete: if true;
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants full read and write access to all documents in the 'categorized_comments' collection.
+     * @description Enforces read-only access to categorized comments.
      * @path /categorized_comments/{taskId}
-     * @allow (get, list, create, update, delete) - Any unauthenticated user.
-     * @deny None. All operations are permitted.
-     * @principle Grants open access to all documents in the 'categorized_comments' collection.
+     * @allow (get, list): Any user can read categorized comments.
+     * @deny (create, update, delete): No user can create, update, or delete categorized comments through the client app.
+     * @principle Enforces read-only access to categorized comments for all users.
      */
     match /categorized_comments/{taskId} {
-      allow get, list, create, update, delete: if true;
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants full read and write access to all documents in the 'nps_data' collection.
+     * @description Enforces read-only access to NPS data.
      * @path /nps_data/{date}
-     * @allow (get, list, create, update, delete) - Any unauthenticated user.
-     * @deny None. All operations are permitted.
-     * @principle Grants open access to all documents in the 'nps_data' collection.
+     * @allow (get, list): Any user can read NPS data.
+     * @deny (create, update, delete): No user can create, update, or delete NPS data through the client app.
+     * @principle Enforces read-only access to NPS data for all users.
      */
     match /nps_data/{date} {
-      allow get, list, create, update, delete: if true;
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Grants full read and write access to all documents in the 'processed_nps_verbatims' collection.
+     * @description Enforces read-only access to processed NPS verbatims.
      * @path /processed_nps_verbatims/{taskId}
-     * @allow (get, list, create, update, delete) - Any unauthenticated user.
-     * @deny None. All operations are permitted.
-     * @principle Grants open access to all documents in the 'processed_nps_verbatims' collection.
+     * @allow (get, list): Any user can read processed NPS verbatims.
+     * @deny (create, update, delete): No user can create, update, or delete processed NPS verbatims through the client app.
+     * @principle Enforces read-only access to processed NPS verbatims for all users.
      */
     match /processed_nps_verbatims/{taskId} {
-      allow get, list, create, update, delete: if true;
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Enforces read-only access to action notes.
+     * @path /action_notes/{date}
+     * @allow (get, list): Any user can read action notes.
+     * @deny (create, update, delete): No user can create, update, or delete action notes through the client app.
+     * @principle Enforces read-only access to action notes for all users.
+     */
+    match /action_notes/{date} {
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Enforces read-only access to depot-specific action notes.
+     * @path /action_notes_depot/{depotDateId}
+     * @allow (get, list): Any user can read depot-specific action notes.
+     * @deny (create, update, delete): No user can create, update, or delete depot-specific action notes through the client app.
+     * @principle Enforces read-only access to depot-specific action notes for all users.
+     */
+    match /action_notes_depot/{depotDateId} {
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
