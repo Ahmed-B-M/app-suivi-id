@@ -6,6 +6,8 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { errorEmitter } from './error-emitter';
+import { FirestorePermissionError } from './errors';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -81,22 +83,27 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       auth,
       async (firebaseUser) => { 
         if (firebaseUser) {
-          // Check if user document exists in Firestore
           const userRef = doc(firestore, "users", firebaseUser.uid);
           const userSnap = await getDoc(userRef);
 
           if (!userSnap.exists()) {
-            // User document doesn't exist, create it
-            try {
-              await setDoc(userRef, {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName || firebaseUser.email,
-                role: 'viewer' // Assign a default role
+            const newUserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || firebaseUser.email,
+              role: 'viewer'
+            };
+            
+            // Non-blocking write with detailed error handling
+            setDoc(userRef, newUserProfile)
+              .catch(error => {
+                const permissionError = new FirestorePermissionError({
+                  path: userRef.path,
+                  operation: 'create',
+                  requestResourceData: newUserProfile,
+                });
+                errorEmitter.emit('permission-error', permissionError);
               });
-            } catch (error) {
-              console.error("Erreur de création du profil utilisateur:", error);
-            }
           }
           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         } else {
