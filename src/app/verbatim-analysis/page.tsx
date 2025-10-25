@@ -50,7 +50,7 @@ export default function VerbatimAnalysisPage() {
       return [];
     }
 
-    const totalVerbatims = verbatimsToShow.length;
+    const totalUniqueVerbatims = verbatimsToShow.length;
     const byResponsibility: Record<string, { verbatims: Set<string>; categories: Record<string, number> }> = {};
 
     verbatimsToShow.forEach((verbatim) => {
@@ -66,7 +66,6 @@ export default function VerbatimAnalysisPage() {
         if (!byResponsibility[resp]) {
             byResponsibility[resp] = { verbatims: new Set(), categories: {} };
         }
-        // Add the verbatim's ID to the set to count unique verbatims per responsibility
         byResponsibility[resp].verbatims.add(verbatim.taskId);
 
         categories.forEach(cat => {
@@ -79,19 +78,22 @@ export default function VerbatimAnalysisPage() {
       .map(([respName, data]) => {
         const uniqueVerbatimCount = data.verbatims.size;
         
+        // Calculate the total number of category assignments for this responsibility
+        const totalCategoryAssignments = Object.values(data.categories).reduce((sum, count) => sum + count, 0);
+
         const categoriesData = Object.entries(data.categories)
           .map(([catName, catCount]) => ({
             name: catName,
             count: catCount,
-            // Calculate percentage based on the number of verbatims for THIS responsibility
-            percentage: uniqueVerbatimCount > 0 ? (catCount / uniqueVerbatimCount) * 100 : 0,
+            // Calculate percentage based on the total number of category *assignments*
+            percentage: totalCategoryAssignments > 0 ? (catCount / totalCategoryAssignments) * 100 : 0,
           }))
           .sort((a, b) => b.count - a.count);
 
         return {
           name: respName,
-          count: uniqueVerbatimCount, // Use the count of unique verbatims
-          percentage: (uniqueVerbatimCount / totalVerbatims) * 100,
+          count: uniqueVerbatimCount, // This is the count of unique verbatims for this responsibility
+          percentage: (uniqueVerbatimCount / totalUniqueVerbatims) * 100,
           categories: categoriesData,
         };
       })
