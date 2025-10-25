@@ -41,12 +41,15 @@ import { CompletedRoundsDetailsDialog } from "@/components/app/completed-rounds-
 
 export default function DashboardPage() {
   const { 
-    allTasks: filteredData,
-    allRounds: filteredRounds,
+    allTasks,
+    allRounds,
     allComments,
     allNpsData,
     processedVerbatims,
     isContextLoading,
+    filterType,
+    selectedDepot,
+    selectedStore,
    } = useFilters();
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
@@ -73,7 +76,7 @@ export default function DashboardPage() {
 
 
   const handleStatusClick = (status: string) => {
-      const tasksForStatus = filteredData.filter(task => {
+      const tasksForStatus = allTasks.filter(task => {
         if (status === 'Unknown') {
           return !task.status || task.status === 'Unknown';
         }
@@ -83,14 +86,14 @@ export default function DashboardPage() {
     };
 
   const handleProgressionClick = (progression: string) => {
-    const tasksForProgression = filteredData.filter(task => (task.progression || "Unknown") === progression);
+    const tasksForProgression = allTasks.filter(task => (task.progression || "Unknown") === progression);
     setStatusDetails({ status: progression, tasks: tasksForProgression, type: 'progression' });
   };
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(filteredData, filteredRounds, allComments, allNpsData, processedVerbatims);
-  }, [filteredData, filteredRounds, allComments, allNpsData, processedVerbatims]);
+    return calculateDashboardStats(allTasks, allRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore);
+  }, [allTasks, allRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore]);
 
   const isLoading = isContextLoading;
   const error = null; 
@@ -100,7 +103,7 @@ export default function DashboardPage() {
       <RatingDetailsDialog
         isOpen={isRatingDetailsOpen}
         onOpenChange={setIsRatingDetailsOpen}
-        tasks={filteredData}
+        tasks={allTasks}
       />
       <NpsByCarrierDetailsDialog
         isOpen={isNpsDetailsOpen}
@@ -130,7 +133,7 @@ export default function DashboardPage() {
       <RedeliveryDetailsDialog
         isOpen={isRedeliveryDetailsOpen}
         onOpenChange={setIsRedeliveryDetailsOpen}
-        allTasks={filteredData}
+        allTasks={allTasks}
         redeliveryTaskIds={dashboardData?.redeliveriesList.map(t => t.tacheId) || []}
       />
       <SensitiveDeliveriesDialog
@@ -146,12 +149,12 @@ export default function DashboardPage() {
       <AllRoundsDetailsDialog
         isOpen={isAllRoundsDetailsOpen}
         onOpenChange={setIsAllRoundsDetailsOpen}
-        rounds={filteredRounds}
+        rounds={allRounds}
       />
       <AllTasksDetailsDialog
         isOpen={isAllTasksDetailsOpen}
         onOpenChange={setIsAllTasksDetailsOpen}
-        tasks={filteredData}
+        tasks={allTasks}
       />
       <ScanbacDetailsDialog
         isOpen={isScanbacDetailsOpen}
@@ -182,7 +185,7 @@ export default function DashboardPage() {
         isOpen={isCompletedRoundsDetailsOpen}
         onOpenChange={setIsCompletedRoundsDetailsOpen}
         rounds={dashboardData?.completedRoundsList || []}
-        allTasks={filteredData}
+        allTasks={allTasks}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
