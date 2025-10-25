@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tache } from "@/lib/types";
@@ -26,8 +27,10 @@ type RedeliveryDetailsDialogProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   tasks: Tache[];
+  allTasks: Tache[]; 
 };
 
+// This function is correct and will now receive the full task data.
 const countBacs = (task: Tache) => {
     if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
     return task.articles.reduce((acc, article) => {
@@ -42,11 +45,20 @@ export function RedeliveryDetailsDialog({
   isOpen,
   onOpenChange,
   tasks,
+  allTasks,
 }: RedeliveryDetailsDialogProps) {
 
   const sortedTasks = useMemo(() => {
-    if (!tasks) return [];
-    return [...tasks].sort((a, b) => {
+    if (!tasks || !allTasks) return [];
+    
+    // Create a map of all tasks for quick lookup
+    const allTasksMap = new Map(allTasks.map(t => [t.tacheId, t]));
+
+    // Enrich the filtered 'tasks' with the full data from 'allTasks'
+    const enrichedTasks = tasks.map(task => allTasksMap.get(task.tacheId)).filter((t): t is Tache => !!t);
+
+    // Now, sort the enriched tasks
+    return [...enrichedTasks].sort((a, b) => {
       const hubA = a.nomHub || "";
       const hubB = b.nomHub || "";
       if (hubA.localeCompare(hubB) !== 0) {
@@ -59,7 +71,7 @@ export function RedeliveryDetailsDialog({
       }
       return (a.sequence || 0) - (b.sequence || 0);
     });
-  }, [tasks]);
+  }, [tasks, allTasks]);
 
 
   return (
@@ -125,3 +137,4 @@ export function RedeliveryDetailsDialog({
     </Dialog>
   );
 }
+
