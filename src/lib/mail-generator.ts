@@ -12,53 +12,55 @@ function formatValue(value: number | null | undefined, unit: string = '', decima
 }
 
 const COLORS = {
-    GREEN: '#16A34A',
-    YELLOW: '#F59E0B',
-    RED: '#DC2626',
-    GRAY_TEXT: '#4A5568',
-    BLUE_TITLE: '#2D3748',
-    BORDER: '#E2E8F0',
-    BACKGROUND: '#F7FAFC',
-    WHITE: '#FFFFFF',
-    BLUE_KPI: '#2B6CB0', // Changed from GREEN for success
+    PRIMARY: '#2563EB', // Blue from logo
+    DESTRUCTIVE: '#DC2626', // Red from logo
+    SUCCESS: '#16A34A', // A clear green for success states
+    WARNING: '#F59E0B', // An amber for warnings
+
+    TEXT_PRIMARY: '#1F2937',
+    TEXT_SECONDARY: '#6B7280',
+    
+    BACKGROUND_BODY: '#F9FAFB',
+    BACKGROUND_CARD: '#FFFFFF',
+    BORDER: '#E5E7EB',
 };
 
 function getRatingColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.RED;
-    if (value >= 4.8) return COLORS.BLUE_KPI;
-    if (value >= 4.5) return COLORS.YELLOW;
-    return COLORS.RED;
+    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
+    if (value >= 4.8) return COLORS.PRIMARY;
+    if (value >= 4.5) return COLORS.WARNING;
+    return COLORS.DESTRUCTIVE;
 }
 
 function getNpsColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.RED;
-    if (value >= 65) return COLORS.BLUE_KPI;
-    if (value >= 30) return COLORS.YELLOW;
-    return COLORS.RED;
+    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
+    if (value >= 50) return COLORS.PRIMARY;
+    if (value >= 0) return COLORS.WARNING;
+    return COLORS.DESTRUCTIVE;
 }
 
 function getPunctualityColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.RED;
-    if (value >= 95) return COLORS.BLUE_KPI;
-    if (value >= 90) return COLORS.YELLOW;
-    return COLORS.RED;
+    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
+    if (value >= 95) return COLORS.PRIMARY;
+    if (value >= 90) return COLORS.WARNING;
+    return COLORS.DESTRUCTIVE;
 }
 
 function getForcedMetricColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.RED;
-    if (value <= 5) return COLORS.BLUE_KPI;
-    if (value <= 10) return COLORS.YELLOW;
-    return COLORS.RED;
+    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
+    if (value <= 5) return COLORS.PRIMARY;
+    if (value <= 10) return COLORS.WARNING;
+    return COLORS.DESTRUCTIVE;
 }
 
 // --- HTML Generation ---
 
-const FONT_FAMILY = `font-family: -apple-system, 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';`;
+const FONT_FAMILY = `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;`;
 
 function createCard(content: string, title?: string): string {
-    const titleHtml = title ? `<h3 style="font-size: 16px; font-weight: 600; color: ${COLORS.BLUE_TITLE}; margin: 0 0 15px 0; ${FONT_FAMILY}">${title}</h3>` : '';
+    const titleHtml = title ? `<h3 style="font-size: 16px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 0 0 15px 0; ${FONT_FAMILY}">${title}</h3>` : '';
     return `
-        <div style="background-color: ${COLORS.WHITE}; border: 1px solid ${COLORS.BORDER}; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <div style="background-color: ${COLORS.BACKGROUND_CARD}; border: 1px solid ${COLORS.BORDER}; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
             ${titleHtml}
             ${content}
         </div>
@@ -70,7 +72,7 @@ function createKpiGrid(kpis: { label: string; value: string; color: string }[]):
     kpis.forEach(kpi => {
         cells += `
             <td style="padding: 10px; text-align: center; width: 14%;">
-                <div style="font-size: 12px; color: ${COLORS.GRAY_TEXT}; text-transform: uppercase; margin-bottom: 5px; ${FONT_FAMILY}">${kpi.label}</div>
+                <div style="font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; text-transform: uppercase; margin-bottom: 5px; ${FONT_FAMILY}">${kpi.label}</div>
                 <div style="font-size: 20px; font-weight: bold; color: ${kpi.color}; ${FONT_FAMILY}">${kpi.value}</div>
             </td>
         `;
@@ -79,26 +81,26 @@ function createKpiGrid(kpis: { label: string; value: string; color: string }[]):
 }
 
 function createCategoryTable(title: string, data: { name: string; count: number; percentage: number }[], total: number): string {
-    if (data.length === 0) return `<div style="${FONT_FAMILY} color: ${COLORS.GRAY_TEXT};">Aucune donnée pour les ${title.toLowerCase()}.</div>`;
+    if (data.length === 0) return `<div style="${FONT_FAMILY} color: ${COLORS.TEXT_SECONDARY};">Aucune donnée pour ${title.toLowerCase()}.</div>`;
 
     let rows = '';
     data.forEach(item => {
         rows += `
             <tr>
-                <td style="padding: 8px 0; font-size: 13px; color: ${COLORS.GRAY_TEXT}; ${FONT_FAMILY}">${item.name}</td>
-                <td style="padding: 8px 0; font-size: 13px; text-align: right; color: ${COLORS.GRAY_TEXT}; ${FONT_FAMILY}">${item.count}</td>
+                <td style="padding: 8px 0; font-size: 13px; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">${item.name}</td>
+                <td style="padding: 8px 0; font-size: 13px; text-align: right; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">${item.count}</td>
                 <td style="padding: 8px 0; width: 100px; text-align: right;">
-                    <div style="position: relative; height: 8px; background-color: #E2E8F0; border-radius: 4px; overflow: hidden;">
-                        <div style="position: absolute; height: 100%; width: ${item.percentage}%; background-color: #4299E1;"></div>
+                    <div style="position: relative; height: 8px; background-color: #E5E7EB; border-radius: 4px; overflow: hidden;">
+                        <div style="position: absolute; height: 100%; width: ${item.percentage}%; background-color: ${COLORS.PRIMARY};"></div>
                     </div>
                 </td>
-                <td style="padding: 8px 0 8px 10px; font-size: 13px; font-weight: 600; color: ${COLORS.BLUE_TITLE}; text-align: right; ${FONT_FAMILY}">${item.percentage.toFixed(1)}%</td>
+                <td style="padding: 8px 0 8px 10px; font-size: 13px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; text-align: right; ${FONT_FAMILY}">${item.percentage.toFixed(1)}%</td>
             </tr>
         `;
     });
 
     return `
-        <h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.BLUE_TITLE}; margin: 20px 0 10px 0; ${FONT_FAMILY}">${title} (${total})</h4>
+        <h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 20px 0 10px 0; ${FONT_FAMILY}">${title} (${total})</h4>
         <table style="width: 100%; border-collapse: collapse;">${rows}</table>
     `;
 }
@@ -138,10 +140,10 @@ export function generateQualityEmailBody(
 
     const globalVerbatimsByCategory: Record<string, number> = {};
     processedVerbatims.forEach(v => {
-        const categories = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
+        const categories = Array.isArray(v.category) ? v.category : [v.category];
         categories.forEach(cat => {
             if(cat) globalVerbatimsByCategory[cat] = (globalVerbatimsByCategory[cat] || 0) + 1;
-        })
+        });
     });
     const globalVerbatimsCategoryData = Object.entries(globalVerbatimsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
         name, count, percentage: processedVerbatims.length > 0 ? (count / processedVerbatims.length) * 100 : 0
@@ -161,7 +163,7 @@ export function generateQualityEmailBody(
     `;
 
     const globalSummarySection = `
-        <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.BLUE_TITLE}; margin: 20px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
+        <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 20px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
             Synthèse Globale
         </h2>
         ${createCard(globalKpis, 'Indicateurs Clés Globaux')}
@@ -188,7 +190,7 @@ export function generateQualityEmailBody(
         // --- Carrier KPIs ---
         let carrierKpisSections = '';
         if(depot.carriers.length > 1) { // Only show carrier breakdown if there's more than one
-             carrierKpisSections = `<h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.BLUE_TITLE}; margin: 20px 0 10px 0; ${FONT_FAMILY}">Indicateurs par Transporteur</h4>`;
+             carrierKpisSections = `<h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 20px 0 10px 0; ${FONT_FAMILY}">Indicateurs par Transporteur</h4>`;
              depot.carriers.forEach(carrier => {
                  const carrierKpis = createKpiGrid([
                     { label: 'Note Moy.', value: formatValue(carrier.averageRating, '', 2), color: getRatingColor(carrier.averageRating) },
@@ -225,7 +227,7 @@ export function generateQualityEmailBody(
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
         const verbatimsByCategory: Record<string, number> = {};
         depotVerbatims.forEach(v => {
-            const categories = Array.isArray(v.category) ? v.category : [v.category];
+            const categories = Array.isArray(v.category) ? v.category : (v.category ? [v.category] : []);
             categories.forEach(cat => {
                 if(cat) verbatimsByCategory[cat] = (verbatimsByCategory[cat] || 0) + 1;
             });
@@ -251,37 +253,37 @@ export function generateQualityEmailBody(
         const currentDepotAlerts = depotAlerts.get(depot.name);
         let recurrenceRows = '';
         if (currentDepotAlerts) {
-            currentDepotAlerts.carriers.flatMap(c => c.drivers).forEach(driver => {
+            currentDepotAlerts.carriers.flatMap(c => c.drivers).sort((a, b) => b.alertCount - a.alertCount).forEach(driver => {
                 if (driver.alertCount > 0) {
                     const driverStats = depot.carriers.flatMap(c => c.drivers).find(d => d.name === driver.name);
                     const categories = Object.entries(driver.commentCategories).sort((a,b) => b[1] - a[1]).map(([cat, count]) => `${count}x ${cat}`).join(', ');
                     recurrenceRows += `
                         <tr>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px;"><strong>${driver.name}</strong><br><span style="color: ${COLORS.GRAY_TEXT}; font-size: 12px;">${currentDepotAlerts.carriers.find(c => c.drivers.some(d => d.name === driver.name))?.name || ''}</span></td>
+                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px;"><strong>${driver.name}</strong><br><span style="color: ${COLORS.TEXT_SECONDARY}; font-size: 12px;">${currentDepotAlerts.carriers.find(c => c.drivers.some(d => d.name === driver.name))?.name || ''}</span></td>
                             <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; color: ${getRatingColor(driver.averageRating)}; font-weight: 600;">${formatValue(driver.averageRating, '', 2)}</td>
                             <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; color: ${getNpsColor(driverStats?.npsScore)}; font-weight: 600;">${formatValue(driverStats?.npsScore, '', 1)}</td>
                             <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; color: ${getPunctualityColor(driverStats?.punctualityRate)}; font-weight: 600;">${formatValue(driverStats?.punctualityRate, '%', 1)}</td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; font-weight: bold; color: #C53030;">${driver.alertCount}/${driver.totalRatings}</td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 12px; color: ${COLORS.GRAY_TEXT};">${categories}</td>
+                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; font-weight: bold; color: ${COLORS.DESTRUCTIVE};">${driver.alertCount}/${driver.totalRatings}</td>
+                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 12px; color: ${COLORS.TEXT_SECONDARY};">${categories}</td>
                         </tr>
                     `;
                 }
             });
         }
         if (recurrenceRows === '') {
-            recurrenceRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: ${COLORS.GRAY_TEXT}; ${FONT_FAMILY}">Aucune récurrence de mauvaise note pour ce dépôt.</td></tr>`;
+            recurrenceRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">Aucune récurrence de mauvaise note pour ce dépôt.</td></tr>`;
         }
         
         const recurrenceTable = `
             <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
                 <thead>
                     <tr>
-                        <th style="padding: 8px 5px; text-align: left; background-color: #F7FAFC; font-family: Arial, sans-serif; font-size: 11px; color: #4A5568; text-transform: uppercase;">Livreur</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F7FAFC; font-family: Arial, sans-serif; font-size: 11px; color: #4A5568; text-transform: uppercase;">Note Moy.</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F7FAFC; font-family: Arial, sans-serif; font-size: 11px; color: #4A5568; text-transform: uppercase;">NPS</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F7FAFC; font-family: Arial, sans-serif; font-size: 11px; color: #4A5568; text-transform: uppercase;">Ponctualité</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F7FAFC; font-family: Arial, sans-serif; font-size: 11px; color: #4A5568; text-transform: uppercase;">Alertes / Total</th>
-                        <th style="padding: 8px 5px; text-align: left; background-color: #F7FAFC; font-family: Arial, sans-serif; font-size: 11px; color: #4A5568; text-transform: uppercase;">Catégories Associées</th>
+                        <th style="padding: 8px 5px; text-align: left; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Livreur</th>
+                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Note Moy.</th>
+                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">NPS</th>
+                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Ponctualité</th>
+                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Alertes / Total</th>
+                        <th style="padding: 8px 5px; text-align: left; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Catégories Associées</th>
                     </tr>
                 </thead>
                 <tbody>${recurrenceRows}</tbody>
@@ -289,7 +291,7 @@ export function generateQualityEmailBody(
         `;
         
         depotSections += `
-            <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.BLUE_TITLE}; margin: 40px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
+            <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 40px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
                 Dépôt: ${depot.name.toUpperCase()}
             </h2>
             ${createCard(depotKpis, 'Indicateurs Clés du Dépôt')}
@@ -306,13 +308,13 @@ export function generateQualityEmailBody(
             <meta charset="UTF-8">
             <title>Rapport Qualité</title>
         </head>
-        <body style="background-color: ${COLORS.BACKGROUND}; margin: 0; padding: 20px; ${FONT_FAMILY}">
+        <body style="background-color: ${COLORS.BACKGROUND_BODY}; margin: 0; padding: 20px; ${FONT_FAMILY}">
             <div style="max-width: 850px; margin: auto; background-color: transparent;">
-                <h1 style="font-size: 28px; font-weight: 800; color: ${COLORS.BLUE_TITLE}; margin: 0; ${FONT_FAMILY}">Rapport Qualité</h1>
-                <p style="font-size: 14px; color: ${COLORS.GRAY_TEXT}; margin: 5px 0 30px 0; ${FONT_FAMILY}">Période du ${formattedDateRange}</p>
+                <h1 style="font-size: 28px; font-weight: 800; color: ${COLORS.TEXT_PRIMARY}; margin: 0; ${FONT_FAMILY}">Rapport Qualité</h1>
+                <p style="font-size: 14px; color: ${COLORS.TEXT_SECONDARY}; margin: 5px 0 30px 0; ${FONT_FAMILY}">Période du ${formattedDateRange}</p>
                 ${globalSummarySection}
                 ${depotSections}
-                <p style="text-align: center; color: #A0AEC0; font-size: 12px; margin-top: 30px; ${FONT_FAMILY}">Généré par ID-pilote</p>
+                <p style="text-align: center; color: #A0AEC0; font-size: 12px; margin-top: 30px; ${FONT_FAMILY}">Généré par ID 360</p>
             </div>
         </body>
         </html>
@@ -320,3 +322,5 @@ export function generateQualityEmailBody(
 
     return htmlBody;
 }
+
+    
