@@ -1,36 +1,13 @@
-/**
- * @fileOverview Firestore Security Rules for the Urbantz API data model.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles, allowing users to manage their own data.
- * All other data collections are intended to be managed by backend services, with no client-side write access.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile data, with the 'uid' field matching the document ID.
- * - /tasks/{taskId}: Stores task data from the Urbantz API.
- * - /rounds/{roundId}: Stores round data from the Urbantz API.
- * - /categorized_comments/{taskId}: Stores categorized customer comments, with the task ID as the document ID.
- * - /nps_data/{date}: Stores NPS data for a given date, with the date as the document ID.
- * - /processed_nps_verbatims/{taskId}: Stores processed NPS verbatims, with the task ID as the document ID.
- * - /action_notes/{date}: Stores daily action notes, with the date as the document ID.
- * - /action_notes_depot/{depotDateId}: Stores depot-specific action notes, with a composite ID.
- *
- * Key Security Decisions:
- * - User data is stored under /users/{userId} and is accessible only to the authenticated user with a matching UID.
- * - All other collections (tasks, rounds, comments, NPS data, action notes) are explicitly secured against client-side writes. This assumes these collections are populated and managed by a trusted backend environment.
- * - Listing of tasks, rounds, comments, NPS data, and action notes is completely open. This assumes this is safe, for example, if an admin backend is also used in conjunction with these rules.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages user profile data. Only the authenticated user can read or modify their own profile.
+     * @description Allows a user to read and write their own profile data.
      * @path /users/{userId}
-     * @allow (create) User 'U6p0PzhzYgPlEgPYt9sOVXXqO5Q2' can create a profile if their auth UID matches the 'userId' and the 'uid' in the data.
-     * @allow (get, list, update, delete) User 'U6p0PzhzYgPlEgPYt9sOVXXqO5Q2' can access their own profile.
-     * @deny (create) User 'U6p0PzhzYgPlEgPYt9sOVXXqO5Q2' cannot create a profile if the 'userId' and 'uid' don't match
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) User with UID "U6p0PzhzYgPlEgPYt9sOVXXqO5Q2" can create their profile at /users/U6p0PzhzYgPlEgPYt9sOVXXqO5Q2.
+     * @deny (create) User with UID "U6p0PzhzYgPlEgPYt9sOVXXqO5Q2" cannot create profile at /users/DIFFERENT_UID.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -41,116 +18,196 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      allow get: if true;
+      // Reads
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.uid == resource.data.uid;
+
+      // Writes
+      allow create: if isSignedIn() && isOwner(userId) && request.auth.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId) && request.auth.uid == userId;
       allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Manages task data fetched from the Urbantz API. No client-side writes are allowed.
+     * @description Allows public read access to tasks and restricts write access to owners.
      * @path /tasks/{taskId}
-     * @allow (get, list) Any user can read task data.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
+     * @allow (get) Any user can read a task.
+     * @allow (create) A user can create a task if they are the owner (request.resource.data.ownerId == request.auth.uid).
+     * @deny (create) A user cannot create a task if they are not the owner.
+     * @principle Allows public read with owner-only writes.
      */
     match /tasks/{taskId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        function isOwner(ownerId) {
+            return request.auth.uid == ownerId;
+        }
+
+        // Reads
+        allow get, list: if true;
+
+        // Writes
+        allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+        allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+        allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
     }
 
     /**
-     * @description Manages round data fetched from the Urbantz API. No client-side writes are allowed.
+     * @description Allows public read access to rounds and restricts write access to owners.
      * @path /rounds/{roundId}
-     * @allow (get, list) Any user can read round data.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
+     * @allow (get) Any user can read a round.
+     * @allow (create) A user can create a round if they are the owner (request.resource.data.ownerId == request.auth.uid).
+     * @deny (create) A user cannot create a round if they are not the owner.
+     * @principle Allows public read with owner-only writes.
      */
     match /rounds/{roundId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      function isSignedIn() {
+          return request.auth != null;
+      }
+
+      function isOwner(ownerId) {
+          return request.auth.uid == ownerId;
+      }
+
+      // Reads
+      allow get, list: if true;
+
+      // Writes
+      allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+      allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+      allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
     }
 
-    /**
-     * @description Manages categorized customer comments. No client-side writes are allowed.
-     * @path /categorized_comments/{taskId}
-     * @allow (get, list) Any user can read categorized comments.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
-     */
-    match /categorized_comments/{taskId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+        /**
+         * @description Allows public read access to categorized comments and restricts write access to owners.
+         * @path /categorized_comments/{taskId}
+         * @allow (get) Any user can read a categorized comment.
+         * @allow (create) A user can create a categorized comment if they are the owner (request.resource.data.ownerId == request.auth.uid).
+         * @deny (create) A user cannot create a categorized comment if they are not the owner.
+         * @principle Allows public read with owner-only writes.
+         */
+        match /categorized_comments/{taskId} {
+            function isSignedIn() {
+                return request.auth != null;
+            }
 
-    /**
-     * @description Manages NPS data. No client-side writes are allowed.
-     * @path /nps_data/{date}
-     * @allow (get, list) Any user can read NPS data.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
-     */
-    match /nps_data/{date} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+            function isOwner(ownerId) {
+                return request.auth.uid == ownerId;
+            }
 
-    /**
-     * @description Manages processed NPS verbatims. No client-side writes are allowed.
-     * @path /processed_nps_verbatims/{taskId}
-     * @allow (get, list) Any user can read processed NPS verbatims.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
-     */
-    match /processed_nps_verbatims/{taskId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+            // Reads
+            allow get, list: if true;
 
-    /**
-     * @description Manages action notes. No client-side writes are allowed.
-     * @path /action_notes/{date}
-     * @allow (get, list) Any user can read action notes.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
-     */
-    match /action_notes/{date} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+            // Writes
+            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+        }
 
-   /**
-     * @description Manages depot-specific action notes. No client-side writes are allowed.
-     * @path /action_notes_depot/{depotDateId}
-     * @allow (get, list) Any user can read depot-specific action notes.
-     * @deny (create, update, delete) No client-side writes are allowed.
-     * @principle Restricts client-side writes to backend services only.
-     */
-    match /action_notes_depot/{depotDateId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
+        /**
+         * @description Allows public read access to NPS data and restricts write access to owners.
+         * @path /nps_data/{date}
+         * @allow (get) Any user can read NPS data.
+         * @allow (create) A user can create NPS data if they are the owner (request.resource.data.ownerId == request.auth.uid).
+         * @deny (create) A user cannot create NPS data if they are not the owner.
+         * @principle Allows public read with owner-only writes.
+         */
+        match /nps_data/{date} {
+            function isSignedIn() {
+                return request.auth != null;
+            }
+
+            function isOwner(ownerId) {
+                return request.auth.uid == ownerId;
+            }
+
+            // Reads
+            allow get, list: if true;
+
+            // Writes
+            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+        }
+
+        /**
+         * @description Allows public read access to processed NPS verbatims and restricts write access to owners.
+         * @path /processed_nps_verbatims/{taskId}
+         * @allow (get) Any user can read a processed NPS verbatim.
+         * @allow (create) A user can create a processed NPS verbatim if they are the owner (request.resource.data.ownerId == request.auth.uid).
+         * @deny (create) A user cannot create a processed NPS verbatim if they are not the owner.
+         * @principle Allows public read with owner-only writes.
+         */
+        match /processed_nps_verbatims/{taskId} {
+            function isSignedIn() {
+                return request.auth != null;
+            }
+
+            function isOwner(ownerId) {
+                return request.auth.uid == ownerId;
+            }
+
+            // Reads
+            allow get, list: if true;
+
+            // Writes
+            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+        }
+
+        /**
+         * @description Allows public read access to action notes and restricts write access to owners.
+         * @path /action_notes/{date}
+         * @allow (get) Any user can read an action note.
+         * @allow (create) A user can create an action note if they are the owner (request.resource.data.ownerId == request.auth.uid).
+         * @deny (create) A user cannot create an action note if they are not the owner.
+         * @principle Allows public read with owner-only writes.
+         */
+        match /action_notes/{date} {
+            function isSignedIn() {
+                return request.auth != null;
+            }
+
+            function isOwner(ownerId) {
+                return request.auth.uid == ownerId;
+            }
+
+            // Reads
+            allow get, list: if true;
+
+            // Writes
+            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+        }
+
+        /**
+         * @description Allows public read access to depot action notes and restricts write access to owners.
+         * @path /action_notes_depot/{depotDateId}
+         * @allow (get) Any user can read a depot action note.
+         * @allow (create) A user can create a depot action note if they are the owner (request.resource.data.ownerId == request.auth.uid).
+         * @deny (create) A user cannot create a depot action note if they are not the owner.
+         * @principle Allows public read with owner-only writes.
+         */
+        match /action_notes_depot/{depotDateId} {
+            function isSignedIn() {
+                return request.auth != null;
+            }
+
+            function isOwner(ownerId) {
+                return request.auth.uid == ownerId;
+            }
+
+            // Reads
+            allow get, list: if true;
+
+            // Writes
+            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
+            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
+            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+        }
   }
 }
