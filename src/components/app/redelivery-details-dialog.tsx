@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import type { Tache } from "@/lib/types";
 import {
   Dialog,
@@ -21,14 +22,6 @@ import {
 import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
 import { Badge } from "../ui/badge";
-import { useMemo } from "react";
-
-type RedeliveryDetailsDialogProps = {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-  tasks: Tache[];
-  allTasks: Tache[]; 
-};
 
 const countBacs = (task: Tache) => {
     if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
@@ -40,21 +33,28 @@ const countBacs = (task: Tache) => {
     }, { secs: 0, frais: 0, surgeles: 0 });
 };
 
+
+type RedeliveryDetailsDialogProps = {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  allTasks: Tache[];
+  redeliveryTaskIds: string[];
+};
+
 export function RedeliveryDetailsDialog({
   isOpen,
   onOpenChange,
-  tasks,
   allTasks,
+  redeliveryTaskIds,
 }: RedeliveryDetailsDialogProps) {
 
-  const sortedTasks = useMemo(() => {
-    if (!tasks || !allTasks) return [];
+  const enrichedAndSortedTasks = useMemo(() => {
+    if (!allTasks || !redeliveryTaskIds) return [];
     
-    const allTasksMap = new Map(allTasks.map(t => [t.tacheId, t]));
+    const taskIdsSet = new Set(redeliveryTaskIds);
+    const relevantTasks = allTasks.filter(task => taskIdsSet.has(task.tacheId));
 
-    const enrichedTasks = tasks.map(task => allTasksMap.get(task.tacheId)).filter((t): t is Tache => !!t);
-
-    return [...enrichedTasks].sort((a, b) => {
+    return [...relevantTasks].sort((a, b) => {
       const hubA = a.nomHub || "";
       const hubB = b.nomHub || "";
       if (hubA.localeCompare(hubB) !== 0) {
@@ -67,7 +67,7 @@ export function RedeliveryDetailsDialog({
       }
       return (a.sequence || 0) - (b.sequence || 0);
     });
-  }, [tasks, allTasks]);
+  }, [allTasks, redeliveryTaskIds]);
 
 
   return (
@@ -76,12 +76,12 @@ export function RedeliveryDetailsDialog({
         <DialogHeader>
           <DialogTitle>Détail des Relivraisons</DialogTitle>
           <DialogDescription>
-            Voici la liste des {sortedTasks.length} échecs de livraison avec 2 tentatives ou plus.
+            Voici la liste des {enrichedAndSortedTasks.length} échecs de livraison avec 2 tentatives ou plus.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <div className="pr-6">
-            {sortedTasks.length > 0 ? (
+            {enrichedAndSortedTasks.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -98,7 +98,7 @@ export function RedeliveryDetailsDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedTasks.map((task) => {
+                  {enrichedAndSortedTasks.map((task) => {
                     const bacCounts = countBacs(task);
                     
                     return (
