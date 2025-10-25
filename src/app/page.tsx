@@ -140,6 +140,7 @@ export default function DashboardPage() {
         isOpen={isRedeliveryDetailsOpen}
         onOpenChange={setIsRedeliveryDetailsOpen}
         tasks={dashboardData?.redeliveriesList || []}
+        allTasks={filteredData}
       />
       <SensitiveDeliveriesDialog
         isOpen={isSensitiveDeliveriesOpen}

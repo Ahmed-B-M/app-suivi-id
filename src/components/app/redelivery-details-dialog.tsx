@@ -27,6 +27,7 @@ type RedeliveryDetailsDialogProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   tasks: Tache[];
+  allTasks: Tache[]; // Pass all tasks to find full details
 };
 
 const countBacs = (task: Tache) => {
@@ -43,20 +44,16 @@ export function RedeliveryDetailsDialog({
   isOpen,
   onOpenChange,
   tasks,
+  allTasks
 }: RedeliveryDetailsDialogProps) {
 
-  const sortedTasks = useMemo(() => {
-    if (!tasks) return [];
-    return [...tasks].sort((a, b) => {
-      const hubCompare = (a.nomHub || '').localeCompare(b.nomHub || '');
-      if (hubCompare !== 0) return hubCompare;
+  const enrichedTasks = useMemo(() => {
+    const allTasksMap = new Map(allTasks.map(t => [t.tacheId, t]));
+    return tasks
+      .map(task => allTasksMap.get(task.tacheId))
+      .filter((t): t is Tache => !!t);
+  }, [tasks, allTasks]);
 
-      const roundCompare = (a.nomTournee || '').localeCompare(b.nomTournee || '');
-      if (roundCompare !== 0) return roundCompare;
-      
-      return (a.sequence ?? 0) - (b.sequence ?? 0);
-    });
-  }, [tasks]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -64,12 +61,12 @@ export function RedeliveryDetailsDialog({
         <DialogHeader>
           <DialogTitle>Détail des Relivraisons</DialogTitle>
           <DialogDescription>
-            Voici la liste des {sortedTasks.length} échecs de livraison avec 2 tentatives ou plus, triés par tournée et séquence.
+            Voici la liste des {enrichedTasks.length} échecs de livraison avec 2 tentatives ou plus.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           <div className="pr-6">
-            {sortedTasks.length > 0 ? (
+            {enrichedTasks.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -86,7 +83,7 @@ export function RedeliveryDetailsDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedTasks.map((task) => {
+                  {enrichedTasks.map((task) => {
                     const bacCounts = countBacs(task);
                     
                     return (
