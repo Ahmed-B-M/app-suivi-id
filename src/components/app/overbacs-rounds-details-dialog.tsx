@@ -23,6 +23,7 @@ import { format } from "date-fns";
 type OverbacsData = {
   round: Tournee;
   totalBacs: number;
+  deviation: number;
 };
 
 type OverbacsRoundsDetailsDialogProps = {
@@ -36,14 +37,15 @@ export function OverbacsRoundsDetailsDialog({
   onOpenChange,
   data = [],
 }: OverbacsRoundsDetailsDialogProps) {
+    const BACS_LIMIT = 105;
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Détail des Surcharges de Bacs (> 105)</DialogTitle>
+          <DialogTitle>Détail des Surcharges de Bacs (> {BACS_LIMIT})</DialogTitle>
           <DialogDescription>
             Voici la liste des {data.length} tournées dépassant la limite de
-            105 bacs (secs + frais).
+            {BACS_LIMIT} bacs, triées par ordre d'importance.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto">
@@ -54,10 +56,11 @@ export function OverbacsRoundsDetailsDialog({
                 <TableHead>Tournée</TableHead>
                 <TableHead>Entrepôt</TableHead>
                 <TableHead className="text-right">Total Bacs</TableHead>
+                <TableHead className="text-right">Écart</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map(({ round, totalBacs }) => (
+              {data.map(({ round, totalBacs, deviation }) => (
                 <TableRow key={round.id}>
                   <TableCell>
                     {round.date
@@ -66,8 +69,11 @@ export function OverbacsRoundsDetailsDialog({
                   </TableCell>
                   <TableCell className="font-medium">{round.name}</TableCell>
                   <TableCell>{round.nomHub || "N/A"}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="destructive">{totalBacs}</Badge>
+                  <TableCell className="text-right font-mono">
+                    {totalBacs}
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-bold text-destructive">
+                    +{deviation}
                   </TableCell>
                 </TableRow>
               ))}

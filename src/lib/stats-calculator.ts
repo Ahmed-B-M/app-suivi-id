@@ -316,6 +316,9 @@ export function calculateDashboardStats(
     // --- End Processed Verbatims Analysis ---
 
     // --- Overload Calculations ---
+    const WEIGHT_LIMIT = 1250; // kg
+    const BACS_LIMIT = 105;
+
     const tasksDataByRound = new Map<string, { weight: number, bacs: number }>();
     tasks.forEach(task => {
         if (task.nomTournee && task.date && task.nomHub) {
@@ -329,21 +332,33 @@ export function calculateDashboardStats(
         }
     });
 
-    const overweightRoundsList: { round: Tournee, totalWeight: number }[] = [];
-    const overbacsRoundsList: { round: Tournee, totalBacs: number }[] = [];
+    const overweightRoundsList: { round: Tournee, totalWeight: number, deviation: number }[] = [];
+    const overbacsRoundsList: { round: Tournee, totalBacs: number, deviation: number }[] = [];
 
     rounds.forEach(round => {
         const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
         const roundData = tasksDataByRound.get(roundKey);
         if (roundData) {
-            if (round.vehicle?.dimensions?.poids && roundData.weight > round.vehicle.dimensions.poids) {
-                 overweightRoundsList.push({ round, totalWeight: roundData.weight });
+            if (roundData.weight > WEIGHT_LIMIT) {
+                 overweightRoundsList.push({ 
+                     round, 
+                     totalWeight: roundData.weight,
+                     deviation: roundData.weight - WEIGHT_LIMIT 
+                });
             }
-            if (roundData.bacs > 105) {
-                overbacsRoundsList.push({ round, totalBacs: roundData.bacs });
+            if (roundData.bacs > BACS_LIMIT) {
+                overbacsRoundsList.push({ 
+                    round, 
+                    totalBacs: roundData.bacs,
+                    deviation: roundData.bacs - BACS_LIMIT
+                });
             }
         }
     });
+
+    // Sort by deviation descending
+    overweightRoundsList.sort((a,b) => b.deviation - a.deviation);
+    overbacsRoundsList.sort((a,b) => b.deviation - a.deviation);
     // --- End Overload Calculations ---
 
 

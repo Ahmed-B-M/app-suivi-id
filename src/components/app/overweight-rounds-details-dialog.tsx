@@ -23,6 +23,7 @@ import { format } from "date-fns";
 type OverweightData = {
   round: Tournee;
   totalWeight: number;
+  deviation: number;
 };
 
 type OverweightRoundsDetailsDialogProps = {
@@ -36,14 +37,16 @@ export function OverweightRoundsDetailsDialog({
   onOpenChange,
   data = [],
 }: OverweightRoundsDetailsDialogProps) {
+  const WEIGHT_LIMIT = 1250;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Détail des Surcharges de Poids (> 1250kg)</DialogTitle>
+          <DialogTitle>Détail des Surcharges de Poids (> {WEIGHT_LIMIT}kg)</DialogTitle>
           <DialogDescription>
             Voici la liste des {data.length} tournées dépassant la capacité de
-            poids de 1250kg.
+            poids de {WEIGHT_LIMIT}kg, triées par ordre d'importance.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto">
@@ -54,10 +57,12 @@ export function OverweightRoundsDetailsDialog({
                 <TableHead>Tournée</TableHead>
                 <TableHead>Entrepôt</TableHead>
                 <TableHead className="text-right">Poids Calculé (kg)</TableHead>
+                <TableHead className="text-right">Capacité (kg)</TableHead>
+                <TableHead className="text-right">Écart (kg)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map(({ round, totalWeight }) => (
+              {data.map(({ round, totalWeight, deviation }) => (
                 <TableRow key={round.id}>
                   <TableCell>
                     {round.date
@@ -66,8 +71,14 @@ export function OverweightRoundsDetailsDialog({
                   </TableCell>
                   <TableCell className="font-medium">{round.name}</TableCell>
                   <TableCell>{round.nomHub || "N/A"}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="destructive">{totalWeight.toFixed(2)}</Badge>
+                  <TableCell className="text-right font-mono">
+                    {totalWeight.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">
+                    {WEIGHT_LIMIT.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-bold text-destructive">
+                    +{deviation.toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}
