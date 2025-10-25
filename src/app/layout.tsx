@@ -8,7 +8,7 @@ import { Providers } from "@/components/app/providers";
 import Favicon from '@/app/id-360.png';
 
 export const metadata: Metadata = {
-  title: "ID-pilote",
+  title: "ID 360",
   description: "Tableau de bord pour le suivi des opérations Urbantz.",
   icons: {
     icon: Favicon.src,

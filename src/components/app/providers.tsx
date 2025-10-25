@@ -22,7 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               </main>
                <footer className="py-6 border-t bg-background">
                 <div className="container text-center text-sm text-muted-foreground">
-                  ID-pilote
+                  ID 360
                 </div>
               </footer>
             </SidebarInset>
