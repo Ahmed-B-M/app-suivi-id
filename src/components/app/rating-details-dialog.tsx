@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Tache } from "@/lib/types";
 import {
   Dialog,
@@ -20,8 +20,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Star, MessageSquare, Calendar, Warehouse, Route, Hash } from "lucide-react";
+import { Star, MessageSquare, Calendar, Warehouse, Route, Hash, Search, ListChecks } from "lucide-react";
 import {format} from "date-fns";
+import { Input } from "../ui/input";
 
 type RatingDetailsDialogProps = {
   isOpen: boolean;
@@ -44,6 +45,7 @@ type RatingByDriver = {
   driverName: string;
   ratings: RatingInfo[];
   average: number;
+  completedTasks: number;
 };
 
 export function RatingDetailsDialog({
@@ -51,24 +53,31 @@ export function RatingDetailsDialog({
   onOpenChange,
   tasks,
 }: RatingDetailsDialogProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const ratingsByDriver = useMemo(() => {
     const driversData: Record<
       string,
-      { driverName: string; ratings: RatingInfo[] }
+      { driverName: string; ratings: RatingInfo[], completedTasks: number }
     > = {};
 
     tasks.forEach((task) => {
-      const rating = task.metaDonnees?.notationLivreur;
       const driverId = task.livreur?.idExterne || "Non assigné";
       const driverName =
         driverId !== "Non assigné"
           ? `${task.livreur?.prenom || ""} ${task.livreur?.nom || ""}`.trim()
           : "Non assigné";
 
-      if (typeof rating === "number") {
-        if (!driversData[driverId]) {
-          driversData[driverId] = { driverName, ratings: [] };
+       if (!driversData[driverId]) {
+          driversData[driverId] = { driverName, ratings: [], completedTasks: 0 };
         }
+
+      if (task.progression === 'COMPLETED') {
+        driversData[driverId].completedTasks++;
+      }
+
+      const rating = task.metaDonnees?.notationLivreur;
+      if (typeof rating === "number") {
         driversData[driverId].ratings.push({ 
           rating, 
           taskId: task.tacheId,
@@ -84,12 +93,23 @@ export function RatingDetailsDialog({
     return Object.entries(driversData)
       .map(([driverId, data]) => {
         const average =
-          data.ratings.reduce((sum, item) => sum + item.rating, 0) /
-          data.ratings.length;
-        return { driverId, driverName: data.driverName, ratings: data.ratings, average };
+          data.ratings.length > 0
+            ? data.ratings.reduce((sum, item) => sum + item.rating, 0) /
+              data.ratings.length
+            : 0;
+        return { driverId, driverName: data.driverName, ratings: data.ratings, average, completedTasks: data.completedTasks };
       })
       .sort((a, b) => b.average - a.average);
   }, [tasks]);
+
+  const filteredDrivers = useMemo(() => {
+    if (!searchQuery) {
+      return ratingsByDriver;
+    }
+    return ratingsByDriver.filter(driver => 
+      driver.driverName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [ratingsByDriver, searchQuery]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -101,68 +121,90 @@ export function RatingDetailsDialog({
             livreur, avec les détails de chaque tâche.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh]">
+         <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Rechercher un livreur..." 
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <ScrollArea className="max-h-[60vh]">
           <div className="space-y-6 pr-6">
-            {ratingsByDriver.length > 0 ? (
-              ratingsByDriver.map(({ driverId, driverName, ratings, average }) => (
+            {filteredDrivers.length > 0 ? (
+              filteredDrivers.map(({ driverId, driverName, ratings, average, completedTasks }) => (
                 <div key={driverId} className="rounded-lg border p-4">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <h3 className="font-semibold text-lg">
-                      Livreur: <span className="font-normal">{driverName}</span>
+                      {driverName}
                     </h3>
-                    <Badge variant="outline" className="flex items-center gap-1.5 text-base py-1 px-3">
-                      Moyenne: {average.toFixed(2)}
-                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                    </Badge>
+                    <div className="flex items-center gap-4">
+                      <Badge variant="secondary" className="flex items-center gap-1.5 text-sm py-1 px-3">
+                        <ListChecks className="h-4 w-4" />
+                        {completedTasks} tâches terminées
+                      </Badge>
+                       <Badge variant="secondary" className="flex items-center gap-1.5 text-sm py-1 px-3">
+                        {ratings.length} notes
+                      </Badge>
+                      <Badge variant="outline" className="flex items-center gap-1.5 text-base py-1 px-3">
+                        Moyenne: {average.toFixed(2)}
+                        <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                      </Badge>
+                    </div>
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[120px]">ID Tâche</TableHead>
-                        <TableHead>Détails de la Tâche</TableHead>
-                        <TableHead className="text-right w-[80px]">Note</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ratings.map((ratingInfo) => (
-                        <TableRow key={ratingInfo.taskId.toString()}>
-                          <TableCell className="font-mono text-xs">{ratingInfo.taskId.toString()}</TableCell>
-                          <TableCell>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="h-3.5 w-3.5 text-muted-foreground"/>
-                                    <span>{ratingInfo.date ? format(new Date(ratingInfo.date), "dd/MM/yyyy") : 'N/A'}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Warehouse className="h-3.5 w-3.5 text-muted-foreground"/>
-                                    <span>{ratingInfo.hubName || 'N/A'}</span>
-                                </div>
-                                 <div className="flex items-center gap-2">
-                                    <Route className="h-3.5 w-3.5 text-muted-foreground"/>
-                                    <span>Tournée: {ratingInfo.roundName || 'N/A'}</span>
-                                </div>
-                                 <div className="flex items-center gap-2">
-                                    <Hash className="h-3.5 w-3.5 text-muted-foreground"/>
-                                    <span>Séquence: {ratingInfo.sequence ?? 'N/A'}</span>
-                                </div>
-                                {ratingInfo.comment && (
-                                     <div className="flex items-start gap-2 col-span-2 mt-1">
-                                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0"/>
-                                        <span className="text-muted-foreground italic">"{ratingInfo.comment}"</span>
-                                    </div>
-                                )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-lg">{ratingInfo.rating}</TableCell>
+                  {ratings.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[120px]">ID Tâche</TableHead>
+                          <TableHead>Détails de la Tâche</TableHead>
+                          <TableHead className="text-right w-[80px]">Note</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {ratings.map((ratingInfo) => (
+                          <TableRow key={ratingInfo.taskId.toString()}>
+                            <TableCell className="font-mono text-xs">{ratingInfo.taskId.toString()}</TableCell>
+                            <TableCell>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                  <div className="flex items-center gap-2">
+                                      <Calendar className="h-3.5 w-3.5 text-muted-foreground"/>
+                                      <span>{ratingInfo.date ? format(new Date(ratingInfo.date), "dd/MM/yyyy") : 'N/A'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      <Warehouse className="h-3.5 w-3.5 text-muted-foreground"/>
+                                      <span>{ratingInfo.hubName || 'N/A'}</span>
+                                  </div>
+                                   <div className="flex items-center gap-2">
+                                      <Route className="h-3.5 w-3.5 text-muted-foreground"/>
+                                      <span>Tournée: {ratingInfo.roundName || 'N/A'}</span>
+                                  </div>
+                                   <div className="flex items-center gap-2">
+                                      <Hash className="h-3.5 w-3.5 text-muted-foreground"/>
+                                      <span>Séquence: {ratingInfo.sequence ?? 'N/A'}</span>
+                                  </div>
+                                  {ratingInfo.comment && (
+                                       <div className="flex items-start gap-2 col-span-2 mt-1">
+                                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0"/>
+                                          <span className="text-muted-foreground italic">"{ratingInfo.comment}"</span>
+                                      </div>
+                                  )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-lg">{ratingInfo.rating}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                     <p className="text-muted-foreground text-center text-sm py-4">Aucune note pour ce livreur sur la période sélectionnée.</p>
+                  )}
                 </div>
               ))
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                Aucune note trouvée pour la période sélectionnée.
+                Aucun livreur trouvé pour la recherche ou la période sélectionnée.
               </p>
             )}
           </div>
