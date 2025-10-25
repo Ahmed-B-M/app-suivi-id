@@ -106,7 +106,7 @@ export function SidebarNav() {
     <Sidebar collapsible="icon" variant="sidebar" side="left" className="h-screen sticky top-0">
        <SidebarHeader>
           <Link href="/" className="flex items-center gap-2 px-2">
-            <Image src="/id-360.png" alt="ID-360 Logo" width={32} height={32} className="h-8 w-8"/>
+            <Image src="/id-360.png" alt="ID-360 Logo" width={32} height={32} />
             <span className="font-bold text-lg text-sidebar-foreground">ID-pilote</span>
           </Link>
       </SidebarHeader>
