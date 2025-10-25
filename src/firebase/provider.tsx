@@ -84,27 +84,37 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       async (firebaseUser) => { 
         if (firebaseUser) {
           const userRef = doc(firestore, "users", firebaseUser.uid);
-          const userSnap = await getDoc(userRef);
+          
+          try {
+            const userSnap = await getDoc(userRef);
 
-          if (!userSnap.exists()) {
-            const newUserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName || firebaseUser.email,
-              role: 'viewer'
-            };
-            
-            // Non-blocking write
-            setDoc(userRef, newUserProfile).catch(error => {
-              const permissionError = new FirestorePermissionError({
+            if (!userSnap.exists()) {
+              const newUserProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || firebaseUser.email,
+                role: 'viewer'
+              };
+              
+              setDoc(userRef, newUserProfile, { merge: true }).catch(serverError => {
+                const permissionError = new FirestorePermissionError({
+                  path: userRef.path,
+                  operation: 'create',
+                  requestResourceData: newUserProfile,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+              });
+            }
+          } catch (e) {
+             const permissionError = new FirestorePermissionError({
                 path: userRef.path,
-                operation: 'create',
-                requestResourceData: newUserProfile,
+                operation: 'get',
               });
               errorEmitter.emit('permission-error', permissionError);
-            });
           }
+
           setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+
         } else {
           // No user is signed in.
           setUserAuthState({ user: null, isUserLoading: false, userError: null });
