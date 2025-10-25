@@ -34,7 +34,7 @@ const countBacs = (task: Tache) => {
     return task.articles.reduce((acc, article) => {
         if (article.type === 'BAC_SEC') acc.secs++;
         else if (article.type === 'BAC_FRAIS') acc.frais++;
-        else if (article.type === 'BAC_SURGELE') acc.surgeles++;
+        else if (article.type === 'SURGELE') acc.surgeles++; // Corrected from BAC_SURGELE
         return acc;
     }, { secs: 0, frais: 0, surgeles: 0 });
 };
