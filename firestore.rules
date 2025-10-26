@@ -1,136 +1,114 @@
 /**
- * @fileoverview Firestore Security Rules for the Urbantz API data model.
+ * @fileOverview Firestore Security Rules for Prototyping.
  *
  * Core Philosophy:
- * This ruleset provides public read access to all data while restricting all write access.
- * This allows for easy data exploration and integration during the prototyping phase.
+ * This ruleset grants open access to all data in the Firestore database. This is for prototyping only and is not suitable for production environments.
  *
  * Data Structure:
- * The Firestore database consists of top-level collections for `tasks`, `rounds`, `categorized_comments`, `nps_data`, `processed_nps_verbatims`, `action_notes`, `action_notes_depot`, and `users`.
- * Each document in these collections is identified by a unique ID (e.g., `taskId`, `roundId`, `date`).
+ * The database consists of several top-level collections: `users`, `tasks`, `rounds`, `categorized_comments`, `nps_data`, `processed_nps_verbatims`, `action_notes`, and `action_notes_depot`.
+ * Each collection stores documents representing the respective entities.
  *
  * Key Security Decisions:
- * - Read access is public for all collections.
- * - All write operations (create, update, delete) are explicitly denied.
- *
- * Authorization Independence:
- * This ruleset does not implement authorization checks, as the reasoning in `backend.json` specifies an intent for authorization independence.
- * This means that write access is not tied to any user roles or identities.
+ * - All reads and writes are allowed for all users. This is explicitly for the prototyping phase and must be changed before deployment.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read user profile information, but restricts all writes.
+     * @description Allows any user to read and write user data.
      * @path /users/{userId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /users/{userId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read task data, but restricts all writes.
+     * @description Allows any user to read and write task data.
      * @path /tasks/{taskId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /tasks/{taskId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read round data, but restricts all writes.
+     * @description Allows any user to read and write round data.
      * @path /rounds/{roundId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /rounds/{roundId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read categorized comments, but restricts all writes.
+     * @description Allows any user to read and write categorized comments data.
      * @path /categorized_comments/{taskId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /categorized_comments/{taskId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read NPS data, but restricts all writes.
+     * @description Allows any user to read and write NPS data.
      * @path /nps_data/{date}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /nps_data/{date} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read processed NPS verbatims, but restricts all writes.
+     * @description Allows any user to read and write processed NPS verbatims data.
      * @path /processed_nps_verbatims/{taskId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /processed_nps_verbatims/{taskId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read action notes, but restricts all writes.
+     * @description Allows any user to read and write action notes data.
      * @path /action_notes/{date}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /action_notes/{date} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
 
     /**
-     * @description Allows anyone to read depot action notes, but restricts all writes.
+     * @description Allows any user to read and write action notes depot data.
      * @path /action_notes_depot/{depotDateId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read, no writes.
+     * @allow (create, get, list, update, delete) - Any authenticated user.
+     * @deny (none) - No requests are denied.
+     * @principle Allows open access for prototyping.
      */
     match /action_notes_depot/{depotDateId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if true;
     }
   }
 }
