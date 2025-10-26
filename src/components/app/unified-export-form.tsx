@@ -259,14 +259,7 @@ export function UnifiedExportForm({
         const existingDocsMap = new Map<string, any>();
         
         try {
-            const queryConstraints = [
-                where("date", ">=", fromDate),
-                where("date", "<=", toDate),
-                limit(10000) // Increased limit
-            ];
-
-            const q = query(collectionRef, ...queryConstraints);
-
+            const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
             const querySnapshot = await getDocs(q);
 
             querySnapshot.forEach(doc => {
@@ -290,19 +283,33 @@ export function UnifiedExportForm({
         
         if (idsToDelete.length > 0) {
             onLogUpdate([`      - 🗑️ ${idsToDelete.length} documents marqués pour suppression.`]);
-            const deleteBatch = writeBatch(firestore);
-            idsToDelete.forEach(idToDelete => {
-                const docIdInFirestore = existingDocsMap.get(idToDelete)?.__docId;
-                if(docIdInFirestore) {
-                   deleteBatch.delete(doc(collectionRef, docIdInFirestore));
+            const deleteBatchSize = 400;
+            for (let i = 0; i < idsToDelete.length; i += deleteBatchSize) {
+                const batch = writeBatch(firestore);
+                const chunk = idsToDelete.slice(i, i + deleteBatchSize);
+                chunk.forEach(idToDelete => {
+                    const docIdInFirestore = existingDocsMap.get(idToDelete)?.__docId;
+                    if(docIdInFirestore) {
+                       deleteBatch.delete(doc(collectionRef, docIdInFirestore));
+                    }
+                });
+                try {
+                    await batch.commit();
+                    onLogUpdate([`      - Lot de suppression ${i / deleteBatchSize + 1} terminé.`]);
+                } catch(e) {
+                    success = false;
+                    onLogUpdate([`      - ❌ Erreur lors de la suppression: ${(e as Error).message}`]);
+                    const permissionError = new FirestorePermissionError({
+                        path: collectionName,
+                        operation: 'delete',
+                        requestResourceData: chunk,
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
                 }
-            });
-            try {
-                await deleteBatch.commit();
-                onLogUpdate([`      - ✅ Suppression effectuée.`]);
-            } catch(e) {
-                success = false;
-                onLogUpdate([`      - ❌ Erreur lors de la suppression: ${(e as Error).message}`]);
+                 if (idsToDelete.length > deleteBatchSize && i + deleteBatchSize < idsToDelete.length) {
+                    onLogUpdate([`      - ⏱️ Pause de 1000ms...`]);
+                    await delay(1000);
+                }
             }
         } else {
             onLogUpdate([`      - ✅ Aucune suppression nécessaire.`]);
@@ -346,7 +353,7 @@ export function UnifiedExportForm({
         onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
         setSaveCount(itemsToUpdate.length);
 
-        const batchSize = 250;
+        const batchSize = 400;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
           const batchData = itemsToUpdate.slice(i, i + batchSize);
           const batch = writeBatch(firestore);
