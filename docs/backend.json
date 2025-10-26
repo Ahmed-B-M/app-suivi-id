@@ -9,7 +9,7 @@
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["admin", "editor", "viewer"] },
+        "role": { "type": "string", "enum": ["admin", "RD", "Dispatch", "RH", "Qualité"] },
         "displayName": { "type": "string" }
       },
       "required": ["uid", "email", "role"]

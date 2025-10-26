@@ -19,8 +19,11 @@ import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
 import { useAuth, useUser } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
+import type { Role } from "@/lib/roles";
+import { hasAccess } from "@/lib/roles";
+import { useMemo } from "react";
 
-const links = [
+const allLinks = [
   // --- Vues d'Ensemble ---
   {
     href: "/",
@@ -108,9 +111,15 @@ const links = [
 export function SidebarNav() {
   const pathname = usePathname();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userProfile } = useUser();
   const { count: pendingCommentsCount, isLoading: isCommentsLoading } = usePendingComments();
   const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
+
+  const userRole: Role = useMemo(() => (userProfile?.role as Role) || 'viewer', [userProfile]);
+
+  const visibleLinks = useMemo(() => {
+    return allLinks.filter(link => hasAccess(userRole, link.href));
+  }, [userRole]);
 
   return (
     <Sidebar collapsible="icon" variant="sidebar" side="left" className="h-screen sticky top-0 z-40">
@@ -121,7 +130,7 @@ export function SidebarNav() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {links.map((link) => (
+          {visibleLinks.map((link) => (
             <SidebarMenuItem key={link.href}>
               <Link href={link.href} className="relative">
                 <SidebarMenuButton
@@ -162,9 +171,9 @@ export function SidebarNav() {
                     <Skeleton className="h-4 w-32" />
                 </SidebarMenuButton>
             ) : user ? (
-                 <SidebarMenuButton disabled tooltip={user.displayName || user.email || "Utilisateur"}>
+                 <SidebarMenuButton disabled tooltip={userProfile?.displayName || user.email || "Utilisateur"}>
                     <UserIcon />
-                    <span>{user.displayName || user.email}</span>
+                    <span>{userProfile?.displayName || user.email}</span>
                 </SidebarMenuButton>
             ) : null}
         </SidebarMenuItem>

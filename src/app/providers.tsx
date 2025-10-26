@@ -9,33 +9,40 @@ import { SidebarNav } from "@/components/app/sidebar-nav";
 import { AppHeader } from "./header";
 import { SidebarInset } from "../ui/sidebar/index";
 import { useUser } from '@/firebase';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
+import type { Role } from '@/lib/roles';
+import { hasAccess } from '@/lib/roles';
 
 
 function AuthGuard({ children }: { children: ReactNode }) {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userProfile } = useUser();
   const pathname = usePathname();
   const router = useRouter();
 
+  const userRole: Role = useMemo(() => (userProfile?.role as Role) || 'viewer', [userProfile]);
+
   useEffect(() => {
     if (isUserLoading) {
-      return; // Ne faites rien tant que l'état de l'utilisateur n'est pas connu
+      return; 
     }
 
     const isLoginPage = pathname === '/login';
 
     if (!user && !isLoginPage) {
-      // Si l'utilisateur n'est pas connecté et n'est pas sur la page de connexion, redirigez-le
       router.replace('/login');
     } else if (user && isLoginPage) {
-      // Si l'utilisateur est connecté et essaie d'accéder à la page de connexion, redirigez-le vers l'accueil
       router.replace('/');
+    } else if (user && !isLoginPage) {
+      // Check for role-based access
+      if (!hasAccess(userRole, pathname)) {
+         router.replace('/'); // Redirect to a default/dashboard page
+      }
     }
-  }, [user, isUserLoading, pathname, router]);
+  }, [user, isUserLoading, pathname, router, userRole]);
 
   // Affiche un loader global tant que l'authentification est en cours
-  if (isUserLoading) {
+  if (isUserLoading || (user && !hasAccess(userRole, pathname) && pathname !== '/login')) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -48,8 +55,8 @@ function AuthGuard({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
   
-  // Si l'utilisateur est connecté, affichez le contenu de l'application
-  if (user && pathname !== '/login') {
+  // Si l'utilisateur est connecté et a accès, affichez le contenu de l'application
+  if (user && pathname !== '/login' && hasAccess(userRole, pathname)) {
      return <>{children}</>;
   }
 
