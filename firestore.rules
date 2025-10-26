@@ -1,167 +1,136 @@
 /**
- * @file Firebase Security Rules for Firestore.
+ * @fileoverview Firestore Security Rules for the Urbantz API data model.
  *
- * @Core Philosophy: This ruleset allows any authenticated user to create and read data in all collections.
- *   This is a prototyping ruleset and is not suitable for production use.
- *   It provides the least restrictive access for authenticated users to create, read, update, and delete documents.
- *   All data validation is skipped to allow for rapid iteration on the data model.
- *   This ruleset focuses on granting access to authenticated users, but it does not implement any
- *   authorization logic based on user roles or ownership.
- *   All write operations are authorized for authenticated users, but NO data validation is performed.
- *   This means that data integrity is not guaranteed, and any authenticated user can write any data to any document.
+ * Core Philosophy:
+ * This ruleset provides public read access to all data while restricting all write access.
+ * This allows for easy data exploration and integration during the prototyping phase.
  *
- * @Data Structure: The Firestore database consists of several top-level collections: `users`, `tasks`, `rounds`, `categorized_comments`,
- *   `nps_data`, `processed_nps_verbatims`, `action_notes`, and `action_notes_depot`.
- *   Each collection stores documents representing data fetched from the Urbantz API or derived from it.
+ * Data Structure:
+ * The Firestore database consists of top-level collections for `tasks`, `rounds`, `categorized_comments`, `nps_data`, `processed_nps_verbatims`, `action_notes`, `action_notes_depot`, and `users`.
+ * Each document in these collections is identified by a unique ID (e.g., `taskId`, `roundId`, `date`).
  *
- * @Key Security Decisions:
- *   - All authenticated users can create, read, update, and delete documents in all collections.
- *   - No data validation is performed.
- *   - No authorization logic is implemented based on user roles or ownership.
+ * Key Security Decisions:
+ * - Read access is public for all collections.
+ * - All write operations (create, update, delete) are explicitly denied.
+ *
+ * Authorization Independence:
+ * This ruleset does not implement authorization checks, as the reasoning in `backend.json` specifies an intent for authorization independence.
+ * This means that write access is not tied to any user roles or identities.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows any authenticated user to create and read user profiles.
+     * @description Allows anyone to read user profile information, but restricts all writes.
      * @path /users/{userId}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write user profiles.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read tasks.
+     * @description Allows anyone to read task data, but restricts all writes.
      * @path /tasks/{taskId}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write tasks.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /tasks/{taskId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read rounds.
+     * @description Allows anyone to read round data, but restricts all writes.
      * @path /rounds/{roundId}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write rounds.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /rounds/{roundId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read categorized comments.
+     * @description Allows anyone to read categorized comments, but restricts all writes.
      * @path /categorized_comments/{taskId}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write categorized comments.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /categorized_comments/{taskId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read NPS data.
+     * @description Allows anyone to read NPS data, but restricts all writes.
      * @path /nps_data/{date}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write NPS data.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /nps_data/{date} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read processed NPS verbatims.
+     * @description Allows anyone to read processed NPS verbatims, but restricts all writes.
      * @path /processed_nps_verbatims/{taskId}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write processed NPS verbatims.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /processed_nps_verbatims/{taskId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read action notes.
+     * @description Allows anyone to read action notes, but restricts all writes.
      * @path /action_notes/{date}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write action notes.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /action_notes/{date} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows any authenticated user to create and read action notes for a depot.
+     * @description Allows anyone to read depot action notes, but restricts all writes.
      * @path /action_notes_depot/{depotDateId}
-     * @allow (create) request.auth != null
-     * @allow (get) request.auth != null
-     * @deny (create) request.auth == null
-     * @deny (get) request.auth == null
-     * @principle Allows authenticated users to read and write action notes for a depot.
+     * @allow (get, list): if true;
+     * @deny (create, update, delete): Always.
+     * @principle Public read, no writes.
      */
     match /action_notes_depot/{depotDateId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
-  }
-
-  // Helper function to determine if a user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
   }
 }
