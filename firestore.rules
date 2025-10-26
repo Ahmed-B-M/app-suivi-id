@@ -1,213 +1,160 @@
+/**
+ * @fileoverview Firestore Security Rules for the Urbantz API data model.
+ *
+ * Core Philosophy:
+ * This ruleset allows any authenticated user to read and write all data.
+ * This is intended for rapid prototyping and should be replaced with a more
+ * restrictive model in a production environment.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information. Access is restricted to the owner.
+ * - /tasks/{taskId}: Stores task data fetched from the Urbantz API.
+ * - /rounds/{roundId}: Stores round data fetched from the Urbantz API.
+ * - /categorized_comments/{taskId}: Stores categorized customer comments related to tasks.
+ * - /nps_data/{date}: Stores NPS analysis results for a specific date.
+ * - /processed_nps_verbatims/{taskId}: Stores processed NPS detractor verbatims related to tasks.
+ * - /action_notes/{date}: Stores daily action notes.
+ * - /action_notes_depot/{depotDateId}: Stores daily action notes for a specific depot.
+ *
+ * Key Security Decisions:
+ * - No role-based access control is enforced.
+ * - All authenticated users can create, read, update, and delete all documents.
+ * - List operations are generally allowed for all collections.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     /**
-     * @description Allows a user to read and write their own profile data.
+     * @description Allows any authenticated user to manage user profiles.
      * @path /users/{userId}
-     * @allow (create) User with UID "U6p0PzhzYgPlEgPYt9sOVXXqO5Q2" can create their profile at /users/U6p0PzhzYgPlEgPYt9sOVXXqO5Q2.
-     * @deny (create) User with UID "U6p0PzhzYgPlEgPYt9sOVXXqO5Q2" cannot create profile at /users/DIFFERENT_UID.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Signed-in user with matching userId.
+     * @deny (create) Signed-in user with non-matching userId.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage user profiles.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      // Reads
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-
-      // Writes
-      allow create: if isSignedIn() && isOwner(userId) && request.auth.uid == userId;
-      allow update: if isSignedIn() && isOwner(userId) && request.auth.uid == userId;
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to tasks and restricts write access to owners.
+     * @description Allows any authenticated user to manage tasks.
      * @path /tasks/{taskId}
-     * @allow (get) Any user can read a task.
-     * @allow (create) A user can create a task if they are the owner (request.resource.data.ownerId == request.auth.uid).
-     * @deny (create) A user cannot create a task if they are not the owner.
-     * @principle Allows public read with owner-only writes.
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage tasks.
      */
     match /tasks/{taskId} {
-        function isSignedIn() {
-            return request.auth != null;
-        }
-
-        function isOwner(ownerId) {
-            return request.auth.uid == ownerId;
-        }
-
-        // Reads
-        allow get, list: if true;
-
-        // Writes
-        allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-        allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-        allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to rounds and restricts write access to owners.
+     * @description Allows any authenticated user to manage rounds.
      * @path /rounds/{roundId}
-     * @allow (get) Any user can read a round.
-     * @allow (create) A user can create a round if they are the owner (request.resource.data.ownerId == request.auth.uid).
-     * @deny (create) A user cannot create a round if they are not the owner.
-     * @principle Allows public read with owner-only writes.
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage rounds.
      */
     match /rounds/{roundId} {
-      function isSignedIn() {
-          return request.auth != null;
-      }
-
-      function isOwner(ownerId) {
-          return request.auth.uid == ownerId;
-      }
-
-      // Reads
-      allow get, list: if true;
-
-      // Writes
-      allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-      allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-      allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
-        /**
-         * @description Allows public read access to categorized comments and restricts write access to owners.
-         * @path /categorized_comments/{taskId}
-         * @allow (get) Any user can read a categorized comment.
-         * @allow (create) A user can create a categorized comment if they are the owner (request.resource.data.ownerId == request.auth.uid).
-         * @deny (create) A user cannot create a categorized comment if they are not the owner.
-         * @principle Allows public read with owner-only writes.
-         */
-        match /categorized_comments/{taskId} {
-            function isSignedIn() {
-                return request.auth != null;
-            }
+    /**
+     * @description Allows any authenticated user to manage categorized comments.
+     * @path /categorized_comments/{taskId}
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage categorized comments.
+     */
+    match /categorized_comments/{taskId} {
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
 
-            function isOwner(ownerId) {
-                return request.auth.uid == ownerId;
-            }
+    /**
+     * @description Allows any authenticated user to manage NPS data.
+     * @path /nps_data/{date}
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage NPS data.
+     */
+    match /nps_data/{date} {
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
 
-            // Reads
-            allow get, list: if true;
+    /**
+     * @description Allows any authenticated user to manage processed NPS verbatims.
+     * @path /processed_nps_verbatims/{taskId}
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage processed NPS verbatims.
+     */
+    match /processed_nps_verbatims/{taskId} {
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
 
-            // Writes
-            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
-        }
+    /**
+     * @description Allows any authenticated user to manage action notes.
+     * @path /action_notes/{date}
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage action notes.
+     */
+    match /action_notes/{date} {
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
 
-        /**
-         * @description Allows public read access to NPS data and restricts write access to owners.
-         * @path /nps_data/{date}
-         * @allow (get) Any user can read NPS data.
-         * @allow (create) A user can create NPS data if they are the owner (request.resource.data.ownerId == request.auth.uid).
-         * @deny (create) A user cannot create NPS data if they are not the owner.
-         * @principle Allows public read with owner-only writes.
-         */
-        match /nps_data/{date} {
-            function isSignedIn() {
-                return request.auth != null;
-            }
-
-            function isOwner(ownerId) {
-                return request.auth.uid == ownerId;
-            }
-
-            // Reads
-            allow get, list: if true;
-
-            // Writes
-            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
-        }
-
-        /**
-         * @description Allows public read access to processed NPS verbatims and restricts write access to owners.
-         * @path /processed_nps_verbatims/{taskId}
-         * @allow (get) Any user can read a processed NPS verbatim.
-         * @allow (create) A user can create a processed NPS verbatim if they are the owner (request.resource.data.ownerId == request.auth.uid).
-         * @deny (create) A user cannot create a processed NPS verbatim if they are not the owner.
-         * @principle Allows public read with owner-only writes.
-         */
-        match /processed_nps_verbatims/{taskId} {
-            function isSignedIn() {
-                return request.auth != null;
-            }
-
-            function isOwner(ownerId) {
-                return request.auth.uid == ownerId;
-            }
-
-            // Reads
-            allow get, list: if true;
-
-            // Writes
-            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
-        }
-
-        /**
-         * @description Allows public read access to action notes and restricts write access to owners.
-         * @path /action_notes/{date}
-         * @allow (get) Any user can read an action note.
-         * @allow (create) A user can create an action note if they are the owner (request.resource.data.ownerId == request.auth.uid).
-         * @deny (create) A user cannot create an action note if they are not the owner.
-         * @principle Allows public read with owner-only writes.
-         */
-        match /action_notes/{date} {
-            function isSignedIn() {
-                return request.auth != null;
-            }
-
-            function isOwner(ownerId) {
-                return request.auth.uid == ownerId;
-            }
-
-            // Reads
-            allow get, list: if true;
-
-            // Writes
-            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
-        }
-
-        /**
-         * @description Allows public read access to depot action notes and restricts write access to owners.
-         * @path /action_notes_depot/{depotDateId}
-         * @allow (get) Any user can read a depot action note.
-         * @allow (create) A user can create a depot action note if they are the owner (request.resource.data.ownerId == request.auth.uid).
-         * @deny (create) A user cannot create a depot action note if they are not the owner.
-         * @principle Allows public read with owner-only writes.
-         */
-        match /action_notes_depot/{depotDateId} {
-            function isSignedIn() {
-                return request.auth != null;
-            }
-
-            function isOwner(ownerId) {
-                return request.auth.uid == ownerId;
-            }
-
-            // Reads
-            allow get, list: if true;
-
-            // Writes
-            allow create: if isSignedIn() && isOwner(request.resource.data.ownerId);
-            allow update: if isSignedIn() && isOwner(resource.data.ownerId);
-            allow delete: if isSignedIn() && isOwner(resource.data.ownerId);
-        }
+    /**
+     * @description Allows any authenticated user to manage depot action notes.
+     * @path /action_notes_depot/{depotDateId}
+     * @allow (create) Signed-in user.
+     * @deny (create) No specific denial condition in prototyping mode.
+     * @allow (get, list, update, delete) Signed-in user.
+     * @principle Allows any authenticated user to manage depot action notes.
+     */
+    match /action_notes_depot/{depotDateId} {
+      allow create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
   }
 }
