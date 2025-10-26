@@ -11,9 +11,10 @@ import { Tache, Tournee } from "@/lib/types";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import type { ProcessedVerbatim } from "./verbatim-treatment/page";
+import { collection, doc, writeBatch, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 
 
 /**
@@ -600,4 +601,143 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
   }
 }
 
+
+// --- Daily Sync Action ---
+export async function runDailySyncAction() {
+  const apiKey = process.env.URBANTZ_API_KEY || "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk";
+  if (!apiKey) {
+    return { success: false, error: "Clé API Urbantz non configurée sur le serveur." };
+  }
+  
+  const to = new Date();
+  const from = subDays(to, 1);
+  const fromString = format(from, 'yyyy-MM-dd');
+  const toString = format(to, 'yyyy-MM-dd');
+  
+  const logs: string[] = [];
+
+  try {
+    logs.push(`🚀 Début de la synchronisation 48h... (${fromString} - ${toString})`);
+
+    const taskParams = new URLSearchParams();
+    let allTasks: Tache[] = [];
+    const dateCursorTasks = startOfDay(from);
+    while (dateCursorTasks <= to) {
+        const dateString = format(dateCursorTasks, 'yyyy-MM-dd');
+        logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
+        const paramsForDay = new URLSearchParams(taskParams);
+        paramsForDay.append("date", dateString);
+        const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
+        allTasks.push(...tasksForDay);
+        dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
+    }
+    logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
     
+    const hubIdToNameMap = new Map<string, string>();
+    allTasks.forEach(task => {
+      if (task.hub && task.nomHub && !hubIdToNameMap.has(task.hub)) {
+        hubIdToNameMap.set(task.hub, task.nomHub);
+      }
+    });
+    logs.push(`\n🗺️ ${hubIdToNameMap.size} hubs uniques identifiés.`);
+
+    const roundParams = new URLSearchParams();
+    let allRounds: Tournee[] = [];
+    const dateCursorRounds = startOfDay(from);
+     while (dateCursorRounds <= to) {
+      const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
+      logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
+      const paramsForDay = new URLSearchParams(roundParams);
+      paramsForDay.append("date", dateString);
+      const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs, hubIdToNameMap);
+      allRounds.push(...roundsForDay);
+      dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
+    }
+    logs.push(`\n✅ ${allRounds.length} tournées épurées récupérées au total.`);
+
+    // --- SAVE TO FIRESTORE ---
+    logs.push(`\n💾 Début de la sauvegarde intelligente dans Firestore...`);
+    const { firestore } = await initializeFirebaseOnServer();
+
+    await saveCollectionInAction(firestore, 'tasks', allTasks, 'tacheId', { from, to }, logs);
+    await saveCollectionInAction(firestore, 'rounds', allRounds, 'id', { from, to }, logs);
+    
+    logs.push(`\n🎉 Synchronisation 48h terminée !`);
+    return { success: true, error: null, logs };
+
+  } catch (e) {
+    const errorMsg = "❌ Une erreur inattendue est survenue durant la synchronisation.";
+    logs.push(errorMsg);
+    if (e instanceof Error) {
+      logs.push(e.message);
+    }
+    return {
+      success: false,
+      error: errorMsg,
+      logs
+    };
+  }
+}
+
+// --- Firestore Saving Logic for Actions ---
+async function saveCollectionInAction(
+    firestore: FirebaseFirestore.Firestore,
+    collectionName: 'tasks' | 'rounds', 
+    dataFromApi: any[], 
+    idKey: string, 
+    dateRange: { from: Date, to: Date },
+    logs: string[]
+) {
+    logs.push(`\n   -> Synchronisation de la collection "${collectionName}"...`);
+    const collectionRef = collection(firestore, collectionName);
+    
+    const fromDate = startOfDay(dateRange.from);
+    const toDate = endOfDay(dateRange.to);
+
+    logs.push(`      - Suppression des anciens documents entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`);
+    
+    const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
+    const snapshot = await getDocs(q);
+    
+    const deleteBatchSize = 400;
+    let deletedCount = 0;
+    for (let i = 0; i < snapshot.docs.length; i += deleteBatchSize) {
+        const batch = writeBatch(firestore);
+        const chunk = snapshot.docs.slice(i, i + deleteBatchSize);
+        chunk.forEach(doc => {
+            batch.delete(doc.ref);
+            deletedCount++;
+        });
+        await batch.commit();
+        logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1} terminé.`);
+        if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1000));
+    }
+    logs.push(`      - ✅ ${deletedCount} anciens documents supprimés.`);
+
+    logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
+    const writeBatchSize = 400;
+    for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
+        const batch = writeBatch(firestore);
+        const chunk = dataFromApi.slice(i, i + writeBatchSize);
+        chunk.forEach(item => {
+            const docId = String(item[idKey]);
+            if (docId) {
+                const docRef = doc(collectionRef, docId);
+                const dataToSet: { [key: string]: any } = {};
+                Object.keys(item).forEach(key => {
+                    const value = item[key];
+                    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                        try { dataToSet[key] = new Date(value); } catch (e) { dataToSet[key] = value; }
+                    } else {
+                        dataToSet[key] = value;
+                    }
+                });
+                batch.set(docRef, dataToSet);
+            }
+        });
+        await batch.commit();
+        logs.push(`      - Lot d'écriture ${i / writeBatchSize + 1} terminé.`);
+        if(dataFromApi.length > writeBatchSize) await new Promise(res => setTimeout(res, 1000));
+    }
+    logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
+}
