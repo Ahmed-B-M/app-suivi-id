@@ -1,160 +1,167 @@
 /**
- * @fileoverview Firestore Security Rules for the Urbantz API data model.
+ * @file Firebase Security Rules for Firestore.
  *
- * Core Philosophy:
- * This ruleset allows any authenticated user to read and write all data.
- * This is intended for rapid prototyping and should be replaced with a more
- * restrictive model in a production environment.
+ * @Core Philosophy: This ruleset allows any authenticated user to create and read data in all collections.
+ *   This is a prototyping ruleset and is not suitable for production use.
+ *   It provides the least restrictive access for authenticated users to create, read, update, and delete documents.
+ *   All data validation is skipped to allow for rapid iteration on the data model.
+ *   This ruleset focuses on granting access to authenticated users, but it does not implement any
+ *   authorization logic based on user roles or ownership.
+ *   All write operations are authorized for authenticated users, but NO data validation is performed.
+ *   This means that data integrity is not guaranteed, and any authenticated user can write any data to any document.
  *
- * Data Structure:
- * - /users/{userId}: Stores user profile information. Access is restricted to the owner.
- * - /tasks/{taskId}: Stores task data fetched from the Urbantz API.
- * - /rounds/{roundId}: Stores round data fetched from the Urbantz API.
- * - /categorized_comments/{taskId}: Stores categorized customer comments related to tasks.
- * - /nps_data/{date}: Stores NPS analysis results for a specific date.
- * - /processed_nps_verbatims/{taskId}: Stores processed NPS detractor verbatims related to tasks.
- * - /action_notes/{date}: Stores daily action notes.
- * - /action_notes_depot/{depotDateId}: Stores daily action notes for a specific depot.
+ * @Data Structure: The Firestore database consists of several top-level collections: `users`, `tasks`, `rounds`, `categorized_comments`,
+ *   `nps_data`, `processed_nps_verbatims`, `action_notes`, and `action_notes_depot`.
+ *   Each collection stores documents representing data fetched from the Urbantz API or derived from it.
  *
- * Key Security Decisions:
- * - No role-based access control is enforced.
- * - All authenticated users can create, read, update, and delete all documents.
- * - List operations are generally allowed for all collections.
+ * @Key Security Decisions:
+ *   - All authenticated users can create, read, update, and delete documents in all collections.
+ *   - No data validation is performed.
+ *   - No authorization logic is implemented based on user roles or ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     /**
-     * @description Allows any authenticated user to manage user profiles.
+     * @description Allows any authenticated user to create and read user profiles.
      * @path /users/{userId}
-     * @allow (create) Signed-in user with matching userId.
-     * @deny (create) Signed-in user with non-matching userId.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage user profiles.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write user profiles.
      */
     match /users/{userId} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage tasks.
+     * @description Allows any authenticated user to create and read tasks.
      * @path /tasks/{taskId}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage tasks.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write tasks.
      */
     match /tasks/{taskId} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage rounds.
+     * @description Allows any authenticated user to create and read rounds.
      * @path /rounds/{roundId}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage rounds.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write rounds.
      */
     match /rounds/{roundId} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage categorized comments.
+     * @description Allows any authenticated user to create and read categorized comments.
      * @path /categorized_comments/{taskId}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage categorized comments.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write categorized comments.
      */
     match /categorized_comments/{taskId} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage NPS data.
+     * @description Allows any authenticated user to create and read NPS data.
      * @path /nps_data/{date}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage NPS data.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write NPS data.
      */
     match /nps_data/{date} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage processed NPS verbatims.
+     * @description Allows any authenticated user to create and read processed NPS verbatims.
      * @path /processed_nps_verbatims/{taskId}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage processed NPS verbatims.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write processed NPS verbatims.
      */
     match /processed_nps_verbatims/{taskId} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage action notes.
+     * @description Allows any authenticated user to create and read action notes.
      * @path /action_notes/{date}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage action notes.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write action notes.
      */
     match /action_notes/{date} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows any authenticated user to manage depot action notes.
+     * @description Allows any authenticated user to create and read action notes for a depot.
      * @path /action_notes_depot/{depotDateId}
-     * @allow (create) Signed-in user.
-     * @deny (create) No specific denial condition in prototyping mode.
-     * @allow (get, list, update, delete) Signed-in user.
-     * @principle Allows any authenticated user to manage depot action notes.
+     * @allow (create) request.auth != null
+     * @allow (get) request.auth != null
+     * @deny (create) request.auth == null
+     * @deny (get) request.auth == null
+     * @principle Allows authenticated users to read and write action notes for a depot.
      */
     match /action_notes_depot/{depotDateId} {
-      allow create: if isSignedIn();
       allow get: if isSignedIn();
       allow list: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
+  }
+
+  // Helper function to determine if a user is signed in.
+  function isSignedIn() {
+    return request.auth != null;
   }
 }
