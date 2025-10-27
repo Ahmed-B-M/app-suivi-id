@@ -73,37 +73,39 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 w-full border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-20 items-center justify-between">
-        <div className="mr-4 hidden items-center md:flex">
+        <div className="mr-4 hidden md:flex">
           <Link href="/" className="flex items-center">
-             <Image src={Logo} alt="ID 360 Logo" width={64} height={64} priority />
+             <Image src={Logo} alt="ID 360 Logo" width={50} height={50} priority />
           </Link>
         </div>
-        <div className="flex-1 flex justify-end items-center gap-2">
+        <div className="flex flex-1 justify-end items-center gap-2">
           {lastUpdateTime && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mr-4">
+            <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground mr-4">
               <History className="h-4 w-4" />
               <span>Dernière synchro: {format(lastUpdateTime, "dd/MM/yy HH:mm", { locale: fr })}</span>
             </div>
           )}
 
-          <RadioGroup
-            value={filterType}
-            onValueChange={(value) => setFilterType(value as 'tous' | 'magasin' | 'entrepot')}
-            className="hidden sm:flex items-center space-x-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="tous" id="tous" />
-              <Label htmlFor="tous">Tous</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="magasin" id="magasin" />
-              <Label htmlFor="magasin">Magasins</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="entrepot" id="entrepot" />
-              <Label htmlFor="entrepot">Entrepôts</Label>
-            </div>
-          </RadioGroup>
+          <div className="hidden sm:flex">
+            <RadioGroup
+              value={filterType}
+              onValueChange={(value) => setFilterType(value as 'tous' | 'magasin' | 'entrepot')}
+              className="flex items-center space-x-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="tous" id="tous" />
+                <Label htmlFor="tous">Tous</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="magasin" id="magasin" />
+                <Label htmlFor="magasin">Magasins</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="entrepot" id="entrepot" />
+                <Label htmlFor="entrepot">Entrepôts</Label>
+              </div>
+            </RadioGroup>
+          </div>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -111,7 +113,7 @@ export function AppHeader() {
                 id="date"
                 variant={"outline"}
                 className={cn(
-                  "w-[180px] sm:w-[260px] justify-start text-left font-normal",
+                  "w-full sm:w-[260px] justify-start text-left font-normal",
                   !dateRange && "text-muted-foreground"
                 )}
               >

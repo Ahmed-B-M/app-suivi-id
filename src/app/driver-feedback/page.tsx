@@ -167,8 +167,8 @@ export default function DriverFeedbackPage() {
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent className="p-4 pt-0">
-                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                            <div className="lg:col-span-2">
+                                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                                            <div className="xl:col-span-2">
                                                 <Card>
                                                     <CardHeader>
                                                         <CardTitle className="flex items-center gap-2 text-base"><BookUser /> Retours Agrégés</CardTitle>
