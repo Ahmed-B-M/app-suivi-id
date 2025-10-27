@@ -18,7 +18,6 @@ export const ALL_PAGES = [
   "/verbatims",
   "/verbatim-analysis",
   "/settings",
-  "/comparison",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, string[]> = {
@@ -34,7 +33,6 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/driver-feedback",
     "/verbatim-analysis",
     "/settings",
-    "/comparison",
   ],
   Dispatch: [
     "/",

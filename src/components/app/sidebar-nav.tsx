@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut, User as UserIcon, RefreshCw, Loader2, Bell, GitCompareArrows } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut, User as UserIcon, RefreshCw, Loader2, Bell } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
@@ -43,11 +43,6 @@ const allLinks = [
     href: "/forecast",
     label: "FORECAST",
     icon: <TrendingUp />,
-  },
-  {
-    href: "/comparison",
-    label: "Analyse Comparative",
-    icon: <GitCompareArrows />,
   },
   {
     href: "/notifications",

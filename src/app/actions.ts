@@ -7,14 +7,14 @@ import {
   serverExportSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { Tache, Tournee } from "@/lib/types";
+import { Tache, Tournee, Notification } from "@/lib/types";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import type { ProcessedVerbatim } from "./verbatim-treatment/page";
-import { collection, doc, writeBatch, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, deleteDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 
 
 /**
@@ -600,6 +600,14 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
   }
 }
 
+async function createNotification(firestore: FirebaseFirestore.Firestore, notification: Omit<Notification, 'id' | 'createdAt' | 'status'>) {
+    const notificationWithTimestamp = {
+        ...notification,
+        status: 'unread' as const,
+        createdAt: serverTimestamp(),
+    };
+    await addDoc(collection(firestore, 'notifications'), notificationWithTimestamp);
+}
 
 // --- Daily Sync Action ---
 export async function runDailySyncAction() {
@@ -661,6 +669,32 @@ export async function runDailySyncAction() {
     await saveCollectionInAction(firestore, 'tasks', allTasks, 'tacheId', { from, to }, logs);
     await saveCollectionInAction(firestore, 'rounds', allRounds, 'id', { from, to }, logs);
     
+    // --- Generate Notifications ---
+    logs.push(`\n🔔 Génération des notifications...`);
+    let notificationCount = 0;
+    // 1. Quality Alerts
+    const qualityAlertTasks = allTasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
+    for (const task of qualityAlertTasks) {
+        await createNotification(firestore, {
+            type: 'quality_alert',
+            message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.metaDonnees?.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
+            relatedEntity: { type: 'task', id: task.tacheId }
+        });
+        notificationCount++;
+    }
+    // 2. Overweight Rounds (assuming this logic is available or can be added)
+    // This is a placeholder for where you'd check for overweight rounds and create notifications.
+    // For now, we'll simulate one if any round exists.
+    if (allRounds.length > 0 && allRounds[0].dimensions && allRounds[0].dimensions.poids && allRounds[0].dimensions.poids > 1250) {
+       await createNotification(firestore, {
+            type: 'overweight_round',
+            message: `La tournée ${allRounds[0].name} est en surcharge de poids (${allRounds[0].dimensions.poids} kg).`,
+            relatedEntity: { type: 'round', id: allRounds[0].id }
+        });
+        notificationCount++;
+    }
+    logs.push(`   - ✅ ${notificationCount} notifications générées.`);
+
     logs.push(`\n🎉 Synchronisation 48h terminée !`);
     return { success: true, error: null, logs };
 
