@@ -106,7 +106,7 @@
           "type": "object",
           "properties": {
             "volume": { "type": "number" },
-            "bac": { "type": "number" },
+            "bac": { "type": "string" },
             "poids": { "type": "number" }
           }
         },
@@ -391,17 +391,6 @@
       },
       "required": ["taskId", "npsScore", "verbatim", "status"]
     },
-    "ActionNote": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ActionNote",
-      "type": "object",
-      "description": "Represents a daily note or action plan related to driver feedback.",
-      "properties": {
-        "date": { "type": "string", "format": "date", "description": "The date of the note in YYYY-MM-DD format, used as the document ID." },
-        "content": { "type": "string", "description": "The content of the note." }
-      },
-      "required": ["date", "content"]
-    },
     "ActionNoteDepot": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ActionNoteDepot",
@@ -413,6 +402,33 @@
         "content": { "type": "string", "description": "The content of the note." }
       },
       "required": ["depot", "date", "content"]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a system-generated alert or notification.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["quality_alert", "overweight_round", "late_delivery_pattern"]
+        },
+        "message": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["unread", "read", "archived"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "relatedEntity": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["task", "round", "driver"] },
+            "id": { "type": "string" }
+          },
+          "required": ["type", "id"]
+        }
+      },
+      "required": ["type", "message", "status", "createdAt"]
     }
   },
   "auth": {
@@ -513,20 +529,6 @@
         }
       },
       {
-        "path": "/action_notes/{date}",
-        "definition": {
-          "entityName": "ActionNote",
-          "schema": { "$ref": "#/backend/entities/ActionNote" },
-          "description": "Stores daily action notes. The document ID is the date in 'YYYY-MM-DD' format.",
-          "params": [
-            {
-              "name": "date",
-              "description": "The date of the note."
-            }
-          ]
-        }
-      },
-       {
         "path": "/action_notes_depot/{depotDateId}",
         "definition": {
           "entityName": "ActionNoteDepot",
@@ -536,6 +538,20 @@
             {
               "name": "depotDateId",
               "description": "The unique identifier for the note, e.g., 'Aix-2024-08-01'."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": { "$ref": "#/backend/entities/Notification" },
+          "description": "Stores system-generated notifications and alerts.",
+          "params": [
+            {
+              "name": "notificationId",
+              "description": "The unique ID for the notification."
             }
           ]
         }

@@ -267,3 +267,15 @@ export interface ActionNoteDepot {
     date: string; // YYYY-MM-DD
     content: string;
 }
+
+export interface Notification {
+  id: string;
+  type: 'quality_alert' | 'overweight_round' | 'late_delivery_pattern';
+  message: string;
+  status: 'unread' | 'read' | 'archived';
+  createdAt: string; // ISO string
+  relatedEntity: {
+    type: 'task' | 'round' | 'driver';
+    id: string;
+  };
+}
