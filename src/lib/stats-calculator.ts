@@ -1,5 +1,4 @@
 
-
 import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "./grouping";
@@ -64,8 +63,8 @@ export function getCategoryFromKeywords(comment: string | undefined | null): str
 
 
 export function calculateDashboardStats(
-    tasks: Tache[], 
-    rounds: Tournee[], 
+    allTasks: Tache[], 
+    allRounds: Tournee[], 
     allNegativeComments: CategorizedComment[],
     allNpsData: NpsData[],
     processedVerbatims: ProcessedNpsVerbatim[],
@@ -73,8 +72,19 @@ export function calculateDashboardStats(
     selectedDepot: string,
     selectedStore: string
 ) {
-    if (!tasks || !rounds) {
-      return { hasData: false };
+    if (!allTasks || !allRounds) {
+      return { hasData: false, stats: null };
+    }
+
+    // Apply depot/store filters for comparison page
+    let tasks = allTasks;
+    let rounds = allRounds;
+
+    if (selectedDepot !== 'all') {
+        tasks = tasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
+        rounds = rounds.filter(r => getDepotFromHub(r.nomHub) === selectedDepot);
+        allNegativeComments = allNegativeComments.filter(c => getDepotFromHub(c.nomHub) === selectedDepot);
+        // This part needs refinement if we want to filter NPS and verbatims by depot too
     }
   
     const completedTasks = tasks.filter(t => t.progression === "COMPLETED");

@@ -18,6 +18,7 @@ export const ALL_PAGES = [
   "/verbatims",
   "/verbatim-analysis",
   "/settings",
+  "/comparison",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, string[]> = {
@@ -33,6 +34,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/driver-feedback",
     "/verbatim-analysis",
     "/settings",
+    "/comparison",
   ],
   Dispatch: [
     "/",
@@ -65,6 +67,10 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
 export function hasAccess(role: Role, path: string): boolean {
   if (role === 'admin') {
     return true;
+  }
+  // Allow access to dynamic task pages for roles that can see details
+  if (path.startsWith('/task/')) {
+      return ROLE_PERMISSIONS[role]?.includes('/details');
   }
   return ROLE_PERMISSIONS[role]?.includes(path) ?? false;
 }
