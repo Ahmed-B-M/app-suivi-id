@@ -558,8 +558,7 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     const dataToSave = {
       ...verbatim,
       status: 'traité',
-      // Ensure associationDate is a string in YYYY-MM-DD format
-      associationDate: format(new Date(verbatim.associationDate), 'yyyy-MM-dd'),
+      // The associationDate is already a 'yyyy-MM-dd' string, so no conversion is needed.
     };
     
     // We don't need the 'id' field in the Firestore document itself.
