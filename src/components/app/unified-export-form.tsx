@@ -290,7 +290,7 @@ export function UnifiedExportForm({
                 chunk.forEach(idToDelete => {
                     const docIdInFirestore = existingDocsMap.get(idToDelete)?.__docId;
                     if(docIdInFirestore) {
-                       deleteBatch.delete(doc(collectionRef, docIdInFirestore));
+                       batch.delete(doc(collectionRef, docIdInFirestore));
                     }
                 });
                 try {
