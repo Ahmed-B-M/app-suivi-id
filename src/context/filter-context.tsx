@@ -69,13 +69,20 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     if (dateFilterMode === 'day' && date) {
-      setDateRange({ from: startOfDay(date), to: endOfDay(date) });
+      const from = startOfDay(date);
+      const to = endOfDay(date);
+      if (!dateRange || !dateRange.from || !dateRange.to || !isEqual(dateRange.from, from) || !isEqual(dateRange.to, to)) {
+        setDateRange({ from, to });
+      }
     }
   }, [date, dateFilterMode]);
 
   useEffect(() => {
     if (dateFilterMode === 'range' && dateRange?.from) {
-       setDate(startOfDay(dateRange.from));
+       const fromDate = startOfDay(dateRange.from);
+       if (!date || !isEqual(date, fromDate)) {
+         setDate(fromDate);
+       }
     }
   }, [dateRange, dateFilterMode]);
 
@@ -316,9 +323,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         const dateOfAssociation = npsFile.id; // The ID is the 'yyyy-MM-dd' date string
         const detractorVerbatims = npsFile.verbatims.filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
 
-        // 3. Add only the NEW detractor verbatims to the map with 'à traiter' status.
+        // 3. Add only the NEW detractor verbatims to the map if they don't already exist.
         detractorVerbatims.forEach(v => {
-            if (!verbatimsMap.has(v.taskId)) {
+            if (!verbatimsMap.has(v.taskId)) { // This is the key change
                 verbatimsMap.set(v.taskId, {
                     id: v.taskId,
                     taskId: v.taskId,
@@ -332,7 +339,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
                     carrier: v.carrier,
                     depot: v.depot,
                     driver: v.driver,
-                    associationDate: dateOfAssociation, // Systematically add the associationDate
+                    associationDate: dateOfAssociation, 
                 });
             }
         });
