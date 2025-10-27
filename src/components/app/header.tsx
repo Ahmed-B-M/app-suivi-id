@@ -2,7 +2,7 @@
 
 "use client";
 
-import { Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History, Layers } from "lucide-react";
+import { Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History, Layers, PanelLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
 import { useFilters } from "@/context/filter-context";
@@ -25,6 +25,7 @@ import { DEPOTS_LIST } from "@/lib/grouping";
 import { Separator } from "../ui/separator";
 import Image from "next/image";
 import Logo from '@/app/id-360.png';
+import { SidebarTrigger } from "../ui/sidebar";
 
 export function AppHeader() {
   const {
@@ -72,13 +73,15 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-30 w-full border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="container flex h-20 items-center justify-between">
-        <div className="mr-4 hidden md:flex">
-          <Link href="/" className="flex items-center">
-             <Image src={Logo} alt="ID 360 Logo" width={50} height={50} priority />
-          </Link>
+      <div className="container flex h-20 items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+            <SidebarTrigger className="md:hidden"/>
+             <Link href="/" className="flex items-center">
+               <Image src={Logo} alt="ID 360 Logo" width={50} height={50} priority className="hidden md:block" />
+             </Link>
         </div>
-        <div className="flex flex-1 justify-end items-center gap-2">
+
+        <div className="flex flex-1 justify-end items-center gap-2 flex-wrap">
           {lastUpdateTime && (
             <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground mr-4">
               <History className="h-4 w-4" />
@@ -86,26 +89,24 @@ export function AppHeader() {
             </div>
           )}
 
-          <div className="hidden sm:flex">
-            <RadioGroup
-              value={filterType}
-              onValueChange={(value) => setFilterType(value as 'tous' | 'magasin' | 'entrepot')}
-              className="flex items-center space-x-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="tous" id="tous" />
-                <Label htmlFor="tous">Tous</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="magasin" id="magasin" />
-                <Label htmlFor="magasin">Magasins</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="entrepot" id="entrepot" />
-                <Label htmlFor="entrepot">Entrepôts</Label>
-              </div>
-            </RadioGroup>
-          </div>
+          <RadioGroup
+            value={filterType}
+            onValueChange={(value) => setFilterType(value as 'tous' | 'magasin' | 'entrepot')}
+            className="hidden sm:flex items-center space-x-2"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="tous" id="tous" />
+              <Label htmlFor="tous">Tous</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="magasin" id="magasin" />
+              <Label htmlFor="magasin">Magasins</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="entrepot" id="entrepot" />
+              <Label htmlFor="entrepot">Entrepôts</Label>
+            </div>
+          </RadioGroup>
 
           <Popover>
             <PopoverTrigger asChild>
@@ -175,7 +176,7 @@ export function AppHeader() {
           </Popover>
           
            <Select value={selectedDepot} onValueChange={handleDepotChange} disabled={filterType === 'magasin'}>
-            <SelectTrigger className="hidden md:flex w-[180px]">
+            <SelectTrigger className="w-[180px]">
               <Building className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par dépôt" />
             </SelectTrigger>
@@ -189,8 +190,8 @@ export function AppHeader() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'tous'}>
-            <SelectTrigger className="hidden lg:flex w-[180px]">
+          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'entrepot'}>
+            <SelectTrigger className="w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par entrepôt" />
             </SelectTrigger>
@@ -209,3 +210,4 @@ export function AppHeader() {
     </header>
   );
 }
+
