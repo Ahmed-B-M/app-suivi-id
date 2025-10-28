@@ -14,7 +14,7 @@ import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categoriz
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import type { ProcessedVerbatim } from "./verbatim-treatment/page";
-import { getDoc, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 
 
 /**
@@ -530,10 +530,10 @@ export async function saveNpsDataAction(
         const docRef = firestore.collection("nps_data").doc(docId);
 
         // 1. Fetch existing document
-        const existingDoc = await getDoc(docRef);
+        const existingDoc = await docRef.get();
         let finalVerbatims: ProcessedNpsData[] = [];
 
-        if (existingDoc.exists()) {
+        if (existingDoc.exists) {
             const existingData = existingDoc.data() as NpsData;
             const existingVerbatims = existingData.verbatims || [];
             
@@ -805,3 +805,6 @@ async function saveCollectionInAction(
     logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
 }
 
+
+
+    
