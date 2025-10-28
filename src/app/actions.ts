@@ -14,7 +14,7 @@ import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categoriz
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import type { ProcessedVerbatim } from "./verbatim-treatment/page";
-import { collection, doc, writeBatch, query, where, getDocs, deleteDoc, serverTimestamp, addDoc, getDoc } from 'firebase/firestore';
+import { getDoc, serverTimestamp } from 'firebase-admin/firestore';
 
 
 /**
@@ -634,7 +634,7 @@ async function createNotification(firestore: FirebaseFirestore.Firestore, notifi
         status: 'unread' as const,
         createdAt: serverTimestamp(),
     };
-    await addDoc(collection(firestore, 'notifications'), notificationWithTimestamp);
+    await firestore.collection('notifications').add(notificationWithTimestamp);
 }
 
 // --- Daily Sync Action ---
@@ -693,9 +693,11 @@ export async function runDailySyncAction() {
     // --- SAVE TO FIRESTORE ---
     logs.push(`\n💾 Début de la sauvegarde intelligente dans Firestore...`);
     const { firestore } = await initializeFirebaseOnServer();
+    const tasksCollectionRef = firestore.collection('tasks');
+    const roundsCollectionRef = firestore.collection('rounds');
 
-    await saveCollectionInAction(firestore, 'tasks', allTasks, 'tacheId', { from, to }, logs);
-    await saveCollectionInAction(firestore, 'rounds', allRounds, 'id', { from, to }, logs);
+    await saveCollectionInAction(tasksCollectionRef, allTasks, 'tacheId', { from, to }, logs);
+    await saveCollectionInAction(roundsCollectionRef, allRounds, 'id', { from, to }, logs);
     
     // --- Generate Notifications ---
     logs.push(`\n🔔 Génération des notifications...`);
@@ -740,30 +742,30 @@ export async function runDailySyncAction() {
   }
 }
 
-// --- Firestore Saving Logic for Actions ---
 async function saveCollectionInAction(
-    firestore: FirebaseFirestore.Firestore,
-    collectionName: 'tasks' | 'rounds', 
+    collectionRef: FirebaseFirestore.CollectionReference,
     dataFromApi: any[], 
     idKey: string, 
     dateRange: { from: Date, to: Date },
     logs: string[]
 ) {
+    const collectionName = collectionRef.id;
     logs.push(`\n   -> Synchronisation de la collection "${collectionName}"...`);
-    const collectionRef = collection(firestore, collectionName);
     
     const fromDate = startOfDay(dateRange.from);
     const toDate = endOfDay(dateRange.to);
 
     logs.push(`      - Suppression des anciens documents entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`);
     
-    const q = query(collectionRef, where("date", ">=", fromDate), where("date", "<=", toDate));
-    const snapshot = await getDocs(q);
+    const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
+    const snapshot = await q.get();
     
     const deleteBatchSize = 400;
     let deletedCount = 0;
+    const firestore = collectionRef.firestore;
+
     for (let i = 0; i < snapshot.docs.length; i += deleteBatchSize) {
-        const batch = writeBatch(firestore);
+        const batch = firestore.batch();
         const chunk = snapshot.docs.slice(i, i + deleteBatchSize);
         chunk.forEach(doc => {
             batch.delete(doc.ref);
@@ -778,12 +780,12 @@ async function saveCollectionInAction(
     logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
     const writeBatchSize = 400;
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
-        const batch = writeBatch(firestore);
+        const batch = firestore.batch();
         const chunk = dataFromApi.slice(i, i + writeBatchSize);
         chunk.forEach(item => {
             const docId = String(item[idKey]);
             if (docId) {
-                const docRef = doc(collectionRef, docId);
+                const docRef = collectionRef.doc(docId);
                 const dataToSet: { [key: string]: any } = {};
                 Object.keys(item).forEach(key => {
                     const value = item[key];
@@ -802,5 +804,3 @@ async function saveCollectionInAction(
     }
     logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
 }
-
-    
