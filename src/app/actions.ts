@@ -14,7 +14,7 @@ import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categoriz
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import type { ProcessedVerbatim } from "./verbatim-treatment/page";
-import { getDoc, serverTimestamp } from 'firebase-admin/firestore';
+import { getDoc, FieldValue } from 'firebase-admin/firestore';
 
 
 /**
@@ -632,7 +632,7 @@ async function createNotification(firestore: FirebaseFirestore.Firestore, notifi
     const notificationWithTimestamp = {
         ...notification,
         status: 'unread' as const,
-        createdAt: serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
     };
     await firestore.collection('notifications').add(notificationWithTimestamp);
 }
@@ -789,7 +789,7 @@ async function saveCollectionInAction(
                 const dataToSet: { [key: string]: any } = {};
                 Object.keys(item).forEach(key => {
                     const value = item[key];
-                    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
                         try { dataToSet[key] = new Date(value); } catch (e) { dataToSet[key] = value; }
                     } else {
                         dataToSet[key] = value;
@@ -804,3 +804,4 @@ async function saveCollectionInAction(
     }
     logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
 }
+
