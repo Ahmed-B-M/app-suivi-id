@@ -27,7 +27,7 @@ import {
 import equal from "deep-equal";
 
 import { serverExportSchema, unifiedExportFormSchema, type UnifiedExportFormValues } from "@/lib/schemas";
-import { runUnifiedExportAction } from "@/app/actions";
+import { runSyncAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -156,7 +156,7 @@ export function UnifiedExportForm({
       to: toString,
     };
     
-    const result = await runUnifiedExportAction(serverValues);
+    const result = await runSyncAction(serverValues);
     onExportComplete(result.logs, result.data);
 
     if (result.error) {
