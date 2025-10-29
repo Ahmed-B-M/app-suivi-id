@@ -135,13 +135,28 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("associationDate", "<=", format(to ?? from, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
+
+  const taskDateFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+
+    if (!from) return [];
+    
+    const startDate = startOfDay(from);
+    const endDate = endOfDay(to ?? from);
+
+    return [
+      where("taskDate", ">=", startDate.toISOString()),
+      where("taskDate", "<=", endDate.toISOString()),
+    ]
+  }, [dateRange]);
   
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, associationDateFilters);
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, associationDateFilters);
-  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
+  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, taskDateFilters);
 
   
   const availableDepots = useMemo(() => {
