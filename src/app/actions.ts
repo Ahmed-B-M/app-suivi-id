@@ -760,7 +760,7 @@ async function saveCollectionInAction(
     const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
     const snapshot = await q.get();
     
-    const deleteBatchSize = 400;
+    const deleteBatchSize = 250; // Smaller batch size
     let deletedCount = 0;
     const firestore = collectionRef.firestore;
 
@@ -773,12 +773,12 @@ async function saveCollectionInAction(
         });
         await batch.commit();
         logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1} terminé.`);
-        if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1000));
+        if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500)); // Longer pause
     }
     logs.push(`      - ✅ ${deletedCount} anciens documents supprimés.`);
 
     logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
-    const writeBatchSize = 400;
+    const writeBatchSize = 250; // Smaller batch size
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
         const batch = firestore.batch();
         const chunk = dataFromApi.slice(i, i + writeBatchSize);
@@ -800,7 +800,7 @@ async function saveCollectionInAction(
         });
         await batch.commit();
         logs.push(`      - Lot d'écriture ${i / writeBatchSize + 1} terminé.`);
-        if(dataFromApi.length > writeBatchSize) await new Promise(res => setTimeout(res, 1000));
+        if(dataFromApi.length > writeBatchSize) await new Promise(res => setTimeout(res, 1500)); // Longer pause
     }
     logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
 }
