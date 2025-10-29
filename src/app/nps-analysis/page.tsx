@@ -59,7 +59,8 @@ export default function NpsAnalysisPage() {
         return firestore ? collection(firestore, 'tasks') : null;
     }, [firestore]);
 
-    const { data: allTasks, loading: isLoadingTasks } = useCollection<Tache>(tasksCollection);
+    // Fetch ALL tasks, ignoring the date filter, to ensure we can match any order ID.
+    const { data: allTasks, loading: isLoadingTasks } = useCollection<Tache>(tasksCollection, []);
     
     const taskMap = useMemo(() => {
         if (isLoadingTasks || !allTasks) return new Map();
