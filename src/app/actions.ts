@@ -7,7 +7,7 @@ import {
   serverExportSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { Tache, Tournee, Notification, NpsData } from "@/lib/types";
+import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from "@/lib/types";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
@@ -299,7 +299,7 @@ async function fetchRounds(
 }
 
 // --- Unified Export Action ---
-export async function runUnifiedExportAction(
+export async function runSyncAction(
   values: z.infer<typeof serverExportSchema>
 ) {
   const validatedFields = serverExportSchema.safeParse(values);
@@ -524,46 +524,47 @@ export async function saveNpsDataAction(
         verbatims: ProcessedNpsData[];
     }
 ) {
-    try {
-        const { firestore } = await initializeFirebaseOnServer();
-        const docId = payload.associationDate;
-        const docRef = firestore.collection("nps_data").doc(docId);
+    const { firestore } = await initializeFirebaseOnServer();
+    const docId = payload.associationDate; // e.g., '2024-07-29'
+    const docRef = firestore.collection("nps_data").doc(docId);
 
-        // 1. Fetch existing document
+    try {
+        // Fetch existing document for this date
         const existingDoc = await docRef.get();
         let finalVerbatims: ProcessedNpsData[] = [];
 
         if (existingDoc.exists) {
             const existingData = existingDoc.data() as NpsData;
-            const existingVerbatims = existingData.verbatims || [];
-            
-            // 2. Merge and deduplicate
+            // Create a Map to handle deduplication based on taskId
             const verbatimsMap = new Map<string, ProcessedNpsData>();
-            
-            // Add existing verbatims first
-            existingVerbatims.forEach(v => verbatimsMap.set(v.taskId, v));
-            
-            // Add new verbatims, overwriting duplicates
-            payload.verbatims.forEach(v => verbatimsMap.set(v.taskId, v));
+
+            // Add existing verbatims to the map
+            (existingData.verbatims || []).forEach(v => {
+                verbatimsMap.set(v.taskId, v);
+            });
+
+            // Add new/updated verbatims, overwriting duplicates
+            payload.verbatims.forEach(v => {
+                verbatimsMap.set(v.taskId, v);
+            });
             
             finalVerbatims = Array.from(verbatimsMap.values());
         } else {
+            // No existing document, just use the new data
             finalVerbatims = payload.verbatims;
         }
-        
-        // 3. Save the merged data
-        const dataToSave = {
+
+        // Save the merged and deduplicated data
+        await docRef.set({
             id: docId,
             associationDate: payload.associationDate,
             verbatims: finalVerbatims
-        };
-        
-        await docRef.set(dataToSave);
+        }, { merge: true });
 
         return { success: true, error: null, newCount: finalVerbatims.length };
 
     } catch (error: any) {
-        console.error("Error saving NPS data:", error);
+        console.error("Error saving/merging NPS data:", error);
         return {
             success: false,
             error: error.message || "Failed to save NPS data to Firestore.",
@@ -586,11 +587,10 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     const dataToSave = {
       ...verbatim,
       status: 'traité',
-      // The associationDate is already a 'yyyy-MM-dd' string, so no conversion is needed.
     };
     
-    // We don't need the 'id' field in the Firestore document itself.
     delete (dataToSave as any).id;
+    delete (dataToSave as any).taskDate;
     
     await docRef.set(dataToSave, { merge: true });
     return { success: true, error: null };
