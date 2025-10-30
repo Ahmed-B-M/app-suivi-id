@@ -61,12 +61,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
   
-  // Reset secondary filters when main filter type changes
-  useEffect(() => {
-    setSelectedDepot('all');
-    setSelectedStore('all');
-  }, [filterType]);
-  
   useEffect(() => {
     if (dateFilterMode === 'day' && date) {
       const from = startOfDay(date);
@@ -124,7 +118,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     ];
   }, [dateRange]);
   
-  const associationDateFilters = useMemo(() => {
+  const npsFirestoreFilters = useMemo(() => {
     const from = dateRange?.from;
     const to = dateRange?.to;
 
@@ -135,48 +129,48 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("associationDate", "<=", format(to ?? from, 'yyyy-MM-dd'))
     ];
   }, [dateRange]);
-
-  const taskDateFilters = useMemo(() => {
+  
+  const verbatimsDateFilters = useMemo(() => {
     const from = dateRange?.from;
     const to = dateRange?.to;
-
+    
     if (!from) return [];
     
     const startDate = startOfDay(from);
     const endDate = endOfDay(to ?? from);
-
+    
     return [
       where("taskDate", ">=", startDate.toISOString()),
-      where("taskDate", "<=", endDate.toISOString()),
-    ]
+      where("taskDate", "<=", endDate.toISOString())
+    ];
   }, [dateRange]);
-  
 
   const { data: allTasks = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRounds = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
-  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, associationDateFilters);
-  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, associationDateFilters);
-  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, taskDateFilters);
+  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, verbatimsDateFilters);
+  const { data: allSavedComments = [], isLoading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, []);
 
   
-  const availableDepots = useMemo(() => {
-    if (!allTasks) return [];
-    const depots = allTasks.map(t => getDepotFromHub(t.nomHub));
-    const filteredDepots = depots.filter((d): d is string => !!d && d !== "Magasin");
-    return [...new Set(filteredDepots)].sort();
-  }, [allTasks]);
+  const availableDepots = useMemo(
+    () => {
+        if (!allTasks) return [];
+        const depots = allTasks.map(t => getDepotFromHub(t.nomHub));
+        const filteredDepots = depots.filter((d): d is string => !!d && d !== "Magasin");
+        return [...new Set(filteredDepots)].sort();
+    },
+    [allTasks]
+  );
   
-  const availableStores = useMemo(() => {
-    if (!allTasks) return [];
-    let relevantTasks = allTasks;
-    // If filtering by a specific depot, only show stores for that depot
-    if (filterType === 'entrepot' && selectedDepot !== 'all') {
-      relevantTasks = allTasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
-    }
-    const stores = relevantTasks.map(t => t.nomHub);
-    const filteredStores = stores.filter((s): s is string => !!s);
-    return [...new Set(filteredStores)].sort();
-  }, [allTasks, filterType, selectedDepot]);
+  const availableStores = useMemo(
+    () => {
+        if (!allTasks) return [];
+        const stores = allTasks.filter(t => getDepotFromHub(t.nomHub) === 'Magasin').map(t => t.nomHub);
+        const filteredStores = stores.filter((s): s is string => !!s);
+        return [...new Set(filteredStores)].sort();
+    },
+    [allTasks]
+  );
   
   const lastUpdateTime = useMemo(() => {
     const dates = [tasksLastUpdate, roundsLastUpdate, npsLastUpdate].filter(Boolean) as Date[];
@@ -213,13 +207,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [allRounds, filterType, selectedDepot, selectedStore]);
 
   const processedVerbatims = useMemo(() => {
-    // This hook already filters by associationDate based on the main dateRange
-    // So we just need to apply the depot/store filters.
-    return allSavedVerbatims.filter(v => {
-      if (selectedDepot !== "all" && v.depot !== selectedDepot) return false;
-      if (selectedStore !== "all" && v.store !== selectedStore) return false;
-      return true;
-    });
+    let verbatimsToFilter = allSavedVerbatims;
+
+    if (selectedDepot !== "all") {
+       verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
+    }
+    if (selectedStore !== "all") {
+      verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
+    }
+    return verbatimsToFilter;
   }, [allSavedVerbatims, selectedDepot, selectedStore]);
 
 
@@ -254,7 +250,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
           category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
           taskDate: task.date,
           driverName: getDriverFullName(task),
-          nomHub: task.nomHub,
           status: 'à traiter' as const,
         });
       }
@@ -334,32 +329,29 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     });
     
     // 2. Get all detractor verbatims from the current NPS data scope (already filtered by date, etc.).
-    allNpsData.forEach(npsFile => {
-        const dateOfAssociation = npsFile.id; // The ID is the 'yyyy-MM-dd' date string
-        const detractorVerbatims = npsFile.verbatims.filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
+    const detractorVerbatims = allNpsData
+        .flatMap(d => d.verbatims)
+        .filter(v => v.npsCategory === 'Detractor' && v.verbatim && v.verbatim.trim() !== '');
 
-        // 3. Add only the NEW detractor verbatims to the map if they don't already exist.
-        detractorVerbatims.forEach(v => {
-            if (!verbatimsMap.has(v.taskId)) { // This is the key change
-                verbatimsMap.set(v.taskId, {
-                    id: v.taskId,
-                    taskId: v.taskId,
-                    npsScore: v.npsScore,
-                    verbatim: v.verbatim,
-                    responsibilities: [],
-                    category: [],
-                    status: 'à traiter',
-                    store: v.store,
-                    taskDate: v.taskDate,
-                    carrier: v.carrier,
-                    depot: v.depot,
-                    driver: v.driver,
-                    associationDate: dateOfAssociation, 
-                });
-            }
-        });
+    // 3. Add only the NEW detractor verbatims to the map with 'à traiter' status.
+    detractorVerbatims.forEach(v => {
+        if (!verbatimsMap.has(v.taskId)) {
+            verbatimsMap.set(v.taskId, {
+                id: v.taskId,
+                taskId: v.taskId,
+                npsScore: v.npsScore,
+                verbatim: v.verbatim,
+                responsibilities: [],
+                category: [],
+                status: 'à traiter',
+                store: v.store,
+                taskDate: v.taskDate,
+                carrier: v.carrier,
+                depot: v.depot,
+                driver: v.driver,
+            });
+        }
     });
-
 
     return Array.from(verbatimsMap.values());
 }, [allNpsData, processedVerbatims]);
@@ -403,3 +395,4 @@ export function useFilters() {
   }
   return context;
 }
+
