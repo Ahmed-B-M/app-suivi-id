@@ -589,7 +589,7 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
       status: 'traité',
     };
     
-    delete (dataToSave as any).id;
+    // Explicitly remove taskDate to avoid conflicts
     delete (dataToSave as any).taskDate;
     
     await docRef.set(dataToSave, { merge: true });
@@ -760,7 +760,7 @@ async function saveCollectionInAction(
     const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
     const snapshot = await q.get();
     
-    const deleteBatchSize = 250; // Smaller batch size
+    const deleteBatchSize = 250;
     let deletedCount = 0;
     const firestore = collectionRef.firestore;
 
@@ -773,12 +773,14 @@ async function saveCollectionInAction(
         });
         await batch.commit();
         logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1} terminé.`);
-        if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500)); // Longer pause
+        if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500));
     }
     logs.push(`      - ✅ ${deletedCount} anciens documents supprimés.`);
 
     logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
-    const writeBatchSize = 250; // Smaller batch size
+    const writeBatchSize = 250;
+    let docsProcessed = 0;
+
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
         const batch = firestore.batch();
         const chunk = dataFromApi.slice(i, i + writeBatchSize);
@@ -799,8 +801,21 @@ async function saveCollectionInAction(
             }
         });
         await batch.commit();
-        logs.push(`      - Lot d'écriture ${i / writeBatchSize + 1} terminé.`);
-        if(dataFromApi.length > writeBatchSize) await new Promise(res => setTimeout(res, 1500)); // Longer pause
+        docsProcessed += chunk.length;
+        logs.push(`      - Lot d'écriture ${i / writeBatchSize + 1} terminé (${docsProcessed}/${dataFromApi.length}).`);
+
+        // Check if there are more batches to process
+        if (i + writeBatchSize < dataFromApi.length) {
+            let pauseDuration = 1000; // Default 1 second pause
+            if ((docsProcessed % 2500) < writeBatchSize) {
+                pauseDuration = 5000;
+                logs.push(`      - ⏱️ Seuil de 2500 documents atteint. Pause de 5 secondes...`);
+            } else if ((docsProcessed % 500) < writeBatchSize) {
+                pauseDuration = 2000;
+                logs.push(`      - ⏱️ Seuil de 500 documents atteint. Pause de 2 secondes...`);
+            }
+            await new Promise(res => setTimeout(res, pauseDuration));
+        }
     }
     logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
 }
