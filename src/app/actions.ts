@@ -584,7 +584,7 @@ export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
     
     const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
 
-    const dataToSave = {
+    const dataToSave: Omit<ProcessedVerbatim, 'id'> & { status: 'traité' } = {
       ...verbatim,
       status: 'traité',
     };
@@ -779,8 +779,7 @@ async function saveCollectionInAction(
 
     logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
     const writeBatchSize = 250;
-    let docsProcessed = 0;
-
+    
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
         const batch = firestore.batch();
         const chunk = dataFromApi.slice(i, i + writeBatchSize);
@@ -800,19 +799,23 @@ async function saveCollectionInAction(
                 batch.set(docRef, dataToSet);
             }
         });
-        await batch.commit();
-        docsProcessed += chunk.length;
-        logs.push(`      - Lot d'écriture ${i / writeBatchSize + 1} terminé (${docsProcessed}/${dataFromApi.length}).`);
 
-        // Check if there are more batches to process
-        if (i + writeBatchSize < dataFromApi.length) {
-            let pauseDuration = 1000; // Default 1 second pause
-            if ((docsProcessed % 2500) < writeBatchSize) {
-                pauseDuration = 5000;
-                logs.push(`      - ⏱️ Seuil de 2500 documents atteint. Pause de 5 secondes...`);
-            } else if ((docsProcessed % 500) < writeBatchSize) {
-                pauseDuration = 2000;
-                logs.push(`      - ⏱️ Seuil de 500 documents atteint. Pause de 2 secondes...`);
+        const currentBatchNumber = i / writeBatchSize + 1;
+        const totalBatches = Math.ceil(dataFromApi.length / writeBatchSize);
+        logs.push(`      - Écriture du lot ${currentBatchNumber}/${totalBatches}...`);
+
+        await batch.commit();
+        logs.push(`      - ✅ Lot sauvegardé avec succès.`);
+
+        // If not the last batch, apply a pause
+        if (currentBatchNumber < totalBatches) {
+            let pauseDuration: number;
+            if (currentBatchNumber % 5 === 0) {
+                pauseDuration = 5000; // 5-second pause every 5 batches
+                logs.push(`      - ⏱️ Pause de 5 secondes...`);
+            } else {
+                pauseDuration = 1500; // 1.5-second pause for other batches
+                logs.push(`      - ⏱️ Pause de 1.5 seconde...`);
             }
             await new Promise(res => setTimeout(res, pauseDuration));
         }
