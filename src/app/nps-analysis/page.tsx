@@ -113,7 +113,9 @@ export default function NpsAnalysisPage() {
                 fetchPromises.push(
                     getDocs(q).then(snapshot => {
                         snapshot.forEach(doc => {
-                            taskMap.set(doc.id, doc.data() as Tache);
+                            const taskData = doc.data() as Tache;
+                            // Use the 'tacheId' field from the document data as the key
+                            taskMap.set(taskData.tacheId, taskData);
                         });
                     })
                 );
@@ -127,6 +129,7 @@ export default function NpsAnalysisPage() {
 
             allCsvRows.forEach(row => {
                 const taskId = row.Num_commande;
+                // Look up using the 'Num_commande' which corresponds to 'tacheId'
                 if (taskMap.has(taskId)) {
                     const task = taskMap.get(taskId)!;
                     const npsScore = parseInt(row.NOTE_RECOMMANDATION, 10);
@@ -282,7 +285,7 @@ export default function NpsAnalysisPage() {
                             
                             <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0} className="w-full">
                                 {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
-                                {isProcessing ? 'Analyse en cours...' : 'Lancer l\'analyse'}
+                                {isProcessing ? 'Analyse en cours...' : 'Lancer l\\'analyse'}
                             </Button>
                             
                              <Button onClick={handleSave} disabled={isSaving || processedData.length === 0} className="w-full">
