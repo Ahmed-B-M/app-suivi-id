@@ -113,9 +113,10 @@ export default function NpsAnalysisPage() {
                 fetchPromises.push(
                     getDocs(q).then(snapshot => {
                         snapshot.forEach(doc => {
-                            const taskData = doc.data() as Tache;
-                            // Use the 'tacheId' field from the document data as the key
-                            taskMap.set(taskData.tacheId, taskData);
+                            const taskData = doc.data();
+                            if (taskData.tacheId) {
+                                taskMap.set(taskData.tacheId, { ...taskData, id: taskData.tacheId } as Tache);
+                            }
                         });
                     })
                 );
@@ -249,101 +250,103 @@ export default function NpsAnalysisPage() {
     }, [processedData]);
 
     return (
-        <main className="flex-1 container py-8">
-            <h1 className="text-3xl font-bold mb-8">Analyse NPS</h1>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-1">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><FileUp /> Importer Fichiers NPS</CardTitle>
-                            <CardDescription>
-                                Chargez un ou plusieurs fichiers CSV. La recherche des tâches correspondantes se fera après avoir cliqué sur "Lancer l'analyse".
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Input type="file" accept=".csv" onChange={handleFileChange} multiple />
+        <>
+            <main className="flex-1 container py-8">
+                <h1 className="text-3xl font-bold mb-8">Analyse NPS</h1>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><FileUp /> Importer Fichiers NPS</CardTitle>
+                                <CardDescription>
+                                    Chargez un ou plusieurs fichiers CSV. La recherche des tâches correspondantes se fera après avoir cliqué sur "Lancer l'analyse".
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Input type="file" accept=".csv" onChange={handleFileChange} multiple />
 
-                            <div className="flex flex-col space-y-2">
-                               <label className="text-sm font-medium">Date d'association</label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                        "w-full justify-start text-left font-normal",
-                                        !associationDate && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {associationDate ? format(associationDate, "PPP", { locale: fr }) : <span>Choisir une date</span>}
-                                    </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        selected={associationDate}
-                                        onSelect={(date) => date && setAssociationDate(date)}
-                                        initialFocus
-                                    />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            
-                            <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0} className="w-full">
-                                {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
-                                {isProcessing ? 'Analyse en cours...' : 'Lancer l\\'analyse'}
-                            </Button>
-                            
-                             <Button onClick={handleSave} disabled={isSaving || processedData.length === 0} className="w-full">
-                                {isSaving ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
-                                {isSaving ? 'Sauvegarde en cours...' : 'Sauvegarder les résultats'}
-                            </Button>
-
-                            {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Avertissement</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-                            {processedData.length > 0 && !error && (
-                                <Alert variant="default">
-                                    <CheckCircle className="h-4 w-4" />
-                                    <AlertTitle>Traitement réussi</AlertTitle>
-                                    <AlertDescription>{processedData.length} lignes ont été traitées et liées avec succès.</AlertDescription>
-                                </Alert>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="lg:col-span-2">
-                    <Card>
-                         <CardHeader>
-                            <CardTitle>Résultats NPS</CardTitle>
-                         </CardHeader>
-                         <CardContent className="space-y-4">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Score NPS Global</p>
-                                <p className={`text-4xl font-bold ${npsScores.global > 0 ? 'text-green-600' : 'text-destructive'}`}>{npsScores.global.toFixed(1)}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground mb-2">Score NPS par Entité</p>
-                                <div className="space-y-1">
-                                    {Object.entries(npsScores.byEntity).sort((a, b) => b[1] - a[1]).map(([name, score]) => (
-                                        <div key={name} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
-                                            <span className="font-medium">{name}</span>
-                                            <span className={`font-bold ${score > 0 ? 'text-green-600' : 'text-destructive'}`}>{score.toFixed(1)}</span>
-                                        </div>
-                                    ))}
-                                     {Object.keys(npsScores.byEntity).length === 0 && (
-                                        <p className="text-sm text-muted-foreground text-center pt-4">Aucun score à afficher.</p>
-                                    )}
+                                <div className="flex flex-col space-y-2">
+                                   <label className="text-sm font-medium">Date d'association</label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !associationDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {associationDate ? format(associationDate, "PPP", { locale: fr }) : <span>Choisir une date</span>}
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="single"
+                                            selected={associationDate}
+                                            onSelect={(date) => date && setAssociationDate(date)}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
-                            </div>
-                         </CardContent>
-                    </Card>
-                </div>
-            </div>
+                                
+                                <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0} className="w-full">
+                                    {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
+                                    {isProcessing ? 'Analyse en cours...' : 'Lancer l\'analyse'}
+                                </Button>
+                                
+                                 <Button onClick={handleSave} disabled={isSaving || processedData.length === 0} className="w-full">
+                                    {isSaving ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
+                                    {isProcessing ? 'Sauvegarde en cours...' : 'Sauvegarder les résultats'}
+                                </Button>
 
-            {detractorVerbatims.length > 0 && (
-                <div className="mt-8">
-                    <NpsVerbatimAnalysis data={detractorVerbatims} />
+                                {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Avertissement</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
+                                {processedData.length > 0 && !error && (
+                                    <Alert variant="default">
+                                        <CheckCircle className="h-4 w-4" />
+                                        <AlertTitle>Traitement réussi</AlertTitle>
+                                        <AlertDescription>{processedData.length} lignes ont été traitées et liées avec succès.</AlertDescription>
+                                    </Alert>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <div className="lg:col-span-2">
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Résultats NPS</CardTitle>
+                             </CardHeader>
+                             <CardContent className="space-y-4">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Score NPS Global</p>
+                                    <p className={`text-4xl font-bold ${npsScores.global > 0 ? 'text-green-600' : 'text-destructive'}`}>{npsScores.global.toFixed(1)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground mb-2">Score NPS par Entité</p>
+                                    <div className="space-y-1">
+                                        {Object.entries(npsScores.byEntity).sort((a, b) => b[1] - a[1]).map(([name, score]) => (
+                                            <div key={name} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
+                                                <span className="font-medium">{name}</span>
+                                                <span className={`font-bold ${score > 0 ? 'text-green-600' : 'text-destructive'}`}>{score.toFixed(1)}</span>
+                                            </div>
+                                        ))}
+                                         {Object.keys(npsScores.byEntity).length === 0 && (
+                                            <p className="text-sm text-muted-foreground text-center pt-4">Aucun score à afficher.</p>
+                                        )}
+                                    </div>
+                                </div>
+                             </CardContent>
+                        </Card>
+                    </div>
                 </div>
-            )}
-        </main>
+
+                {detractorVerbatims.length > 0 && (
+                    <div className="mt-8">
+                        <NpsVerbatimAnalysis data={detractorVerbatims} />
+                    </div>
+                )}
+            </main>
+        </>
     );
 }

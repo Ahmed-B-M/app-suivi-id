@@ -4,6 +4,7 @@ import { Timestamp } from "firebase/firestore";
 
 // Définition de la structure d'une Tâche avec les champs en français
 export interface Tache {
+  id: string; 
   tacheId: string;
   type?: string;
   date?: string | Date | Timestamp;
@@ -71,7 +72,7 @@ export interface Tache {
 
   dimensions?: {
     volume?: number;
-    bac?: string;
+    bac?: number;
     poids?: number;
   };
   articles?: {
