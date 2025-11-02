@@ -2,7 +2,7 @@
 import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "./grouping";
-import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
+import { addMinutes, differenceInMinutes, parseISO, subMinutes } from "date-fns";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
 const FAILED_PROGRESSIONS = ['FAILED', 'CANCELLED'];
@@ -99,7 +99,18 @@ export function calculateDashboardStats(
     const numberOfRatings = ratedTasks.length;
     const ratingRate = completedTasks.length > 0 ? (numberOfRatings / completedTasks.length) * 100 : null;
 
-    const punctualityTasks = completedTasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+    const roundStopsByTaskId = new Map<string, any>();
+    for (const round of rounds) {
+      if (round.stops) {
+        for (const stop of round.stops) {
+          if (stop.taskId) {
+            roundStopsByTaskId.set(stop.taskId, stop);
+          }
+        }
+      }
+    }
+
+    const punctualityTasks = completedTasks.filter(t => t.creneauHoraire?.debut && roundStopsByTaskId.has(t.tacheId));
     let punctualCount = 0;
     const earlyTasks: { task: Tache; minutes: number }[] = [];
     const lateTasks: { task: Tache; minutes: number }[] = [];
@@ -107,18 +118,21 @@ export function calculateDashboardStats(
 
     punctualityTasks.forEach(task => {
         try {
-            const closure = new Date(task.dateCloture!);
-            const windowStart = new Date(task.creneauHoraire!.debut!);
-            const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+            const stop = roundStopsByTaskId.get(task.tacheId);
+            if (!stop || !stop.arriveTime) return;
+
+            const plannedArrive = parseISO(stop.arriveTime);
+            const windowStart = parseISO(task.creneauHoraire!.debut!);
+            const windowEnd = task.creneauHoraire!.fin ? parseISO(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
 
             const earlyLimit = subMinutes(windowStart, 15);
             const lateLimit = addMinutes(windowEnd, 15);
             
-            const minutesEarly = differenceInMinutes(earlyLimit, closure);
+            const minutesEarly = differenceInMinutes(earlyLimit, plannedArrive);
             if (minutesEarly > 0) {
                 earlyTasks.push({ task, minutes: minutesEarly });
             } else {
-                const minutesLate = differenceInMinutes(closure, lateLimit);
+                const minutesLate = differenceInMinutes(plannedArrive, lateLimit);
                 if (minutesLate > 0) {
                     lateTasks.push({ task, minutes: minutesLate });
                     if (minutesLate > 60) {

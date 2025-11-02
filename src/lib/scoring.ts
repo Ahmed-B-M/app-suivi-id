@@ -1,6 +1,6 @@
 
 
-import { addMinutes, differenceInMinutes, subMinutes } from "date-fns";
+import { addMinutes, differenceInMinutes, parseISO, subMinutes } from "date-fns";
 import { Tache, Tournee } from "./types";
 
 export interface DriverStats {
@@ -130,6 +130,15 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
         return { averageRating: null, punctualityRate: null };
     }
 
+    const roundStopsByTaskId = new Map<string, any>();
+    if (round.stops) {
+      for (const stop of round.stops) {
+        if (stop.taskId) {
+          roundStopsByTaskId.set(stop.taskId, stop);
+        }
+      }
+    }
+
     // Average Rating Calculation
     const ratedTasks = roundTasks
         .map(t => t.metaDonnees?.notationLivreur)
@@ -139,18 +148,21 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
         : null;
 
     // Punctuality Calculation
-    const punctualityTasks = roundTasks.filter(t => t.progression === 'COMPLETED' && t.creneauHoraire?.debut && t.dateCloture);
+    const punctualityTasks = roundTasks.filter(t => t.creneauHoraire?.debut && roundStopsByTaskId.has(t.tacheId));
     let punctualCount = 0;
     punctualityTasks.forEach(task => {
         try {
-            const closure = new Date(task.dateCloture!);
-            const windowStart = new Date(task.creneauHoraire!.debut!);
-            const windowEnd = task.creneauHoraire!.fin ? new Date(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+            const stop = roundStopsByTaskId.get(task.tacheId);
+            if (!stop || !stop.arriveTime) return;
+
+            const plannedArrive = parseISO(stop.arriveTime);
+            const windowStart = parseISO(task.creneauHoraire!.debut!);
+            const windowEnd = task.creneauHoraire!.fin ? parseISO(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
 
             const lowerBound = subMinutes(windowStart, 15);
             const upperBound = addMinutes(windowEnd, 15);
 
-            if (closure >= lowerBound && closure <= upperBound) {
+            if (plannedArrive >= lowerBound && plannedArrive <= upperBound) {
                 punctualCount++;
             }
         } catch (e) { /* ignore date parsing errors */ }
