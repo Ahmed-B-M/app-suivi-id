@@ -99,18 +99,8 @@ export function calculateDashboardStats(
     const numberOfRatings = ratedTasks.length;
     const ratingRate = completedTasks.length > 0 ? (numberOfRatings / completedTasks.length) * 100 : null;
 
-    const roundStopsByTaskId = new Map<string, any>();
-    for (const round of rounds) {
-      if (round.stops) {
-        for (const stop of round.stops) {
-          if (stop.taskId) {
-            roundStopsByTaskId.set(stop.taskId, stop);
-          }
-        }
-      }
-    }
-
-    const punctualityTasks = completedTasks.filter(t => t.creneauHoraire?.debut && roundStopsByTaskId.has(t.tacheId));
+    // --- Punctuality Calculation based on REAL closure time ---
+    const punctualityTasks = completedTasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
     let punctualCount = 0;
     const earlyTasks: { task: Tache; minutes: number }[] = [];
     const lateTasks: { task: Tache; minutes: number }[] = [];
@@ -118,29 +108,24 @@ export function calculateDashboardStats(
 
     punctualityTasks.forEach(task => {
         try {
-            const stop = roundStopsByTaskId.get(task.tacheId);
-            if (!stop || !stop.arriveTime) return;
-
-            const plannedArrive = parseISO(stop.arriveTime);
+            const closureTime = parseISO(task.dateCloture as string);
             const windowStart = parseISO(task.creneauHoraire!.debut!);
             const windowEnd = task.creneauHoraire!.fin ? parseISO(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
 
             const earlyLimit = subMinutes(windowStart, 15);
             const lateLimit = addMinutes(windowEnd, 15);
             
-            const minutesEarly = differenceInMinutes(earlyLimit, plannedArrive);
-            if (minutesEarly > 0) {
+            if (closureTime < earlyLimit) {
+                const minutesEarly = differenceInMinutes(earlyLimit, closureTime);
                 earlyTasks.push({ task, minutes: minutesEarly });
-            } else {
-                const minutesLate = differenceInMinutes(plannedArrive, lateLimit);
-                if (minutesLate > 0) {
-                    lateTasks.push({ task, minutes: minutesLate });
-                    if (minutesLate > 60) {
-                        lateTasksOver1h.push({ task, minutes: minutesLate });
-                    }
-                } else {
-                    punctualCount++;
+            } else if (closureTime > lateLimit) {
+                const minutesLate = differenceInMinutes(closureTime, lateLimit);
+                lateTasks.push({ task, minutes: minutesLate });
+                if (minutesLate > 60) {
+                    lateTasksOver1h.push({ task, minutes: minutesLate });
                 }
+            } else {
+                punctualCount++;
             }
         } catch(e) {
             // Ignore date parsing errors
@@ -148,6 +133,7 @@ export function calculateDashboardStats(
     });
 
     const punctualityRate = punctualityTasks.length > 0 ? (punctualCount / punctualityTasks.length) * 100 : null;
+    // --- End of Real Punctuality Calculation ---
 
     const uniqueRoundIds = new Set(rounds.map(r => r.id));
     const totalRounds = uniqueRoundIds.size;
