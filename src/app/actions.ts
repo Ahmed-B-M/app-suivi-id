@@ -652,6 +652,7 @@ export async function runDailySyncAction() {
   const logs: string[] = [];
 
   try {
+    const { firestore } = await initializeFirebaseOnServer();
     logs.push(`🚀 Début de la synchronisation 48h... (${fromString} - ${toString})`);
 
     const taskParams = new URLSearchParams();
@@ -692,7 +693,7 @@ export async function runDailySyncAction() {
 
     // --- SAVE TO FIRESTORE ---
     logs.push(`\n💾 Début de la sauvegarde intelligente dans Firestore...`);
-    const { firestore } = await initializeFirebaseOnServer();
+    
     const tasksCollectionRef = firestore.collection('tasks');
     const roundsCollectionRef = firestore.collection('rounds');
 
@@ -755,12 +756,12 @@ async function saveCollectionInAction(
     const fromDate = startOfDay(dateRange.from);
     const toDate = endOfDay(dateRange.to);
 
-    logs.push(`      - Suppression des anciens documents entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`);
+    logs.push(`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`);
     
     const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
     const snapshot = await q.get();
     
-    const deleteBatchSize = 250;
+    const deleteBatchSize = 400;
     let deletedCount = 0;
     const firestore = collectionRef.firestore;
 
@@ -772,13 +773,13 @@ async function saveCollectionInAction(
             deletedCount++;
         });
         await batch.commit();
-        logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1} terminé.`);
+        logs.push(`      - Lot de suppression ${Math.floor(i / deleteBatchSize) + 1} terminé.`);
         if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500));
     }
     logs.push(`      - ✅ ${deletedCount} anciens documents supprimés.`);
 
     logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
-    const writeBatchSize = 250;
+    const writeBatchSize = 400;
     const totalBatches = Math.ceil(dataFromApi.length / writeBatchSize);
     
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
@@ -803,13 +804,13 @@ async function saveCollectionInAction(
             }
         });
 
-        const currentBatchNumber = i / writeBatchSize + 1;
+        const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
         logs.push(`      - Écriture du lot ${currentBatchNumber}/${totalBatches}...`);
         await batch.commit();
         logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
         if (currentBatchNumber < totalBatches) {
-             if (currentBatchNumber % 5 === 0) {
+             if (currentBatchNumber > 0 && currentBatchNumber % 5 === 0) {
                 const pauseDuration = 10000;
                 logs.push(`      - ⏱️ Pause de 10 secondes pour vérification...`);
                 await new Promise(res => setTimeout(res, pauseDuration));
