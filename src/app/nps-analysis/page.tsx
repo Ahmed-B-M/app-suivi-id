@@ -145,7 +145,12 @@ export default function NpsAnalysisPage() {
                         if ((task.date as unknown as Timestamp)?.toDate) {
                             taskDateStr = (task.date as unknown as Timestamp).toDate().toISOString();
                         } else if (typeof task.date === 'string') {
-                            taskDateStr = new Date(task.date).toISOString();
+                            try {
+                                taskDateStr = new Date(task.date).toISOString();
+                            } catch (e) {
+                                // If parsing fails, leave it as is or log an error
+                                console.error(`Invalid date format for task ${task.tacheId}:`, task.date);
+                            }
                         }
                     }
 
