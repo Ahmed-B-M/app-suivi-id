@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, CalendarIcon, CheckCircle, FileUp, Loader2, Rocket, Save } from 'lucide-react';
 import { NpsVerbatimAnalysis } from '@/components/app/nps-verbatim-analysis';
 import { useFirebase } from '@/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { saveNpsDataAction } from '../actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -140,14 +140,15 @@ export default function NpsAnalysisPage() {
                     else npsCategory = 'Detractor';
 
                     let taskDateStr: string = "N/A";
-                    if (task.date) {
+                     if (task.date) {
                         // Handle both Firestore Timestamp and string formats
-                        if (typeof (task.date as any).toDate === 'function') {
-                            taskDateStr = (task.date as any).toDate().toISOString();
+                        if ((task.date as unknown as Timestamp)?.toDate) {
+                            taskDateStr = (task.date as unknown as Timestamp).toDate().toISOString();
                         } else if (typeof task.date === 'string') {
                             taskDateStr = new Date(task.date).toISOString();
                         }
                     }
+
 
                     linkedData.push({
                         taskId,
