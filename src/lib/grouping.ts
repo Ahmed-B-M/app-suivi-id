@@ -1,6 +1,7 @@
 
-
 import type { Tache, Tournee } from "@/lib/types";
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 export interface Depot {
   name: string;
@@ -155,4 +156,28 @@ export function getDriverFullName(item: Tache | Tournee): string | undefined {
         return `${item.driver.firstName || ''} ${item.driver.lastName || ''}`.trim();
     }
     return undefined;
+}
+
+export function groupTasksByDay(tasks: Tache[]) {
+  if (!tasks) return {};
+  return tasks.reduce((acc, task) => {
+    const date = task.date ? format(new Date(task.date as string), 'PPP', { locale: fr }) : 'Sans Date';
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(task);
+    return acc;
+  }, {} as Record<string, Tache[]>);
+}
+
+export function groupTasksByMonth(tasks: Tache[]) {
+    if (!tasks) return {};
+    return tasks.reduce((acc, task) => {
+        const date = task.date ? format(new Date(task.date as string), 'LLLL yyyy', { locale: fr }) : 'Sans Date';
+        if (!acc[date]) {
+            acc[date] = [];
+        }
+        acc[date].push(task);
+        return acc;
+    }, {} as Record<string, Tache[]>);
 }
