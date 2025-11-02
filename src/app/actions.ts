@@ -808,19 +808,15 @@ async function saveCollectionInAction(
         await batch.commit();
         logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
-        // If not the last batch, apply a pause and verification
         if (currentBatchNumber < totalBatches) {
-            let pauseDuration: number;
-            
-            if (currentBatchNumber % 5 === 0) {
-                pauseDuration = 10000; // 10-second pause every 5 batches
+             if (currentBatchNumber % 5 === 0) {
+                const pauseDuration = 10000;
                 logs.push(`      - ⏱️ Pause de 10 secondes pour vérification...`);
                 await new Promise(res => setTimeout(res, pauseDuration));
-                
-                // Verification step
+
                 try {
                     logs.push(`      - 🕵️ Vérification du lot ${currentBatchNumber}...`);
-                    const verificationQuery = collectionRef.where(idKey, 'in', chunkIds.slice(0, 30)); // Check up to 30 docs
+                    const verificationQuery = collectionRef.where(idKey, 'in', chunkIds.slice(0, 30));
                     const verifiedSnapshot = await verificationQuery.get();
                     if (verifiedSnapshot.size >= chunkIds.slice(0, 30).length) {
                         logs.push(`      - ✅ Vérification réussie. Les documents du lot ${currentBatchNumber} sont confirmés.`);
@@ -828,10 +824,10 @@ async function saveCollectionInAction(
                         logs.push(`      - ⚠️ Vérification partielle. ${verifiedSnapshot.size}/${chunkIds.length} documents confirmés. L'écriture peut prendre plus de temps.`);
                     }
                 } catch (e: any) {
-                     logs.push(`      - ❌ Erreur de vérification: ${e.message}`);
+                    logs.push(`      - ❌ Erreur de vérification: ${e.message}`);
                 }
             } else {
-                pauseDuration = 1500; // 1.5-second pause for other batches
+                const pauseDuration = 1500;
                 logs.push(`      - ⏱️ Pause de 1.5 seconde...`);
                 await new Promise(res => setTimeout(res, pauseDuration));
             }
@@ -845,4 +841,5 @@ async function saveCollectionInAction(
     
 
     
+
 
