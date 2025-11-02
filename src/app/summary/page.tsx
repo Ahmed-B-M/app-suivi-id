@@ -67,11 +67,11 @@ import { firestore } from "@/firebase";
 import { useQuery } from "@/firebase/firestore/use-query";
 import { Task } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFilterContext } from "@/context/filter-context";
+import { useFilters } from "@/context/filter-context";
 import { endOfDay, format, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { groupTasksByDay, groupTasksByMonth } from "@/lib/grouping";
-import { calculateStats, Stats } from "@/lib/stats-calculator";
+import { calculateDashboardStats } from "@/lib/stats-calculator";
 import { UnifiedExportForm } from "@/components/app/unified-export-form";
 import {
   Tooltip,
@@ -97,14 +97,14 @@ const statusTranslations: Record<Status, string> = {
   cancelled: "Annulé",
 };
 export default function SummaryPage() {
-  const { dateRange, setDateRange, depots, selectedDepot, setSelectedDepot } =
-    useFilterContext();
+  const { dateRange, setDateRange, availableDepots, selectedDepot, setSelectedDepot, allTasks, allRounds } =
+    useFilters();
 
   const [timeUnit, setTimeUnit] = useState<"day" | "month">("day");
   const [statusFilter, setStatusFilter] = useState<Status>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<any | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   // Separate loading states
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -122,48 +122,20 @@ export default function SummaryPage() {
     };
   }, [searchQuery]);
 
-  const {
-    data: tasks,
-    loading: tasksLoading,
-    error,
-  } = useQuery<Task>(
-    collection(firestore, "tasks"),
-    [
-      where("date", ">=", startOfDay(dateRange.from)),
-      where("date", "<=", endOfDay(dateRange.to)),
-      ...(selectedDepot !== "all"
-        ? [where("depotId", "==", selectedDepot)]
-        : []),
-      ...(statusFilter !== "all"
-        ? [where("status", "==", statusFilter)]
-        : []),
-    ],
-    { refreshKey: 0 }
-  );
-  // Additional query for stats without status filter
-  const { data: allTasksForStats, loading: statsLoadingQuery } =
-    useQuery<Task>(
-      collection(firestore, "tasks"),
-      [
-        where("date", ">=", startOfDay(dateRange.from)),
-        where("date", "<=", endOfDay(dateRange.to)),
-        ...(selectedDepot !== "all"
-          ? [where("depotId", "==", selectedDepot)]
-          : []),
-      ],
-      { refreshKey: 0 }
-    );
-  useEffect(() => {
-    const loading = tasksLoading || statsLoadingQuery;
-    setIsLoadingStats(loading);
-    setIsLoadingCharts(loading);
-    setIsLoadingTable(loading);
+    useEffect(() => {
+    setIsLoadingStats(true);
+    setIsLoadingCharts(true);
+    setIsLoadingTable(true);
 
-    if (!loading && allTasksForStats) {
-      const calculatedStats = calculateStats(allTasksForStats);
-      setStats(calculatedStats);
+    if (allTasks) {
+      const calculatedStats = calculateDashboardStats(allTasks, allRounds, [], [], [], 'tous', 'all', 'all');
+      setStats(calculatedStats.stats);
+      setIsLoadingStats(false);
+      setIsLoadingCharts(false);
+      setIsLoadingTable(false);
     }
-  }, [tasksLoading, statsLoadingQuery, allTasksForStats]);
+  }, [allTasks, allRounds]);
+
   const handleExport = () => {
     setIsExporting(true);
     // Simulate export process
@@ -174,10 +146,10 @@ export default function SummaryPage() {
 
   const filteredTasks = useMemo(() => {
     if (!debouncedSearchQuery) {
-      return tasks;
+      return allTasks;
     }
-    return tasks.filter(
-      (task) =>
+    return allTasks.filter(
+      (task: any) =>
         task.id.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         task.driverId
           ?.toLowerCase()
@@ -192,11 +164,11 @@ export default function SummaryPage() {
           ?.toLowerCase()
           .includes(debouncedSearchQuery.toLowerCase()) ||
         (task.validation?.bacs &&
-          task.validation.bacs.some((bac) =>
+          task.validation.bacs.some((bac: any) =>
             bac.bacId.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
           ))
     );
-  }, [tasks, debouncedSearchQuery]);
+  }, [allTasks, debouncedSearchQuery]);
 
   const groupedTasks = useMemo(() => {
     if (timeUnit === "day") {
@@ -206,13 +178,14 @@ export default function SummaryPage() {
   }, [filteredTasks, timeUnit]);
 
   const chartData = useMemo(() => {
-    return tasks
-      .map((task) => ({
+     if (!allTasks) return [];
+    return allTasks
+      .map((task: any) => ({
         ...task,
         date: new Date(task.date),
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [tasks]);
+  }, [allTasks]);
 
   const handleStatusChange = (value: string) => {
     setStatusFilter(value as Status);
@@ -234,33 +207,10 @@ export default function SummaryPage() {
   return (
     <main className="flex-1 p-4 md:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Tableau de bord</h1>
-        <div className="flex items-center space-x-2">
-          <DateRangePicker onUpdate={setDateRange} />
-          <Select value={selectedDepot} onValueChange={setSelectedDepot}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Tous les dépots" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les dépots</SelectItem>
-              {depots.map((depot) => (
-                <SelectItem key={depot.id} value={depot.id}>
-                  {depot.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <UnifiedExportForm
-            tasks={tasks}
-            rounds={[]}
-            stats={stats}
-            dateRange={dateRange}
-            depotId={selectedDepot}
-          />
-        </div>
+        <h1 className="text-2xl font-bold">Synthèse</h1>
       </div>
 
-      <DashboardStats stats={stats} isLoading={isLoadingStats} />
+      {stats && <DashboardStats stats={stats} isLoading={isLoadingStats} topDrivers={[]} onRatingClick={() => {}} onEarlyClick={() => {}} onLateClick={() => {}} onLateOver1hClick={() => {}} onFailedDeliveryClick={() => {}} onPendingClick={() => {}} onMissingClick={() => {}} onMissingBacsClick={() => {}} onPartialDeliveredClick={() => {}} onRedeliveryClick={() => {}} onSensitiveDeliveriesClick={() => {}} onQualityAlertClick={() => {}} onTotalRoundsClick={() => {}} onTotalTasksClick={() => {}} onScanbacClick={() => {}} onForcedAddressClick={() => {}} onForcedContactlessClick={() => {}} onNpsClick={() => {}} onOverweightClick={()=>{}} onOverbacsClick={()=>{}} onCompletedRoundsClick={() => {}} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 my-4">
         {isLoadingCharts ? (
@@ -284,8 +234,8 @@ export default function SummaryPage() {
           </>
         ) : (
           <>
-            <RoundsOverTimeChart data={chartData} />
-            <TasksByProgressionChart data={chartData} />
+            {/* <RoundsOverTimeChart data={chartData} /> */}
+            {/* <TasksByProgressionChart data={chartData} /> */}
           </>
         )}
       </div>
@@ -312,8 +262,8 @@ export default function SummaryPage() {
           </>
         ) : (
           <>
-            <TasksByStatusChart data={chartData} />
-            <RoundsByStatusChart data={chartData} />
+            {/* <TasksByStatusChart data={chartData} /> */}
+            {/* <RoundsByStatusChart data={chartData} /> */}
           </>
         )}
       </div>
@@ -357,7 +307,7 @@ export default function SummaryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {tasksLoading ? (
+          {isLoadingTable ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -378,25 +328,6 @@ export default function SummaryPage() {
             </Table>
           ) : (
             <>
-              {error && (
-                <Card className="bg-destructive/10 border-destructive">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-destructive">
-                      <AlertCircle />
-                      Erreur de chargement des données
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p>
-                      Impossible de charger les données. Veuillez vérifier vos
-                      permissions et la configuration.
-                    </p>
-                    <pre className="mt-4 text-sm bg-background p-2 rounded">
-                      {JSON.stringify(error, null, 2)}
-                    </pre>
-                  </CardContent>
-                </Card>
-              )}
               {Object.entries(groupedTasks).map(([group, tasksInGroup]) => (
                 <div key={group}>
                   <h3 className="text-lg font-semibold my-4">{group}</h3>
