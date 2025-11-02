@@ -1,36 +1,21 @@
 
 "use client";
-import { use, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
   AlertCircle,
-  ArrowDown,
-  ArrowUp,
   CheckCircle2,
-  ChevronDown,
-  Download,
-  Filter,
   HelpCircle,
-  MoreVertical,
   Search,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -47,38 +32,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { DashboardStats } from "@/components/app/dashboard-stats";
-import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
-import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
-import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
-import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-import { firestore } from "@/firebase";
-import { useQuery } from "@/firebase/firestore/use-query";
-import { Task } from "@/lib/types";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFilters } from "@/context/filter-context";
-import { endOfDay, format, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { groupTasksByDay, groupTasksByMonth } from "@/lib/grouping";
 import { calculateDashboardStats } from "@/lib/stats-calculator";
-import { UnifiedExportForm } from "@/components/app/unified-export-form";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Tache } from "@/lib/types";
 
 type Status =
   | "all"
@@ -96,79 +63,54 @@ const statusTranslations: Record<Status, string> = {
   "in progress": "En cours",
   cancelled: "Annulé",
 };
+
 export default function SummaryPage() {
-  const { dateRange, setDateRange, availableDepots, selectedDepot, setSelectedDepot, allTasks, allRounds } =
-    useFilters();
+  const { allTasks, allRounds, isContextLoading } = useFilters();
 
   const [timeUnit, setTimeUnit] = useState<"day" | "month">("day");
   const [statusFilter, setStatusFilter] = useState<Status>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [stats, setStats] = useState<any | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  // Separate loading states
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
-  const [isLoadingTable, setIsLoadingTable] = useState(true);
+
+  const stats = useMemo(() => {
+    if (isContextLoading || !allTasks) return null;
+    return calculateDashboardStats(allTasks, allRounds, [], [], [], 'tous', 'all', 'all').stats;
+  }, [allTasks, allRounds, isContextLoading]);
+  
 
   // Debounce search query
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-    }, 500); // 500ms delay
+    }, 500);
 
     return () => {
       clearTimeout(handler);
     };
   }, [searchQuery]);
 
-    useEffect(() => {
-    setIsLoadingStats(true);
-    setIsLoadingCharts(true);
-    setIsLoadingTable(true);
-
-    if (allTasks) {
-      const calculatedStats = calculateDashboardStats(allTasks, allRounds, [], [], [], 'tous', 'all', 'all');
-      setStats(calculatedStats.stats);
-      setIsLoadingStats(false);
-      setIsLoadingCharts(false);
-      setIsLoadingTable(false);
-    }
-  }, [allTasks, allRounds]);
-
-  const handleExport = () => {
-    setIsExporting(true);
-    // Simulate export process
-    setTimeout(() => {
-      setIsExporting(false);
-    }, 2000);
-  };
-
   const filteredTasks = useMemo(() => {
-    if (!debouncedSearchQuery) {
-      return allTasks;
+    let tasksToFilter = allTasks;
+    if (statusFilter !== 'all') {
+        tasksToFilter = tasksToFilter.filter(task => (task.status?.toLowerCase() || 'unknown') === statusFilter);
     }
-    return allTasks.filter(
-      (task: any) =>
-        task.id.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        task.driverId
-          ?.toLowerCase()
-          .includes(debouncedSearchQuery.toLowerCase()) ||
-        task.status
-          ?.toLowerCase()
-          .includes(debouncedSearchQuery.toLowerCase()) ||
-        task.roundId
-          ?.toLowerCase()
-          .includes(debouncedSearchQuery.toLowerCase()) ||
-        task.depotId
-          ?.toLowerCase()
-          .includes(debouncedSearchQuery.toLowerCase()) ||
-        (task.validation?.bacs &&
-          task.validation.bacs.some((bac: any) =>
-            bac.bacId.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-          ))
-    );
-  }, [allTasks, debouncedSearchQuery]);
+    if (debouncedSearchQuery) {
+      tasksToFilter = tasksToFilter.filter(
+        (task: any) =>
+          task.id?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          task.driverId
+            ?.toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase()) ||
+          task.roundId
+            ?.toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase()) ||
+          task.depotId
+            ?.toLowerCase()
+            .includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+    return tasksToFilter;
+  }, [allTasks, debouncedSearchQuery, statusFilter]);
 
   const groupedTasks = useMemo(() => {
     if (timeUnit === "day") {
@@ -177,21 +119,12 @@ export default function SummaryPage() {
     return groupTasksByMonth(filteredTasks);
   }, [filteredTasks, timeUnit]);
 
-  const chartData = useMemo(() => {
-     if (!allTasks) return [];
-    return allTasks
-      .map((task: any) => ({
-        ...task,
-        date: new Date(task.date),
-      }))
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [allTasks]);
-
   const handleStatusChange = (value: string) => {
     setStatusFilter(value as Status);
   };
-  const getStatusIndicator = (status: string) => {
-    switch (status) {
+  
+  const getStatusIndicator = (status: string | undefined) => {
+    switch (status?.toLowerCase()) {
       case "completed":
         return <CheckCircle2 className="text-green-500" />;
       case "failed":
@@ -204,69 +137,13 @@ export default function SummaryPage() {
         return <HelpCircle className="text-gray-500" />;
     }
   };
+  
   return (
-    <main className="flex-1 p-4 md:p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Synthèse</h1>
+    <main className="flex-1 p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Synthèse de la Journée/Période</h1>
       </div>
 
-      {stats && <DashboardStats stats={stats} isLoading={isLoadingStats} topDrivers={[]} onRatingClick={() => {}} onEarlyClick={() => {}} onLateClick={() => {}} onLateOver1hClick={() => {}} onFailedDeliveryClick={() => {}} onPendingClick={() => {}} onMissingClick={() => {}} onMissingBacsClick={() => {}} onPartialDeliveredClick={() => {}} onRedeliveryClick={() => {}} onSensitiveDeliveriesClick={() => {}} onQualityAlertClick={() => {}} onTotalRoundsClick={() => {}} onTotalTasksClick={() => {}} onScanbacClick={() => {}} onForcedAddressClick={() => {}} onForcedContactlessClick={() => {}} onNpsClick={() => {}} onOverweightClick={()=>{}} onOverbacsClick={()=>{}} onCompletedRoundsClick={() => {}} />}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 my-4">
-        {isLoadingCharts ? (
-          <>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <>
-            {/* <RoundsOverTimeChart data={chartData} /> */}
-            {/* <TasksByProgressionChart data={chartData} /> */}
-          </>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 my-4">
-        {isLoadingCharts ? (
-          <>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-64 w-full" />
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <>
-            {/* <TasksByStatusChart data={chartData} /> */}
-            {/* <RoundsByStatusChart data={chartData} /> */}
-          </>
-        )}
-      </div>
       <Card>
         <CardHeader>
           <CardTitle>Tâches</CardTitle>
@@ -307,7 +184,7 @@ export default function SummaryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingTable ? (
+          {isContextLoading ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -328,44 +205,58 @@ export default function SummaryPage() {
             </Table>
           ) : (
             <>
-              {Object.entries(groupedTasks).map(([group, tasksInGroup]) => (
+              {Object.keys(groupedTasks).length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                    Aucune tâche à afficher pour la sélection actuelle.
+                </div>
+              ) : Object.entries(groupedTasks).map(([group, tasksInGroup]) => (
                 <div key={group}>
                   <h3 className="text-lg font-semibold my-4">{group}</h3>
                   <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-12"></TableHead>
+                            <TableHead>ID Tâche</TableHead>
+                            <TableHead>Dépôt</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Livreur</TableHead>
+                            <TableHead>Bacs</TableHead>
+                        </TableRow>
+                    </TableHeader>
                     <TableBody>
-                      {(tasksInGroup as Task[]).map((task) => (
+                      {(tasksInGroup as Tache[]).map((task) => (
                         <TableRow key={task.id}>
-                          <TableCell className="w-12">
+                          <TableCell>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger>
                                   {getStatusIndicator(task.status)}
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{statusTranslations[task.status as Status] || task.status}</p>
+                                  <p>{statusTranslations[task.status?.toLowerCase() as Status] || task.status}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           </TableCell>
                           <TableCell className="font-medium">
                             <a
-                              href={`/task/${task.id}`}
+                              href={`/task/${task.tacheId}`}
                               className="text-blue-600 hover:underline"
                             >
-                              {task.id}
+                              {task.tacheId}
                             </a>
                           </TableCell>
-                          <TableCell>{task.depotId}</TableCell>
+                          <TableCell>{task.nomHub}</TableCell>
                           <TableCell>
-                            {format(new Date(task.date), "PPP", {
+                            {task.date ? format(new Date(task.date as string), "PPP", {
                               locale: fr,
-                            })}
+                            }) : 'N/A'}
                           </TableCell>
                           <TableCell>
-                            {task.driverId || "Non assigné"}
+                            {task.livreur?.prenom} {task.livreur?.nom}
                           </TableCell>
                           <TableCell>
-                            {task.validation?.bacs?.length || 0} Bacs
+                            {task.articles?.filter(a => a.type?.startsWith('BAC')).length || 0} Bacs
                           </TableCell>
                         </TableRow>
                       ))}
