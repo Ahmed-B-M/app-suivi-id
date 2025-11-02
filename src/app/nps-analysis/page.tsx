@@ -11,8 +11,8 @@ import { getCarrierFromDriver, getDepotFromHub, getDriverFullName } from '@/lib/
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, CalendarIcon, CheckCircle, FileUp, Loader2, Rocket, Save } from 'lucide-react';
 import { NpsVerbatimAnalysis } from '@/components/app/nps-verbatim-analysis';
-import { useCollection, useFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { saveNpsDataAction } from '../actions';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -57,18 +57,6 @@ export default function NpsAnalysisPage() {
     const [error, setError] = useState<string | null>(null);
     const [associationDate, setAssociationDate] = useState<Date>(new Date());
 
-    const tasksCollection = useMemo(() => {
-        return firestore ? collection(firestore, 'tasks') : null;
-    }, [firestore]);
-
-    // Fetch ALL tasks, ignoring the date filter, to ensure we can match any order ID.
-    const { data: allTasks, loading: isLoadingTasks } = useCollection<Tache>(tasksCollection, []);
-    
-    const taskMap = useMemo(() => {
-        if (isLoadingTasks || !allTasks) return new Map();
-        return new Map(allTasks.map(task => [task.tacheId, task]));
-    }, [allTasks, isLoadingTasks]);
-
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
             setFiles(Array.from(event.target.files));
@@ -82,7 +70,7 @@ export default function NpsAnalysisPage() {
             Papa.parse<NpsDataRow>(file, {
                 header: true,
                 skipEmptyLines: true,
-                complete: (results) => resolve(results.data),
+                complete: (results) => resolve(results.data.filter(row => row.Num_commande)),
                 error: (err: any) => reject(err),
             });
         });
@@ -93,9 +81,8 @@ export default function NpsAnalysisPage() {
             setError("Veuillez sélectionner un ou plusieurs fichiers.");
             return;
         }
-
-        if (isLoadingTasks) {
-            setError("Les données des tâches sont encore en cours de chargement. Veuillez réessayer dans un instant.");
+        if (!firestore) {
+            setError("La connexion à la base de données n'est pas disponible.");
             return;
         }
 
@@ -104,13 +91,41 @@ export default function NpsAnalysisPage() {
         setProcessedData([]);
 
         try {
-            const allResults = await Promise.all(files.map(file => processFile(file)));
-            const combinedData = allResults.flat();
+            // 1. Parse all CSV files and get all unique task IDs
+            const allCsvRows = (await Promise.all(files.map(file => processFile(file)))).flat();
+            const taskIdsFromCsv = [...new Set(allCsvRows.map(row => row.Num_commande))];
 
+            if (taskIdsFromCsv.length === 0) {
+                setError("Aucun numéro de commande trouvé dans les fichiers CSV.");
+                setIsProcessing(false);
+                return;
+            }
+
+            // 2. Fetch only the necessary tasks from Firestore in batches of 30 (Firestore 'in' query limit)
+            const taskMap = new Map<string, Tache>();
+            const tasksCollection = collection(firestore, 'tasks');
+            const fetchPromises: Promise<void>[] = [];
+
+            for (let i = 0; i < taskIdsFromCsv.length; i += 30) {
+                const batchIds = taskIdsFromCsv.slice(i, i + 30);
+                const q = query(tasksCollection, where('tacheId', 'in', batchIds));
+                
+                fetchPromises.push(
+                    getDocs(q).then(snapshot => {
+                        snapshot.forEach(doc => {
+                            taskMap.set(doc.id, doc.data() as Tache);
+                        });
+                    })
+                );
+            }
+
+            await Promise.all(fetchPromises);
+            
+            // 3. Process and link the data
             const linkedData: ProcessedNpsData[] = [];
             let notFoundCount = 0;
 
-            combinedData.forEach(row => {
+            allCsvRows.forEach(row => {
                 const taskId = row.Num_commande;
                 if (taskMap.has(taskId)) {
                     const task = taskMap.get(taskId)!;
@@ -128,7 +143,7 @@ export default function NpsAnalysisPage() {
                         verbatim: row.VERBATIM,
                         store: row.MAG,
                         taskDate: task.date ? new Date(task.date as string).toISOString() : "N/A",
-                        carrier: getCarrierFromDriver(task.livreur?.nom),
+                        carrier: getCarrierFromDriver(task),
                         depot: getDepotFromHub(task.nomHub),
                         driver: getDriverFullName(task),
                     });
@@ -139,10 +154,10 @@ export default function NpsAnalysisPage() {
 
             setProcessedData(linkedData);
             if (notFoundCount > 0) {
-                 setError(`${notFoundCount} commandes des fichiers CSV n'ont pas été trouvées dans la base de données et ont été ignorées.`);
+                 setError(`${notFoundCount} sur ${allCsvRows.length} commandes des fichiers CSV n'ont pas été trouvées dans la base de données et ont été ignorées.`);
             }
         } catch (err: any) {
-            setError(`Erreur lors de la lecture d'un fichier CSV: ${err.message}`);
+            setError(`Erreur lors du traitement : ${err.message}`);
         } finally {
             setIsProcessing(false);
         }
@@ -223,7 +238,7 @@ export default function NpsAnalysisPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><FileUp /> Importer Fichiers NPS</CardTitle>
                             <CardDescription>
-                                Chargez un ou plusieurs fichiers CSV de retours clients. Le système recherchera les correspondances dans toute la base de données.
+                                Chargez un ou plusieurs fichiers CSV. La recherche des tâches correspondantes se fera après avoir cliqué sur "Lancer l'analyse".
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -255,9 +270,9 @@ export default function NpsAnalysisPage() {
                                 </Popover>
                             </div>
                             
-                            <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0 || isLoadingTasks} className="w-full">
-                                {isProcessing || isLoadingTasks ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
-                                {isLoadingTasks ? 'Chargement des tâches...' : (isProcessing ? 'Traitement en cours...' : 'Lancer l\'analyse')}
+                            <Button onClick={handleProcessFiles} disabled={isProcessing || !files || files.length === 0} className="w-full">
+                                {isProcessing ? <Loader2 className="animate-spin mr-2"/> : <Rocket className="mr-2"/>}
+                                {isProcessing ? 'Analyse en cours...' : 'Lancer l\'analyse'}
                             </Button>
                             
                              <Button onClick={handleSave} disabled={isSaving || processedData.length === 0} className="w-full">
@@ -313,5 +328,3 @@ export default function NpsAnalysisPage() {
         </main>
     );
 }
-
-    

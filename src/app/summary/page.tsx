@@ -1,410 +1,451 @@
 
 "use client";
-
-import { useMemo } from "react";
-import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
-import { Skeleton } from "@/components/ui/skeleton";
+import { use, useEffect, useMemo, useState } from "react";
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
   CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  Filter,
+  HelpCircle,
+  MoreVertical,
+  Search,
+  XCircle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
-  TableHead,
 } from "@/components/ui/table";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { AlertCircle, Building, ChevronDown, Clock, MapPin, Percent, TrendingDown, TrendingUp, Warehouse } from "lucide-react";
-import type { Tache, Tournee } from "@/lib/types";
-import { useFilters } from "@/context/filter-context";
-import { getDepotFromHub } from "@/lib/grouping";
-import { format, differenceInMinutes, parseISO, addMinutes, subMinutes, differenceInHours } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DashboardStats } from "@/components/app/dashboard-stats";
+import { RoundsOverTimeChart } from "@/components/app/rounds-over-time-chart";
+import { TasksByStatusChart } from "@/components/app/tasks-by-status-chart";
+import { RoundsByStatusChart } from "@/components/app/rounds-by-status-chart";
+import { TasksByProgressionChart } from "@/components/app/tasks-by-progression-chart";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
+import { firestore } from "@/firebase";
+import { useQuery } from "@/firebase/firestore/use-query";
+import { Task } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useFilterContext } from "@/context/filter-context";
+import { endOfDay, format, startOfDay } from "date-fns";
+import { fr } from "date-fns/locale";
+import { groupTasksByDay, groupTasksByMonth } from "@/lib/grouping";
+import { calculateStats, Stats } from "@/lib/stats-calculator";
+import { UnifiedExportForm } from "@/components/app/unified-export-form";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
+type Status =
+  | "all"
+  | "completed"
+  | "failed"
+  | "pending"
+  | "in progress"
+  | "cancelled";
 
-interface SummaryMetrics {
-    name: string;
-    type: 'depot' | 'warehouse';
-    totalRounds: number;
-    overweightRoundsRate: number | null;
-    punctualityRatePlanned: number | null;
-    punctualityRateActual: number | null;
-    mostFrequentTimeWindow: string;
-    leastFrequentTimeWindow: string;
-    mostLateTimeWindow: string;
-    top3LatePostcodes: { postcode: string; count: number }[];
-    avgTasksPer2Hours: number | null;
-}
-
-const countOccurrences = (arr: (string|undefined)[]) => {
-    return arr.reduce((acc, curr) => {
-        if (!curr) return acc;
-        acc[curr] = (acc[curr] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
+const statusTranslations: Record<Status, string> = {
+  all: "Tous",
+  completed: "Terminé",
+  failed: "Échec",
+  pending: "En attente",
+  "in progress": "En cours",
+  cancelled: "Annulé",
 };
-
-const getMinMaxFromCounts = (counts: Record<string, number>, total: number) => {
-    const entries = Object.entries(counts);
-    if (entries.length === 0) return { most: 'N/A', least: 'N/A' };
-    
-    let most = entries[0];
-    let least = entries[0];
-
-    for(const entry of entries) {
-        if (entry[1] > most[1]) most = entry;
-        if (entry[1] < least[1]) least = entry;
-    }
-
-    const formatWithPercentage = (entry: [string, number]) => {
-        const percentage = total > 0 ? (entry[1] / total) * 100 : 0;
-        return `${entry[0]} (${percentage.toFixed(0)}%)`;
-    };
-
-    return { most: formatWithPercentage(most), least: formatWithPercentage(least) };
-};
-
-const calculateMetricsForEntity = (name: string, type: 'depot' | 'warehouse', allTasks: Tache[], allRounds: Tournee[]): SummaryMetrics => {
-    
-    const entityFilter = (item: Tache | Tournee) => {
-        const hub = item.nomHub;
-        if (!hub) return false;
-        if (type === 'depot') return getDepotFromHub(hub) === name;
-        return hub === name;
-    };
-    const tasks = allTasks.filter(entityFilter);
-    const rounds = allRounds.filter(entityFilter);
-
-    // 1. Overweight rounds rate
-    const tasksWeightByRound = new Map<string, number>();
-    for (const task of tasks) {
-       if (!task.nomTournee || !task.date || !task.nomHub) continue;
-       const roundKey = `${task.nomTournee}-${new Date(task.date).toISOString().split('T')[0]}-${task.nomHub}`;
-       const taskWeight = task.dimensions?.poids ?? 0;
-       if (taskWeight > 0) tasksWeightByRound.set(roundKey, (tasksWeightByRound.get(roundKey) || 0) + taskWeight);
-    }
-    let overweightRoundsCount = 0;
-    const relevantRoundsForWeight = rounds.filter(r => typeof r.vehicle?.dimensions?.poids === 'number');
-    for (const round of relevantRoundsForWeight) {
-        if (!round.name || !round.date || !round.nomHub) continue;
-        const roundKey = `${round.name}-${new Date(round.date).toISOString().split('T')[0]}-${round.nomHub}`;
-        const totalWeight = tasksWeightByRound.get(roundKey) || 0;
-        if (totalWeight > round.vehicle!.dimensions!.poids!) overweightRoundsCount++;
-    }
-    const overweightRoundsRate = relevantRoundsForWeight.length > 0 ? (overweightRoundsCount / relevantRoundsForWeight.length) * 100 : null;
-    
-    // 2. Planned Punctuality
-    const roundStopsByTaskId = new Map<string, any>();
-    for (const round of rounds) {
-      if (round.stops) round.stops.forEach(stop => stop.taskId && roundStopsByTaskId.set(stop.taskId, stop));
-    }
-    let plannedPunctual = 0;
-    const tasksForPlannedPunctuality = tasks.filter(t => t.tacheId && t.creneauHoraire?.debut && roundStopsByTaskId.has(t.tacheId));
-    tasksForPlannedPunctuality.forEach(task => {
-        const stop = roundStopsByTaskId.get(task.tacheId!);
-        if (!stop.arriveTime) return;
-        try {
-            const plannedArrive = parseISO(stop.arriveTime);
-            const windowStart = parseISO(task.creneauHoraire!.debut!);
-            const lowerBound = subMinutes(windowStart, 15);
-            if (plannedArrive < lowerBound) return; // Early
-            
-            if (task.creneauHoraire!.fin) {
-                const windowEnd = parseISO(task.creneauHoraire!.fin);
-                const upperBound = addMinutes(windowEnd, 15);
-                if (plannedArrive > upperBound) return; // Late
-            }
-            plannedPunctual++;
-        } catch(e) {/* ignore date parsing errors */}
-    });
-    const punctualityRatePlanned = tasksForPlannedPunctuality.length > 0 ? (plannedPunctual / tasksForPlannedPunctuality.length) * 100 : null;
-
-    // 3. Actual Punctuality
-    let actualPunctual = 0;
-    const lateTasksActual: Tache[] = [];
-    const tasksForActualPunctuality = tasks.filter(t => t.progression === 'COMPLETED' && t.dateCloture && t.creneauHoraire?.debut);
-    tasksForActualPunctuality.forEach(task => {
-        try {
-            const actualArrival = parseISO(task.dateCloture!);
-            const windowStart = parseISO(task.creneauHoraire!.debut!);
-            const lowerBound = subMinutes(windowStart, 15);
-
-            if (actualArrival < lowerBound) return; // Early, not late
-
-            if (task.creneauHoraire.fin) {
-                const windowEnd = parseISO(task.creneauHoraire.fin);
-                const upperBound = addMinutes(windowEnd, 15);
-                 if (actualArrival > upperBound) {
-                     lateTasksActual.push(task);
-                     return; // Late
-                 }
-            }
-            actualPunctual++;
-        } catch(e) {/* ignore date parsing errors */}
-    });
-    const punctualityRateActual = tasksForActualPunctuality.length > 0 ? (actualPunctual / tasksForActualPunctuality.length) * 100 : null;
-
-    // 4. Time Windows
-    const tasksWithTimeWindow = tasks.filter(t => t.creneauHoraire?.debut && t.creneauHoraire.fin);
-    const timeWindows = tasksWithTimeWindow.map(t => {
-        try {
-            return `${format(parseISO(t.creneauHoraire!.debut!), 'HH:mm')}-${format(parseISO(t.creneauHoraire!.fin!), 'HH:mm')}`;
-        } catch(e) { return undefined; }
-    });
-    const timeWindowCounts = countOccurrences(timeWindows);
-    const { most: mostFrequentTimeWindow, least: leastFrequentTimeWindow } = getMinMaxFromCounts(timeWindowCounts, tasksWithTimeWindow.length);
-
-    // 5. Late Time Windows
-    const lateTimeWindows = lateTasksActual.map(t => {
-        if (!t.creneauHoraire?.debut || !t.creneauHoraire.fin) return undefined;
-        try {
-            const percentage = tasksWithTimeWindow.length > 0 ? (lateTasksActual.length / tasksWithTimeWindow.length) * 100 : 0;
-            return `${format(parseISO(t.creneauHoraire.debut), 'HH:mm')}-${format(parseISO(t.creneauHoraire.fin), 'HH:mm')} (${percentage.toFixed(0)}%)`;
-        } catch(e) { return undefined; }
-    });
-    const lateTimeWindowCounts = countOccurrences(lateTimeWindows);
-    const { most: mostLateTimeWindowRaw } = getMinMaxFromCounts(lateTimeWindowCounts, lateTasksActual.length);
-
-
-    // 6. Top 3 Late Postcodes
-    const latePostcodes = lateTasksActual.map(t => t.localisation?.codePostal).filter(Boolean);
-    const latePostcodeCounts = countOccurrences(latePostcodes as string[]);
-    const top3LatePostcodes = Object.entries(latePostcodeCounts)
-        .sort((a,b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([postcode, count]) => ({ postcode, count }));
-    
-    // 7. Avg tasks per 2 hours
-    const completedTasksByRound: Record<string, Tache[]> = {};
-    tasks.filter(t => t.progression === 'COMPLETED' && t.dateCloture && t.nomTournee)
-         .forEach(t => {
-             if (!completedTasksByRound[t.nomTournee!]) {
-                 completedTasksByRound[t.nomTournee!] = [];
-             }
-             completedTasksByRound[t.nomTournee!].push(t);
-         });
-
-    const roundPaces: number[] = [];
-    Object.values(completedTasksByRound).forEach(roundTasks => {
-        if (roundTasks.length > 1) {
-            const closureTimes = roundTasks.map(t => parseISO(t.dateCloture!).getTime());
-            const minTime = Math.min(...closureTimes);
-            const maxTime = Math.max(...closureTimes);
-            const durationHours = (maxTime - minTime) / (1000 * 60 * 60);
-
-            if (durationHours > 0) {
-                const pace = (roundTasks.length / durationHours) * 2;
-                roundPaces.push(pace);
-            }
-        }
-    });
-
-    const avgTasksPer2Hours = roundPaces.length > 0
-        ? roundPaces.reduce((sum, pace) => sum + pace, 0) / roundPaces.length
-        : null;
-
-
-    return {
-        name,
-        type,
-        totalRounds: rounds.length,
-        overweightRoundsRate,
-        punctualityRatePlanned,
-        punctualityRateActual,
-        mostFrequentTimeWindow,
-        leastFrequentTimeWindow,
-        mostLateTimeWindow: mostLateTimeWindowRaw,
-        top3LatePostcodes,
-        avgTasksPer2Hours
-    }
-};
-
-const SummaryRow = ({ data, isSubRow = false }: { data: SummaryMetrics; isSubRow?: boolean }) => (
-     <TableRow className={cn(!isSubRow && "bg-muted/50 font-semibold")}>
-        <TableCell className="w-[15%]">
-             <div className={cn("flex items-center gap-2", isSubRow && "pl-6")}>
-                {isSubRow ? <Warehouse className="h-4 w-4 text-muted-foreground"/> : <Building className="h-4 w-4 text-muted-foreground"/>}
-                {data.name}
-            </div>
-        </TableCell>
-        <TableCell className="text-right w-[5%]">{data.totalRounds}</TableCell>
-        <TableCell className="text-right font-mono w-[10%]">{data.punctualityRatePlanned?.toFixed(1) ?? 'N/A'}%</TableCell>
-        <TableCell className="text-right font-mono w-[10%]">{data.punctualityRateActual?.toFixed(1) ?? 'N/A'}%</TableCell>
-        <TableCell className="text-right font-mono w-[10%]">{data.overweightRoundsRate?.toFixed(1) ?? 'N/A'}%</TableCell>
-        <TableCell className="w-[15%] px-2">
-            <div className="flex flex-col text-xs">
-                <div className="flex items-center gap-1 text-green-600"><TrendingUp className="h-3 w-3"/> {data.mostFrequentTimeWindow}</div>
-                <div className="flex items-center gap-1 text-red-600"><TrendingDown className="h-3 w-3"/> {data.leastFrequentTimeWindow}</div>
-            </div>
-        </TableCell>
-        <TableCell className="w-[10%] text-center">
-             <Badge variant="destructive">{data.mostLateTimeWindow}</Badge>
-        </TableCell>
-        <TableCell className="w-[15%] px-2">
-            <ol className="list-decimal list-inside text-xs">
-                {data.top3LatePostcodes.map(pc => <li key={pc.postcode}>{pc.postcode} ({pc.count})</li>)}
-                 {data.top3LatePostcodes.length === 0 && <li className="list-none">N/A</li>}
-            </ol>
-        </TableCell>
-        <TableCell className="text-right font-mono w-[10%]">{data.avgTasksPer2Hours !== null ? (isFinite(data.avgTasksPer2Hours) ? data.avgTasksPer2Hours.toFixed(1) : '∞') : 'N/A'}</TableCell>
-    </TableRow>
-);
-
-
 export default function SummaryPage() {
-  const { allTasks, allRounds, isContextLoading } = useFilters();
+  const { dateRange, setDateRange, depots, selectedDepot, setSelectedDepot } =
+    useFilterContext();
 
-  const { depotSummary, warehouseSummaryByDepot } = useMemo(() => {
-    if (!allTasks || !allRounds) {
-      return { depotSummary: [], warehouseSummaryByDepot: new Map() };
-    }
-    
-    const allHubs = new Set(allTasks.map(t => t.nomHub).filter(Boolean) as string[]);
-    const depotToHubsMap = new Map<string, Set<string>>();
+  const [timeUnit, setTimeUnit] = useState<"day" | "month">("day");
+  const [statusFilter, setStatusFilter] = useState<Status>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  // Separate loading states
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  const [isLoadingTable, setIsLoadingTable] = useState(true);
 
-    for (const hubName of allHubs) {
-        const depotName = getDepotFromHub(hubName);
-        if (!depotToHubsMap.has(depotName)) {
-            depotToHubsMap.set(depotName, new Set());
-        }
-        depotToHubsMap.get(depotName)!.add(hubName);
-    }
-    
-    const depotMetrics: SummaryMetrics[] = [];
-    const warehouseSummaryByDepot = new Map<string, SummaryMetrics[]>();
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms delay
 
-    for (const depotName of depotToHubsMap.keys()) {
-        depotMetrics.push(calculateMetricsForEntity(depotName, 'depot', allTasks, allRounds));
-        
-        const hubSet = depotToHubsMap.get(depotName) || new Set();
-        const hubMetrics: SummaryMetrics[] = [];
-        for (const hubName of hubSet) {
-             if(hubName !== depotName || hubSet.size === 1) {
-              hubMetrics.push(calculateMetricsForEntity(hubName, 'warehouse', allTasks, allRounds));
-            }
-        }
-        warehouseSummaryByDepot.set(depotName, hubMetrics.sort((a,b) => b.totalRounds - a.totalRounds));
-    }
-    
-    return {
-        depotSummary: depotMetrics.sort((a,b) => b.totalRounds - a.totalRounds),
-        warehouseSummaryByDepot
+    return () => {
+      clearTimeout(handler);
     };
-  }, [allTasks, allRounds]);
+  }, [searchQuery]);
 
+  const {
+    data: tasks,
+    loading: tasksLoading,
+    error,
+  } = useQuery<Task>(
+    collection(firestore, "tasks"),
+    [
+      where("date", ">=", startOfDay(dateRange.from)),
+      where("date", "<=", endOfDay(dateRange.to)),
+      ...(selectedDepot !== "all"
+        ? [where("depotId", "==", selectedDepot)]
+        : []),
+      ...(statusFilter !== "all"
+        ? [where("status", "==", statusFilter)]
+        : []),
+    ],
+    { refreshKey: 0 }
+  );
+  // Additional query for stats without status filter
+  const { data: allTasksForStats, loading: statsLoadingQuery } =
+    useQuery<Task>(
+      collection(firestore, "tasks"),
+      [
+        where("date", ">=", startOfDay(dateRange.from)),
+        where("date", "<=", endOfDay(dateRange.to)),
+        ...(selectedDepot !== "all"
+          ? [where("depotId", "==", selectedDepot)]
+          : []),
+      ],
+      { refreshKey: 0 }
+    );
+  useEffect(() => {
+    const loading = tasksLoading || statsLoadingQuery;
+    setIsLoadingStats(loading);
+    setIsLoadingCharts(loading);
+    setIsLoadingTable(loading);
 
-  const isLoading = isContextLoading;
-  const error = null;
+    if (!loading && allTasksForStats) {
+      const calculatedStats = calculateStats(allTasksForStats);
+      setStats(calculatedStats);
+    }
+  }, [tasksLoading, statsLoadingQuery, allTasksForStats]);
+  const handleExport = () => {
+    setIsExporting(true);
+    // Simulate export process
+    setTimeout(() => {
+      setIsExporting(false);
+    }, 2000);
+  };
 
+  const filteredTasks = useMemo(() => {
+    if (!debouncedSearchQuery) {
+      return tasks;
+    }
+    return tasks.filter(
+      (task) =>
+        task.id.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        task.driverId
+          ?.toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
+        task.status
+          ?.toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
+        task.roundId
+          ?.toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
+        task.depotId
+          ?.toLowerCase()
+          .includes(debouncedSearchQuery.toLowerCase()) ||
+        (task.validation?.bacs &&
+          task.validation.bacs.some((bac) =>
+            bac.bacId.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+          ))
+    );
+  }, [tasks, debouncedSearchQuery]);
+
+  const groupedTasks = useMemo(() => {
+    if (timeUnit === "day") {
+      return groupTasksByDay(filteredTasks);
+    }
+    return groupTasksByMonth(filteredTasks);
+  }, [filteredTasks, timeUnit]);
+
+  const chartData = useMemo(() => {
+    return tasks
+      .map((task) => ({
+        ...task,
+        date: new Date(task.date),
+      }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [tasks]);
+
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value as Status);
+  };
+  const getStatusIndicator = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle2 className="text-green-500" />;
+      case "failed":
+        return <XCircle className="text-red-500" />;
+      case "pending":
+        return <HelpCircle className="text-yellow-500" />;
+      case "in progress":
+        return <AlertCircle className="text-blue-500" />;
+      default:
+        return <HelpCircle className="text-gray-500" />;
+    }
+  };
   return (
-    <main className="flex-1 container py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold">Synthèse Générale</h1>
+    <main className="flex-1 p-4 md:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Tableau de bord</h1>
+        <div className="flex items-center space-x-2">
+          <DateRangePicker onUpdate={setDateRange} />
+          <Select value={selectedDepot} onValueChange={setSelectedDepot}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Tous les dépots" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les dépots</SelectItem>
+              {depots.map((depot) => (
+                <SelectItem key={depot.id} value={depot.id}>
+                  {depot.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <UnifiedExportForm
+            tasks={tasks}
+            rounds={[]}
+            stats={stats}
+            dateRange={dateRange}
+            depotId={selectedDepot}
+          />
+        </div>
       </div>
 
-      {isLoading && (
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-2/3" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-64 w-full" />
-          </CardContent>
-        </Card>
-      )}
+      <DashboardStats stats={stats} isLoading={isLoadingStats} />
 
-      {error && (
-        <Card className="bg-destructive/10 border-destructive">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle />
-              Erreur de chargement des données
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>
-              Impossible de charger les données. Veuillez vérifier vos
-              permissions et la configuration.
-            </p>
-            <pre className="mt-4 text-sm bg-background p-2 rounded">
-              {error.message}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 my-4">
+        {isLoadingCharts ? (
+          <>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-8 w-3/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-8 w-3/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <RoundsOverTimeChart data={chartData} />
+            <TasksByProgressionChart data={chartData} />
+          </>
+        )}
+      </div>
 
-      {!isLoading && !error && (
-        <Card>
-            <CardHeader>
-                <CardTitle>Récapitulatif par Dépôt</CardTitle>
-                <CardDescription>Vue d'ensemble des indicateurs de performance clés par dépôt et par entrepôt/magasin.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Accordion type="multiple" className="w-full border rounded-lg">
-                    {depotSummary.map(depotData => {
-                        const warehouses = warehouseSummaryByDepot.get(depotData.name) || [];
-                        return (
-                            <AccordionItem key={depotData.name} value={depotData.name}>
-                                <AccordionTrigger>
-                                  <Table className="w-full">
-                                    <TableBody>
-                                      <SummaryRow data={depotData} />
-                                    </TableBody>
-                                  </Table>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="pl-6 pr-2 py-2 border-l-4 border-primary ml-2">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead className="w-[15%]">Entrepôt</TableHead>
-                                                    <TableHead className="text-right w-[5%]">Tournées</TableHead>
-                                                    <TableHead className="text-right w-[10%]">Ponct. Prév.</TableHead>
-                                                    <TableHead className="text-right w-[10%]">Ponct. Réal.</TableHead>
-                                                    <TableHead className="text-right w-[10%]">Surcharge</TableHead>
-                                                    <TableHead className="w-[15%] text-center">Fenêtres (Pop.)</TableHead>
-                                                    <TableHead className="w-[10%] text-center">Fenêtre (Retards)</TableHead>
-                                                    <TableHead className="w-[15%] text-center">Top 3 CP (Retards)</TableHead>
-                                                    <TableHead className="text-right w-[10%]">Tâches / 2h</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {warehouses.map(whData => (
-                                                    <SummaryRow key={whData.name} data={whData} isSubRow={true} />
-                                                ))}
-                                                {warehouses.length === 0 && (
-                                                  <TableRow>
-                                                    <TableCell colSpan={9} className="text-center text-muted-foreground italic py-4">
-                                                        Aucun magasin/entrepôt rattaché à ce dépôt pour la période sélectionnée.
-                                                    </TableCell>
-                                                  </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        )
-                    })}
-                </Accordion>
-                {depotSummary.length === 0 && (
-                    <div className="text-center text-muted-foreground py-8 border rounded-lg">
-                        Aucune donnée à afficher pour la période sélectionnée.
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 my-4">
+        {isLoadingCharts ? (
+          <>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-8 w-3/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-8 w-3/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <TasksByStatusChart data={chartData} />
+            <RoundsByStatusChart data={chartData} />
+          </>
+        )}
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tâches</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Select value={statusFilter} onValueChange={handleStatusChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filtrer par statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(statusTranslations).map(([key, value]) => (
+                    <SelectItem key={key} value={key}>
+                      {value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Rechercher..."
+                  className="pl-8 sm:w-[200px] md:w-[300px]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <Select value={timeUnit} onValueChange={(value) => setTimeUnit(value as 'day' | 'month')}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Grouper par" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="day">Jour</SelectItem>
+                <SelectItem value="month">Mois</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {tasksLoading ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Skeleton className="h-6 w-3/4" />
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {[...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton className="h-8 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <>
+              {error && (
+                <Card className="bg-destructive/10 border-destructive">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-destructive">
+                      <AlertCircle />
+                      Erreur de chargement des données
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>
+                      Impossible de charger les données. Veuillez vérifier vos
+                      permissions et la configuration.
+                    </p>
+                    <pre className="mt-4 text-sm bg-background p-2 rounded">
+                      {JSON.stringify(error, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
+              {Object.entries(groupedTasks).map(([group, tasksInGroup]) => (
+                <div key={group}>
+                  <h3 className="text-lg font-semibold my-4">{group}</h3>
+                  <Table>
+                    <TableBody>
+                      {(tasksInGroup as Task[]).map((task) => (
+                        <TableRow key={task.id}>
+                          <TableCell className="w-12">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  {getStatusIndicator(task.status)}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{statusTranslations[task.status as Status] || task.status}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <a
+                              href={`/task/${task.id}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {task.id}
+                            </a>
+                          </TableCell>
+                          <TableCell>{task.depotId}</TableCell>
+                          <TableCell>
+                            {format(new Date(task.date), "PPP", {
+                              locale: fr,
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            {task.driverId || "Non assigné"}
+                          </TableCell>
+                          <TableCell>
+                            {task.validation?.bacs?.length || 0} Bacs
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }
