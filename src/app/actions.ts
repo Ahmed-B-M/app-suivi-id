@@ -779,10 +779,13 @@ async function saveCollectionInAction(
 
     logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
     const writeBatchSize = 250;
+    const totalBatches = Math.ceil(dataFromApi.length / writeBatchSize);
     
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
         const batch = firestore.batch();
         const chunk = dataFromApi.slice(i, i + writeBatchSize);
+        const chunkIds = chunk.map(item => String(item[idKey]));
+        
         chunk.forEach(item => {
             const docId = String(item[idKey]);
             if (docId) {
@@ -801,23 +804,37 @@ async function saveCollectionInAction(
         });
 
         const currentBatchNumber = i / writeBatchSize + 1;
-        const totalBatches = Math.ceil(dataFromApi.length / writeBatchSize);
         logs.push(`      - Écriture du lot ${currentBatchNumber}/${totalBatches}...`);
-
         await batch.commit();
-        logs.push(`      - ✅ Lot sauvegardé avec succès.`);
+        logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
-        // If not the last batch, apply a pause
+        // If not the last batch, apply a pause and verification
         if (currentBatchNumber < totalBatches) {
             let pauseDuration: number;
+            
             if (currentBatchNumber % 5 === 0) {
-                pauseDuration = 5000; // 5-second pause every 5 batches
-                logs.push(`      - ⏱️ Pause de 5 secondes...`);
+                pauseDuration = 10000; // 10-second pause every 5 batches
+                logs.push(`      - ⏱️ Pause de 10 secondes pour vérification...`);
+                await new Promise(res => setTimeout(res, pauseDuration));
+                
+                // Verification step
+                try {
+                    logs.push(`      - 🕵️ Vérification du lot ${currentBatchNumber}...`);
+                    const verificationQuery = collectionRef.where(idKey, 'in', chunkIds.slice(0, 30)); // Check up to 30 docs
+                    const verifiedSnapshot = await verificationQuery.get();
+                    if (verifiedSnapshot.size >= chunkIds.slice(0, 30).length) {
+                        logs.push(`      - ✅ Vérification réussie. Les documents du lot ${currentBatchNumber} sont confirmés.`);
+                    } else {
+                        logs.push(`      - ⚠️ Vérification partielle. ${verifiedSnapshot.size}/${chunkIds.length} documents confirmés. L'écriture peut prendre plus de temps.`);
+                    }
+                } catch (e: any) {
+                     logs.push(`      - ❌ Erreur de vérification: ${e.message}`);
+                }
             } else {
                 pauseDuration = 1500; // 1.5-second pause for other batches
                 logs.push(`      - ⏱️ Pause de 1.5 seconde...`);
+                await new Promise(res => setTimeout(res, pauseDuration));
             }
-            await new Promise(res => setTimeout(res, pauseDuration));
         }
     }
     logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
@@ -828,3 +845,4 @@ async function saveCollectionInAction(
     
 
     
+
