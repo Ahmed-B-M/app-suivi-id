@@ -1,4 +1,55 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rounds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nps_data",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "associationDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "processed_nps_verbatims",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "taskDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "action_notes_depot",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "categorized_comments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "taskDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

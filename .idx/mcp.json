@@ -1,23 +1,10 @@
 {
   "mcpServers": {
     "firebase": {
-      "command": "npx",
+      "command": "firebase",
       "args": [
-        "-y",
-        "firebase-tools@latest",
-        "experimental:mcp",
-        "--only",
-        "auth,firestore"
+        "experimental:mcp"
       ]
-    },
-    "urbantz": {
-      "command": "node",
-      "args": [
-        "./scripts/urbantz-mcp-server.js"
-      ],
-      "env": {
-        "PORT": "8081"
-      }
     }
   }
 }
