@@ -15,7 +15,10 @@ import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import { ProcessedVerbatim } from "./verbatim-treatment/page";
 import { FieldValue } from 'firebase-admin/firestore';
+import equal from "deep-equal";
+import { DateRange } from "react-day-picker";
 
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 /**
  * Transforms a raw task object from the Urbantz API into the desired French structure.
@@ -637,6 +640,152 @@ async function createNotification(firestore: FirebaseFirestore.Firestore, notifi
     await firestore.collection('notifications').add(notificationWithTimestamp);
 }
 
+// Helper to normalize date formats in objects for comparison
+function normalizeDatesInObject(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (obj instanceof Date || (obj && typeof obj.toDate === 'function')) {
+      const date = obj.toDate ? obj.toDate() : obj;
+      return date.toISOString();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeDatesInObject);
+  }
+  const newObj: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      newObj[key] = normalizeDatesInObject(obj[key]);
+    }
+  }
+  return newObj;
+}
+
+async function saveCollectionInAction(
+    collectionRef: FirebaseFirestore.CollectionReference,
+    dataFromApi: any[], 
+    idKey: string, 
+    dateRange: DateRange,
+    logs: string[]
+) {
+    const collectionName = collectionRef.id;
+    logs.push(`\n   -> Synchronisation de la collection "${collectionName}"...`);
+    
+    if (!dateRange.from) {
+        logs.push(`      - ⚠️ Aucune date de début sélectionnée. Abandon.`);
+        return false;
+    }
+    const fromDate = startOfDay(dateRange.from);
+    const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+
+    logs.push(`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`);
+    
+    const existingDocsMap = new Map<string, any>();
+    try {
+        const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
+        const snapshot = await q.get();
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const id = String(data[idKey] || doc.id).replace(/^0+/, '');
+            if (id) {
+                existingDocsMap.set(id, { ...data, __docId: doc.id });
+            }
+        });
+        logs.push(`      - ${existingDocsMap.size} documents trouvés dans la base de données.`);
+    } catch (e: any) {
+        logs.push(`      - ❌ Erreur lors de la lecture des documents existants: ${e.message}`);
+        return false;
+    }
+
+    const apiIds = new Set(dataFromApi.map(item => String(item[idKey]).replace(/^0+/, '')));
+    const firestoreIds = new Set(Array.from(existingDocsMap.keys()));
+
+    const idsToDelete = [...firestoreIds].filter(id => !apiIds.has(id));
+    if (idsToDelete.length > 0) {
+        logs.push(`      - 🗑️ ${idsToDelete.length} documents à supprimer.`);
+        const deleteBatchSize = 400;
+        for (let i = 0; i < idsToDelete.length; i += deleteBatchSize) {
+            const batch = collectionRef.firestore.batch();
+            const chunk = idsToDelete.slice(i, i + deleteBatchSize);
+            chunk.forEach(idToDelete => {
+                const docToDelete = existingDocsMap.get(idToDelete);
+                if (docToDelete && docToDelete.__docId) {
+                    batch.delete(collectionRef.doc(docToDelete.__docId));
+                }
+            });
+            await batch.commit();
+            logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1}/${Math.ceil(idsToDelete.length / deleteBatchSize)} terminé.`);
+            if (idsToDelete.length > deleteBatchSize) await delay(1500);
+        }
+    } else {
+        logs.push(`      - ✅ Aucune suppression nécessaire.`);
+    }
+
+    const itemsToUpdate: any[] = [];
+    let unchangedCount = 0;
+    
+    dataFromApi.forEach(item => {
+        const id = String(item[idKey]).replace(/^0+/, '');
+        if (!id) return;
+
+        const existingDoc = existingDocsMap.get(id);
+        if (!existingDoc) {
+            itemsToUpdate.push(item);
+        } else {
+            const { __docId, ...comparableExisting } = existingDoc;
+            const normalizedExisting = normalizeDatesInObject(comparableExisting);
+            const normalizedApi = normalizeDatesInObject({ ...item });
+
+            if (!equal(normalizedExisting, normalizedApi)) {
+                itemsToUpdate.push(item);
+            } else {
+                unchangedCount++;
+            }
+        }
+    });
+
+    logs.push(`      - Documents à écrire (nouveaux ou modifiés): ${itemsToUpdate.length}`);
+    logs.push(`      - Documents inchangés (ignorés): ${unchangedCount}`);
+
+    if (itemsToUpdate.length > 0) {
+        const writeBatchSize = 400;
+        for (let i = 0; i < itemsToUpdate.length; i += writeBatchSize) {
+            const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
+            const batch = collectionRef.firestore.batch();
+            const chunk = itemsToUpdate.slice(i, i + writeBatchSize);
+
+            chunk.forEach(item => {
+                const docId = String(item[idKey]);
+                if (docId) {
+                    const docRef = collectionRef.doc(docId);
+                    const dataToSet: { [key: string]: any } = {};
+                    Object.keys(item).forEach(key => {
+                        const value = item[key];
+                        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
+                            try { dataToSet[key] = new Date(value); } catch (e) { dataToSet[key] = value; }
+                        } else {
+                            dataToSet[key] = value;
+                        }
+                    });
+                    batch.set(docRef, dataToSet);
+                }
+            });
+
+            logs.push(`      - Écriture du lot ${currentBatchNumber}/${Math.ceil(itemsToUpdate.length / writeBatchSize)}...`);
+            await batch.commit();
+            logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
+
+            if (itemsToUpdate.length > writeBatchSize) {
+                await delay(1500);
+            }
+        }
+    } else {
+        logs.push(`      - ✅ Aucune écriture nécessaire.`);
+    }
+    return true;
+}
+
+
 // --- Daily Sync Action ---
 export async function runDailySyncAction() {
   const apiKey = process.env.URBANTZ_API_KEY || "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk";
@@ -742,99 +891,3 @@ export async function runDailySyncAction() {
     };
   }
 }
-
-async function saveCollectionInAction(
-    collectionRef: FirebaseFirestore.CollectionReference,
-    dataFromApi: any[], 
-    idKey: string, 
-    dateRange: { from: Date, to: Date },
-    logs: string[]
-) {
-    const collectionName = collectionRef.id;
-    logs.push(`\n   -> Synchronisation de la collection "${collectionName}"...`);
-    
-    const fromDate = startOfDay(dateRange.from);
-    const toDate = endOfDay(dateRange.to);
-
-    logs.push(`      - Recherche des documents existants entre ${format(fromDate, 'dd/MM/yy')} et ${format(toDate, 'dd/MM/yy')}...`);
-    
-    const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
-    const snapshot = await q.get();
-    
-    const deleteBatchSize = 400;
-    let deletedCount = 0;
-    const firestore = collectionRef.firestore;
-
-    if (snapshot.docs.length > 0) {
-      for (let i = 0; i < snapshot.docs.length; i += deleteBatchSize) {
-          const batch = firestore.batch();
-          const chunk = snapshot.docs.slice(i, i + deleteBatchSize);
-          chunk.forEach(doc => {
-              batch.delete(doc.ref);
-              deletedCount++;
-          });
-          await batch.commit();
-          logs.push(`      - Lot de suppression ${Math.floor(i / deleteBatchSize) + 1} terminé.`);
-          if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500));
-      }
-    }
-    logs.push(`      - ✅ ${deletedCount} anciens documents supprimés.`);
-
-    logs.push(`      - Écriture de ${dataFromApi.length} nouveaux documents...`);
-    const writeBatchSize = 400;
-    const totalBatches = Math.ceil(dataFromApi.length / writeBatchSize);
-    
-    for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
-        const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
-        const batch = firestore.batch();
-        const chunk = dataFromApi.slice(i, i + writeBatchSize);
-        
-        chunk.forEach(item => {
-            const docId = String(item[idKey]);
-            if (docId) {
-                const docRef = collectionRef.doc(docId);
-                const dataToSet: { [key: string]: any } = {};
-                Object.keys(item).forEach(key => {
-                    const value = item[key];
-                    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
-                        try { dataToSet[key] = new Date(value); } catch (e) { dataToSet[key] = value; }
-                    } else {
-                        dataToSet[key] = value;
-                    }
-                });
-                batch.set(docRef, dataToSet);
-            }
-        });
-
-        logs.push(`      - Écriture du lot ${currentBatchNumber}/${totalBatches}...`);
-        await batch.commit();
-        logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
-
-        // Pause and optional verification
-        if (currentBatchNumber < totalBatches) {
-             if (currentBatchNumber > 0 && currentBatchNumber % 5 === 0) {
-                const pauseDuration = 10000;
-                logs.push(`      - ⏱️ Pause de 10 secondes pour vérification...`);
-                await new Promise(res => setTimeout(res, pauseDuration));
-             } else {
-                const pauseDuration = 1500;
-                logs.push(`      - ⏱️ Pause de 1.5 seconde...`);
-                await new Promise(res => setTimeout(res, pauseDuration));
-            }
-        }
-    }
-    logs.push(`      - ✅ ${dataFromApi.length} nouveaux documents écrits.`);
-}
-
-
-
-    
-
-    
-
-
-
-
-    
-
-    
