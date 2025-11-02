@@ -765,16 +765,18 @@ async function saveCollectionInAction(
     let deletedCount = 0;
     const firestore = collectionRef.firestore;
 
-    for (let i = 0; i < snapshot.docs.length; i += deleteBatchSize) {
-        const batch = firestore.batch();
-        const chunk = snapshot.docs.slice(i, i + deleteBatchSize);
-        chunk.forEach(doc => {
-            batch.delete(doc.ref);
-            deletedCount++;
-        });
-        await batch.commit();
-        logs.push(`      - Lot de suppression ${Math.floor(i / deleteBatchSize) + 1} terminé.`);
-        if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500));
+    if (snapshot.docs.length > 0) {
+      for (let i = 0; i < snapshot.docs.length; i += deleteBatchSize) {
+          const batch = firestore.batch();
+          const chunk = snapshot.docs.slice(i, i + deleteBatchSize);
+          chunk.forEach(doc => {
+              batch.delete(doc.ref);
+              deletedCount++;
+          });
+          await batch.commit();
+          logs.push(`      - Lot de suppression ${Math.floor(i / deleteBatchSize) + 1} terminé.`);
+          if(snapshot.docs.length > deleteBatchSize) await new Promise(res => setTimeout(res, 1500));
+      }
     }
     logs.push(`      - ✅ ${deletedCount} anciens documents supprimés.`);
 
@@ -783,9 +785,9 @@ async function saveCollectionInAction(
     const totalBatches = Math.ceil(dataFromApi.length / writeBatchSize);
     
     for (let i = 0; i < dataFromApi.length; i += writeBatchSize) {
+        const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
         const batch = firestore.batch();
         const chunk = dataFromApi.slice(i, i + writeBatchSize);
-        const chunkIds = chunk.map(item => String(item[idKey]));
         
         chunk.forEach(item => {
             const docId = String(item[idKey]);
@@ -804,30 +806,17 @@ async function saveCollectionInAction(
             }
         });
 
-        const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
         logs.push(`      - Écriture du lot ${currentBatchNumber}/${totalBatches}...`);
         await batch.commit();
         logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
+        // Pause and optional verification
         if (currentBatchNumber < totalBatches) {
              if (currentBatchNumber > 0 && currentBatchNumber % 5 === 0) {
                 const pauseDuration = 10000;
                 logs.push(`      - ⏱️ Pause de 10 secondes pour vérification...`);
                 await new Promise(res => setTimeout(res, pauseDuration));
-
-                try {
-                    logs.push(`      - 🕵️ Vérification du lot ${currentBatchNumber}...`);
-                    const verificationQuery = collectionRef.where(idKey, 'in', chunkIds.slice(0, 30));
-                    const verifiedSnapshot = await verificationQuery.get();
-                    if (verifiedSnapshot.size >= chunkIds.slice(0, 30).length) {
-                        logs.push(`      - ✅ Vérification réussie. Les documents du lot ${currentBatchNumber} sont confirmés.`);
-                    } else {
-                        logs.push(`      - ⚠️ Vérification partielle. ${verifiedSnapshot.size}/${chunkIds.length} documents confirmés. L'écriture peut prendre plus de temps.`);
-                    }
-                } catch (e: any) {
-                    logs.push(`      - ❌ Erreur de vérification: ${e.message}`);
-                }
-            } else {
+             } else {
                 const pauseDuration = 1500;
                 logs.push(`      - ⏱️ Pause de 1.5 seconde...`);
                 await new Promise(res => setTimeout(res, pauseDuration));
