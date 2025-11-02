@@ -136,13 +136,23 @@ export default function NpsAnalysisPage() {
                     else if (npsScore >= 7) npsCategory = 'Passive';
                     else npsCategory = 'Detractor';
 
+                    let taskDateStr: string = "N/A";
+                    if (task.date) {
+                        // Handle both Firestore Timestamp and string formats
+                        if (typeof (task.date as any).toDate === 'function') {
+                            taskDateStr = (task.date as any).toDate().toISOString();
+                        } else if (typeof task.date === 'string') {
+                            taskDateStr = new Date(task.date).toISOString();
+                        }
+                    }
+
                     linkedData.push({
                         taskId,
                         npsScore,
                         npsCategory,
                         verbatim: row.VERBATIM,
                         store: row.MAG,
-                        taskDate: task.date ? new Date(task.date as string).toISOString() : "N/A",
+                        taskDate: taskDateStr,
                         carrier: getCarrierFromDriver(task),
                         depot: getDepotFromHub(task.nomHub),
                         driver: getDriverFullName(task),
