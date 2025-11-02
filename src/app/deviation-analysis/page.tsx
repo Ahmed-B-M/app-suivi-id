@@ -201,7 +201,7 @@ export default function DeviationAnalysisPage() {
         })).sort((a, b) => b.overloadRate - a.overloadRate);
     }
     
-    // --- Punctuality Logic ---
+    // --- Punctuality Logic (Provisional) ---
     const roundStopsByTaskId = new Map<string, any>();
     for (const round of filteredRounds) {
       if (round.stops) {
