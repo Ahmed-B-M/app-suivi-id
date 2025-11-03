@@ -45,7 +45,9 @@ function safeParseDate(dateValue: any): Date | null {
  */
 export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<DriverStats, 'score' | 'npsScore'> {
   const completed = tasks.filter(t => t.progression === 'COMPLETED');
-  const rated = completed.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number');
+  
+  // Directly filter all tasks for ratings, not just completed ones.
+  const rated = tasks.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number' && r >= 0);
 
   const punctualityTasks = completed.filter(t => t.debutCreneauInitial && t.dateCloture);
   let punctual = 0;
