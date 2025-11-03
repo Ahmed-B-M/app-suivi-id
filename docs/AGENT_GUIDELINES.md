@@ -21,3 +21,7 @@ Ce document sert de rappel des règles critiques à suivre lors du développemen
 -   **Toujours utiliser ce champ** pour afficher le nom du chauffeur dans les interfaces, effectuer des regroupements, ou appliquer des règles (comme la déduction du transporteur). Ne pas tenter de reconstruire le nom à partir des prénoms et noms séparés.
 
 **Règle d'or : Pour toute information liée au nom du chauffeur, utiliser le champ `nomCompletChauffeur` présent dans les objets `Tache` et `Tournee`.**
+
+## 3. Nom de champ correct pour le commentaire livreur
+
+-   Le champ correct pour extraire le commentaire du livreur depuis l'API est `commentaireLivr` et non `commentaireLivreur`. Toujours utiliser `rawTask.metadata?.commentaireLivr` lors de la transformation des données.

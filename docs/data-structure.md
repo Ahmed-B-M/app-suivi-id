@@ -159,7 +159,7 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Notation Livreur**: `metadata.notationLivreur` (Nombre) - (Métadonnée) Note donnée par le client.
 - **Service (Méta)**: `metadata.service` (Texte) - (Métadonnée) Type de service.
 - **Code Entrepôt**: `metadata.warehouseCode` (Texte) - (Métadonnée) Code de l'entrepôt.
-- **Méta Commentaire Livreur**: `metadata.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
+- **Méta Commentaire Livreur**: `metadata.commentaireLivr` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
 - **Infos Suivi Transp.**: `externalCarrier.trackingInfo` (Objet/JSON) - Informations de tracking (JSON).
 - **Désassoc. Transp. Rejetée**: `externalCarrier.unassociationRejected` (Booléen) - Champ technique.
 - **Mis à jour le**: `updated` (Date/Heure) - Horodatage de la dernière modification.

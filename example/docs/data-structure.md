@@ -171,7 +171,7 @@ Ce document définit la structure de données finale pour les entités "Tâche" 
 | Notation Livreur              | `notationLivreur`             | Note donnée par le client.                  | Nombre         | 5                                   |
 | Service (Méta)                | `serviceMeta`                     | Type de service (métadonnée).               | Texte          | "METI"                              |
 | Code Entrepôt                 | `codeEntrepôt`                | Code de l'entrepôt (métadonnée).            | Texte          | "VDF"                               |
-| Méta Commentaire Livreur      | `commentaireLivreur`          | Commentaire du client sur le livreur.       | Texte          |                                     |
+| Méta Commentaire Livreur      | `metaCommentaireLivreur`          | Commentaire du client sur le livreur.       | Texte          |                                     |
 | Infos Suivi Transp.           | `infosSuiviTransp`            | Informations de tracking (JSON).            | Objet/JSON     | `{}`                                |
 | Désassoc. Transp. Rejetée     | `desassocTranspRejetee`   | Champ technique.                            | Booléen        | false                               |
 | Mis à jour le                 | `dateMiseAJour`                           | Horodatage de la dernière modification.     | Date/Heure     | "2025-10-26T08:56:39.263Z"          |
