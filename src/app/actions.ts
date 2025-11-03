@@ -22,7 +22,7 @@ const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     // Calcul des bacs
-    const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
+    const bacs = (rawTask.articles || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
         if (type.includes('SURG')) acc.bacsSurg++;
         if (type.includes('FRAIS')) acc.bacsFrais++;
@@ -37,9 +37,9 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
 
     return {
         // Identification
-        id: rawTask._id,
         tacheId: rawTask.id,
         referenceTache: rawTask.taskReference,
+        id: rawTask._id,
         numeroCommande: rawTask.metadata?.numeroCommande,
         client: rawTask.client,
         
@@ -156,6 +156,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         return acc;
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
+    const poidsReelCalcule = tasksForThisRound.reduce((sum, task) => sum + (task.poidsEnKg || 0), 0);
+
     return {
         // Identification
         id: rawRound.id || rawRound._id,
@@ -184,7 +186,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawRound.dimensions?.bac,
         poidsTournee: rawRound.dimensions?.poids,
-        poidsReel: rawRound.dimensions?.poids, // Doublon
+        poidsReel: poidsReelCalcule,
         volumeTournee: rawRound.dimensions?.volume,
         nbCommandes: rawRound.orderCount,
         commandesTerminees: rawRound.orderDone,
@@ -328,6 +330,7 @@ export async function runSyncAction(
         allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
         dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
     }
+    logs.push(`\n✅ ${allRawRounds.length} tournées brutes récupérées au total.`);
 
     const allRawTasks: any[] = [];
     if (unplanned) {
@@ -346,16 +349,19 @@ export async function runSyncAction(
             dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
         }
     }
-    logs.push(`\n✅ ${allRawRounds.length} tournées et ${allRawTasks.length} tâches brutes récupérées.`);
+    logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées.`);
 
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
+    // On transforme les tâches d'abord, car la transformation des tournées en dépend pour les calculs
     const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, allRawRounds));
     logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
+    // Ensuite, on transforme les tournées, en leur passant les tâches déjà transformées
     const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
     logs.push(`   - ${transformedRounds.length} tournées transformées.`);
 
+    // Filtrage final des tournées si un statut est spécifié
     let finalFilteredRounds = transformedRounds;
     if (roundStatus && roundStatus !== "all") {
       logs.push(`\n🔄 Filtrage des tournées par statut: ${roundStatus}`);
@@ -855,3 +861,7 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
+
+    
