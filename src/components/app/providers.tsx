@@ -68,37 +68,43 @@ function AuthGuard({ children }: { children: ReactNode }) {
   );
 }
 
+function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+
+  return (
+    <FilterProvider>
+      <SidebarProvider>
+        <div className="relative flex min-h-screen">
+          <SidebarNav />
+          <SidebarInset>
+            <AppHeader />
+            <main className="flex-1 overflow-y-auto">
+              <div className="container py-8">
+                {children}
+              </div>
+            </main>
+            <footer className="py-6 border-t bg-background">
+              <div className="container text-center text-sm text-muted-foreground">
+                ID 360
+              </div>
+            </footer>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    </FilterProvider>
+  );
+}
+
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  
   return (
     <FirebaseClientProvider>
       <AuthGuard>
-          {pathname === '/login' ? (
-              children
-          ) : (
-            <FilterProvider>
-              <SidebarProvider>
-                <div className="relative flex min-h-screen">
-                  <SidebarNav />
-                  <SidebarInset>
-                    <AppHeader />
-                    <main className="flex-1 overflow-y-auto">
-                      <div className="container py-8">
-                        {children}
-                      </div>
-                    </main>
-                    <footer className="py-6 border-t bg-background">
-                      <div className="container text-center text-sm text-muted-foreground">
-                        ID 360
-                      </div>
-                    </footer>
-                  </SidebarInset>
-                </div>
-              </SidebarProvider>
-            </FilterProvider>
-          )}
+        <AppLayout>{children}</AppLayout>
       </AuthGuard>
     </FirebaseClientProvider>
   );
