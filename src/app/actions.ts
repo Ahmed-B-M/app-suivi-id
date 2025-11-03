@@ -147,7 +147,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        metaCommentaireLivreur: rawTask.metadata?.commentaireLivr,
+        metaCommentaireLivreur: rawTask.metadata?.commentaireLivreur,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: rawTask.updated,
@@ -175,28 +175,31 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
             description: item.description,
             groupe: item.group,
         })),
+        livreur: rawTask.driver, // Garder l'objet livreur
     };
 }
 
 function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
-    const tasksForThisRound = allTasks.filter(t => 
-        t.nomTournee === rawRound.name && 
-        t.nomHub === rawRound.hubName &&
-        t.date && rawRound.date &&
-        new Date(t.date as string).toDateString() === new Date(rawRound.date).toDateString()
-    );
+    const roundDateStr = new Date(rawRound.date).toDateString();
     
-    const bacs = tasksForThisRound.reduce((acc, task) => {
-        (task.articles || []).forEach(article => {
-            const type = (article.type || '').toUpperCase();
-            if (type === 'SURG') acc.bacsSurg++;
-            else if (type === 'FRAIS') acc.bacsFrais++;
-            else if (type === 'SEC') acc.bacsSec++;
-            else if (type === 'POISSON') acc.bacsPoisson++;
-            else if (type === 'BOUCHERIE') acc.bacsBoucherie++;
-        });
+    // Use a robust key for matching
+    const tasksForThisRound = allTasks.filter(t => 
+        t.hubId === rawRound.hub &&
+        t.nomTournee === rawRound.name &&
+        t.date && new Date(t.date as string).toDateString() === roundDateStr
+    );
+
+    const aggregatedBacs = tasksForThisRound.reduce((acc, task) => {
+        acc.bacsSurg += task.bacsSurg;
+        acc.bacsFrais += task.bacsFrais;
+        acc.bacsSec += task.bacsSec;
+        acc.bacsPoisson += task.bacsPoisson;
+        acc.bacsBoucherie += task.bacsBoucherie;
         return acc;
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
+
+    const poidsReel = tasksForThisRound.reduce((sum, task) => sum + (task.poidsEnKg || 0), 0);
+    const nomHub = tasksForThisRound.length > 0 ? tasksForThisRound[0].nomHub : rawRound.hubName;
 
     return {
         // Identification
@@ -207,7 +210,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         activite: rawRound.activity,
         date: rawRound.date,
         hubId: rawRound.hub,
-        nomHub: rawRound.hubName,
+        nomHub: nomHub || rawRound.hubName,
 
         // Chauffeur & Véhicule
         associeNom: rawRound.associatedName,
@@ -219,15 +222,15 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         energie: rawRound.metadata?.Energie,
 
         // Totaux
-        bacsSurg: bacs.bacsSurg,
-        bacsFrais: bacs.bacsFrais,
-        bacsSec: bacs.bacsSec,
-        bacsPoisson: bacs.bacsPoisson,
-        bacsBoucherie: bacs.bacsBoucherie,
-        totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
+        bacsSurg: aggregatedBacs.bacsSurg,
+        bacsFrais: aggregatedBacs.bacsFrais,
+        bacsSec: aggregatedBacs.bacsSec,
+        bacsPoisson: aggregatedBacs.bacsPoisson,
+        bacsBoucherie: aggregatedBacs.bacsBoucherie,
+        totalSecFrais: aggregatedBacs.bacsSec + aggregatedBacs.bacsFrais,
         nombreDeBacs: rawRound.dimensions?.bac,
         poidsTournee: rawRound.dimensions?.poids,
-        poidsReel: rawRound.dimensions?.poids, // Dupliqué comme demandé
+        poidsReel: poidsReel,
         volumeTournee: rawRound.dimensions?.volume,
         nbCommandes: rawRound.orderCount,
         commandesTerminees: rawRound.orderDone,
@@ -902,5 +905,3 @@ export async function runDailySyncAction() {
     };
   }
 }
-
-    

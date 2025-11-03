@@ -143,6 +143,13 @@ export interface Tache {
     
     // Données brutes des articles
     articles: Article[];
+
+    // Pour la liaison avec la tournée
+    livreur?: {
+        prenom?: string;
+        nom?: string;
+        idExterne?: string;
+    };
 }
 
 export interface Tournee {
@@ -176,7 +183,7 @@ export interface Tournee {
     // Totaux depuis l'API
     nombreDeBacs?: number; // dimensions.bac
     poidsTournee?: number; // dimensions.poids
-    poidsReel?: number; // doublon de poidsTournee
+    poidsReel: number; // calculé à partir des tâches
     volumeTournee?: number; // dimensions.volume
     nbCommandes?: number; // orderCount
     commandesTerminees?: number; // orderDone
