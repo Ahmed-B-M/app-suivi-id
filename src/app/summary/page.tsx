@@ -82,7 +82,7 @@ export default function SummaryPage() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-    }, 500);
+    }, 300);
 
     return () => {
       clearTimeout(handler);
@@ -92,19 +92,19 @@ export default function SummaryPage() {
   const filteredTasks = useMemo(() => {
     let tasksToFilter = allTasks;
     if (statusFilter !== 'all') {
-        tasksToFilter = tasksToFilter.filter(task => (task.status?.toLowerCase() || 'unknown') === statusFilter);
+        tasksToFilter = tasksToFilter.filter(task => (task.progression?.toLowerCase() || 'unknown') === statusFilter);
     }
     if (debouncedSearchQuery) {
       tasksToFilter = tasksToFilter.filter(
         (task: any) =>
-          task.id?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          task.driverId
+          task.tacheId?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+          getDriverFullName(task)
             ?.toLowerCase()
             .includes(debouncedSearchQuery.toLowerCase()) ||
-          task.roundId
+          task.nomTournee
             ?.toLowerCase()
             .includes(debouncedSearchQuery.toLowerCase()) ||
-          task.depotId
+          task.nomHub
             ?.toLowerCase()
             .includes(debouncedSearchQuery.toLowerCase())
       );
@@ -118,10 +118,6 @@ export default function SummaryPage() {
     }
     return groupTasksByMonth(filteredTasks);
   }, [filteredTasks, timeUnit]);
-
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value as Status);
-  };
   
   const getStatusIndicator = (status: string | undefined) => {
     switch (status?.toLowerCase()) {
@@ -131,7 +127,7 @@ export default function SummaryPage() {
         return <XCircle className="text-red-500" />;
       case "pending":
         return <HelpCircle className="text-yellow-500" />;
-      case "in progress":
+      case "ongoing":
         return <AlertCircle className="text-blue-500" />;
       default:
         return <HelpCircle className="text-gray-500" />;
@@ -149,16 +145,16 @@ export default function SummaryPage() {
           <CardTitle>Tâches</CardTitle>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Select value={statusFilter} onValueChange={handleStatusChange}>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as Status)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filtrer par statut" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(statusTranslations).map(([key, value]) => (
-                    <SelectItem key={key} value={key}>
-                      {value}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="completed">Terminé</SelectItem>
+                  <SelectItem value="failed">Échec</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="ongoing">En cours</SelectItem>
                 </SelectContent>
               </Select>
               <div className="relative">
@@ -230,10 +226,10 @@ export default function SummaryPage() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger>
-                                  {getStatusIndicator(task.status)}
+                                  {getStatusIndicator(task.progression)}
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{statusTranslations[task.status?.toLowerCase() as Status] || task.status}</p>
+                                  <p>{task.progression || 'Inconnu'}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -253,7 +249,7 @@ export default function SummaryPage() {
                             }) : 'N/A'}
                           </TableCell>
                           <TableCell>
-                            {task.livreur?.prenom} {task.livreur?.nom}
+                            {getDriverFullName(task)}
                           </TableCell>
                           <TableCell>
                             {task.articles?.filter(a => a.type?.startsWith('BAC')).length || 0} Bacs

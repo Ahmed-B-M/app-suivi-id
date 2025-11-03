@@ -39,13 +39,11 @@ import {
 } from "@/components/ui/select";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { useFilters } from "@/context/filter-context";
-import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Tache, Tournee } from "@/lib/types";
 import { getHubCategory, getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { BillingDashboard, type AggregatedData } from "@/components/app/billing-dashboard";
 import { UnassignedDriversAlert } from "@/components/app/unassigned-drivers-alert";
 import { exportToCsv } from "@/lib/csv-export";
+import type { Tournee } from "@/lib/types";
 
 export interface BillingRule {
   id: string;
@@ -72,11 +70,11 @@ export default function BillingPage() {
     { id: "3", type: "Prix par tournée", targetType: "Entrepôt", targetValue: "Rungis FRAIS", price: 20.00 },
   ]);
 
-  const { allRounds: filteredRounds } = useFilters();
+  const { allRounds } = useFilters();
 
 
   const billingData = useMemo((): AggregatedData | null => {
-    if (!filteredRounds) return null;
+    if (!allRounds) return null;
 
     let totalPrice = 0;
     let totalCost = 0;
@@ -93,7 +91,7 @@ export default function BillingPage() {
         }>;
     }> = {};
 
-    for (const round of filteredRounds) {
+    for (const round of allRounds) {
       const driverName = getDriverFullName(round);
       const carrier = getCarrierFromDriver(round);
       const depot = getDepotFromHub(round.nomHub);
@@ -150,7 +148,7 @@ export default function BillingPage() {
         return acc;
     }, {} as Record<string, number>);
 
-    const totalRounds = filteredRounds.length;
+    const totalRounds = allRounds.length;
 
     return {
       summary: {
@@ -174,7 +172,7 @@ export default function BillingPage() {
           })).sort((a,b) => b.totalRounds - a.totalRounds)
       })).sort((a,b) => b.totalRounds - a.totalRounds)
     };
-  }, [filteredRounds, rules]);
+  }, [allRounds, rules]);
 
 
   const form = useForm<BillingRuleFormValues>({

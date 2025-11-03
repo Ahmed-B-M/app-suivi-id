@@ -2,9 +2,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -102,16 +99,16 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
 
 
 export default function DeviationAnalysisPage() {
-  const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
+  const { allTasks, allRounds, isContextLoading } = useFilters();
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations } = useMemo(() => {
-    if (!filteredTasks || !filteredRounds) {
+    if (isContextLoading || !allTasks || !allRounds) {
       return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [], bacDeviations: [] };
     }
 
     // --- Weight Deviation Logic ---
     const tasksWeightByRound = new Map<string, number>();
-    for (const task of filteredTasks) {
+    for (const task of allTasks) {
        if (!task.nomTournee || !task.date || !task.nomHub) {
         continue;
       }
@@ -127,7 +124,7 @@ export default function DeviationAnalysisPage() {
     // --- Bac Deviation Logic ---
     const tasksBacsByRound = new Map<string, number>();
     const BAC_LIMIT = 105;
-    for (const task of filteredTasks) {
+    for (const task of allTasks) {
         if (!task.nomTournee || !task.date || !task.nomHub) {
             continue;
         }
@@ -148,7 +145,7 @@ export default function DeviationAnalysisPage() {
     const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
 
-    for (const round of filteredRounds) {
+    for (const round of allRounds) {
       const roundKey = `${round.nom}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
 
       // Weight check
@@ -203,7 +200,7 @@ export default function DeviationAnalysisPage() {
     
     // --- Punctuality Logic (Provisional) ---
     const roundStopsByTaskId = new Map<string, any>();
-    for (const round of filteredRounds) {
+    for (const round of allRounds) {
       if (round.arrets) {
         for (const stop of round.arrets) {
           if (stop.taskId) {
@@ -214,9 +211,9 @@ export default function DeviationAnalysisPage() {
     }
 
     const punctualityResults: PunctualityIssue[] = [];
-    for (const task of filteredTasks) {
+    for (const task of allTasks) {
       if (task.tacheId && task.debutCreneauInitial) {
-        const stop = roundStopsByTaskId.get(task.tacheId);
+        const stop = roundStopsByTaskId.get(task.id);
         if (stop && stop.arriveTime) {
           try {
             const plannedArrive = parseISO(stop.arriveTime);
@@ -262,9 +259,8 @@ export default function DeviationAnalysisPage() {
         punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
         bacDeviations: bacResults.sort((a, b) => b.deviation - a.deviation),
     };
-  }, [filteredTasks, filteredRounds]);
+  }, [allTasks, allRounds, isContextLoading]);
 
-  const isLoading = isContextLoading;
   const error = null;
 
   return (
@@ -273,7 +269,7 @@ export default function DeviationAnalysisPage() {
         <h1 className="text-3xl font-bold">Analyse des Écarts & Ponctualité</h1>
       </div>
 
-      {isLoading && (
+      {isContextLoading && (
         <Card>
           <CardHeader>
             <Skeleton className="h-8 w-2/3" />
@@ -305,7 +301,7 @@ export default function DeviationAnalysisPage() {
         </Card>
       )}
 
-      {!isLoading && !error && (
+      {!isContextLoading && !error && (
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <DeviationSummaryCard title="Synthèse par Dépôt" data={depotSummary} icon={<Building />} />
