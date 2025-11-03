@@ -95,14 +95,12 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
         return driverNameOrRound.carrierOverride;
     }
 
-    // Always use getDriverFullName to reliably get the driver's name from any object type
     const driverName = getDriverFullName(driverNameOrRound);
     
     if (!driverName || driverName === "Inconnu") {
         return "Inconnu";
     }
 
-    // Use the logic from the existing getCarrierFromDriver function on the full name
     const lowerCaseName = driverName.toLowerCase();
 
     if (lowerCaseName.includes("id log")) {
@@ -114,8 +112,11 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
         return parts.length > 1 ? parts[1] : "STT";
     }
 
-    const lastChar = driverName.slice(-1);
-    const firstChar = driverName.charAt(0);
+    const nameParts = driverName.split(' ');
+    const lastNamePart = nameParts.length > 1 ? nameParts[nameParts.length - 1] : driverName;
+
+    const lastChar = lastNamePart.slice(-1);
+    const firstChar = lastNamePart.charAt(0);
 
     if (firstChar === '4' || lastChar === '4') return "YEL'IN";
     if (firstChar === '1' || lastChar === '1') return "TLN";
@@ -128,15 +129,11 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
     if (lastChar === '6') return "RK";
     if (lastChar === '2') return "Express";
     if (lastChar === '5') return "MLG";
-
-    // New logic based on suffix in lastName
-    const driver = (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) ? (driverNameOrRound as Tournee).driver : (driverNameOrRound as Tache).livreur;
-    const lastName = driver?.nom || driver?.lastName;
-    if (lastName) {
-      const separatorIndex = lastName.indexOf('-');
-      if (separatorIndex !== -1 && separatorIndex < lastName.length - 1) {
-        return lastName.substring(separatorIndex + 1).trim();
-      }
+    
+    // New logic based on suffix in the last part of the name
+    const separatorIndex = lastNamePart.indexOf('-');
+    if (separatorIndex !== -1 && separatorIndex < lastNamePart.length - 1) {
+      return lastNamePart.substring(separatorIndex + 1).trim();
     }
 
     return "Inconnu";
@@ -150,19 +147,17 @@ export function getDriverFullName(item: string | Tache | Tournee | undefined | n
         return item;
     }
 
-    if ('driver' in item && item.driver) { // Tournee
-        const { firstName, lastName } = item.driver;
-        return [firstName, lastName].filter(Boolean).join(' ');
+    // This handles the structure from Tache or Tournee where driver info is nested
+    const driverObject = 'driver' in item ? item.driver : 'livreur' in item ? item.livreur : undefined;
+    if (driverObject) {
+         const firstName = driverObject.prenom || driverObject.firstName;
+         const lastName = driverObject.nom || driverObject.lastName;
+         return [firstName, lastName].filter(Boolean).join(' ').trim() || "Inconnu";
     }
     
-    if ('livreur' in item && item.livreur) { // Tache
-        const { prenom, nom } = item.livreur;
-        return [prenom, nom].filter(Boolean).join(' ');
-    }
-    
-    // Fallback for raw task data if needed, or other structures
+    // Fallback for flat structure if driver/livreur objects aren't present
     if ('prenomChauffeur' in item || 'nomChauffeur' in item) {
-       return [item.prenomChauffeur, item.nomChauffeur].filter(Boolean).join(' ');
+       return [item.prenomChauffeur, item.nomChauffeur].filter(Boolean).join(' ').trim() || "Inconnu";
     }
 
     return "Inconnu";
