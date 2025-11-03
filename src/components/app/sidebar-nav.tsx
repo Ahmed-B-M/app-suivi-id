@@ -21,7 +21,7 @@ import { useAuth, useUser } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
 import type { Role } from "@/lib/roles";
 import { hasAccess } from "@/lib/roles";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { runDailySyncAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { clearCollectionCache } from "@/firebase/firestore/use-collection";
@@ -29,92 +29,25 @@ import { clearCollectionCache } from "@/firebase/firestore/use-collection";
 
 const allLinks = [
   // --- Vues d'Ensemble ---
-  {
-    href: "/",
-    label: "Tableau de Bord",
-    icon: <LayoutDashboard />,
-  },
-  {
-    href: "/summary",
-    label: "Synthèse",
-    icon: <BarChartBig />,
-  },
-  {
-    href: "/forecast",
-    label: "FORECAST",
-    icon: <TrendingUp />,
-  },
-  {
-    href: "/notifications",
-    label: "Notifications",
-    icon: <Bell />,
-  },
+  { href: "/", label: "Tableau de Bord", icon: <LayoutDashboard /> },
+  { href: "/summary", label: "Synthèse", icon: <BarChartBig /> },
+  { href: "/forecast", label: "FORECAST", icon: <TrendingUp /> },
+  { href: "/notifications", label: "Notifications", icon: <Bell /> },
   // --- Analyse & Opérations ---
-  {
-    href: "/deviation-analysis",
-    label: "Analyse des Écarts",
-    icon: <Scale />,
-  },
-  {
-    href: "/details",
-    label: "Détails",
-    icon: <ListChecks />,
-  },
-  {
-    href: "/assignment",
-    label: "Gestion des Tournées",
-    icon: <HandPlatter />,
-  },
-  {
-    href: "/billing",
-    label: "Facturation",
-    icon: <CreditCard />,
-  },
+  { href: "/deviation-analysis", label: "Analyse des Écarts", icon: <Scale /> },
+  { href: "/details", label: "Détails", icon: <ListChecks /> },
+  { href: "/assignment", label: "Gestion des Tournées", icon: <HandPlatter /> },
+  { href: "/billing", label: "Facturation", icon: <CreditCard /> },
   // --- Qualité & Retours Clients ---
-  {
-    href: "/quality",
-    label: "Qualité",
-    icon: <ShieldCheck />,
-  },
-   {
-    href: "/driver-feedback",
-    label: "Suivi Livreurs",
-    icon: <Users />,
-    isDriverFeedbackLink: true, // Specific flag for this link
-  },
-  {
-    href: "/comment-management",
-    label: "Gestion des Commentaires",
-    icon: <MessageSquareWarning />,
-    isCommentLink: true,
-  },
-  {
-    href: "/nps-analysis",
-    label: "Intégration NPS",
-    icon: <BarChart />,
-  },
-   {
-    href: "/verbatim-treatment",
-    label: "Traitement Verbatims",
-    icon: <CheckSquare />,
-    isVerbatimLink: true,
-  },
-  {
-    href: "/verbatims",
-    label: "Verbatims NPS",
-    icon: <MessagesSquare />,
-  },
-  {
-    href: "/verbatim-analysis",
-    label: "Analyse Verbatims",
-    icon: <PieChart />,
-  },
+  { href: "/quality", label: "Qualité", icon: <ShieldCheck /> },
+  { href: "/driver-feedback", label: "Suivi Livreurs", icon: <Users /> },
+  { href: "/comment-management", label: "Gestion des Commentaires", icon: <MessageSquareWarning />, isCommentLink: true },
+  { href: "/nps-analysis", label: "Intégration NPS", icon: <BarChart /> },
+  { href: "/verbatim-treatment", label: "Traitement Verbatims", icon: <CheckSquare />, isVerbatimLink: true },
+  { href: "/verbatims", label: "Verbatims NPS", icon: <MessagesSquare /> },
+  { href: "/verbatim-analysis", label: "Analyse Verbatims", icon: <PieChart /> },
   // --- Configuration ---
-  {
-    href: "/settings",
-    label: "Paramètres & Export",
-    icon: <Settings />,
-  },
+  { href: "/settings", label: "Paramètres & Export", icon: <Settings /> },
 ];
 
 export function SidebarNav() {
@@ -122,8 +55,15 @@ export function SidebarNav() {
   const auth = useAuth();
   const { toast } = useToast();
   const { user, isUserLoading, userProfile } = useUser();
-  const { count: pendingCommentsCount, isLoading: isCommentsLoading } = usePendingComments();
-  const { count: pendingVerbatimsCount, isLoading: isVerbatimsLoading } = usePendingVerbatims();
+  
+  // THE FIX: Use the hooks correctly to get the pending objects
+  const { pendingComments } = usePendingComments();
+  const { pendingVerbatims } = usePendingVerbatims();
+
+  // THE FIX: Calculate the count from the length of the object keys
+  const pendingCommentsCount = Object.keys(pendingComments).length;
+  const pendingVerbatimsCount = Object.keys(pendingVerbatims).length;
+
   const [isSyncing, startSyncTransition] = useTransition();
 
   const userRole: Role = useMemo(() => (userProfile?.role as Role) || 'viewer', [userProfile]);
@@ -140,7 +80,6 @@ export function SidebarNav() {
       });
       const result = await runDailySyncAction();
       if (result.success) {
-        // Clear local cache to force data refetch
         clearCollectionCache();
         toast({
           title: "Synchronisation terminée !",
@@ -175,17 +114,13 @@ export function SidebarNav() {
                 >
                   {link.icon}
                   <span>{link.label}</span>
-                   {link.isCommentLink && !isCommentsLoading && pendingCommentsCount > 0 && (
+                   {/* THE FIX: Use the calculated count */}
+                   {link.isCommentLink && pendingCommentsCount > 0 && (
                      <Badge variant="secondary" className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
                        {pendingCommentsCount}
                      </Badge>
                   )}
-                  {link.isVerbatimLink && !isVerbatimsLoading && pendingVerbatimsCount > 0 && (
-                     <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs" variant="destructive">
-                       {pendingVerbatimsCount}
-                     </Badge>
-                  )}
-                  {link.isDriverFeedbackLink && !isVerbatimsLoading && pendingVerbatimsCount > 0 && (
+                  {link.isVerbatimLink && pendingVerbatimsCount > 0 && (
                      <Badge className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs" variant="destructive">
                        {pendingVerbatimsCount}
                      </Badge>
