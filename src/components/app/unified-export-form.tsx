@@ -283,7 +283,7 @@ export function UnifiedExportForm({
         
         if (idsToDelete.length > 0) {
             onLogUpdate([`      - 🗑️ ${idsToDelete.length} documents marqués pour suppression.`]);
-            const deleteBatchSize = 250;
+            const deleteBatchSize = 125;
             for (let i = 0; i < idsToDelete.length; i += deleteBatchSize) {
                 const batch = writeBatch(firestore);
                 const chunk = idsToDelete.slice(i, i + deleteBatchSize);
@@ -307,8 +307,8 @@ export function UnifiedExportForm({
                     errorEmitter.emit('permission-error', permissionError);
                 }
                  if (idsToDelete.length > deleteBatchSize && i + deleteBatchSize < idsToDelete.length) {
-                    onLogUpdate([`      - ⏱️ Pause de 2000ms...`]);
-                    await delay(2000);
+                    onLogUpdate([`      - ⏱️ Pause de 2500ms...`]);
+                    await delay(2500);
                 }
             }
         } else {
@@ -353,7 +353,7 @@ export function UnifiedExportForm({
         onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
         setSaveCount(itemsToUpdate.length);
 
-        const batchSize = 250;
+        const batchSize = 125;
         for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
           const batchData = itemsToUpdate.slice(i, i + batchSize);
           const batch = writeBatch(firestore);
@@ -383,8 +383,8 @@ export function UnifiedExportForm({
             await batch.commit();
             onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
              if (itemsToUpdate.length > batchSize && i + batchSize < itemsToUpdate.length) {
-              onLogUpdate([`      - ⏱️ Pause de 2000ms pour éviter la surcharge...`]);
-              await delay(2000);
+              onLogUpdate([`      - ⏱️ Pause de 2500ms pour éviter la surcharge...`]);
+              await delay(2500);
             }
           } catch (e) {
             success = false;
@@ -589,5 +589,7 @@ export function UnifiedExportForm({
     </Card>
   );
 }
+
+    
 
     
