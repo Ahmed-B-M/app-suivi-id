@@ -99,16 +99,16 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
 
 
 export default function DeviationAnalysisPage() {
-  const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
+  const { allTasks, allRounds, isContextLoading } = useFilters();
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations } = useMemo(() => {
-    if (isContextLoading || !filteredTasks || !filteredRounds) {
+    if (isContextLoading || !allTasks || !allRounds) {
       return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [], bacDeviations: [] };
     }
 
     // --- Weight Deviation Logic ---
     const tasksWeightByRound = new Map<string, number>();
-    for (const task of filteredTasks) {
+    for (const task of allTasks) {
        if (!task.nomTournee || !task.date || !task.nomHub) {
         continue;
       }
@@ -124,7 +124,7 @@ export default function DeviationAnalysisPage() {
     // --- Bac Deviation Logic ---
     const tasksBacsByRound = new Map<string, number>();
     const BAC_LIMIT = 105;
-    for (const task of filteredTasks) {
+    for (const task of allTasks) {
         if (!task.nomTournee || !task.date || !task.nomHub) {
             continue;
         }
@@ -145,7 +145,7 @@ export default function DeviationAnalysisPage() {
     const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
 
-    for (const round of filteredRounds) {
+    for (const round of allRounds) {
       const roundKey = `${round.nom}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
 
       // Weight check
@@ -198,55 +198,39 @@ export default function DeviationAnalysisPage() {
         })).sort((a, b) => b.overloadRate - a.overloadRate);
     }
     
-    // --- Punctuality Logic ---
-    const roundStopsByTaskId = new Map<string, any>();
-    for (const round of filteredRounds) {
-      if (round.arrets) {
-        for (const stop of round.arrets) {
-          if (stop.taskId) {
-            roundStopsByTaskId.set(stop.taskId, stop);
-          }
-        }
-      }
-    }
-
+    // --- Punctuality Logic (Provisional) ---
     const punctualityResults: PunctualityIssue[] = [];
-    for (const task of filteredTasks) {
-      if (task.id && task.debutCreneauInitial) {
-        const stop = roundStopsByTaskId.get(task.id);
-        if (stop && stop.arriveTime) {
-          try {
-            const plannedArrive = parseISO(stop.arriveTime);
-            
-            // Check for earliness
-            const windowStart = parseISO(task.debutCreneauInitial);
-            const earlyThreshold = subMinutes(windowStart, 15);
-            const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
-            if (deviationEarly > 0) {
+    for (const task of allTasks) {
+      if (task.heureArriveeEstimee && task.debutCreneauInitial && task.finCreneauInitial) {
+        try {
+          const plannedArrive = parseISO(task.heureArriveeEstimee);
+          
+          // Check for earliness
+          const windowStart = parseISO(task.debutCreneauInitial);
+          const earlyThreshold = subMinutes(windowStart, 15);
+          const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
+          if (deviationEarly > 0) {
+            punctualityResults.push({
+              task,
+              plannedArriveTime: task.heureArriveeEstimee,
+              deviationMinutes: -deviationEarly
+            });
+            continue; // A task can't be both early and late
+          }
+
+          // Check for lateness
+          const windowEnd = parseISO(task.finCreneauInitial);
+          const lateThreshold = addMinutes(windowEnd, 15);
+          const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
+          if (deviationLate > 0) {
               punctualityResults.push({
                 task,
-                plannedArriveTime: stop.arriveTime,
-                deviationMinutes: -deviationEarly
+                plannedArriveTime: task.heureArriveeEstimee,
+                deviationMinutes: deviationLate
               });
-              continue; // A task can't be both early and late
-            }
-
-            // Check for lateness
-            if (task.finCreneauInitial) {
-              const windowEnd = parseISO(task.finCreneauInitial);
-              const lateThreshold = addMinutes(windowEnd, 15);
-              const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
-              if (deviationLate > 0) {
-                  punctualityResults.push({
-                    task,
-                    plannedArriveTime: stop.arriveTime,
-                    deviationMinutes: deviationLate
-                  });
-              }
-            }
-          } catch (e) {
-            console.error("Error parsing date for punctuality:", e);
           }
+        } catch (e) {
+          console.error("Error parsing date for punctuality:", e);
         }
       }
     }
@@ -259,7 +243,7 @@ export default function DeviationAnalysisPage() {
         punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
         bacDeviations: bacResults.sort((a, b) => b.deviation - a.deviation),
     };
-  }, [filteredTasks, filteredRounds, isContextLoading]);
+  }, [allTasks, allRounds, isContextLoading]);
 
   const error = null;
 
