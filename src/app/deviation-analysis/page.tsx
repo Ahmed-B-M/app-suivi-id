@@ -2,9 +2,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -105,7 +102,7 @@ export default function DeviationAnalysisPage() {
   const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations } = useMemo(() => {
-    if (!filteredTasks || !filteredRounds) {
+    if (isContextLoading || !filteredTasks || !filteredRounds) {
       return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [], bacDeviations: [] };
     }
 
@@ -201,7 +198,7 @@ export default function DeviationAnalysisPage() {
         })).sort((a, b) => b.overloadRate - a.overloadRate);
     }
     
-    // --- Punctuality Logic (Provisional) ---
+    // --- Punctuality Logic ---
     const roundStopsByTaskId = new Map<string, any>();
     for (const round of filteredRounds) {
       if (round.arrets) {
@@ -215,8 +212,8 @@ export default function DeviationAnalysisPage() {
 
     const punctualityResults: PunctualityIssue[] = [];
     for (const task of filteredTasks) {
-      if (task.tacheId && task.debutCreneauInitial) {
-        const stop = roundStopsByTaskId.get(task.tacheId);
+      if (task.id && task.debutCreneauInitial) {
+        const stop = roundStopsByTaskId.get(task.id);
         if (stop && stop.arriveTime) {
           try {
             const plannedArrive = parseISO(stop.arriveTime);
@@ -262,9 +259,8 @@ export default function DeviationAnalysisPage() {
         punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
         bacDeviations: bacResults.sort((a, b) => b.deviation - a.deviation),
     };
-  }, [filteredTasks, filteredRounds]);
+  }, [filteredTasks, filteredRounds, isContextLoading]);
 
-  const isLoading = isContextLoading;
   const error = null;
 
   return (
@@ -273,7 +269,7 @@ export default function DeviationAnalysisPage() {
         <h1 className="text-3xl font-bold">Analyse des Écarts & Ponctualité</h1>
       </div>
 
-      {isLoading && (
+      {isContextLoading && (
         <Card>
           <CardHeader>
             <Skeleton className="h-8 w-2/3" />
@@ -305,7 +301,7 @@ export default function DeviationAnalysisPage() {
         </Card>
       )}
 
-      {!isLoading && !error && (
+      {!isContextLoading && !error && (
         <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <DeviationSummaryCard title="Synthèse par Dépôt" data={depotSummary} icon={<Building />} />
