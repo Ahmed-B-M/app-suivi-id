@@ -43,7 +43,9 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased min-h-screen bg-background")}>
-        <Providers>{children}</Providers>
+        <Providers>
+           {children}
+        </Providers>
         <Toaster />
       </body>
     </html>

@@ -6,7 +6,7 @@ import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { FilterProvider } from "@/context/filter-context";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarNav } from "@/components/app/sidebar-nav";
-import { AppHeader } from "./header";
+import { AppHeader } from "../app/header";
 import { SidebarInset } from "../ui/sidebar/index";
 import { useUser } from '@/firebase';
 import { ReactNode, useEffect, useMemo } from 'react';
@@ -41,62 +41,47 @@ function AuthGuard({ children }: { children: ReactNode }) {
     }
   }, [user, isUserLoading, pathname, router, userRole]);
 
-  // Affiche un loader global tant que l'authentification est en cours
-  if (isUserLoading || (user && !hasAccess(userRole, pathname) && pathname !== '/login')) {
+  if (isUserLoading || (!user && pathname !== '/login') || (user && !hasAccess(userRole, pathname))) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-
-  // Si l'utilisateur n'est pas connecté mais est sur la page de connexion, affichez la page
-  if (!user && pathname === '/login') {
-    return <>{children}</>;
-  }
   
-  // Si l'utilisateur est connecté et a accès, affichez le contenu de l'application
-  if (user && pathname !== '/login' && hasAccess(userRole, pathname)) {
-     return <>{children}</>;
-  }
-
-  // Dans les autres cas (comme le temps de la redirection), affichez le loader
-  return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-  );
+  return <>{children}</>;
 }
 
-function AppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+function AppLayout({ children }: { children: ReactNode }) {
+    const pathname = usePathname();
+    const isLoginPage = pathname === '/login';
 
-  if (pathname === '/login') {
-    return <>{children}</>;
-  }
+    if (isLoginPage) {
+        return <>{children}</>;
+    }
 
-  return (
-    <FilterProvider>
-      <SidebarProvider>
-        <div className="relative flex min-h-screen">
-          <SidebarNav />
-          <SidebarInset>
-            <AppHeader />
-            <main className="flex-1 overflow-y-auto">
-              <div className="container py-8">
-                {children}
-              </div>
-            </main>
-            <footer className="py-6 border-t bg-background">
-              <div className="container text-center text-sm text-muted-foreground">
-                ID 360
-              </div>
-            </footer>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </FilterProvider>
-  );
+    return (
+        <FilterProvider>
+            <SidebarProvider>
+            <div className="relative flex min-h-screen">
+                <SidebarNav />
+                <SidebarInset>
+                <AppHeader />
+                <main className="flex-1 overflow-y-auto">
+                    <div className="container py-8">
+                    {children}
+                    </div>
+                </main>
+                <footer className="py-6 border-t bg-background">
+                    <div className="container text-center text-sm text-muted-foreground">
+                    ID 360
+                    </div>
+                </footer>
+                </SidebarInset>
+            </div>
+            </SidebarProvider>
+        </FilterProvider>
+    );
 }
 
 
@@ -104,7 +89,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <FirebaseClientProvider>
       <AuthGuard>
-        <AppLayout>{children}</AppLayout>
+          <AppLayout>
+            {children}
+          </AppLayout>
       </AuthGuard>
     </FirebaseClientProvider>
   );

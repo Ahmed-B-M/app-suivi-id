@@ -66,6 +66,7 @@ export function hasAccess(role: Role, path: string): boolean {
   if (role === 'admin') {
     return true;
   }
+   if (path === '/dashboard') return true; 
   // Allow access to dynamic task pages for roles that can see details
   if (path.startsWith('/task/')) {
       return ROLE_PERMISSIONS[role]?.includes('/details');
