@@ -871,7 +871,7 @@ export async function runDailySyncAction() {
     const tasksCollectionRef = firestore.collection('tasks');
     const roundsCollectionRef = firestore.collection('rounds');
 
-    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'id', { from, to }, logs);
+    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'tacheId', { from, to }, logs);
     await saveCollectionInAction(roundsCollectionRef, finalTransformedRounds, 'id', { from, to }, logs);
     
     // --- Generate Notifications ---
@@ -883,7 +883,7 @@ export async function runDailySyncAction() {
         await createNotification(firestore, {
             type: 'quality_alert',
             message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
-            relatedEntity: { type: 'task', id: task.id }
+            relatedEntity: { type: 'task', id: task.tacheId }
         });
         notificationCount++;
     }
@@ -915,3 +915,5 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
