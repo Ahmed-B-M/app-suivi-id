@@ -177,7 +177,12 @@ export default function VerbatimTreatmentPage() {
                           <div className="flex items-center gap-1.5 font-medium"><User className="h-3 w-3 text-muted-foreground"/>{verbatim.driver || 'N/A'}</div>
                           <div className="flex items-center gap-1.5 text-muted-foreground"><Truck className="h-3 w-3"/>{verbatim.carrier || 'N/A'}</div>
                           <div className="flex items-center gap-1.5 text-muted-foreground"><Building className="h-3 w-3"/>{verbatim.depot || verbatim.store || 'N/A'}</div>
-                          <div className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3 w-3"/>{format(new Date(verbatim.taskDate), 'dd/MM/yyyy')}</div>
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Calendar className="h-3 w-3"/>
+                            {verbatim.taskDate && !isNaN(new Date(verbatim.taskDate).getTime())
+                              ? format(new Date(verbatim.taskDate), 'dd/MM/yyyy')
+                              : 'N/A'}
+                          </div>
                         </div>
                     </TableCell>
                     <TableCell className="italic text-muted-foreground">"{verbatim.verbatim}"</TableCell>
