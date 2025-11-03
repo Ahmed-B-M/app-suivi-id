@@ -151,20 +151,18 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
 export function getDriverFullName(item: Tache | Tournee | any): string | undefined {
     let firstName: string | undefined = '';
     let lastName: string | undefined = '';
-
-    if (item) {
-        if (item.driver) { // For Tournee
-            firstName = item.driver.firstName;
-            lastName = item.driver.lastName;
-        } else if (item.livreur) { // For Tache
-            firstName = item.livreur.prenom;
-            lastName = item.livreur.nom;
-        } else if (item.prenomChauffeur || item.nomChauffeur) { // Fallback for flat structure
-            firstName = item.prenomChauffeur;
-            lastName = item.nomChauffeur;
-        }
+    
+    // Check for Tournee structure
+    if (item && item.driver) {
+        firstName = item.driver.firstName;
+        lastName = item.driver.lastName;
+    } 
+    // Check for Tache structure
+    else if (item && item.livreur) {
+        firstName = item.livreur.prenom;
+        lastName = item.livreur.nom;
     }
-
+    
     if (firstName || lastName) {
         return `${firstName || ''} ${lastName || ''}`.trim();
     }
