@@ -163,7 +163,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        metaCommentaireLivreur: rawTask.metadata?.commentaireLivreur,
+        metaCommentaireLivreur: rawTask.metadata?.commentaireLivr,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: toIsoOrUndefined(rawTask.updated),
