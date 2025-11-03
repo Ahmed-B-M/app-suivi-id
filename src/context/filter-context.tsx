@@ -174,36 +174,24 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   }, [allRoundsData, filterType, selectedDepot, selectedStore]);
 
   const allComments = useMemo(() => {
-    // 1. Create a map of all saved comments from Firestore for quick lookup.
     const savedCommentsMap = new Map<string, CategorizedComment>();
     allSavedComments.forEach(comment => {
-      const taskId = String(comment.taskId || comment.id);
-      savedCommentsMap.set(taskId, {
-        ...comment,
-        id: taskId,
-        taskId: taskId,
-      });
+      savedCommentsMap.set(comment.taskId, { ...comment, id: comment.id || comment.taskId });
     });
   
-    // 2. Iterate through all tasks from the current context (already filtered by date/depot).
-    // This will create a list of comments based on the tasks currently in view.
     const commentsFromTasks = allTasks.reduce((acc, task) => {
-      const taskId = String(task.tacheId); // Use the correct ID
+      const taskId = task.tacheId;
       const isNegativeComment = typeof task.notationLivreur === 'number' &&
                                 task.notationLivreur < 4 &&
                                 task.metaCommentaireLivreur;
   
-      // If the comment is already saved, use the saved version.
       if (savedCommentsMap.has(taskId)) {
         if (!acc.has(taskId)) {
           acc.set(taskId, savedCommentsMap.get(taskId)!);
         }
       } 
-      // If it's a new negative comment not yet saved, create a new entry for it.
       else if (isNegativeComment) {
-        const taskDate = task.date && typeof (task.date as any).toDate === 'function' 
-                         ? (task.date as any).toDate() 
-                         : task.date;
+        const taskDate = task.date ? (task.date as any).toDate ? (task.date as any).toDate().toISOString() : new Date(task.date as string).toISOString() : undefined;
   
         acc.set(taskId, {
           id: taskId,
@@ -211,16 +199,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
           comment: task.metaCommentaireLivreur!,
           rating: task.notationLivreur!,
           category: getCategoryFromKeywords(task.metaCommentaireLivreur!),
-          taskDate: taskDate as string | Date | undefined,
+          taskDate: taskDate,
           driverName: getDriverFullName(task),
-          nomHub: task.nomHub, // Include hub name
+          nomHub: task.nomHub,
           status: 'à traiter' as const,
         });
       }
       return acc;
     }, new Map<string, CategorizedComment>());
     
-    // The final list is the aggregated result. No further filtering is needed here as `allTasks` is already filtered.
     return Array.from(commentsFromTasks.values());
   
   }, [allTasks, allSavedComments]);
@@ -239,7 +226,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
     }
     if (selectedStore !== 'all') {
-        verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
+      verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
     }
     
     if (verbatimsToFilter.length === npsDataFromDateRange.flatMap(d => d.verbatims).length) {
