@@ -70,6 +70,12 @@ interface AggregatedStats {
     ordersPer2h: number | null;
 }
 
+interface AggregationGroup {
+    stats: AggregatedStats;
+    byWarehouse?: Record<string, AggregationGroup>;
+    byCarrier?: Record<string, AggregatedStats>;
+}
+
 
 const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: DeviationSummary[], icon: React.ReactNode }) => {
     return (
@@ -115,49 +121,87 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
     );
 };
 
-const AggregationAccordion = ({ data }: { data: Record<string, AggregatedStats> }) => (
+const AggregationAccordion = ({ data }: { data: Record<string, AggregationGroup> }) => (
     <Accordion type="multiple" className="w-full space-y-4">
-        {Object.entries(data).map(([name, stats]) => (
-            <AccordionItem value={name} key={name}>
+        {Object.entries(data).map(([depotName, depotData]) => (
+            <AccordionItem value={depotName} key={depotName}>
                  <Card>
                     <AccordionTrigger className="p-4 text-lg font-semibold hover:no-underline">
                         <div className="flex w-full items-center justify-between pr-2">
                              <span className="flex items-center gap-2">
-                                {name.startsWith("YEL'IN") || name.startsWith("ID LOG") ? <Truck /> : <Building />}
-                                {name}
+                                <Building />{depotName}
                             </span>
                             <div className="flex items-center gap-4 text-sm">
-                               <Badge variant={stats.punctualityRealized && stats.punctualityRealized >= 95 ? "default" : "destructive"}>
-                                   Ponctualité: {stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%
+                               <Badge variant={depotData.stats.punctualityRealized && depotData.stats.punctualityRealized >= 95 ? "default" : "destructive"}>
+                                   Ponctualité: {depotData.stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%
                                </Badge>
-                               <Badge variant={stats.averageRating && stats.averageRating >= 4.7 ? "default" : "destructive"}>
-                                   Note: {stats.averageRating?.toFixed(2) ?? 'N/A'}
+                               <Badge variant={depotData.stats.averageRating && depotData.stats.averageRating >= 4.7 ? "default" : "destructive"}>
+                                   Note: {depotData.stats.averageRating?.toFixed(2) ?? 'N/A'}
                                </Badge>
                            </div>
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-                             <StatDisplay icon={<Clock />} label="Ponctualité Réalisée" value={`${stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%`} />
-                             <StatDisplay icon={<Clock className="text-blue-500"/>} label="Ponctualité Prévue" value={`${stats.punctualityPlanned?.toFixed(1) ?? 'N/A'}%`} />
-                             <StatDisplay icon={<Scale />} label="Surcharge Poids" value={`${stats.overweightRate?.toFixed(1) ?? 'N/A'}%`} />
-                             <StatDisplay icon={<Star />} label="Note Moyenne" value={stats.averageRating?.toFixed(2) ?? 'N/A'} />
-                             <StatDisplay icon={<TrendingUp />} label="Créneau Populaire" value={stats.popularTimeWindow} />
-                             <StatDisplay icon={<TrendingDown />} label="Créneau Impopulaire" value={stats.unpopularTimeWindow} />
-                             <StatDisplay icon={<Hourglass />} label="Charge / 2h" value={`${stats.ordersPer2h?.toFixed(1) ?? 'N/A'} cmd`} />
-                             <div className="space-y-1">
-                                <p className="flex items-center gap-2 font-semibold text-muted-foreground"><MapPin/> Top 3 Retards (CP)</p>
-                                <ol className="list-decimal list-inside">
-                                    {stats.topLateZipCodes.map(z => <li key={z.zip}>{z.zip} ({z.count} retards)</li>)}
-                                </ol>
-                            </div>
+                    <AccordionContent className="px-6 pb-4 border-t">
+                        <div className="py-4">
+                            <StatGrid stats={depotData.stats} />
                         </div>
+                        {depotData.byWarehouse && (
+                            <Accordion type="multiple" className="w-full space-y-2">
+                                {Object.entries(depotData.byWarehouse).map(([whName, whData]) => (
+                                    <AccordionItem value={whName} key={whName}>
+                                        <Card>
+                                             <AccordionTrigger className="p-3 text-base font-semibold hover:no-underline">
+                                                <div className="flex w-full items-center justify-between pr-2">
+                                                     <span className="flex items-center gap-2">
+                                                        <Warehouse />{whName}
+                                                    </span>
+                                                    <div className="flex items-center gap-4 text-sm">
+                                                    <Badge variant={whData.stats.punctualityRealized && whData.stats.punctualityRealized >= 95 ? "default" : "destructive"} className="bg-blue-100 text-blue-800">
+                                                        Ponctualité: {whData.stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%
+                                                    </Badge>
+                                                    <Badge variant={whData.stats.averageRating && whData.stats.averageRating >= 4.7 ? "default" : "destructive"} className="bg-yellow-100 text-yellow-800">
+                                                        Note: {whData.stats.averageRating?.toFixed(2) ?? 'N/A'}
+                                                    </Badge>
+                                                    </div>
+                                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="px-4 pb-4 border-t">
+                                                 <div className="py-4">
+                                                    <StatGrid stats={whData.stats} />
+                                                 </div>
+                                            </AccordionContent>
+                                        </Card>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        )}
                     </AccordionContent>
                 </Card>
             </AccordionItem>
         ))}
     </Accordion>
 );
+
+
+const StatGrid = ({ stats }: { stats: AggregatedStats }) => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+        <StatDisplay icon={<Clock />} label="Ponctualité Réalisée" value={`${stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%`} />
+        <StatDisplay icon={<Clock className="text-blue-500"/>} label="Ponctualité Prévue" value={`${stats.punctualityPlanned?.toFixed(1) ?? 'N/A'}%`} />
+        <StatDisplay icon={<Scale />} label="Surcharge Poids" value={`${stats.overweightRate?.toFixed(1) ?? 'N/A'}%`} />
+        <StatDisplay icon={<Star />} label="Note Moyenne" value={stats.averageRating?.toFixed(2) ?? 'N/A'} />
+        <StatDisplay icon={<TrendingUp />} label="Créneau Populaire" value={stats.popularTimeWindow} />
+        <StatDisplay icon={<TrendingDown />} label="Créneau Impopulaire" value={stats.unpopularTimeWindow} />
+        <StatDisplay icon={<Hourglass />} label="Charge / 2h" value={`${stats.ordersPer2h?.toFixed(1) ?? 'N/A'} cmd`} />
+        <div className="space-y-1">
+            <p className="flex items-center gap-2 font-semibold text-muted-foreground"><MapPin/> Top 3 Retards (CP)</p>
+            <ol className="list-decimal list-inside">
+                {stats.topLateZipCodes.map(z => <li key={z.zip}>{z.zip} ({z.count} retards)</li>)}
+                 {stats.topLateZipCodes.length === 0 && <li className="text-muted-foreground">Aucun retard</li>}
+            </ol>
+        </div>
+    </div>
+);
+
 
 const StatDisplay = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
     <div className="space-y-1">
@@ -196,19 +240,20 @@ export default function DeviationAnalysisPage() {
     const bacResults: BacDeviation[] = [];
     const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
-    const roundStopsByTaskId = new Map(allRounds.flatMap(r => r.arrets?.map(s => [s.taskId, s]) ?? []));
     const tasksById = new Map(allTasks.map(t => [t.id, t]));
 
-    const allGroupedRounds = allRounds.map(round => {
-        const tasksForRound = allTasks.filter(t => t.hubId === round.hubId && t.nomTournee === round.nom && t.date && round.date && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString());
-        return { round, tasks: tasksForRound, depot: getDepotFromHub(round.nomHub), carrier: getCarrierFromDriver(round) };
-    });
-
+    const allGroupedRounds = allRounds.map(round => ({
+        round, 
+        tasks: allTasks.filter(t => t.hubId === round.hubId && t.nomTournee === round.nom && t.date && round.date && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString()),
+        depot: getDepotFromHub(round.nomHub),
+        warehouse: round.nomHub,
+        carrier: getCarrierFromDriver(round) 
+    }));
+    
     const processGroup = (group: typeof allGroupedRounds): AggregatedStats => {
         const tasksInGroup = group.flatMap(g => g.tasks);
         const completedTasks = tasksInGroup.filter(t => t.progression === 'COMPLETED');
         
-        // Ponctualité Réalisée
         const punctualityTasksRealized = completedTasks.filter(t => t.debutCreneauInitial && t.dateCloture);
         let punctualRealizedCount = 0;
         punctualityTasksRealized.forEach(task => {
@@ -220,7 +265,6 @@ export default function DeviationAnalysisPage() {
             } catch {}
         });
 
-        // Ponctualité Prévue
         const punctualityTasksPlanned = tasksInGroup.filter(t => t.heureArriveeEstimee && t.debutCreneauInitial);
         let punctualPlannedCount = 0;
         const lateZipCodes: Record<string, number> = {};
@@ -243,7 +287,7 @@ export default function DeviationAnalysisPage() {
         const timeWindowCounts = timeWindows.reduce((acc, tw) => { acc[tw] = (acc[tw] || 0) + 1; return acc; }, {} as Record<string, number>);
         const sortedTimeWindows = Object.entries(timeWindowCounts).sort((a, b) => b[1] - a[1]);
         
-        const totalDurationHours = group.reduce((sum, g) => sum + ((g.round.dureeReel ?? g.round.tempsTotal ?? 0) / 3600000), 0); // dureeReel is in ms
+        const totalDurationHours = group.reduce((sum, g) => sum + ((g.round.dureeReel ?? g.round.tempsTotal ?? 0) / 3600000), 0);
         const ordersPer2h = totalDurationHours > 0 ? (tasksInGroup.length / (totalDurationHours / 2)) : null;
 
         return {
@@ -258,10 +302,24 @@ export default function DeviationAnalysisPage() {
         };
     };
 
-    const aggregatedStats: Record<string, AggregatedStats> = {};
+    const aggregatedStats: Record<string, AggregationGroup> = {};
     const depots = [...new Set(allGroupedRounds.map(g => g.depot))];
+
     depots.forEach(depot => {
-        if(depot) aggregatedStats[depot] = processGroup(allGroupedRounds.filter(g => g.depot === depot));
+        if (!depot) return;
+        const roundsForDepot = allGroupedRounds.filter(g => g.depot === depot);
+        const depotStats = processGroup(roundsForDepot);
+        
+        const warehouses = [...new Set(roundsForDepot.map(g => g.warehouse))];
+        const byWarehouse: Record<string, AggregationGroup> = {};
+
+        warehouses.forEach(warehouse => {
+             if (!warehouse) return;
+             const roundsForWarehouse = roundsForDepot.filter(g => g.warehouse === warehouse);
+             byWarehouse[warehouse] = { stats: processGroup(roundsForWarehouse) };
+        });
+
+        aggregatedStats[depot] = { stats: depotStats, byWarehouse };
     });
 
     for (const round of allRounds) {
