@@ -7,7 +7,7 @@ import {
   serverExportSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from "@/lib/types";
+import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, Article } from "@/lib/types";
 import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
@@ -21,6 +21,7 @@ import { DateRange } from "react-day-picker";
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
+    // Calcul des bacs
     const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
         if (type.includes('SURG')) acc.bacsSurg++;
@@ -32,17 +33,18 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
     const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
-
+    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask._id);
+    
     return {
         // Identification
-        taskId: rawTask.taskId,
+        tacheId: rawTask.id,
         idInterne: rawTask.taskReference,
         referenceTache: rawTask.taskReference,
         id: rawTask._id,
         commande: rawTask.metadata?.numeroCommande,
         client: rawTask.client,
-
-        // Contenu de la Tâche
+        
+        // Contenu
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -62,7 +64,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         debutFenetre: rawTask.timeWindow?.start,
         finFenetre: rawTask.timeWindow?.stop,
         margeFenetreHoraire: rawTask.timeWindowMargin,
-        heureArriveeEstimee: rawTask.arriveTime,
+        heureArriveeEstimee: stopInfo?.arriveTime || rawTask.arriveTime,
         tempsDeServiceEstime: rawTask.serviceTime,
 
         // Adresse & Instructions
@@ -98,7 +100,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         tempsDeRetard: roundInfo?.tempsDeRetard,
         dateDuRetard: roundInfo?.dateDuRetard,
         tentatives: rawTask.attempts,
-        completePar: rawTask.completedBy,
+        terminePar: rawTask.completedBy,
 
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
@@ -128,7 +130,8 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         hubId: rawTask.hub,
         nomHub: rawTask.hubName,
         nomPlateforme: rawTask.platformName,
-
+        nomCompletChauffeur: getDriverFullName(rawTask),
+        
         // Métadonnées & Système
         type: rawTask.type,
         flux: rawTask.flux,
@@ -146,7 +149,24 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         dateCreation: rawTask.when,
         
         // Données brutes et calculées
-        items: rawTask.items || [],
+        items: (rawTask.items || []).map((item: any) => ({
+            codeBarre: item.barcode,
+            nom: item.name,
+            type: item.type,
+            statut: item.status,
+            quantite: item.quantity,
+            quantiteTraitee: item.processedQuantity,
+            dimensions: item.dimensions,
+            encodageCodeBarres: item.barcodeEncoding,
+            endommage: item.damaged,
+            log: item.log,
+            reference: item.reference,
+            etiquettes: item.labels,
+            competences: item.skills,
+            metaDonnees: item.metadata,
+            description: item.description,
+            groupe: item.group,
+        })),
     };
 }
 
@@ -154,6 +174,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
     const tasksForThisRound = allTasks.filter(t => 
         t.nomTournee === rawRound.name && 
         t.nomHub === rawRound.hubName &&
+        t.date && rawRound.date &&
         new Date(t.date as string).toDateString() === new Date(rawRound.date).toDateString()
     );
     
@@ -165,8 +186,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         acc.bacsBoucherie += task.bacsBoucherie;
         return acc;
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
-
-    const poidsReelCalcule = tasksForThisRound.reduce((sum, task) => sum + (task.poidsEnKg || 0), 0);
 
     return {
         // Identification
@@ -245,7 +264,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         misAJourLe: rawRound.updated,
         valide: rawRound.validated,
         driver: rawRound.driver,
-        vehicle: rawRound.vehicle
     };
 }
 
@@ -335,6 +353,15 @@ export async function runSyncAction(
     const toDate = new Date(to);
 
     logs.push(`\n🛰️  Récupération des données brutes...`);
+    const allRawRounds: any[] = [];
+    const dateCursorRounds = new Date(fromDate);
+    while (dateCursorRounds <= toDate) {
+        const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
+        logs.push(`   - Tournées pour le ${dateString}...`);
+        allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
+        dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
+    }
+
     const allRawTasks: any[] = [];
     if (unplanned) {
         logs.push(`   - Tâches non planifiées...`);
@@ -352,32 +379,21 @@ export async function runSyncAction(
             dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
         }
     }
-    logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées.`);
-
-    const allRawRounds: any[] = [];
-    const dateCursorRounds = new Date(fromDate);
-    while (dateCursorRounds <= toDate) {
-        const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
-        logs.push(`   - Tournées pour le ${dateString}...`);
-        allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
-        dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
-    }
-    logs.push(`\n✅ ${allRawRounds.length} tournées brutes récupérées au total.`);
+    logs.push(`\n✅ ${allRawRounds.length} tournées et ${allRawTasks.length} tâches brutes récupérées.`);
 
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
-    // On transforme les tournées d'abord pour pouvoir les passer aux tâches
-    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, []));
-    logs.push(`   - ${transformedRounds.length} tournées initialement transformées.`);
-
-    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, transformedRounds));
+    // Transform rounds first to pass to tasks
+    const initialTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, []));
+    logs.push(`   - ${initialTransformedRounds.length} tournées initialement transformées.`);
+    
+    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, initialTransformedRounds));
     logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
-    // On re-transforme les tournées pour inclure les calculs basés sur les tâches
+    // Retransform rounds to include calculations based on tasks
     const finalTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
     logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs.`);
     
-    // Filtrage final des tournées si un statut est spécifié
     let finalFilteredRounds = finalTransformedRounds;
     if (roundStatus && roundStatus !== "all") {
       logs.push(`\n🔄 Filtrage des tournées par statut: ${roundStatus}`);
@@ -792,33 +808,26 @@ export async function runDailySyncAction() {
     const { firestore } = await initializeFirebaseOnServer();
     logs.push(`🚀 Début de la synchronisation 48h... (${fromString} - ${toString})`);
 
-    const taskParams = new URLSearchParams();
-    let allRawTasks: any[] = [];
-    const dateCursorTasks = startOfDay(from);
-    while (dateCursorTasks <= to) {
-        const dateString = format(dateCursorTasks, 'yyyy-MM-dd');
-        logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
-        const paramsForDay = new URLSearchParams(taskParams);
-        paramsForDay.append("date", dateString);
-        const tasksForDay = await fetchAllTasks(apiKey, paramsForDay, logs);
-        allRawTasks.push(...tasksForDay);
-        dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
-    }
-    logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées au total.`);
-    
-    const roundParams = new URLSearchParams();
     let allRawRounds: any[] = [];
     const dateCursorRounds = startOfDay(from);
      while (dateCursorRounds <= to) {
       const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
       logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
-      const paramsForDay = new URLSearchParams(roundParams);
-      paramsForDay.append("date", dateString);
-      const roundsForDay = await fetchAllRounds(apiKey, paramsForDay, logs);
-      allRawRounds.push(...roundsForDay);
+      allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
       dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
     }
     logs.push(`\n✅ ${allRawRounds.length} tournées brutes récupérées au total.`);
+
+
+    let allRawTasks: any[] = [];
+    const dateCursorTasks = startOfDay(from);
+    while (dateCursorTasks <= to) {
+        const dateString = format(dateCursorTasks, 'yyyy-MM-dd');
+        logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
+        allRawTasks.push(...await fetchAllTasks(apiKey, new URLSearchParams({ date: dateString }), logs));
+        dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
+    }
+    logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées au total.`);
 
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
@@ -854,7 +863,7 @@ export async function runDailySyncAction() {
         });
         notificationCount++;
     }
-    // 2. Overweight Rounds (assuming this logic is available or can be added)
+    // 2. Overweight Rounds
     const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > 1250);
     for (const round of overweightRounds) {
        await createNotification(firestore, {
