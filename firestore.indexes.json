@@ -4,6 +4,7 @@
       "collectionGroup": "categorized_comments",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "taskDate", "order": "DESCENDING" }
       ]
     },
@@ -11,6 +12,7 @@
       "collectionGroup": "tasks",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
       ]
     },
@@ -18,21 +20,16 @@
       "collectionGroup": "rounds",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "nps_data",
+      "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "associationDate", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "processed_nps_verbatims",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "associationDate", "order": "DESCENDING" }
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],
