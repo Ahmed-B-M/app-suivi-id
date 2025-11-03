@@ -149,17 +149,29 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
 }
 
 export function getDriverFullName(item: Tache | Tournee | any): string | undefined {
-    if (item && item.livreur) { // Tache from transformed data
-        return `${item.livreur.prenom || ''} ${item.livreur.nom || ''}`.trim();
+    if (item && item.livreur) {
+        const prenom = item.livreur.prenom || '';
+        const nom = item.livreur.nom || '';
+        if (prenom || nom) {
+            return `${prenom} ${nom}`.trim();
+        }
     }
-    if (item && item.driver) { // Tournee from transformed data
-        return `${item.driver.firstName || ''} ${item.driver.lastName || ''}`.trim();
+    if (item && item.driver) {
+        const prenom = item.driver.firstName || '';
+        const nom = item.driver.lastName || '';
+        if (prenom || nom) {
+            return `${prenom} ${nom}`.trim();
+        }
     }
-     if (item && 'prenomChauffeur' in item) { // Tache from flat structure
-        return `${item.prenomChauffeur || ''} ${item.nomChauffeur || ''}`.trim();
+    // Fallback for flat structure, just in case
+    const prenomChauffeur = item?.prenomChauffeur;
+    const nomChauffeur = item?.nomChauffeur;
+    if (prenomChauffeur || nomChauffeur) {
+        return `${prenomChauffeur || ''} ${nomChauffeur || ''}`.trim();
     }
     return undefined;
 }
+
 
 export function groupTasksByDay(tasks: Tache[]) {
   if (!tasks) return {};
@@ -184,4 +196,5 @@ export function groupTasksByMonth(tasks: Tache[]) {
         return acc;
     }, {} as Record<string, Tache[]>);
 }
+
 
