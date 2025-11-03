@@ -227,7 +227,7 @@ export function UnifiedExportForm({
         let anyError = false;
 
         if (taskJsonData) { 
-            const success = await saveCollection('tasks', taskJsonData, 'tacheId', dateRange);
+            const success = await saveCollection('tasks', taskJsonData, 'id', dateRange);
             if (!success) anyError = true;
         }
         if (roundJsonData) {

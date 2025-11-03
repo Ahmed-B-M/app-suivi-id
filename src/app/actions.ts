@@ -731,7 +731,7 @@ async function saveCollectionInAction(
     const idsToDelete = [...firestoreIds].filter(id => !apiIds.has(id));
     if (idsToDelete.length > 0) {
         logs.push(`      - 🗑️ ${idsToDelete.length} documents à supprimer.`);
-        const deleteBatchSize = 400;
+        const deleteBatchSize = 125;
         for (let i = 0; i < idsToDelete.length; i += deleteBatchSize) {
             const batch = collectionRef.firestore.batch();
             const chunk = idsToDelete.slice(i, i + deleteBatchSize);
@@ -743,7 +743,7 @@ async function saveCollectionInAction(
             });
             await batch.commit();
             logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1}/${Math.ceil(idsToDelete.length / deleteBatchSize)} terminé.`);
-            if (idsToDelete.length > deleteBatchSize) await delay(1500);
+            if (idsToDelete.length > deleteBatchSize) await delay(2500);
         }
     } else {
         logs.push(`      - ✅ Aucune suppression nécessaire.`);
@@ -776,7 +776,7 @@ async function saveCollectionInAction(
     logs.push(`      - Documents inchangés (ignorés): ${unchangedCount}`);
 
     if (itemsToUpdate.length > 0) {
-        const writeBatchSize = 400;
+        const writeBatchSize = 125;
         for (let i = 0; i < itemsToUpdate.length; i += writeBatchSize) {
             const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
             const batch = collectionRef.firestore.batch();
@@ -804,7 +804,7 @@ async function saveCollectionInAction(
             logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
             if (itemsToUpdate.length > writeBatchSize) {
-                await delay(1500);
+                await delay(2500);
             }
         }
     } else {
