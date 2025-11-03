@@ -737,8 +737,10 @@ async function saveCollectionInAction(
     const idsToDelete = [...firestoreIds].filter(id => !apiIds.has(id));
     if (idsToDelete.length > 0) {
         logs.push(`      - 🗑️ ${idsToDelete.length} documents à supprimer.`);
-        const deleteBatchSize = 125;
+        const deleteBatchSize = 400;
+        let batchCount = 0;
         for (let i = 0; i < idsToDelete.length; i += deleteBatchSize) {
+            batchCount++;
             const batch = collectionRef.firestore.batch();
             const chunk = idsToDelete.slice(i, i + deleteBatchSize);
             chunk.forEach(idToDelete => {
@@ -749,7 +751,13 @@ async function saveCollectionInAction(
             });
             await batch.commit();
             logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1}/${Math.ceil(idsToDelete.length / deleteBatchSize)} terminé.`);
-            if (idsToDelete.length > deleteBatchSize) await delay(2500);
+            
+            if (batchCount % 5 === 0 && idsToDelete.length > (i + deleteBatchSize)) {
+                logs.push(`      - ⏱️ Grosse pause de 10 secondes après 5 lots de suppression...`);
+                await delay(10000);
+            } else if (idsToDelete.length > deleteBatchSize) {
+                await delay(1500);
+            }
         }
     } else {
         logs.push(`      - ✅ Aucune suppression nécessaire.`);
@@ -782,16 +790,18 @@ async function saveCollectionInAction(
     logs.push(`      - Documents inchangés (ignorés): ${unchangedCount}`);
 
     if (itemsToUpdate.length > 0) {
-        const writeBatchSize = 125;
+        const writeBatchSize = 400;
+        let batchCount = 0;
         for (let i = 0; i < itemsToUpdate.length; i += writeBatchSize) {
+            batchCount++;
             const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
             const batch = collectionRef.firestore.batch();
             const chunk = itemsToUpdate.slice(i, i + writeBatchSize);
 
             chunk.forEach(item => {
-                const docId = String(item[idKey]);
+                const docId = collectionName === 'tasks' ? item['id'] : item[idKey];
                 if (docId) {
-                    const docRef = collectionRef.doc(docId);
+                    const docRef = collectionRef.doc(String(docId));
                     const dataToSet: { [key: string]: any } = {};
                     Object.keys(item).forEach(key => {
                         const value = item[key];
@@ -801,7 +811,7 @@ async function saveCollectionInAction(
                             dataToSet[key] = value;
                         }
                     });
-                    batch.set(docRef, dataToSet);
+                    batch.set(docRef, dataToSet, { merge: true });
                 }
             });
 
@@ -809,8 +819,11 @@ async function saveCollectionInAction(
             await batch.commit();
             logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
-            if (itemsToUpdate.length > writeBatchSize) {
-                await delay(2500);
+            if (batchCount % 5 === 0 && itemsToUpdate.length > (i + writeBatchSize)) {
+                logs.push(`      - ⏱️ Grosse pause de 10 secondes après 5 lots d'écriture...`);
+                await delay(10000);
+            } else if (itemsToUpdate.length > writeBatchSize) {
+                await delay(1500);
             }
         }
     } else {
