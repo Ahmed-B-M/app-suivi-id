@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -104,7 +105,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         tempsDeRetard: roundInfo?.tempsDeRetard,
         dateDuRetard: roundInfo?.dateDuRetard,
         tentatives: rawTask.attempts,
-        terminePar: rawTask.completePar,
+        terminePar: rawTask.completedBy,
 
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
@@ -901,3 +902,5 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    

@@ -41,7 +41,7 @@ import { getDriverFullName } from "@/lib/grouping";
 
 const columns: ColumnDef<Tache>[] = [
   // Identification
-  { accessorKey: "id", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("id")}`} className="text-blue-600 hover:underline">{row.getValue("id")}</Link> },
+  { accessorKey: "tacheId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("tacheId")}`} className="text-blue-600 hover:underline">{row.getValue("tacheId")}</Link> },
   { accessorKey: "idInterne", header: "ID Interne" },
   { accessorKey: "commande", header: "Commande" },
   { accessorKey: "client", header: "Client (ID)" },
@@ -94,7 +94,7 @@ const columns: ColumnDef<Tache>[] = [
   { accessorKey: "metaCommentaireLivreur", header: "Méta Commentaire Livreur" },
 
   // --- Champs masqués par défaut ---
-  { accessorKey: "idInterne", header: "ID DB" },
+  { accessorKey: "id", header: "ID DB" },
   { accessorKey: "referenceTache", header: "Référence Tâche" },
   { accessorKey: "nombreDeBacsMeta", header: "Nombre de Bacs (Méta)" },
   { accessorKey: "margeFenetreHoraire", header: "Marge Fenêtre Horaire" },
@@ -107,6 +107,7 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+      id: false,
       idInterne: false,
       client: false,
       bacsSurg: false,
@@ -291,3 +292,5 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
     </Card>
   );
 }
+
+    
