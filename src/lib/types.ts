@@ -3,40 +3,39 @@ import { Timestamp } from "firebase/firestore";
 export interface Article {
     // Identification & Liens
     tacheId?: number;
-    barcode?: string;
+    codeBarre?: string; // barcode
     tourneeId?: string;
     nomTournee?: string;
 
     // Détails du Bac
-    name?: string;
+    nom?: string; // name
     type?: string;
-    status?: string;
-    quantity?: number;
-    processedQuantity?: number;
+    statut?: string; // status
+    quantite?: number; // quantity
+    quantiteTraitee?: number; // processedQuantity
     dimensions?: any;
-    barcodeEncoding?: string;
-    damaged?: any;
+    encodageCodeBarres?: string; // barcodeEncoding
+    endommage?: any; // damaged
 
-    // Champs Techniques
+    // Champs Techniques & Vides
     log?: any[];
     reference?: string;
-    labels?: any[];
-    skills?: any[];
-    metadata?: any;
+    etiquettes?: any[]; // labels
+    competences?: any[]; // skills
+    metaDonnees?: any; // metadata
     description?: string;
-    group?: string;
+    groupe?: string;
 }
 
 
 export interface Tache {
     // Identification
     tacheId: string;
-    idInterne: string;
+    idInterne?: string;
     referenceTache?: string;
     id: string; // _id from API
-    commande?: string; // metadata.numeroCommande
+    commande?: string;
     client?: string;
-    nomCompletChauffeur?: string;
 
     // Contenu de la Tâche
     bacsSurg: number;
@@ -45,106 +44,105 @@ export interface Tache {
     bacsPoisson: number;
     bacsBoucherie: number;
     totalSecFrais: number;
-    nombreDeBacs?: number; // dimensions.bac
-    nombreDeBacsMeta?: number; // metadata.nbreBacs
-    poidsEnKg?: number; // dimensions.poids
-    volumeEnCm3?: number; // dimensions.volume
+    nombreDeBacs?: number;
+    nombreDeBacsMeta?: number;
+    poidsEnKg?: number;
+    volumeEnCm3?: number;
 
     // Planification
     date?: string | Date | Timestamp;
-    dateInitialeLivraison?: string; // metadata.Date_Initiale_Livraison
-    debutCreneauInitial?: string; // timeWindow.start
-    finCreneauInitial?: string; // timeWindow.stop
-    debutFenetre?: string; // timeWindow.start (doublon)
-    finFenetre?: string; // timeWindow.stop (doublon)
-    margeFenetreHoraire?: number; // timeWindowMargin
-    heureArriveeEstimee?: string; // arriveTime
-    tempsDeServiceEstime?: number; // serviceTime
+    dateInitialeLivraison?: string;
+    debutCreneauInitial?: string;
+    finCreneauInitial?: string;
+    debutFenetre?: string;
+    finFenetre?: string;
+    margeFenetreHoraire?: number;
+    heureArriveeEstimee?: string;
+    tempsDeServiceEstime?: number;
 
     // Adresse & Instructions
-    adresse?: string; // location.address
-    numero?: string; // location.number
-    rue?: string; // location.street
-    batiment?: string; // location.building
-    batimentMeta?: string; // metadata.building
-    etage?: string | number; // contact.buildingInfo.floor
-    digicode1?: string; // contact.buildingInfo.digicode1
-    avecAscenseur?: boolean; // contact.buildingInfo.hasElevator
-    avecInterphone?: boolean; // contact.buildingInfo.hasInterphone
-    codeInterphone?: string; // contact.buildingInfo.interphoneCode
-    ville?: string; // location.city
-    codePostal?: string; // location.zip
-    pays?: string; // location.countryCode
+    adresse?: string;
+    numero?: string;
+    rue?: string;
+    batiment?: string;
+    batimentMeta?: string;
+    etage?: string | number;
+    digicode1?: string;
+    avecAscenseur?: boolean;
+    avecInterphone?: boolean;
+    codeInterphone?: string;
+    ville?: string;
+    codePostal?: string;
+    pays?: string;
     instructions?: string;
 
     // Contact Client
-    personneContact?: string; // contact.person
-    compteContact?: string; // contact.account
-    emailContact?: string; // contact.email
-    telephoneContact?: string; // contact.phone
-    notifEmail?: boolean; // notificationSettings.email
-    notifSms?: boolean; // notificationSettings.sms
+    personneContact?: string;
+    compteContact?: string;
+    emailContact?: string;
+    telephoneContact?: string;
+    notifEmail?: boolean;
+    notifSms?: boolean;
 
     // Réalisation & Statuts
     status?: string;
-    heureArriveeReelle?: string; // actualTime.arrive.when
-    dateCloture?: string; // closureDate
-    surPlaceForce?: boolean; // actualTime.arrive.forced
-    surPlaceValide?: boolean; // actualTime.arrive.isCorrectAddress
-    tempsDeRetard?: number; // delay.time
-    dateDuRetard?: string; // delay.when
+    heureArriveeReelle?: string;
+    dateCloture?: string;
+    surPlaceForce?: boolean;
+    surPlaceValide?: boolean;
+    tempsDeRetard?: number;
+    dateDuRetard?: string;
     tentatives?: number;
-    completePar?: string;
+    terminePar?: string;
 
     // Temps de Service Réel
-    tempsDeServiceReel?: number; // realServiceTime.serviceTime
-    debutTempsService?: string; // realServiceTime.startTime
-    finTempsService?: string; // realServiceTime.endTime
-    confianceTempsService?: string; // realServiceTime.confidence
-    versionTempsService?: number; // realServiceTime.version
-    horodatagesMinuteur?: any[]; // execution.timer.timestamps
+    tempsDeServiceReel?: number;
+    debutTempsService?: string;
+    finTempsService?: string;
+    confianceTempsService?: string;
+    versionTempsService?: number;
+    horodatagesMinuteur?: any[];
 
     // Preuves & Échecs
-    sansContactForce?: boolean; // execution.contactless.forced
-    raisonSansContact?: string; // execution.contactless.reason
-    raisonEchec?: string; // execution.failedReason.reason
-    raisonEchecCusto?: string; // execution.failedReason.custom
-    nomSignature?: string; // execution.signature.name
-    photoSucces?: string; // execution.successPicture
-    latitudePosition?: number; // execution.position.latitude
-    longitudePosition?: number; // execution.position.longitude
+    sansContactForce?: boolean;
+    raisonSansContact?: string;
+    raisonEchec?: string;
+    raisonEchecCusto?: string;
+    nomSignature?: string;
+    photoSucces?: string;
+    latitudePosition?: number;
+    longitudePosition?: number;
 
     // Infos Tournée & Chauffeur
-    nomTournee?: string; // roundName
+    nomTournee?: string;
     sequence?: number;
-    nomAssocie?: string; // associatedName
-    idExterneChauffeur?: string; // driver.externalId
-    prenomChauffeur?: string; // driver.firstName
-    nomChauffeur?: string; // driver.lastName
-    hubId?: string; // hub
-    nomHub?: string; // hubName
-    nomPlateforme?: string; // platformName
+    nomAssocie?: string;
+    idExterneChauffeur?: string;
+    prenomChauffeur?: string;
+    nomChauffeur?: string;
+    hubId?: string;
+    nomHub?: string;
+    nomPlateforme?: string;
+    nomCompletChauffeur?: string;
 
     // Métadonnées & Système
     type?: string;
     flux?: string;
     progression?: string;
-    tachesMemeArret?: number; // realServiceTime.tasksDeliveredInSameStop
+    tachesMemeArret?: number;
     categories?: any[];
-    codePe?: string; // metadata.codePe
-    notationLivreur?: number; // metadata.notationLivreur
-    serviceMeta?: string; // metadata.service
-    codeEntrepôt?: string; // metadata.warehouseCode
-    commentaireLivreur?: string; // metadata.commentaireLivreur
-    infosSuiviTransp?: any; // externalCarrier.trackingInfo
-    desassocTranspRejetee?: boolean; // externalCarrier.unassociationRejected
-    dateMiseAJour?: string; // updated
-    dateCreation?: string; // when
+    codePe?: string;
+    notationLivreur?: number;
+    serviceMeta?: string;
+    codeEntrepôt?: string;
+    commentaireLivreur?: string;
+    infosSuiviTransp?: any;
+    desassocTranspRejetee?: boolean;
+    dateMiseAJour?: string;
+    dateCreation?: string;
     
     // Données brutes et calculées
-    articles: Article[];
-    raw: any;
-    [key: string]: any; // Pour la flexibilité avec les données brutes
+    items: Article[];
 }
 
 export interface Tournee {
@@ -226,9 +224,7 @@ export interface Tournee {
     misAJourLe?: string; // updated
     valide?: boolean; // validated
     carrierOverride?: string;
-    
-    // Données brutes
-    raw: any;
+    driver?: any; // Garder l'objet driver pour getDriverFullName
 }
 
 

@@ -140,8 +140,8 @@ export function calculateDashboardStats(
     const totalRounds = uniqueRoundIds.size;
     const completedRounds = rounds.filter(r => r.statut === "COMPLETED");
 
-    const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
-    const webCompletedTasks = completedTasks.filter(t => t.completePar === 'web');
+    const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.terminePar === 'mobile').length / completedTasks.length) * 100 : null;
+    const webCompletedTasks = completedTasks.filter(t => t.terminePar === 'web');
     
     const forcedAddressTasks = completedTasks.filter(t => t.surPlaceForce === true);
     const forcedAddressRate = completedTasks.length > 0 ? (forcedAddressTasks.length / completedTasks.length) * 100 : null;
@@ -152,8 +152,8 @@ export function calculateDashboardStats(
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
     
     const tasksWithMissingBacs = tasks.flatMap(task => 
-        (task.articles ?? [])
-          .filter((item: Article) => item.status === 'MISSING')
+        (task.items ?? [])
+          .filter((item: Article) => item.statut === 'MISSING')
           .map((item: Article) => ({ task, bac: item }))
     );
 
@@ -339,7 +339,7 @@ export function calculateDashboardStats(
             }
             const data = tasksDataByRound.get(roundKey)!;
             data.weight += task.poidsEnKg ?? 0;
-            data.bacs += (task.articles ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
+            data.bacs += (task.items ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
         }
     });
 

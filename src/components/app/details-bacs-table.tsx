@@ -41,11 +41,11 @@ type BacRow = {
     tacheId: string;
     date: string | undefined;
     nomTournee: string | undefined;
-    codeBarre: string | undefined;
+    codeBarre: string | undefined; // barcode
     type: string | undefined;
-    statut: string | undefined;
-    nom: string | undefined;
-    quantite: number | undefined;
+    statut: string | undefined; // status
+    nom: string | undefined; // name
+    quantite: number | undefined; // quantity
 }
 
 const columns: ColumnDef<BacRow>[] = [
@@ -116,15 +116,15 @@ export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
 
   const flatData: BacRow[] = React.useMemo(() => {
     return tasks.flatMap(task => 
-        (task.articles ?? []).map((article: Article) => ({
+        (task.items ?? []).map((article: Article) => ({
             tacheId: task.tacheId,
             date: task.date as string,
             nomTournee: task.nomTournee,
-            codeBarre: article.barcode,
+            codeBarre: article.codeBarre,
             type: article.type,
-            statut: article.status,
-            nom: article.name,
-            quantite: article.quantity,
+            statut: article.statut,
+            nom: article.nom,
+            quantite: article.quantite,
         }))
     )
   }, [tasks])
