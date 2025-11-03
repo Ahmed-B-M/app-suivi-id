@@ -169,6 +169,7 @@ const StatDisplay = ({ icon, label, value }: { icon: React.ReactNode, label: str
 
 export default function DeviationAnalysisPage() {
   const { allTasks, allRounds, isContextLoading } = useFilters();
+  const BAC_LIMIT = 105;
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations, aggregatedStats } = useMemo(() => {
     if (isContextLoading || !allTasks || !allRounds) {
@@ -184,7 +185,6 @@ export default function DeviationAnalysisPage() {
     }
     
     const tasksBacsByRound = new Map<string, number>();
-    const BAC_LIMIT = 105;
     for (const task of allTasks) {
         if (!task.nomTournee || !task.date || !task.nomHub) continue;
         const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
