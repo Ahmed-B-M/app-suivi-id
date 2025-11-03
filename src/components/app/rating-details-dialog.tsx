@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, MessageSquare, Calendar, Warehouse, Route, Hash, Search, ListChecks } from "lucide-react";
 import {format} from "date-fns";
 import { Input } from "../ui/input";
+import { getDriverFullName } from "@/lib/grouping";
 
 type RatingDetailsDialogProps = {
   isOpen: boolean;
@@ -41,7 +42,6 @@ type RatingInfo = {
 };
 
 type RatingByDriver = {
-  driverId: string;
   driverName: string;
   ratings: RatingInfo[];
   average: number;
@@ -58,46 +58,46 @@ export function RatingDetailsDialog({
   const ratingsByDriver = useMemo(() => {
     const driversData: Record<
       string,
-      { driverName: string; ratings: RatingInfo[], completedTasks: number }
+      { ratings: RatingInfo[], completedTasks: number }
     > = {};
 
     tasks.forEach((task) => {
-      const driverId = task.livreur?.idExterne || "Non assigné";
-      const driverName =
-        driverId !== "Non assigné"
-          ? `${task.livreur?.prenom || ""} ${task.livreur?.nom || ""}`.trim()
-          : "Non assigné";
-
-       if (!driversData[driverId]) {
-          driversData[driverId] = { driverName, ratings: [], completedTasks: 0 };
-        }
-
-      if (task.progression === 'COMPLETED') {
-        driversData[driverId].completedTasks++;
+      const driverName = getDriverFullName(task);
+      
+      if (!driverName || driverName === "Inconnu") {
+        return;
       }
 
-      const rating = task.metaDonnees?.notationLivreur;
+      if (!driversData[driverName]) {
+          driversData[driverName] = { ratings: [], completedTasks: 0 };
+      }
+
+      if (task.progression === 'COMPLETED') {
+        driversData[driverName].completedTasks++;
+      }
+
+      const rating = task.notationLivreur;
       if (typeof rating === "number") {
-        driversData[driverId].ratings.push({ 
+        driversData[driverName].ratings.push({ 
           rating, 
           taskId: task.tacheId,
-          date: task.date,
+          date: task.date as string,
           hubName: task.nomHub,
           roundName: task.nomTournee,
           sequence: task.sequence,
-          comment: task.metaDonnees?.commentaireLivreur,
+          comment: task.metaCommentaireLivreur,
         });
       }
     });
 
     return Object.entries(driversData)
-      .map(([driverId, data]) => {
+      .map(([driverName, data]) => {
         const average =
           data.ratings.length > 0
             ? data.ratings.reduce((sum, item) => sum + item.rating, 0) /
               data.ratings.length
             : 0;
-        return { driverId, driverName: data.driverName, ratings: data.ratings, average, completedTasks: data.completedTasks };
+        return { driverName, ratings: data.ratings, average, completedTasks: data.completedTasks };
       })
       .sort((a, b) => b.average - a.average);
   }, [tasks]);
@@ -133,8 +133,8 @@ export function RatingDetailsDialog({
         <ScrollArea className="max-h-[60vh]">
           <div className="space-y-6 pr-6">
             {filteredDrivers.length > 0 ? (
-              filteredDrivers.map(({ driverId, driverName, ratings, average, completedTasks }) => (
-                <div key={driverId} className="rounded-lg border p-4">
+              filteredDrivers.map(({ driverName, ratings, average, completedTasks }) => (
+                <div key={driverName} className="rounded-lg border p-4">
                   <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                     <h3 className="font-semibold text-lg">
                       {driverName}
