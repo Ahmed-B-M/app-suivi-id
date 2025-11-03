@@ -31,12 +31,18 @@ const toIsoOrUndefined = (date: any): string | undefined => {
 };
 
 function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
-    const roundInfo = allRoundsData.find(r => 
+    // Prioritize finding the round by its unique ID if available
+    let roundInfo = rawTask.round ? allRoundsData.find(r => r.id === rawTask.round) : undefined;
+    
+    // Fallback to the previous method if no match by ID
+    if (!roundInfo) {
+      roundInfo = allRoundsData.find(r => 
         r.nom === rawTask.roundName && 
         r.nomHub === rawTask.hubName &&
         r.date && rawTask.date &&
         new Date(r.date as string).toDateString() === new Date(rawTask.date).toDateString()
-    );
+      );
+    }
 
     const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask._id);
     
@@ -138,7 +144,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         // Infos Tournée & Chauffeur
         nomTournee: rawTask.roundName,
         sequence: rawTask.sequence,
-        nomAssocie: rawTask.associatedName,
+        nomAssocie: rawTask.associatedName, // c'est nous
         idExterneChauffeur: rawTask.driver?.externalId,
         prenomChauffeur: rawTask.driver?.firstName,
         nomChauffeur: rawTask.driver?.lastName,
@@ -157,7 +163,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        metaCommentaireLivreur: rawTask.metadata?.commentaireLivr,
+        metaCommentaireLivreur: rawTask.metadata?.commentaireLivreur,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: toIsoOrUndefined(rawTask.updated),
@@ -871,7 +877,7 @@ export async function runDailySyncAction() {
     const tasksCollectionRef = firestore.collection('tasks');
     const roundsCollectionRef = firestore.collection('rounds');
 
-    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'tacheId', { from, to }, logs);
+    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'id', { from, to }, logs);
     await saveCollectionInAction(roundsCollectionRef, finalTransformedRounds, 'id', { from, to }, logs);
     
     // --- Generate Notifications ---
@@ -915,6 +921,8 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
 
     
 
