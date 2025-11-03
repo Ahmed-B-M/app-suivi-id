@@ -107,16 +107,16 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     ];
   }, [dateRange]);
 
-  const tasksCollection = useMemo(() => firestore ? collectionGroup(firestore, 'tasks') : null, [firestore]);
-  const roundsCollection = useMemo(() => firestore ? collectionGroup(firestore, 'rounds') : null, [firestore]);
+  const tasksCollection = useMemo(() => firestore ? collection(firestore, 'tasks') : null, [firestore]);
+  const roundsCollection = useMemo(() => firestore ? collection(firestore, 'rounds') : null, [firestore]);
   const npsDataCollection = useMemo(() => firestore ? collection(firestore, 'nps_data') : null, [firestore]);
-  const categorizedCommentsCollection = useMemo(() => firestore ? collectionGroup(firestore, 'categorized_comments') : null, [firestore]);
+  const categorizedCommentsCollection = useMemo(() => firestore ? collection(firestore, 'categorized_comments') : null, [firestore]);
   const processedVerbatimsCollection = useMemo(() => firestore ? collection(firestore, 'processed_nps_verbatims') : null, [firestore]);
 
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useCollection<NpsData>(npsDataCollection, npsFirestoreFilters);
-  const { data: allSavedComments = [], loading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection, firestoreDateFilters);
+  const { data: allSavedComments = [], loading: isLoadingCategorized } = useCollection<CategorizedComment>(categorizedCommentsCollection); // Pas de filtre de date ici pour tout récupérer
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useCollection<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters);
   
   const availableDepots = useMemo(
@@ -187,6 +187,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
 
   const allComments = useMemo(() => {
+    // 1. Create a map of all saved comments from Firestore for quick lookup.
     const savedCommentsMap = new Map<string, CategorizedComment>();
     allSavedComments.forEach(comment => {
       const taskId = String(comment.taskId || comment.id);
@@ -196,23 +197,27 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         taskId: taskId,
       });
     });
-
+  
+    // 2. Iterate through all tasks from the current context (already filtered by date/depot).
+    // This will create a list of comments based on the tasks currently in view.
     const commentsFromTasks = allTasks.reduce((acc, task) => {
+      const taskId = String(task.tacheId);
       const isNegativeComment = typeof task.metaDonnees?.notationLivreur === 'number' &&
                                 task.metaDonnees.notationLivreur < 4 &&
                                 task.metaDonnees.commentaireLivreur;
-      
-      const taskId = String(task.tacheId);
-
+  
+      // If the comment is already saved, use the saved version.
       if (savedCommentsMap.has(taskId)) {
         if (!acc.has(taskId)) {
           acc.set(taskId, savedCommentsMap.get(taskId)!);
         }
-      } else if (isNegativeComment) {
+      } 
+      // If it's a new negative comment not yet saved, create a new entry for it.
+      else if (isNegativeComment) {
         const taskDate = task.date && typeof (task.date as any).toDate === 'function' 
                          ? (task.date as any).toDate() 
                          : task.date;
-
+  
         acc.set(taskId, {
           id: taskId,
           taskId: taskId,
@@ -221,44 +226,17 @@ export function FilterProvider({ children }: { children: ReactNode }) {
           category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
           taskDate: taskDate as string | Date | undefined,
           driverName: getDriverFullName(task),
+          nomHub: task.nomHub, // Include hub name
           status: 'à traiter' as const,
         });
       }
       return acc;
     }, new Map<string, CategorizedComment>());
     
-    const finalCommentList = Array.from(commentsFromTasks.values());
-
-    let filteredComments = finalCommentList;
-
-    if (filterType !== 'tous') {
-      const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
-      filteredComments = filteredComments.filter(comment => {
-        const task = taskMap.get(comment.taskId);
-        if (!task) return false;
-        return getHubCategory(task.nomHub) === filterType;
-      });
-    }
-    if (selectedDepot !== "all") {
-       const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
-       filteredComments = filteredComments.filter(comment => {
-        const task = taskMap.get(comment.taskId);
-        if (!task) return false;
-        return getDepotFromHub(task.nomHub) === selectedDepot;
-      });
-    }
-    if (selectedStore !== "all") {
-      const taskMap = new Map(allTasks.map(t => [t.tacheId, t]));
-       filteredComments = filteredComments.filter(comment => {
-        const task = taskMap.get(comment.taskId);
-        if (!task) return false;
-        return task.nomHub === selectedStore;
-      });
-    }
-
-    return filteredComments;
+    // The final list is the aggregated result. No further filtering is needed here as `allTasks` is already filtered.
+    return Array.from(commentsFromTasks.values());
   
-  }, [allTasks, allSavedComments, filterType, selectedDepot, selectedStore]);
+  }, [allTasks, allSavedComments]);
 
 
   const allNpsData = useMemo(() => {
@@ -365,5 +343,3 @@ export function useFilters() {
   }
   return context;
 }
-
-    
