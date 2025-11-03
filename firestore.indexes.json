@@ -4,7 +4,6 @@
       "collectionGroup": "categorized_comments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "taskDate", "order": "DESCENDING" }
       ]
     },
@@ -20,6 +19,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nps_data",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "associationDate", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "processed_nps_verbatims",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "associationDate", "order": "DESCENDING" }
       ]
     }
   ],

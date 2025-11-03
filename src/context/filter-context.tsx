@@ -94,6 +94,21 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       where("date", "<=", endDate)
     ];
   }, [dateRange]);
+
+  const commentsDateFilters = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    
+    if (!from) return [];
+    
+    const startDate = startOfDay(from);
+    const endDate = endOfDay(to ?? from);
+    
+    return [
+      where("taskDate", ">=", startDate.toISOString()),
+      where("taskDate", "<=", endDate.toISOString())
+    ];
+  }, [dateRange]);
   
   const npsFirestoreFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -116,8 +131,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: false});
   const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useQuery<Tournee>(roundsCollection, firestoreDateFilters, {realtime: false});
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: false});
-  const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, [], {realtime: true}); // Keep this realtime for immediate feedback
-  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true}); // Keep this realtime
+  const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, commentsDateFilters, {realtime: true});
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true});
   
   const availableDepots = useMemo(
     () => {
