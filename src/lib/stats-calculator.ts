@@ -100,7 +100,7 @@ export function calculateDashboardStats(
     const ratingRate = completedTasks.length > 0 ? (numberOfRatings / completedTasks.length) * 100 : null;
 
     // --- Punctuality Calculation based on REAL arrival time ---
-    const punctualityTasks = completedTasks.filter(t => t.debutCreneauInitial && t.heureArriveeReelle);
+    const punctualityTasks = completedTasks.filter(t => t.debutCreneauInitial && t.dateCloture);
     let punctualCount = 0;
     const earlyTasks: { task: Tache; minutes: number }[] = [];
     const lateTasks: { task: Tache; minutes: number }[] = [];
@@ -108,7 +108,7 @@ export function calculateDashboardStats(
 
     punctualityTasks.forEach(task => {
         try {
-            const arrivalTime = parseISO(task.heureArriveeReelle as string);
+            const arrivalTime = parseISO(task.dateCloture as string);
             const windowStart = parseISO(task.debutCreneauInitial as string);
             // Default to a 2-hour window if 'fin' is not present
             const windowEnd = task.finCreneauInitial ? parseISO(task.finCreneauInitial as string) : addMinutes(windowStart, 120);
