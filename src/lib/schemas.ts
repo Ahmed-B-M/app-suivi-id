@@ -1,12 +1,10 @@
 import { z } from "zod";
-import { DateRange } from "react-day-picker";
 
 export const unifiedExportFormSchema = z.object({
-  apiKey: z.string().min(1, "API Key is required."),
-  dateRange: z.custom<DateRange>().refine(
-    (data) => !!data?.from,
-    { message: "Une date de début est requise." }
-  ),
+  apiKey: z.string().min(1, "La clé d'API est requise."),
+  selectedDate: z.date({
+    required_error: "Une date est requise.",
+  }),
   taskStatus: z.string().optional(),
   roundStatus: z.string().optional(),
   taskId: z.string().optional(),
@@ -21,7 +19,7 @@ export type UnifiedExportFormValues = z.infer<typeof unifiedExportFormSchema>;
 export const serverExportSchema = unifiedExportFormSchema.extend({
     from: z.string(),
     to: z.string(),
-}).omit({ dateRange: true });
+}).omit({ selectedDate: true });
 
 
 // --- Legacy Schemas (can be removed if no longer used) ---
@@ -44,10 +42,9 @@ export type ExportFormValues = z.infer<typeof exportFormSchema>;
 
 export const roundExportFormSchema = z.object({
   apiKey: z.string().min(1, "La clé d'API est requise."),
-  dateRange: z.custom<DateRange>().refine(
-    (data) => !!data?.from,
-    { message: "Une date de début est requise." }
-  ),
+  selectedDate: z.date({
+    required_error: "Une date est requise.",
+  }),
   status: z.string().optional(),
 });
 

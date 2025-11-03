@@ -1,43 +1,69 @@
 
-"use client";
+import { useState, useEffect, useCallback } from 'react';
 
-import { useMemo } from "react";
-import { useFilters } from "@/context/filter-context";
-
-export type CategorizedComment = {
-  id: string;
+// This type should ideally be in a central types file, but is defined here for clarity.
+export interface CategorizedComment {
   taskId: string;
   comment: string;
   rating: number;
-  category: string[] | string;
-  taskDate?: string | Date;
+  category: string[];
+  status: 'à traiter' | 'traité';
+  taskDate?: string;
   driverName?: string;
   nomHub?: string;
-  status: "à traiter" | "traité";
-};
-
-/**
- * Custom hook to count the number of comments that are pending action.
- * It now relies on the unified `allComments` list from the `FilterContext`.
- */
-export function usePendingComments() {
-  const { allComments, isContextLoading } = useFilters();
-
-  const pendingCount = useMemo(() => {
-    if (isContextLoading || !allComments) return 0;
-    
-    // Simply count the items with the "à traiter" status from the filtered list.
-    return allComments.filter(comment => comment.status === 'à traiter').length;
-
-  }, [allComments, isContextLoading]);
-
-
-  return {
-    count: pendingCount,
-    isLoading: isContextLoading
-  };
 }
 
-    
+const CACHE_KEY = 'pendingCategorizedComments';
 
-    
+export function usePendingComments() {
+  const [pendingComments, setPendingComments] = useState<Record<string, CategorizedComment>>({});
+
+  // Load pending comments from localStorage on initial mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem(CACHE_KEY);
+        if (saved) {
+          setPendingComments(JSON.parse(saved));
+        }
+      } catch (error) {
+        console.error("Failed to load pending comments from cache:", error);
+        window.localStorage.removeItem(CACHE_KEY);
+      }
+    }
+  }, []);
+
+  const updateCache = (newPendingComments: Record<string, CategorizedComment>) => {
+    setPendingComments(newPendingComments);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(newPendingComments));
+    }
+  };
+
+  const addPendingComment = useCallback((comment: CategorizedComment) => {
+    const newComments = { ...pendingComments, [comment.taskId]: comment };
+    updateCache(newComments);
+  }, [pendingComments]);
+
+  const removePendingComment = useCallback((taskId: string) => {
+    const { [taskId]: _, ...rest } = pendingComments;
+    updateCache(rest);
+  }, [pendingComments]);
+
+  const clearAllPendingComments = useCallback(() => {
+    updateCache({});
+  }, []);
+
+  const isPending = useCallback((taskId: string) => {
+    return !!pendingComments[taskId];
+  }, [pendingComments]);
+
+  return {
+    pendingComments,
+    addPendingComment,
+    removePendingComment,
+    clearAllPendingComments,
+    isPending,
+    hasPendingItems: Object.keys(pendingComments).length > 0,
+  };
+}

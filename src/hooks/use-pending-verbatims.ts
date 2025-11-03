@@ -1,57 +1,58 @@
 
-"use client";
+import { useState, useEffect, useCallback } from 'react';
+import type { ProcessedVerbatim } from "@/app/verbatim-treatment/page";
 
-import { useMemo } from "react";
-import { useFilters } from "@/context/filter-context";
-import { useCollection, useFirebase } from "@/firebase";
-import { collection, where } from "firebase/firestore";
-import { format } from "date-fns";
-import type { ActionNoteDepot } from "@/lib/types";
+const CACHE_KEY = 'pendingProcessedVerbatims';
 
-/**
- * Custom hook to count the number of depots that have pending actions for the day.
- */
 export function usePendingVerbatims() {
-  const { allProcessedVerbatims, isContextLoading } = useFilters();
-  const { firestore } = useFirebase();
-  const todayString = format(new Date(), 'yyyy-MM-dd');
+  const [pendingVerbatims, setPendingVerbatims] = useState<Record<string, ProcessedVerbatim>>({});
 
-  // Fetch today's saved notes
-  const notesCollection = useMemo(() => {
-      return firestore ? collection(firestore, 'action_notes_depot') : null;
-  }, [firestore]);
-  const { data: savedNotes, loading: notesLoading } = useCollection<ActionNoteDepot>(notesCollection, [where('date', '==', todayString)]);
-
-  const pendingCount = useMemo(() => {
-    if (isContextLoading || notesLoading) return 0;
-
-    // Get all depots that have verbatims to be processed today
-    const depotsWithPendingVerbatims = new Set(
-        allProcessedVerbatims
-            .filter(v => v.status === 'à traiter')
-            .map(v => v.depot)
-            .filter(Boolean) as string[]
-    );
-    
-    if (depotsWithPendingVerbatims.size === 0) return 0;
-    
-    // Get all depots for which a note has already been saved today
-    const depotsWithSavedNotes = new Set(savedNotes.map(n => n.depot));
-    
-    // Count how many depots with pending verbatims do NOT have a saved note
-    let count = 0;
-    for (const depot of depotsWithPendingVerbatims) {
-        if (!depotsWithSavedNotes.has(depot)) {
-            count++;
+  // Load pending verbatims from localStorage on initial mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem(CACHE_KEY);
+        if (saved) {
+          setPendingVerbatims(JSON.parse(saved));
         }
+      } catch (error) {
+        console.error("Failed to load pending verbatims from cache:", error);
+        window.localStorage.removeItem(CACHE_KEY);
+      }
     }
-    
-    return count;
+  }, []);
 
-  }, [allProcessedVerbatims, savedNotes, isContextLoading, notesLoading]);
+  const updateCache = (newPendingVerbatims: Record<string, ProcessedVerbatim>) => {
+    setPendingVerbatims(newPendingVerbatims);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(CACHE_KEY, JSON.stringify(newPendingVerbatims));
+    }
+  };
+
+  const addPendingVerbatim = useCallback((verbatim: ProcessedVerbatim) => {
+    const newVerbatims = { ...pendingVerbatims, [verbatim.taskId]: verbatim };
+    updateCache(newVerbatims);
+  }, [pendingVerbatims]);
+
+  const removePendingVerbatim = useCallback((taskId: string) => {
+    const { [taskId]: _, ...rest } = pendingVerbatims;
+    updateCache(rest);
+  }, [pendingVerbatims]);
+  
+  const clearAllPendingVerbatims = useCallback(() => {
+    updateCache({});
+  }, []);
+
+  const isPending = useCallback((taskId: string) => {
+    return !!pendingVerbatims[taskId];
+  }, [pendingVerbatims]);
 
   return {
-    count: pendingCount,
-    isLoading: isContextLoading || notesLoading
+    pendingVerbatims,
+    addPendingVerbatim,
+    removePendingVerbatim,
+    clearAllPendingVerbatims,
+    isPending,
+    hasPendingItems: Object.keys(pendingVerbatims).length > 0,
   };
 }
