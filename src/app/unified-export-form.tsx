@@ -358,14 +358,14 @@ export function UnifiedExportForm({
         onLogUpdate([`      - Préparation de ${itemsToUpdate.length} documents à créer ou mettre à jour...`]);
         setSaveCount(itemsToUpdate.length);
 
-        const batchSize = 400;
+        const writeBatchSize = 400;
         let batchCount = 0;
-        for (let i = 0; i < itemsToUpdate.length; i += batchSize) {
+        for (let i = 0; i < itemsToUpdate.length; i += writeBatchSize) {
             batchCount++;
-            const currentBatchNumber = Math.floor(i / batchSize) + 1;
+            const currentBatchNumber = Math.floor(i / writeBatchSize) + 1;
             const batch = writeBatch(firestore);
             
-            const chunk = itemsToUpdate.slice(i, i + batchSize);
+            const chunk = itemsToUpdate.slice(i, i + writeBatchSize);
             
             chunk.forEach(item => {
                 const docIdForFirestore = collectionName === 'tasks' ? item['id'] : item[idKey];
@@ -384,28 +384,27 @@ export function UnifiedExportForm({
                 }
             });
 
-            try {
-                onLogUpdate([`      - Écriture du lot ${currentBatchNumber}/${Math.ceil(itemsToUpdate.length / batchSize)}...`]);
-                await batch.commit();
-                onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
-                
-                if (batchCount % 5 === 0 && itemsToUpdate.length > (i + batchSize)) {
-                    onLogUpdate([`      - ⏱️ Grosse pause de 10 secondes après 5 lots d'écriture...`]);
-                    await delay(10000);
-                } else if (itemsToUpdate.length > batchSize) {
-                    await delay(1500);
-                }
-            } catch (e) {
-                success = false;
-                onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${currentBatchNumber}. Erreur: ${(e as Error).message}`]);
-                console.error(`Échec de la sauvegarde du lot ${collectionName}`, e);
-                const permissionError = new FirestorePermissionError({
-                    path: `${collectionName}`,
-                    operation: 'write',
-                    requestResourceData: chunk.map(item => item[idKey]),
-                });
-                errorEmitter.emit('permission-error', permissionError);
+          try {
+            onLogUpdate([`      - Écriture du lot ${currentBatchNumber}/${Math.ceil(itemsToUpdate.length / writeBatchSize)}...`]);
+            await batch.commit();
+            onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
+             if (batchCount % 5 === 0 && itemsToUpdate.length > (i + writeBatchSize)) {
+                onLogUpdate([`      - ⏱️ Grosse pause de 10 secondes après 5 lots d'écriture...`]);
+                await delay(10000);
+            } else if (itemsToUpdate.length > writeBatchSize) {
+                await delay(1500);
             }
+          } catch (e) {
+            success = false;
+            onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${currentBatchNumber}. Erreur: ${(e as Error).message}`]);
+            console.error(`Échec de la sauvegarde du lot ${collectionName}`, e);
+            const permissionError = new FirestorePermissionError({
+                path: `${collectionName}`,
+                operation: 'write',
+                requestResourceData: chunk.map(item => item[idKey]),
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          }
         }
         return success;
     }
