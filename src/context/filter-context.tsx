@@ -188,7 +188,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     // 2. Iterate through all tasks from the current context (already filtered by date/depot).
     // This will create a list of comments based on the tasks currently in view.
     const commentsFromTasks = allTasks.reduce((acc, task) => {
-      const taskId = String(task.id);
+      const taskId = String(task.tacheId); // Use the correct ID
       const isNegativeComment = typeof task.notationLivreur === 'number' &&
                                 task.notationLivreur < 4 &&
                                 task.metaCommentaireLivreur;
