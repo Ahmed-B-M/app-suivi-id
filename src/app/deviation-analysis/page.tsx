@@ -200,12 +200,13 @@ export default function DeviationAnalysisPage() {
     const tasksById = new Map(allTasks.map(t => [t.id, t]));
 
     const allGroupedRounds = allRounds.map(round => {
-        const tasksForRound = allTasks.filter(t => t.hubId === round.hubId && t.nomTournee === round.nom && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString());
+        const tasksForRound = allTasks.filter(t => t.hubId === round.hubId && t.nomTournee === round.nom && t.date && round.date && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString());
         return { round, tasks: tasksForRound, depot: getDepotFromHub(round.nomHub), carrier: getCarrierFromDriver(round) };
     });
 
     const processGroup = (group: typeof allGroupedRounds): AggregatedStats => {
-        const completedTasks = group.flatMap(g => g.tasks).filter(t => t.progression === 'COMPLETED');
+        const tasksInGroup = group.flatMap(g => g.tasks);
+        const completedTasks = tasksInGroup.filter(t => t.progression === 'COMPLETED');
         
         // Ponctualité Réalisée
         const punctualityTasksRealized = completedTasks.filter(t => t.debutCreneauInitial && t.dateCloture);
@@ -220,19 +221,18 @@ export default function DeviationAnalysisPage() {
         });
 
         // Ponctualité Prévue
-        const punctualityTasksPlanned = group.flatMap(g => g.tasks).filter(t => t.id && t.debutCreneauInitial && roundStopsByTaskId.has(t.id));
+        const punctualityTasksPlanned = tasksInGroup.filter(t => t.heureArriveeEstimee && t.debutCreneauInitial);
         let punctualPlannedCount = 0;
         const lateZipCodes: Record<string, number> = {};
         punctualityTasksPlanned.forEach(task => {
             try {
-                const stop = roundStopsByTaskId.get(task.id);
-                if (!stop || !stop.arriveTime) return;
-                const plannedArrive = parseISO(stop.arriveTime);
+                const plannedArrive = parseISO(task.heureArriveeEstimee as string);
                 const windowStart = parseISO(task.debutCreneauInitial as string);
                 const windowEnd = task.finCreneauInitial ? parseISO(task.finCreneauInitial as string) : addMinutes(windowStart, 120);
+                
                 if (plannedArrive >= subMinutes(windowStart, 15) && plannedArrive <= addMinutes(windowEnd, 15)) {
                     punctualPlannedCount++;
-                } else if(plannedArrive > addMinutes(windowEnd, 15)) {
+                } else if (plannedArrive > addMinutes(windowEnd, 15)) {
                     if (task.codePostal) lateZipCodes[task.codePostal] = (lateZipCodes[task.codePostal] || 0) + 1;
                 }
             } catch {}
@@ -243,8 +243,8 @@ export default function DeviationAnalysisPage() {
         const timeWindowCounts = timeWindows.reduce((acc, tw) => { acc[tw] = (acc[tw] || 0) + 1; return acc; }, {} as Record<string, number>);
         const sortedTimeWindows = Object.entries(timeWindowCounts).sort((a, b) => b[1] - a[1]);
         
-        const totalDurationHours = group.reduce((sum, g) => sum + ((g.round.dureeReel ?? g.round.tempsTotal ?? 0) / 3600), 0);
-        const ordersPer2h = totalDurationHours > 0 ? (group.flatMap(g => g.tasks).length / (totalDurationHours / 2)) : null;
+        const totalDurationHours = group.reduce((sum, g) => sum + ((g.round.dureeReel ?? g.round.tempsTotal ?? 0) / 3600000), 0); // dureeReel is in ms
+        const ordersPer2h = totalDurationHours > 0 ? (tasksInGroup.length / (totalDurationHours / 2)) : null;
 
         return {
             punctualityRealized: punctualityTasksRealized.length > 0 ? (punctualRealizedCount / punctualityTasksRealized.length) * 100 : null,
@@ -265,9 +265,10 @@ export default function DeviationAnalysisPage() {
     });
 
     for (const round of allRounds) {
+      if(!round.nom || !round.date || !round.nomHub) continue;
       const roundKey = `${round.nom}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
       const roundCapacity = round.capacitePoids;
-      if (typeof roundCapacity === "number" && round.nom && round.date && round.nomHub) {
+      if (typeof roundCapacity === "number") {
         const totalWeight = tasksWeightByRound.get(roundKey) || 0;
         const isOverweight = totalWeight > roundCapacity;
 
@@ -300,21 +301,20 @@ export default function DeviationAnalysisPage() {
     
     const punctualityResults: PunctualityIssue[] = [];
     allTasks.forEach(task => {
-        const stop = roundStopsByTaskId.get(task.id);
-        if (stop && stop.arriveTime && task.debutCreneauInitial) {
+        if (task.heureArriveeEstimee && task.debutCreneauInitial) {
             try {
-                const plannedArrive = parseISO(stop.arriveTime);
-                const windowStart = parseISO(task.debutCreneauInitial);
+                const plannedArrive = parseISO(task.heureArriveeEstimee as string);
+                const windowStart = parseISO(task.debutCreneauInitial as string);
                 const earlyThreshold = subMinutes(windowStart, 15);
                 const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
                 if (deviationEarly > 0) {
-                    punctualityResults.push({ task, plannedArriveTime: stop.arriveTime, deviationMinutes: -deviationEarly });
+                    punctualityResults.push({ task, plannedArriveTime: task.heureArriveeEstimee, deviationMinutes: -deviationEarly });
                 } else if (task.finCreneauInitial) {
-                    const windowEnd = parseISO(task.finCreneauInitial);
+                    const windowEnd = parseISO(task.finCreneauInitial as string);
                     const lateThreshold = addMinutes(windowEnd, 15);
                     const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
                     if (deviationLate > 0) {
-                        punctualityResults.push({ task, plannedArriveTime: stop.arriveTime, deviationMinutes: deviationLate });
+                        punctualityResults.push({ task, plannedArriveTime: task.heureArriveeEstimee, deviationMinutes: deviationLate });
                     }
                 }
             } catch {}
@@ -498,7 +498,7 @@ export default function DeviationAnalysisPage() {
                                 <TableCell>{task.nomHub || 'N/A'}</TableCell>
                                 <TableCell>{task.personneContact || 'N/A'}</TableCell>
                                 <TableCell>{task.debutCreneauInitial ? format(new Date(task.debutCreneauInitial), "HH:mm") : ''}{task.finCreneauInitial ? ` - ${format(new Date(task.finCreneauInitial), "HH:mm")}`: ''}</TableCell>
-                                <TableCell>{format(new Date(plannedArriveTime), "HH:mm")}</TableCell>
+                                <TableCell>{plannedArriveTime ? format(new Date(plannedArriveTime), "HH:mm") : 'N/A'}</TableCell>
                                 <TableCell className={`text-right font-bold ${deviationMinutes > 0 ? 'text-destructive' : 'text-blue-500'}`}>{deviationMinutes > 0 ? `+${deviationMinutes}` : deviationMinutes} min</TableCell>
                                 </TableRow>
                             ))}
