@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tache } from "@/lib/types";
+import { Tache, Article } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { format } from "date-fns";
 import { Card, CardContent } from "../ui/card";
@@ -44,6 +44,8 @@ type BacRow = {
     codeBarre: string | undefined;
     type: string | undefined;
     statut: string | undefined;
+    nom: string | undefined;
+    quantite: number | undefined;
 }
 
 const columns: ColumnDef<BacRow>[] = [
@@ -72,6 +74,10 @@ const columns: ColumnDef<BacRow>[] = [
     header: "Tournée",
   },
   {
+    accessorKey: "nom",
+    header: "Nom Article"
+  },
+  {
     accessorKey: "type",
     header: "Type de Bac",
      cell: ({ row }) => {
@@ -96,6 +102,10 @@ const columns: ColumnDef<BacRow>[] = [
         </Badge>
     ),
   },
+   {
+    accessorKey: "quantite",
+    header: "Quantité"
+  },
 ];
 
 export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
@@ -106,13 +116,15 @@ export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
 
   const flatData: BacRow[] = React.useMemo(() => {
     return tasks.flatMap(task => 
-        (task.items ?? []).map((article: any) => ({
-            tacheId: task.taskId,
+        (task.articles ?? []).map((article: Article) => ({
+            tacheId: task.tacheId,
             date: task.date as string,
             nomTournee: task.nomTournee,
             codeBarre: article.barcode,
             type: article.type,
             statut: article.status,
+            nom: article.name,
+            quantite: article.quantity,
         }))
     )
   }, [tasks])

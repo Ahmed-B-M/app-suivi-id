@@ -132,7 +132,7 @@ export default function DeviationAnalysisPage() {
             continue;
         }
         const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
-        const bacCount = (task.raw?.articles ?? []).filter(
+        const bacCount = (task.articles ?? []).filter(
             (article: any) => article.type === 'BAC_SEC' || article.type === 'BAC_FRAIS'
         ).length;
         
@@ -489,5 +489,3 @@ export default function DeviationAnalysisPage() {
     </main>
   );
 }
-
-    

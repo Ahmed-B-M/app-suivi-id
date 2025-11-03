@@ -1,5 +1,5 @@
 
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim } from "@/lib/types";
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim, Article } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "./grouping";
 import { addMinutes, differenceInMinutes, parseISO, subMinutes } from "date-fns";
@@ -152,9 +152,9 @@ export function calculateDashboardStats(
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
     
     const tasksWithMissingBacs = tasks.flatMap(task => 
-        (task.raw.articles ?? [])
-          .filter((item: any) => item.status === 'MISSING')
-          .map((item: any) => ({ task, bac: item }))
+        (task.articles ?? [])
+          .filter((item: Article) => item.status === 'MISSING')
+          .map((item: Article) => ({ task, bac: item }))
     );
 
     const redeliveriesList = tasks.filter(t => (t.tentatives ?? 0) >= 2);
@@ -339,7 +339,7 @@ export function calculateDashboardStats(
             }
             const data = tasksDataByRound.get(roundKey)!;
             data.weight += task.poidsEnKg ?? 0;
-            data.bacs += (task.raw.articles ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
+            data.bacs += (task.articles ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
         }
     });
 
@@ -442,5 +442,3 @@ export function calculateDashboardStats(
       }
     };
 }
-
-    

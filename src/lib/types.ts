@@ -1,13 +1,42 @@
 import { Timestamp } from "firebase/firestore";
 
+export interface Article {
+    // Identification & Liens
+    tacheId?: number;
+    barcode?: string;
+    tourneeId?: string;
+    nomTournee?: string;
+
+    // Détails du Bac
+    name?: string;
+    type?: string;
+    status?: string;
+    quantity?: number;
+    processedQuantity?: number;
+    dimensions?: any;
+    barcodeEncoding?: string;
+    damaged?: any;
+
+    // Champs Techniques
+    log?: any[];
+    reference?: string;
+    labels?: any[];
+    skills?: any[];
+    metadata?: any;
+    description?: string;
+    group?: string;
+}
+
+
 export interface Tache {
     // Identification
-    taskId: string;
-    idInterne?: string;
+    tacheId: string;
+    idInterne: string;
     referenceTache?: string;
-    id: string;
-    commande?: string;
+    id: string; // _id from API
+    commande?: string; // metadata.numeroCommande
     client?: string;
+    nomCompletChauffeur?: string;
 
     // Contenu de la Tâche
     bacsSurg: number;
@@ -16,215 +45,190 @@ export interface Tache {
     bacsPoisson: number;
     bacsBoucherie: number;
     totalSecFrais: number;
-    nombreDeBacs?: number;
-    nombreDeBacsMeta?: number;
-    poidsEnKg?: number;
-    volumeEnCm3?: number;
+    nombreDeBacs?: number; // dimensions.bac
+    nombreDeBacsMeta?: number; // metadata.nbreBacs
+    poidsEnKg?: number; // dimensions.poids
+    volumeEnCm3?: number; // dimensions.volume
 
     // Planification
     date?: string | Date | Timestamp;
-    dateInitialeLivraison?: string;
-    debutCreneauInitial?: string;
-    finCreneauInitial?: string;
-    debutFenetre?: string;
-    finFenetre?: string;
-    margeFenetreHoraire?: number;
-    heureArriveeEstimee?: string;
-    tempsDeServiceEstime?: number;
+    dateInitialeLivraison?: string; // metadata.Date_Initiale_Livraison
+    debutCreneauInitial?: string; // timeWindow.start
+    finCreneauInitial?: string; // timeWindow.stop
+    debutFenetre?: string; // timeWindow.start (doublon)
+    finFenetre?: string; // timeWindow.stop (doublon)
+    margeFenetreHoraire?: number; // timeWindowMargin
+    heureArriveeEstimee?: string; // arriveTime
+    tempsDeServiceEstime?: number; // serviceTime
 
     // Adresse & Instructions
-    adresse?: string;
-    numero?: string;
-    rue?: string;
-    batiment?: string;
-    batimentMeta?: string;
-    etage?: string | number;
-    digicode1?: string;
-    avecAscenseur?: boolean;
-    avecInterphone?: boolean;
-    codeInterphone?: string;
-    ville?: string;
-    codePostal?: string;
-    pays?: string;
+    adresse?: string; // location.address
+    numero?: string; // location.number
+    rue?: string; // location.street
+    batiment?: string; // location.building
+    batimentMeta?: string; // metadata.building
+    etage?: string | number; // contact.buildingInfo.floor
+    digicode1?: string; // contact.buildingInfo.digicode1
+    avecAscenseur?: boolean; // contact.buildingInfo.hasElevator
+    avecInterphone?: boolean; // contact.buildingInfo.hasInterphone
+    codeInterphone?: string; // contact.buildingInfo.interphoneCode
+    ville?: string; // location.city
+    codePostal?: string; // location.zip
+    pays?: string; // location.countryCode
     instructions?: string;
-    
+
     // Contact Client
-    personneContact?: string;
-    compteContact?: string;
-    emailContact?: string;
-    telephoneContact?: string;
-    notifEmail?: boolean;
-    notifSms?: boolean;
+    personneContact?: string; // contact.person
+    compteContact?: string; // contact.account
+    emailContact?: string; // contact.email
+    telephoneContact?: string; // contact.phone
+    notifEmail?: boolean; // notificationSettings.email
+    notifSms?: boolean; // notificationSettings.sms
 
     // Réalisation & Statuts
     status?: string;
-    heureArriveeReelle?: string;
-    dateCloture?: string;
-    surPlaceForce?: boolean;
-    surPlaceValide?: boolean;
-    tempsDeRetard?: number;
-    dateDuRetard?: string;
+    heureArriveeReelle?: string; // actualTime.arrive.when
+    dateCloture?: string; // closureDate
+    surPlaceForce?: boolean; // actualTime.arrive.forced
+    surPlaceValide?: boolean; // actualTime.arrive.isCorrectAddress
+    tempsDeRetard?: number; // delay.time
+    dateDuRetard?: string; // delay.when
     tentatives?: number;
     completePar?: string;
-    
+
     // Temps de Service Réel
-    tempsDeServiceReel?: number;
-    debutTempsService?: string;
-    finTempsService?: string;
-    confianceTempsService?: string;
-    versionTempsService?: number;
-    horodatagesMinuteur?: any[];
+    tempsDeServiceReel?: number; // realServiceTime.serviceTime
+    debutTempsService?: string; // realServiceTime.startTime
+    finTempsService?: string; // realServiceTime.endTime
+    confianceTempsService?: string; // realServiceTime.confidence
+    versionTempsService?: number; // realServiceTime.version
+    horodatagesMinuteur?: any[]; // execution.timer.timestamps
 
     // Preuves & Échecs
-    sansContactForce?: boolean;
-    raisonSansContact?: string;
-    raisonEchec?: string;
-    raisonEchecCusto?: string;
-    nomSignature?: string;
-    photoSucces?: string;
-    latitudePosition?: number;
-    longitudePosition?: number;
+    sansContactForce?: boolean; // execution.contactless.forced
+    raisonSansContact?: string; // execution.contactless.reason
+    raisonEchec?: string; // execution.failedReason.reason
+    raisonEchecCusto?: string; // execution.failedReason.custom
+    nomSignature?: string; // execution.signature.name
+    photoSucces?: string; // execution.successPicture
+    latitudePosition?: number; // execution.position.latitude
+    longitudePosition?: number; // execution.position.longitude
 
     // Infos Tournée & Chauffeur
-    nomTournee?: string;
+    nomTournee?: string; // roundName
     sequence?: number;
-    nomAssocie?: string;
-    idExterneChauffeur?: string;
-    prenomChauffeur?: string;
-    nomChauffeur?: string;
-    hubId?: string;
-    nomHub?: string;
-    nomPlateforme?: string;
-    
+    nomAssocie?: string; // associatedName
+    idExterneChauffeur?: string; // driver.externalId
+    prenomChauffeur?: string; // driver.firstName
+    nomChauffeur?: string; // driver.lastName
+    hubId?: string; // hub
+    nomHub?: string; // hubName
+    nomPlateforme?: string; // platformName
+
     // Métadonnées & Système
     type?: string;
     flux?: string;
     progression?: string;
-    tachesMemeArret?: number;
+    tachesMemeArret?: number; // realServiceTime.tasksDeliveredInSameStop
     categories?: any[];
-    codePe?: string;
-    notationLivreur?: number;
-    serviceMeta?: string;
-    codeEntrepôt?: string;
-    commentaireLivreur?: string;
-    infosSuiviTransp?: any;
-    desassocTranspRejetee?: boolean;
-    dateMiseAJour?: string;
-    dateCreation?: string;
-
-    // Gardé pour les calculs et la flexibilité
-    items: any[]; 
-    carrierOverride?: string;
-    driver?: any;
+    codePe?: string; // metadata.codePe
+    notationLivreur?: number; // metadata.notationLivreur
+    serviceMeta?: string; // metadata.service
+    codeEntrepôt?: string; // metadata.warehouseCode
+    commentaireLivreur?: string; // metadata.commentaireLivreur
+    infosSuiviTransp?: any; // externalCarrier.trackingInfo
+    desassocTranspRejetee?: boolean; // externalCarrier.unassociationRejected
+    dateMiseAJour?: string; // updated
+    dateCreation?: string; // when
+    
+    // Données brutes et calculées
+    articles: Article[];
+    raw: any;
     [key: string]: any; // Pour la flexibilité avec les données brutes
 }
 
 export interface Tournee {
     // Identification
-    id: string;
-    idInterne: string;
-    nom?: string;
-    statut?: string;
-    activite?: string;
-    date?: string | Date | Timestamp;
-    hubId?: string;
-    nomHub?: string;
+    id: string; // id ou _id
+    idInterne: string; // id ou _id (doublon)
+    nom?: string; // name
+    statut?: string; // status
+    activite?: string; // activity
+    date?: string | Date | Timestamp; // date
+    hubId?: string; // hub
+    nomHub?: string; // nomHub (venant de la tâche)
 
     // Infos Chauffeur & Véhicule
-    associeNom?: string;
-    emailChauffeur?: string;
-    prenomChauffeur?: string;
-    nomChauffeur?: string;
-    immatriculation?: string;
-    nomVehicule?: string;
-    energie?: string;
+    associeNom?: string; // associatedName
+    emailChauffeur?: string; // driver.externalId
+    prenomChauffeur?: string; // driver.firstName
+    nomChauffeur?: string; // driver.lastName
+    immatriculation?: string; // metadata.Immatriculation
+    nomVehicule?: string; // vehicle.name
+    energie?: string; // metadata.Energie
 
-    // Totaux de la Tournée
+    // Totaux de la Tournée (calculés)
     bacsSurg: number;
     bacsFrais: number;
     bacsSec: number;
     bacsPoisson: number;
     bacsBoucherie: number;
     totalSecFrais: number;
-    nombreDeBacs?: number;
-    poidsTournee?: number;
-    poidsReel?: number;
-    volumeTournee?: number;
-    nbCommandes?: number;
-    commandesTerminees?: number;
+
+    // Totaux depuis l'API
+    nombreDeBacs?: number; // dimensions.bac
+    poidsTournee?: number; // dimensions.poids
+    poidsReel?: number; // doublon de poidsTournee
+    volumeTournee?: number; // dimensions.volume
+    nbCommandes?: number; // orderCount
+    commandesTerminees?: number; // orderDone
 
     // Horaires & Lieux
-    lieuDepart?: string;
-    heureDepart?: string;
-    lieuFin?: string;
-    heureFin?: string;
-    heureFinReelle?: string;
-    demarreeReel?: string;
-    prepareeReel?: string;
-    tempsPreparationReel?: number;
+    lieuDepart?: string; // startLocation
+    heureDepart?: string; // startTime
+    lieuFin?: string; // endLocation
+    heureFin?: string; // endTime
+    heureFinReelle?: string; // realInfo.hasFinished
+    demarreeReel?: string; // realInfo.hasStarted
+    prepareeReel?: string; // realInfo.hasPrepared
+    tempsPreparationReel?: number; // realInfo.preparationTime
 
     // Métriques & Coûts
-    dureeReel?: number;
-    tempsTotal?: number;
-    tempsTrajetTotal?: number;
-    tempsServiceCmdTotal?: number;
-    tempsPauseTotal?: number;
-    tempsAttenteTotal?: number;
-    tempsDeRetard?: number;
-    dateDuRetard?: string;
-    tempsViolationTotal?: number;
-    distanceTotale?: number;
-    coutTotal?: number;
-    coutParTemps?: number;
+    dureeReel?: number; // realInfo.hasLasted
+    tempsTotal?: number; // totalTime
+    tempsTrajetTotal?: number; // totalTravelTime
+    tempsServiceCmdTotal?: number; // totalOrderServiceTime
+    tempsPauseTotal?: number; // totalBreakServiceTime
+    tempsAttenteTotal?: number; // totalWaitTime
+    tempsDeRetard?: number; // delay.time
+    dateDuRetard?: string; // delay.when
+    tempsViolationTotal?: number; // totalViolationTime
+    distanceTotale?: number; // totalDistance
+    coutTotal?: number; // totalCost
+    coutParTemps?: number; // vehicle.costPerUnitTime
 
     // Données Techniques & Véhicule
     flux?: string;
-    tempSurgChargement?: string;
-    tempFraisChargement?: string;
-    tempFraisFin?: string;
-    tempSurgFin?: string;
-    codePostalMaitre?: string;
-    arrets?: any[];
-    tempsAccelerationVehicule?: number;
-    pausesVehicule?: boolean;
-    capaciteBacs?: number;
-    capacitePoids?: number;
-    dimVehiculeVolume?: number;
-    distanceMaxVehicule?: number;
-    dureeMaxVehicule?: number;
-    commandesMaxVehicule?: number;
-    misAJourLe?: string;
-    valide?: boolean;
+    tempSurgChargement?: string; // metadata.TempSURG_Chargement
+    tempFraisChargement?: string; // metadata.TempsFRAIS_Chargement
+    tempFraisFin?: string; // metadata.TempsFRAIS_Fin
+    tempSurgFin?: string; // metadata.TempsSURG_Fin
+    codePostalMaitre?: string; // metadata.codePostalMaitre
+    arrets?: any[]; // stops
+    tempsAccelerationVehicule?: number; // vehicle.accelerationTime
+    pausesVehicule?: boolean; // vehicle.breaks
+    capaciteBacs?: number; // vehicle.dimensions.bac
+    capacitePoids?: number; // vehicle.dimensions.poids
+    dimVehiculeVolume?: number; // vehicle.dimensions.volume
+    distanceMaxVehicule?: number; // vehicle.maxDistance
+    dureeMaxVehicule?: number; // vehicle.maxDuration
+    commandesMaxVehicule?: number; // vehicle.maxOrders
+    misAJourLe?: string; // updated
+    valide?: boolean; // validated
     carrierOverride?: string;
-    driver?: any;
-    vehicle?: any;
-}
-
-
-export interface Bac {
-    // Identification & Liens
-    tacheId: number;
-    codeBarre: string;
-    tourneeId: string;
-    nomTournee: string;
-
-    // Détails du Bac
-    nom: string;
-    type: string;
-    statut: string;
-    quantite: number;
-    quantiteTraitee: number;
-    dimensions: any;
-}
-
-
-export interface ForecastRule {
-  id: string;
-  name: string;
-  type: 'time' | 'type';
-  keywords: string[];
-  category: 'Matin' | 'Soir' | 'BU' | 'Classique';
-  isActive: boolean;
+    
+    // Données brutes
+    raw: any;
 }
 
 
@@ -292,4 +296,14 @@ export interface Notification {
     type: 'task' | 'round' | 'driver';
     id: string;
   };
+}
+
+
+export interface ForecastRule {
+  id: string;
+  name: string;
+  type: 'time' | 'type';
+  keywords: string[];
+  category: 'Matin' | 'Soir' | 'BU' | 'Classique';
+  isActive: boolean;
 }
