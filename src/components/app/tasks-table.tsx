@@ -22,10 +22,9 @@ export function TasksTable({ data }: { data: Tache[] }) {
   return (
     <Accordion type="single" collapsible className="w-full">
       {data.map((task, index) => {
-        const rating = task.metaDonnees?.notationLivreur;
+        const rating = task.notationLivreur;
         const hasRating = typeof rating === 'number';
-        const id = task.tacheId;
-        const key = id ? `${id.toString()}-${index}` : index.toString();
+        const key = task.tacheId ? `${task.tacheId.toString()}-${index}` : index.toString();
 
         return (
           <AccordionItem value={key} key={key}>
@@ -43,7 +42,7 @@ export function TasksTable({ data }: { data: Tache[] }) {
                         {task.progression}
                     </Badge>
                      <Button variant="outline" size="sm" asChild onClick={(e) => e.stopPropagation()}>
-                       <Link href={`/task/${id}`}>
+                       <Link href={`/task/${task.tacheId}`}>
                           Voir Détails
                        </Link>
                     </Button>
@@ -59,3 +58,5 @@ export function TasksTable({ data }: { data: Tache[] }) {
     </Accordion>
   );
 }
+
+    

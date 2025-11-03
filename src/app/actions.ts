@@ -29,10 +29,20 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
     );
 
     const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask._id);
+    
+    const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
+        const type = (item.type || '').toUpperCase();
+        if (type.includes('SURG')) acc.bacsSurg++;
+        else if (type.includes('FRAIS')) acc.bacsFrais++;
+        else if (type.includes('SEC')) acc.bacsSec++;
+        else if (type.includes('POISSON')) acc.bacsPoisson++;
+        else if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
+        return acc;
+    }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
     return {
         // Identification
-        tacheId: rawTask.id,
+        tacheId: rawTask.taskId,
         idInterne: rawTask.taskReference,
         referenceTache: rawTask.taskReference,
         id: rawTask._id,
@@ -40,12 +50,12 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         client: rawTask.client,
         
         // Contenu
-        bacsSurg: (rawTask.items || []).filter((i: any) => i.type === 'BAC_SURG').length,
-        bacsFrais: (rawTask.items || []).filter((i: any) => i.type === 'BAC_FRAIS').length,
-        bacsSec: (rawTask.items || []).filter((i: any) => i.type === 'BAC_SEC').length,
-        bacsPoisson: (rawTask.items || []).filter((i: any) => i.type === 'BAC_POISSON').length,
-        bacsBoucherie: (rawTask.items || []).filter((i: any) => i.type === 'BAC_BOUCHERIE').length,
-        totalSecFrais: (rawTask.items || []).filter((i: any) => i.type === 'BAC_SEC' || i.type === 'BAC_FRAIS').length,
+        bacsSurg: bacs.bacsSurg,
+        bacsFrais: bacs.bacsFrais,
+        bacsSec: bacs.bacsSec,
+        bacsPoisson: bacs.bacsPoisson,
+        bacsBoucherie: bacs.bacsBoucherie,
+        totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawTask.dimensions?.bac,
         nombreDeBacsMeta: rawTask.metadata?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
@@ -59,7 +69,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         debutFenetre: rawTask.timeWindow?.start,
         finFenetre: rawTask.timeWindow?.stop,
         margeFenetreHoraire: rawTask.timeWindowMargin,
-        heureArriveeEstimee: stopInfo?.arriveTime || rawTask.arriveTime,
+        heureArriveeEstimee: rawTask.arriveTime,
         tempsDeServiceEstime: rawTask.serviceTime,
 
         // Adresse & Instructions
@@ -95,7 +105,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         tempsDeRetard: roundInfo?.tempsDeRetard,
         dateDuRetard: roundInfo?.dateDuRetard,
         tentatives: rawTask.attempts,
-        terminePar: rawTask.completedBy,
+        terminePar: rawTask.completePar,
 
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
@@ -145,9 +155,9 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         
         // Données brutes et calculées
         items: (rawTask.items || []).map((item: any) => ({
-            tacheId: rawTask.id,
-            tourneeId: rawTask.round,
-            nomTournee: rawTask.roundName,
+            tacheId: rawTask.id, // Lien
+            tourneeId: rawTask.round, // Lien
+            nomTournee: rawTask.roundName, // Lien
             codeBarre: item.barcode,
             nom: item.name,
             type: item.type,
@@ -214,7 +224,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawRound.dimensions?.bac,
         poidsTournee: rawRound.dimensions?.poids,
-        poidsReel: rawRound.dimensions?.poids,
+        poidsReel: rawRound.dimensions?.poids, // Dupliqué comme demandé
         volumeTournee: rawRound.dimensions?.volume,
         nbCommandes: rawRound.orderCount,
         commandesTerminees: rawRound.orderDone,
@@ -889,5 +899,7 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
 
     

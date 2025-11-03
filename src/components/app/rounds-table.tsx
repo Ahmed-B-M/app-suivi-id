@@ -1,3 +1,4 @@
+
 "use client";
 import {
   Accordion,
@@ -21,12 +22,12 @@ export function RoundsTable({ data }: { data: Tournee[] }) {
           <AccordionTrigger>
             <div className="flex items-center gap-4 justify-between w-full pr-4">
               <span className="font-mono text-sm">
-                Tournée: {round.name}
+                Tournée: {round.nom}
               </span>
               <Badge
-                variant={round.status === "COMPLETED" ? "default" : "secondary"}
+                variant={round.statut === "COMPLETED" ? "default" : "secondary"}
               >
-                {round.status}
+                {round.statut}
               </Badge>
             </div>
           </AccordionTrigger>
@@ -38,3 +39,5 @@ export function RoundsTable({ data }: { data: Tournee[] }) {
     </Accordion>
   );
 }
+
+    
