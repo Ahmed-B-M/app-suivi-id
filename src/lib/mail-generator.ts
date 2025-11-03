@@ -1,5 +1,5 @@
 
-import type { QualityData } from "@/components/app/quality-dashboard";
+import type { QualityData, DepotData } from "@/components/app/quality-dashboard";
 import type { AlertData } from "@/components/app/alert-recurrence-table";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
 import type { ProcessedNpsVerbatim } from "@/lib/types";
@@ -8,105 +8,176 @@ import type { ProcessedNpsVerbatim } from "@/lib/types";
 
 function formatValue(value: number | null | undefined, unit: string = '', decimals: number = 1): string {
     if (value === null || value === undefined) return "N/A";
-    return `${value.toFixed(decimals)}${unit}`;
+    const formatted = new Intl.NumberFormat('fr-FR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(value);
+    return `${formatted}${unit}`;
 }
 
 const COLORS = {
-    PRIMARY: '#2563EB', // Blue from logo
-    DESTRUCTIVE: '#DC2626', // Red from logo
-    SUCCESS: '#16A34A', // A clear green for success states
-    WARNING: '#F59E0B', // An amber for warnings
+    PRIMARY: '#4338CA', // Indigo 700
+    DESTRUCTIVE: '#BE123C', // Rose 700
+    SUCCESS: '#16A34A', // Green 600
+    WARNING: '#D97706', // Amber 600
+    CRITICAL_BG: '#FEF2F2', // Red 50
 
     TEXT_PRIMARY: '#1F2937',
-    TEXT_SECONDARY: '#6B7280',
+    TEXT_SECONDARY: '#4B5563',
+    TEXT_LIGHT: '#9CA3AF',
     
     BACKGROUND_BODY: '#F9FAFB',
     BACKGROUND_CARD: '#FFFFFF',
     BORDER: '#E5E7EB',
 };
 
-function getRatingColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
-    if (value >= 4.8) return COLORS.PRIMARY;
-    if (value >= 4.5) return COLORS.WARNING;
-    return COLORS.DESTRUCTIVE;
-}
+// --- Color Logic ---
+const getRatingColor = (v: number | null | undefined) => v === null || v === undefined ? COLORS.DESTRUCTIVE : v >= 4.8 ? COLORS.SUCCESS : v >= 4.5 ? COLORS.WARNING : COLORS.DESTRUCTIVE;
+const getNpsColor = (v: number | null | undefined) => v === null || v === undefined ? COLORS.DESTRUCTIVE : v >= 50 ? COLORS.SUCCESS : v >= 0 ? COLORS.WARNING : COLORS.DESTRUCTIVE;
+const getPunctualityColor = (v: number | null | undefined) => v === null || v === undefined ? COLORS.DESTRUCTIVE : v >= 95 ? COLORS.SUCCESS : v >= 90 ? COLORS.WARNING : COLORS.DESTRUCTIVE;
+const getForcedMetricColor = (v: number | null | undefined) => v === null || v === undefined ? COLORS.DESTRUCTIVE : v <= 5 ? COLORS.SUCCESS : v <= 10 ? COLORS.WARNING : COLORS.DESTRUCTIVE;
 
-function getNpsColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
-    if (value >= 50) return COLORS.PRIMARY;
-    if (value >= 0) return COLORS.WARNING;
-    return COLORS.DESTRUCTIVE;
-}
+const FONT_FAMILY = `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';`;
 
-function getPunctualityColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
-    if (value >= 95) return COLORS.PRIMARY;
-    if (value >= 90) return COLORS.WARNING;
-    return COLORS.DESTRUCTIVE;
-}
+// --- Reusable HTML Components ---
 
-function getForcedMetricColor(value: number | null | undefined): string {
-    if (value === null || value === undefined) return COLORS.DESTRUCTIVE;
-    if (value <= 5) return COLORS.PRIMARY;
-    if (value <= 10) return COLORS.WARNING;
-    return COLORS.DESTRUCTIVE;
-}
+function createAvatar(name: string): string {
+    if (!name) return '';
+    const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    
+    // Simple hash to get a color from a palette
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorPalette = ['#F87171', '#FBBF24', '#34D399', '#60A5FA', '#A78BFA', '#F472B6'];
+    const color = colorPalette[Math.abs(hash) % colorPalette.length];
 
-// --- HTML Generation ---
-
-const FONT_FAMILY = `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;`;
-
-function createCard(content: string, title?: string): string {
-    const titleHtml = title ? `<h3 style="font-size: 16px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 0 0 15px 0; ${FONT_FAMILY}">${title}</h3>` : '';
     return `
-        <div style="background-color: ${COLORS.BACKGROUND_CARD}; border: 1px solid ${COLORS.BORDER}; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-            ${titleHtml}
-            ${content}
-        </div>
-    `;
+      <div style="display: inline-block; vertical-align: middle; width: 32px; height: 32px; border-radius: 50%; background-color: ${color}; color: white; text-align: center; line-height: 32px; font-size: 14px; font-weight: 600; margin-right: 12px; ${FONT_FAMILY}">
+        ${initials}
+      </div>`;
+}
+
+
+function createCard(content: string, title?: string, icon?: string, options: {bgColor?: string, borderColor?: string} = {}): string {
+    const bgColor = options.bgColor || COLORS.BACKGROUND_CARD;
+    const borderColor = options.borderColor || COLORS.BORDER;
+    const iconHtml = icon ? `<span style="font-size: 20px; margin-right: 12px; vertical-align: middle;">${icon}</span>` : '';
+    const titleHtml = title ? `<h3 style="display: inline-block; vertical-align: middle; font-size: 18px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 0 0 16px 0; ${FONT_FAMILY}">${iconHtml}${title}</h3>` : '';
+    
+    return `
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+          <td bgcolor="${bgColor}" style="border: 1px solid ${borderColor}; border-radius: 12px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px 0 rgba(0,0,0,0.05);">
+            <div style="padding: 24px;">
+              ${titleHtml}${content}
+            </div>
+          </td>
+        </tr>
+      </table>
+      <div style="height: 24px;"></div>`;
 }
 
 function createKpiGrid(kpis: { label: string; value: string; color: string }[]): string {
-    let cells = '';
-    kpis.forEach(kpi => {
-        cells += `
-            <td style="padding: 10px; text-align: center; width: 14%;">
-                <div style="font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; text-transform: uppercase; margin-bottom: 5px; ${FONT_FAMILY}">${kpi.label}</div>
-                <div style="font-size: 20px; font-weight: bold; color: ${kpi.color}; ${FONT_FAMILY}">${kpi.value}</div>
-            </td>
-        `;
-    });
-    return `<table style="width: 100%; border-collapse: collapse;"><tr>${cells}</tr></table>`;
+    let cells = kpis.map(kpi => `
+        <td align="left" style="padding: 0 8px; width: 14%; vertical-align: top;">
+          <div style="padding-left: 12px; margin-bottom: 12px; border-left: 3px solid ${kpi.color};">
+              <p style="font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; text-transform: uppercase; margin: 0 0 4px 0; ${FONT_FAMILY}">${kpi.label}</p>
+              <p style="font-size: 24px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 0; ${FONT_FAMILY}">${kpi.value}</p>
+          </div>
+        </td>`).join('');
+    return `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"><tr>${cells}</tr></table>`;
 }
 
 function createCategoryTable(title: string, data: { name: string; count: number; percentage: number }[], total: number): string {
     if (data.length === 0) return `<div style="${FONT_FAMILY} color: ${COLORS.TEXT_SECONDARY};">Aucune donnée pour ${title.toLowerCase()}.</div>`;
-
-    let rows = '';
-    data.forEach(item => {
-        rows += `
-            <tr>
-                <td style="padding: 8px 0; font-size: 13px; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">${item.name}</td>
-                <td style="padding: 8px 0; font-size: 13px; text-align: right; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">${item.count}</td>
-                <td style="padding: 8px 0; width: 100px; text-align: right;">
-                    <div style="position: relative; height: 8px; background-color: #E5E7EB; border-radius: 4px; overflow: hidden;">
-                        <div style="position: absolute; height: 100%; width: ${item.percentage}%; background-color: ${COLORS.PRIMARY};"></div>
-                    </div>
-                </td>
-                <td style="padding: 8px 0 8px 10px; font-size: 13px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; text-align: right; ${FONT_FAMILY}">${item.percentage.toFixed(1)}%</td>
-            </tr>
-        `;
-    });
-
+    let rows = data.map(item => `
+        <tr>
+            <td style="padding: 10px 0; font-size: 14px; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY} border-bottom: 1px solid ${COLORS.BORDER};">${item.name}</td>
+            <td style="padding: 10px 0; width: 120px; text-align: right; border-bottom: 1px solid ${COLORS.BORDER};">
+                <div style="height: 8px; background-color: ${COLORS.BORDER}; border-radius: 4px; overflow: hidden; display: inline-block; width: 80px; vertical-align: middle;">
+                    <div style="height: 100%; width: ${item.percentage}%; background-color: ${COLORS.PRIMARY};"></div>
+                </div>
+            </td>
+            <td style="padding: 10px 0 10px 12px; font-size: 14px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; text-align: right; ${FONT_FAMILY} border-bottom: 1px solid ${COLORS.BORDER};">${item.count} (${item.percentage.toFixed(1)}%)</td>
+        </tr>`).join('');
     return `
-        <h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 20px 0 10px 0; ${FONT_FAMILY}">${title} (${total})</h4>
-        <table style="width: 100%; border-collapse: collapse;">${rows}</table>
-    `;
+        <h4 style="font-size: 16px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 24px 0 12px 0; ${FONT_FAMILY}">${title} (${total})</h4>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">${rows}</table>`;
 }
 
-// --- Main Email Generation Function ---
+function createCriticalAlertsSection(comments: CategorizedComment[], verbatims: ProcessedNpsVerbatim[]): string {
+    const CRITICAL_CATEGORIES = ["rupture de la chaine de froid", "attitude livreur"];
+    const filterCritical = (item: CategorizedComment | ProcessedNpsVerbatim) => {
+        const categories = Array.isArray(item.category) ? item.category : [item.category];
+        return categories.some(cat => cat && CRITICAL_CATEGORIES.includes(cat.toLowerCase()));
+    };
 
+    const criticalItems = [
+        ...comments.filter(filterCritical).map(c => ({ type: 'Commentaire', text: c.comment, driver: c.driverName, taskId: c.taskId })),
+        ...verbatims.filter(filterCritical).map(v => ({ type: 'Verbatim', text: v.verbatim, driver: v.driver, taskId: v.taskId }))
+    ];
+
+    if (criticalItems.length === 0) return '';
+
+    let content = criticalItems.map(item => `
+        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #FECACA;">
+            <p style="margin: 0; ${FONT_FAMILY}"><strong style="color: ${COLORS.DESTRUCTIVE};">${item.type}:</strong> "${item.text}"</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">Livreur: ${item.driver || 'N/A'} | Tâche: ${item.taskId}</p>
+        </div>`).join('');
+    
+    return createCard(content, "Alertes Critiques", '⚠️', {bgColor: COLORS.CRITICAL_BG, borderColor: COLORS.DESTRUCTIVE});
+}
+
+function createManagerialSummaryCard(depotComments: CategorizedComment[], depotAlerts?: AlertData): string {
+    // Find Top Driver (most 5-star ratings)
+    const fiveStarRatings = depotComments.filter(c => c.rating === 5 && c.driverName);
+    const fiveStarCounts: Record<string, number> = {};
+    fiveStarRatings.forEach(c => {
+        fiveStarCounts[c.driverName!] = (fiveStarCounts[c.driverName!] || 0) + 1;
+    });
+    const topDriverEntry = Object.entries(fiveStarCounts).sort((a, b) => b[1] - a[1])[0];
+    const topDriver = topDriverEntry ? { name: topDriverEntry[0], count: topDriverEntry[1] } : null;
+
+    // Find Driver to Watch (most alerts)
+    const driversWithAlerts = depotAlerts?.carriers.flatMap(c => c.drivers).filter(d => d.alertCount > 0) || [];
+    const driverToWatch = driversWithAlerts.sort((a, b) => b.alertCount - a.alertCount)[0];
+    
+    if (!topDriver && !driverToWatch) return '';
+
+    let topDriverHtml = `<p style="color: ${COLORS.TEXT_SECONDARY}; margin: 0; ${FONT_FAMILY}">Aucun livreur avec 5 étoiles sur la période.</p>`;
+    if (topDriver) {
+        topDriverHtml = `
+            <p style="margin: 0; font-size: 16px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; ${FONT_FAMILY}">${topDriver.name}</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: ${COLORS.SUCCESS}; ${FONT_FAMILY}">${topDriver.count} note(s) 5 étoiles</p>`;
+    }
+
+    let driverToWatchHtml = `<p style="color: ${COLORS.TEXT_SECONDARY}; margin: 0; ${FONT_FAMILY}">Aucun livreur avec des notes alertantes.</p>`;
+    if (driverToWatch) {
+        driverToWatchHtml = `
+            <p style="margin: 0; font-size: 16px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; ${FONT_FAMILY}">${driverToWatch.name}</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: ${COLORS.DESTRUCTIVE}; ${FONT_FAMILY}">${driverToWatch.alertCount} alerte(s) sur ${driverToWatch.totalRatings} notes</p>`;
+    }
+
+    const content = `
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+          <td width="50%" style="vertical-align: top; padding-right: 12px;">
+            <p style="font-size: 12px; font-weight: 600; color: ${COLORS.TEXT_SECONDARY}; margin: 0 0 8px 0; ${FONT_FAMILY}">⭐ TOP LIVREUR</p>
+            ${topDriverHtml}
+          </td>
+          <td width="50%" style="vertical-align: top; padding-left: 12px; border-left: 1px solid ${COLORS.BORDER};">
+            <p style="font-size: 12px; font-weight: 600; color: ${COLORS.TEXT_SECONDARY}; margin: 0 0 8px 0; ${FONT_FAMILY}">⚠️ LIVREUR À SUIVRE</p>
+            ${driverToWatchHtml}
+          </td>
+        </tr>
+      </table>`;
+    return createCard(content, "Synthèse Managériale", '🎯');
+}
+
+
+// --- Main Email Generation Function ---
 export function generateQualityEmailBody(
     qualityData: QualityData,
     alertData: AlertData[],
@@ -114,214 +185,144 @@ export function generateQualityEmailBody(
     processedVerbatims: ProcessedNpsVerbatim[],
     dateRange: { from: Date, to: Date }
 ): string {
-    const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR')} au ${new Date(dateRange.to).toLocaleDateString('fr-FR')}`;
+    const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} au ${new Date(dateRange.to).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
-    // --- Global Summary Section ---
-    const globalKpis = createKpiGrid([
-        { label: 'Note Moy.', value: formatValue(qualityData.summary.averageRating, '', 2), color: getRatingColor(qualityData.summary.averageRating) },
-        { label: 'NPS', value: formatValue(qualityData.summary.npsScore, '', 1), color: getNpsColor(qualityData.summary.npsScore) },
-        { label: 'Ponctualité', value: formatValue(qualityData.summary.punctualityRate, '%', 1), color: getPunctualityColor(qualityData.summary.punctualityRate) },
-        { label: 'SCANBAC', value: formatValue(qualityData.summary.scanbacRate, '%', 1), color: getPunctualityColor(qualityData.summary.scanbacRate) },
-        { label: 'Forçage Adr.', value: formatValue(qualityData.summary.forcedAddressRate, '%', 1), color: getForcedMetricColor(qualityData.summary.forcedAddressRate) },
-        { label: 'Forçage Cmd', value: formatValue(qualityData.summary.forcedContactlessRate, '%', 1), color: getForcedMetricColor(qualityData.summary.forcedContactlessRate) },
-        { label: 'Retard > 1h', value: formatValue(qualityData.summary.lateOver1hRate, '%', 1), color: getForcedMetricColor(qualityData.summary.lateOver1hRate) }
-    ]);
+    const kpiDefs = [
+      { key: 'averageRating', label: 'Note Moy.', unit: '', decimals: 2, colorFn: getRatingColor },
+      { key: 'npsScore', label: 'NPS', unit: '', decimals: 1, colorFn: getNpsColor },
+      { key: 'punctualityRate', label: 'Ponctualité', unit: '%', decimals: 1, colorFn: getPunctualityColor },
+      { key: 'scanbacRate', label: 'SCANBAC', unit: '%', decimals: 1, colorFn: getPunctualityColor },
+      { key: 'forcedAddressRate', label: 'Forçage Adr.', unit: '%', decimals: 1, colorFn: getForcedMetricColor },
+      { key: 'forcedContactlessRate', label: 'Forçage Cmd', unit: '%', decimals: 1, colorFn: getForcedMetricColor },
+      { key: 'lateOver1hRate', label: 'Retard > 1h', unit: '%', decimals: 1, colorFn: getForcedMetricColor },
+    ] as const;
+
+    const buildKpis = (data: any) => kpiDefs.map(kpi => ({
+      label: kpi.label,
+      value: formatValue(data[kpi.key], kpi.unit, kpi.decimals),
+      color: kpi.colorFn(data[kpi.key])
+    }));
+
+    const globalKpis = createKpiGrid(buildKpis(qualityData.summary));
+    const globalAlertsSection = createCriticalAlertsSection(allComments, processedVerbatims);
     
-    const globalCommentsByCategory: Record<string, number> = {};
-    allComments.forEach(c => {
-        const categories = Array.isArray(c.category) ? c.category : [c.category];
-        categories.forEach(cat => {
-             if(cat) globalCommentsByCategory[cat] = (globalCommentsByCategory[cat] || 0) + 1;
-        })
-    });
-    const globalCommentsCategoryData = Object.entries(globalCommentsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
-        name, count, percentage: allComments.length > 0 ? (count / allComments.length) * 100 : 0
-    }));
+    const getCategoryData = (items: (CategorizedComment | ProcessedNpsVerbatim)[]) => {
+      const categoryMap: Record<string, number> = {};
+      items.forEach(item => {
+        const categories = Array.isArray(item.category) ? item.category : [item.category];
+        categories.forEach(cat => { if(cat) categoryMap[cat] = (categoryMap[cat] || 0) + 1; });
+      });
+      return Object.entries(categoryMap).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count, percentage: items.length > 0 ? (count / items.length) * 100 : 0 }));
+    };
 
-    const globalVerbatimsByCategory: Record<string, number> = {};
-    processedVerbatims.forEach(v => {
-        const categories = Array.isArray(v.category) ? v.category : [v.category];
-        categories.forEach(cat => {
-            if(cat) globalVerbatimsByCategory[cat] = (globalVerbatimsByCategory[cat] || 0) + 1;
-        });
-    });
-    const globalVerbatimsCategoryData = Object.entries(globalVerbatimsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
-        name, count, percentage: processedVerbatims.length > 0 ? (count / processedVerbatims.length) * 100 : 0
-    }));
+    const globalCommentsCategoryData = getCategoryData(allComments);
+    const globalVerbatimsCategoryData = getCategoryData(processedVerbatims);
 
-     const globalAnalysisContent = `
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
-                    ${createCategoryTable("Commentaires Négatifs", globalCommentsCategoryData, allComments.length)}
-                </td>
-                <td style="width: 50%; vertical-align: top; padding-left: 20px;">
-                    ${createCategoryTable("Verbatims Détracteurs", globalVerbatimsCategoryData, processedVerbatims.length)}
-                </td>
-            </tr>
-        </table>
-    `;
+    const globalAnalysisContent = `
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+              <td style="width: 50%; vertical-align: top; padding-right: 16px;">${createCategoryTable("Commentaires Négatifs", globalCommentsCategoryData, allComments.length)}</td>
+              <td style="width: 50%; vertical-align: top; padding-left: 16px;">${createCategoryTable("Verbatims Détracteurs", globalVerbatimsCategoryData, processedVerbatims.length)}</td>
+          </tr>
+      </table>`;
 
     const globalSummarySection = `
-        <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 20px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
-            Synthèse Globale
-        </h2>
-        ${createCard(globalKpis, 'Indicateurs Clés Globaux')}
-        ${createCard(globalAnalysisContent, 'Analyse Globale des Retours Clients')}
-    `;
+        ${createCard(globalKpis, 'Indicateurs Clés', '📊')}
+        ${globalAlertsSection}
+        ${createCard(globalAnalysisContent, 'Analyse des Retours Clients', '📋')}`;
 
-
-    // --- Depot Sections ---
     let depotSections = '';
-    const depotAlerts = new Map(alertData.map(depot => [depot.name, depot]));
+    const alertDataMap = new Map(alertData.map(depot => [depot.name, depot]));
 
     for (const depot of qualityData.details) {
-        // --- Depot KPIs ---
-        const depotKpis = createKpiGrid([
-            { label: 'Note Moy.', value: formatValue(depot.averageRating, '', 2), color: getRatingColor(depot.averageRating) },
-            { label: 'NPS', value: formatValue(depot.npsScore, '', 1), color: getNpsColor(depot.npsScore) },
-            { label: 'Ponctualité', value: formatValue(depot.punctualityRate, '%', 1), color: getPunctualityColor(depot.punctualityRate) },
-            { label: 'SCANBAC', value: formatValue(depot.scanbacRate, '%', 1), color: getPunctualityColor(depot.scanbacRate) },
-            { label: 'Forçage Adr.', value: formatValue(depot.forcedAddressRate, '%', 1), color: getForcedMetricColor(depot.forcedAddressRate) },
-            { label: 'Forçage Cmd', value: formatValue(depot.forcedContactlessRate, '%', 1), color: getForcedMetricColor(depot.forcedContactlessRate) },
-            { label: 'Retard > 1h', value: formatValue(depot.lateOver1hRate, '%', 1), color: getForcedMetricColor(depot.lateOver1hRate) }
-        ]);
-
-        // --- Carrier KPIs ---
-        let carrierKpisSections = '';
-        if(depot.carriers.length > 1) { // Only show carrier breakdown if there's more than one
-             carrierKpisSections = `<h4 style="font-size: 14px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 20px 0 10px 0; ${FONT_FAMILY}">Indicateurs par Transporteur</h4>`;
-             depot.carriers.forEach(carrier => {
-                 const carrierKpis = createKpiGrid([
-                    { label: 'Note Moy.', value: formatValue(carrier.averageRating, '', 2), color: getRatingColor(carrier.averageRating) },
-                    { label: 'NPS', value: formatValue(carrier.npsScore, '', 1), color: getNpsColor(carrier.npsScore) },
-                    { label: 'Ponctualité', value: formatValue(carrier.punctualityRate, '%', 1), color: getPunctualityColor(carrier.punctualityRate) },
-                    { label: 'SCANBAC', value: formatValue(carrier.scanbacRate, '%', 1), color: getPunctualityColor(carrier.scanbacRate) },
-                    { label: 'Forçage Adr.', value: formatValue(carrier.forcedAddressRate, '%', 1), color: getForcedMetricColor(carrier.forcedAddressRate) },
-                    { label: 'Forçage Cmd', value: formatValue(carrier.forcedContactlessRate, '%', 1), color: getForcedMetricColor(carrier.forcedContactlessRate) },
-                    { label: 'Retard > 1h', value: formatValue(carrier.lateOver1hRate, '%', 1), color: getForcedMetricColor(carrier.lateOver1hRate) }
-                ]);
-                carrierKpisSections += `
-                    <div style="margin-bottom: 15px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #fcfdff;">
-                        <p style="font-size: 14px; font-weight: 600; color: #4A5568; margin: 0 0 10px 0; ${FONT_FAMILY}">${carrier.name}</p>
-                        ${carrierKpis}
-                    </div>
-                `;
-             });
-        }
-
-
-        // --- Categories for this Depot ---
-        const depotComments = allComments.filter(c => depot.carriers.some(carrier => carrier.drivers.some(driver => driver.name === c.driverName)));
-        const commentsByCategory: Record<string, number> = {};
-        depotComments.forEach(c => {
-            const categories = Array.isArray(c.category) ? c.category : [c.category];
-            categories.forEach(cat => {
-                if(cat) commentsByCategory[cat] = (commentsByCategory[cat] || 0) + 1;
-            });
-        });
-        const commentsCategoryData = Object.entries(commentsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
-            name, count, percentage: depotComments.length > 0 ? (count / depotComments.length) * 100 : 0
-        }));
-
+        const depotKpis = createKpiGrid(buildKpis(depot));
+        const depotComments = allComments.filter(c => c.nomHub === depot.name);
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
-        const verbatimsByCategory: Record<string, number> = {};
-        depotVerbatims.forEach(v => {
-            const categories = Array.isArray(v.category) ? v.category : [v.category];
-            categories.forEach(cat => {
-                if(cat) verbatimsByCategory[cat] = (verbatimsByCategory[cat] || 0) + 1;
-            });
-        });
-        const verbatimsCategoryData = Object.entries(verbatimsByCategory).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({
-            name, count, percentage: depotVerbatims.length > 0 ? (count / depotVerbatims.length) * 100 : 0
-        }));
+        const depotAlerts = alertDataMap.get(depot.name);
 
-        const analysisContent = `
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                    <td style="width: 50%; vertical-align: top; padding-right: 20px;">
-                        ${createCategoryTable("Commentaires Négatifs", commentsCategoryData, depotComments.length)}
-                    </td>
-                    <td style="width: 50%; vertical-align: top; padding-left: 20px;">
-                        ${createCategoryTable("Verbatims Détracteurs", verbatimsCategoryData, depotVerbatims.length)}
-                    </td>
-                </tr>
-            </table>
-        `;
-
-        // --- Recurrence Table ---
-        const currentDepotAlerts = depotAlerts.get(depot.name);
+        const managerialSummarySection = createManagerialSummaryCard(depotComments, depotAlerts);
+        const depotAlertsSection = createCriticalAlertsSection(depotComments, depotVerbatims);
+        
         let recurrenceRows = '';
-        if (currentDepotAlerts) {
-            currentDepotAlerts.carriers.flatMap(c => c.drivers).sort((a, b) => b.alertCount - a.alertCount).forEach(driver => {
-                if (driver.alertCount > 0) {
-                    const driverStats = depot.carriers.flatMap(c => c.drivers).find(d => d.name === driver.name);
+        if (depotAlerts) {
+            const driversWithAlerts = depotAlerts.carriers.flatMap(c => c.drivers).filter(d => d.alertCount > 0).sort((a, b) => b.alertCount - a.alertCount);
+            if (driversWithAlerts.length > 0) {
+                 driversWithAlerts.forEach(driver => {
                     const categories = Object.entries(driver.commentCategories).sort((a,b) => b[1] - a[1]).map(([cat, count]) => `${count}x ${cat}`).join(', ');
                     recurrenceRows += `
                         <tr>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px;"><strong>${driver.name}</strong><br><span style="color: ${COLORS.TEXT_SECONDARY}; font-size: 12px;">${currentDepotAlerts.carriers.find(c => c.drivers.some(d => d.name === driver.name))?.name || ''}</span></td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; color: ${getRatingColor(driver.averageRating)}; font-weight: 600;">${formatValue(driver.averageRating, '', 2)}</td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; color: ${getNpsColor(driverStats?.npsScore)}; font-weight: 600;">${formatValue(driverStats?.npsScore, '', 1)}</td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; color: ${getPunctualityColor(driverStats?.punctualityRate)}; font-weight: 600;">${formatValue(driverStats?.punctualityRate, '%', 1)}</td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 13px; text-align: center; font-weight: bold; color: ${COLORS.DESTRUCTIVE};">${driver.alertCount}/${driver.totalRatings}</td>
-                            <td style="padding: 12px 5px; border-bottom: 1px solid ${COLORS.BORDER}; ${FONT_FAMILY} font-size: 12px; color: ${COLORS.TEXT_SECONDARY};">${categories}</td>
-                        </tr>
-                    `;
-                }
-            });
+                            <td style="padding: 12px 8px; border-bottom: 1px solid ${COLORS.BORDER}; vertical-align: middle;">
+                                <table role="presentation" border="0" cellpadding="0" cellspacing="0"><tr><td>${createAvatar(driver.name)}</td><td>
+                                    <p style="font-size: 14px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 0; ${FONT_FAMILY}">${driver.name}</p>
+                                    <p style="font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; margin: 2px 0 0 0; ${FONT_FAMILY}">${depotAlerts.carriers.find(c => c.drivers.some(d => d.name === driver.name))?.name || ''}</p>
+                                </td></tr></table>
+                            </td>
+                            <td style="padding: 12px 8px; text-align: center; font-weight: 600; color: ${getRatingColor(driver.averageRating)}; border-bottom: 1px solid ${COLORS.BORDER}; font-size: 14px; vertical-align: middle;">${formatValue(driver.averageRating, '', 2)}</td>
+                            <td style="padding: 12px 8px; text-align: center; font-weight: 700; color: ${COLORS.DESTRUCTIVE}; border-bottom: 1px solid ${COLORS.BORDER}; font-size: 14px; vertical-align: middle;">${driver.alertCount} / ${driver.totalRatings}</td>
+                            <td style="padding: 12px 8px; border-bottom: 1px solid ${COLORS.BORDER}; font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; vertical-align: middle;">${categories || 'N/A'}</td>
+                        </tr>`;
+                });
+            }
         }
         if (recurrenceRows === '') {
-            recurrenceRows = `<tr><td colspan="6" style="padding: 20px; text-align: center; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">Aucune récurrence de mauvaise note pour ce dépôt.</td></tr>`;
+            recurrenceRows = `<tr><td colspan="4" style="padding: 24px; text-align: center; color: ${COLORS.TEXT_SECONDARY}; ${FONT_FAMILY}">Aucune récurrence de mauvaise note pour ce dépôt.</td></tr>`;
         }
-        
-        const recurrenceTable = `
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                <thead>
-                    <tr>
-                        <th style="padding: 8px 5px; text-align: left; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Livreur</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Note Moy.</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">NPS</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Ponctualité</th>
-                        <th style="padding: 8px 5px; text-align: center; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Alertes / Total</th>
-                        <th style="padding: 8px 5px; text-align: left; background-color: #F9FAFB; font-family: Arial, sans-serif; font-size: 11px; color: #6B7280; text-transform: uppercase;">Catégories Associées</th>
-                    </tr>
-                </thead>
-                <tbody>${recurrenceRows}</tbody>
-            </table>
-        `;
+
+        const recurrenceTableHeaders = ['Livreur', 'Note Moy.', 'Alertes / Total', 'Catégories Associées'].map(label => 
+            `<th style="padding: 10px 8px; text-align: left; background-color: #F9FAFB; ${FONT_FAMILY} font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">${label}</th>`
+        ).join('').replace(/text-align: left/g, 'text-align: center').replace('text-align: center', 'text-align: left');
+
+        const recurrenceTable = `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 16px;"><thead><tr>${recurrenceTableHeaders}</tr></thead><tbody>${recurrenceRows}</tbody></table>`;
         
         depotSections += `
-            <h2 style="font-size: 22px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 40px 0 15px 0; border-bottom: 2px solid ${COLORS.BORDER}; padding-bottom: 10px; ${FONT_FAMILY}">
-                ${depot.name.toUpperCase()}
-            </h2>
-            ${createCard(depotKpis, 'Indicateurs Clés du Dépôt')}
-            ${carrierKpisSections ? createCard(carrierKpisSections) : ''}
-            ${createCard(analysisContent, 'Analyse des Retours Clients')}
-            ${createCard(recurrenceTable, 'Récurrence des Mauvaises Notes (Note < 4)')}
+          <hr style="border: none; border-top: 2px solid ${COLORS.BORDER}; margin: 40px 0;">
+          <h2 style="font-size: 24px; font-weight: 700; color: ${COLORS.PRIMARY}; margin: 0 0 24px 0; ${FONT_FAMILY}">
+              Analyse Dépôt : ${depot.name.toUpperCase()}
+          </h2>
+          ${createCard(depotKpis, 'Indicateurs Clés du Dépôt', '📊')}
+          ${managerialSummarySection}
+          ${depotAlertsSection}
+          ${createCard(recurrenceTable, 'Suivi des Livreurs (Notes < 4)', '👥')}
         `;
     }
 
     const htmlBody = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Rapport Qualité</title>
-        </head>
-        <body style="background-color: ${COLORS.BACKGROUND_BODY}; margin: 0; padding: 20px; ${FONT_FAMILY}">
-            <div style="max-width: 850px; margin: auto; background-color: transparent;">
-                <h1 style="font-size: 28px; font-weight: 800; color: ${COLORS.TEXT_PRIMARY}; margin: 0; ${FONT_FAMILY}">Rapport Qualité</h1>
-                <p style="font-size: 14px; color: ${COLORS.TEXT_SECONDARY}; margin: 5px 0 30px 0; ${FONT_FAMILY}">Période du ${formattedDateRange}</p>
-                ${globalSummarySection}
-                ${depotSections}
-                <p style="text-align: center; color: #A0AEC0; font-size: 12px; margin-top: 30px; ${FONT_FAMILY}">Généré par ID 360</p>
-            </div>
-        </body>
-        </html>
-    `;
+      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+      <html xmlns="http://www.w3.org/1999/xhtml">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <title>Rapport Qualité</title>
+        <style> body { margin: 0; padding: 0; word-spacing: normal; background-color: ${COLORS.BACKGROUND_BODY}; } </style>
+      </head>
+      <body style="background-color: ${COLORS.BACKGROUND_BODY};">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td style="padding: 20px;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" width="850" style="border-collapse: collapse; max-width: 850px;">
+                <tr>
+                  <td align="center" style="padding: 20px 0 40px 0;">
+                    <h1 style="font-size: 32px; font-weight: 800; color: ${COLORS.TEXT_PRIMARY}; margin: 0; ${FONT_FAMILY}">Rapport Qualité Hebdomadaire</h1>
+                    <p style="font-size: 16px; color: ${COLORS.TEXT_SECONDARY}; margin: 8px 0 0 0; ${FONT_FAMILY}">${formattedDateRange}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <h2 style="font-size: 24px; font-weight: 700; color: ${COLORS.PRIMARY}; margin: 0 0 24px 0; ${FONT_FAMILY}">Synthèse Globale</h2>
+                    ${globalSummarySection}
+                    ${depotSections}
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding: 30px 0;">
+                    <p style="text-align: center; color: ${COLORS.TEXT_LIGHT}; font-size: 12px; ${FONT_FAMILY}">Généré par ID 360</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>`;
 
     return htmlBody;
 }
-
-
-  

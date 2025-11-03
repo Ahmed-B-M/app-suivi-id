@@ -73,9 +73,9 @@ export function useQuery<T>(
       setLastUpdateTime(cached.lastUpdateTime);
       setLoading(false);
       
-      if (realtime) {
-        cached.listeners!++;
-      } else {
+      if (realtime && cached.listeners !== undefined) {
+        cached.listeners++;
+      } else if (!realtime) {
         // For non-realtime, we don't need to do anything else.
         // The data is already fetched and cached.
         return;
@@ -144,7 +144,7 @@ export function useQuery<T>(
         }
       }
     };
-  }, [cacheKey]);
+  }, [cacheKey, collectionQuery, realtime]); // removed constraints from here
 
   return { data, loading, error, lastUpdateTime };
 }
