@@ -89,7 +89,7 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
  * @param driverNameOrRound - The full name of the driver or a Tournee object.
  * @returns The name of the carrier.
  */
-export function getCarrierFromDriver(driverNameOrRound: string | Tournee | undefined | null): string {
+export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee | undefined | null): string {
     let driverName: string | undefined | null = null;
 
     // Check for carrierOverride first
@@ -99,8 +99,8 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tournee | undef
 
     if (typeof driverNameOrRound === 'string') {
         driverName = driverNameOrRound;
-    } else if (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) {
-        driverName = `${driverNameOrRound.driver?.firstName || ''} ${driverNameOrRound.driver?.lastName || ''}`.trim();
+    } else if (driverNameOrRound && typeof driverNameOrRound === 'object') {
+       driverName = getDriverFullName(driverNameOrRound);
     }
     
     if (!driverName) {
@@ -136,8 +136,8 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tournee | undef
 
 
     // New logic based on suffix in lastName
-    const driver = (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) ? driverNameOrRound.driver : null;
-    const lastName = driver?.lastName;
+    const driver = (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) ? (driverNameOrRound as Tournee).driver : (driverNameOrRound as Tache).livreur;
+    const lastName = driver?.nom || driver?.lastName;
     if (lastName) {
       const separatorIndex = lastName.indexOf('-');
       if (separatorIndex !== -1 && separatorIndex < lastName.length - 1) {
@@ -148,12 +148,15 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tournee | undef
     return "Inconnu";
 }
 
-export function getDriverFullName(item: Tache | Tournee): string | undefined {
-    if ('livreur' in item && item.livreur) {
+export function getDriverFullName(item: Tache | Tournee | any): string | undefined {
+    if (item && item.livreur) { // Tache from transformed data
         return `${item.livreur.prenom || ''} ${item.livreur.nom || ''}`.trim();
     }
-    if ('driver' in item && item.driver) {
+    if (item && item.driver) { // Tournee from transformed data
         return `${item.driver.firstName || ''} ${item.driver.lastName || ''}`.trim();
+    }
+     if (item && 'prenomChauffeur' in item) { // Tache from flat structure
+        return `${item.prenomChauffeur || ''} ${item.nomChauffeur || ''}`.trim();
     }
     return undefined;
 }
@@ -181,3 +184,4 @@ export function groupTasksByMonth(tasks: Tache[]) {
         return acc;
     }, {} as Record<string, Tache[]>);
 }
+

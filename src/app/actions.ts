@@ -33,14 +33,14 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
     const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
-    const stopInfo = roundInfo?.stops?.find((s: any) => s.taskId === rawTask.id);
+    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask.id);
 
     return {
         // Identification
-        tacheId: rawTask.id,
         id: rawTask._id,
+        tacheId: rawTask.id,
         referenceTache: rawTask.taskReference,
-        numeroCommande: rawTask.metadata?.numeroCommande,
+        numeroCommande: rawTask.id,
         client: rawTask.client,
         
         // Contenu
@@ -51,54 +51,54 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         bacsBoucherie: bacs.bacsBoucherie,
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawTask.dimensions?.bac,
-        nombreDeBacsMeta: rawTask.metadata?.nbreBacs,
+        nombreDeBacsMeta: rawTask.metaDonnees?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
         volumeEnCm3: rawTask.dimensions?.volume,
 
         // Planification
         date: rawTask.date,
-        dateInitialeLivraison: rawTask.metadata?.Date_Initiale_Livraison,
-        debutCreneauInitial: rawTask.timeWindow?.start,
-        finCreneauInitial: rawTask.timeWindow?.stop,
-        debutFenetre: rawTask.timeWindow?.start, // Doublon
-        finFenetre: rawTask.timeWindow?.stop,   // Doublon
+        dateInitialeLivraison: rawTask.metaDonnees?.Date_Initiale_Livraison,
+        debutCreneauInitial: rawTask.creneauHoraire?.debut,
+        finCreneauInitial: rawTask.creneauHoraire?.fin,
+        debutFenetre: rawTask.creneauHoraire?.debut, // Doublon
+        finFenetre: rawTask.creneauHoraire?.fin,   // Doublon
         margeFenetreHoraire: rawTask.timeWindowMargin,
         heureArriveeEstimee: stopInfo?.arriveTime,
-        tempsDeServiceEstime: rawTask.serviceTime,
+        tempsDeServiceEstime: rawTask.tempsDeServiceEstime,
 
         // Adresse & Instructions
-        adresse: rawTask.location?.address,
-        numero: rawTask.location?.number,
-        rue: rawTask.location?.street,
-        batiment: rawTask.metadata?.immeuble,
-        etage: rawTask.contact?.buildingInfo?.floor,
-        digicode1: rawTask.contact?.buildingInfo?.digicode1,
-        avecAscenseur: rawTask.contact?.buildingInfo?.hasElevator,
-        avecInterphone: rawTask.contact?.buildingInfo?.hasInterphone,
-        codeInterphone: rawTask.contact?.buildingInfo?.interphoneCode,
-        ville: rawTask.location?.city,
-        codePostal: rawTask.location?.zip,
-        pays: rawTask.location?.countryCode,
+        adresse: rawTask.localisation?.adresse,
+        numero: rawTask.localisation?.numero,
+        rue: rawTask.localisation?.rue,
+        batiment: rawTask.metaDonnees?.immeuble,
+        etage: rawTask.contact?.infoImmeuble?.etage,
+        digicode1: rawTask.contact?.infoImmeuble?.digicode1,
+        avecAscenseur: rawTask.contact?.infoImmeuble?.ascenseur,
+        avecInterphone: rawTask.contact?.infoImmeuble?.interphone,
+        codeInterphone: rawTask.contact?.infoImmeuble?.codeInterphone,
+        ville: rawTask.localisation?.ville,
+        codePostal: rawTask.localisation?.codePostal,
+        pays: rawTask.localisation?.codePays,
         instructions: rawTask.instructions,
 
         // Contact Client
-        personneContact: rawTask.contact?.person,
-        compteContact: rawTask.contact?.account,
+        personneContact: rawTask.contact?.personne,
+        compteContact: rawTask.contact?.compte,
         emailContact: rawTask.contact?.email,
-        telephoneContact: rawTask.contact?.phone,
+        telephoneContact: rawTask.contact?.telephone,
         notifEmail: rawTask.notificationSettings?.email,
         notifSms: rawTask.notificationSettings?.sms,
 
         // Réalisation & Statuts
         status: rawTask.status,
         heureArriveeReelle: rawTask.actualTime?.arrive?.when,
-        dateCloture: rawTask.closureDate,
+        dateCloture: rawTask.dateCloture,
         surPlaceForce: rawTask.actualTime?.arrive?.forced,
         surPlaceValide: rawTask.actualTime?.arrive?.isCorrectAddress,
         tempsDeRetard: roundInfo?.delay?.time,
         dateDuRetard: roundInfo?.delay?.when,
-        tentatives: rawTask.attempts,
-        completePar: rawTask.completedBy,
+        tentatives: rawTask.tentatives,
+        completePar: rawTask.completePar,
 
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
@@ -119,30 +119,31 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         longitudePosition: rawTask.execution?.position?.longitude,
         
         // Infos Tournée & Chauffeur
-        nomTournee: rawTask.roundName,
+        nomTournee: rawTask.nomTournee,
         sequence: rawTask.sequence,
-        nomAssocie: rawTask.associatedName,
-        idExterneChauffeur: rawTask.driver?.externalId,
-        prenomChauffeur: rawTask.driver?.firstName,
-        nomChauffeur: rawTask.driver?.lastName,
-        nomHub: rawTask.hubName,
-        nomPlateforme: rawTask.platformName,
+        nomAssocie: rawTask.nomAssocie,
+        idExterneChauffeur: rawTask.livreur?.idExterne,
+        prenomChauffeur: rawTask.livreur?.prenom,
+        nomChauffeur: rawTask.livreur?.nom,
+        nomCompletChauffeur: getDriverFullName(rawTask),
+        nomHub: rawTask.nomHub,
+        nomPlateforme: rawTask.nomPlateforme,
         
         // Métadonnées & Système
         type: rawTask.type,
         flux: rawTask.flux,
-        progression: rawTask.progress,
+        progression: rawTask.progression,
         tachesMemeArret: rawTask.realServiceTime?.tasksDeliveredInSameStop,
         categories: rawTask.categories,
-        codePe: rawTask.metadata?.codePe,
-        notationLivreur: rawTask.metadata?.notationLivreur,
-        serviceMeta: rawTask.metadata?.service,
-        codeEntrepôt: rawTask.metadata?.warehouseCode,
-        commentaireLivreur: rawTask.metadata?.commentaireLivreur,
+        codePe: rawTask.metaDonnees?.codePe,
+        notationLivreur: rawTask.metaDonnees?.notationLivreur,
+        serviceMeta: rawTask.metaDonnees?.service,
+        codeEntrepôt: rawTask.metaDonnees?.warehouseCode,
+        commentaireLivreur: rawTask.metaDonnees?.commentaireLivreur,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
-        dateMiseAJour: rawTask.updated,
-        dateCreation: rawTask.when,
+        dateMiseAJour: rawTask.dateMiseAJour,
+        dateCreation: rawTask.dateCreation,
         
         // Full raw data for joins
         raw: rawTask,
@@ -786,7 +787,7 @@ export async function runDailySyncAction() {
     logs.push(`🚀 Début de la synchronisation 48h... (${fromString} - ${toString})`);
 
     const taskParams = new URLSearchParams();
-    let allRawTasks: Tache[] = [];
+    let allRawTasks: any[] = [];
     const dateCursorTasks = startOfDay(from);
     while (dateCursorTasks <= to) {
         const dateString = format(dateCursorTasks, 'yyyy-MM-dd');
@@ -800,7 +801,7 @@ export async function runDailySyncAction() {
     logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées au total.`);
     
     const roundParams = new URLSearchParams();
-    let allRawRounds: Tournee[] = [];
+    let allRawRounds: any[] = [];
     const dateCursorRounds = startOfDay(from);
      while (dateCursorRounds <= to) {
       const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
@@ -872,7 +873,3 @@ export async function runDailySyncAction() {
     };
   }
 }
-
-    
-
-    

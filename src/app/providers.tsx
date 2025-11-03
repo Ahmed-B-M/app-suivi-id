@@ -7,7 +7,7 @@ import { FilterProvider } from "@/context/filter-context";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarNav } from "@/components/app/sidebar-nav";
 import { AppHeader } from "./header";
-import { SidebarInset } from "../ui/sidebar/index";
+import { SidebarInset } from "@/components/ui/sidebar/index";
 import { useUser } from '@/firebase';
 import { ReactNode, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';

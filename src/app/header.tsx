@@ -3,7 +3,7 @@
 
 import { Layers, Settings, LayoutDashboard, CreditCard, Building, Warehouse, Truck, User, History } from "lucide-react";
 import Link from "next/link";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 import { useFilters } from "@/context/filter-context";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DEPOTS_LIST } from "@/lib/grouping";
-import { Separator } from "../ui/separator";
+import { Separator } from "@/components/ui/separator";
 
 export function AppHeader() {
   const {

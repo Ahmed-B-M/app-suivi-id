@@ -91,6 +91,7 @@ export interface Tache {
   idExterneChauffeur?: string;
   prenomChauffeur?: string;
   nomChauffeur?: string;
+  nomCompletChauffeur?: string;
   nomHub?: string;
   nomPlateforme?: string;
   
