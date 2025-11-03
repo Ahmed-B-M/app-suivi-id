@@ -167,8 +167,7 @@ export function calculateDashboardStats(
 
     const partialDeliveredTasksList = tasks.filter(t => t.status === 'PARTIAL_DELIVERED');
     
-    const qualityAlertTaskIds = new Set(allNegativeComments.map(c => c.taskId));
-    const qualityAlertTasks = tasks.filter(t => qualityAlertTaskIds.has(t.tacheId));
+    const qualityAlertTasks = tasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
 
 
     const alertRate = numberOfRatings > 0 ? (qualityAlertTasks.length / numberOfRatings) * 100 : null;
