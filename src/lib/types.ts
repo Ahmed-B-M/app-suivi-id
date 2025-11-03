@@ -2,198 +2,194 @@
 import { Timestamp } from "firebase/firestore";
 
 export interface Tache {
-  // Identification
-  id: string; // From _id
-  tacheId: string;
-  referenceTache?: string;
-  numeroCommande?: string;
-  client?: string;
+    // Identification
+    tacheId: string;
+    id: string; // from _id
+    referenceTache?: string;
+    numeroCommande?: string;
+    client?: string;
 
-  // Contenu
-  bacsSurg: number;
-  bacsFrais: number;
-  bacsSec: number;
-  bacsPoisson: number;
-  bacsBoucherie: number;
-  totalSecFrais: number;
-  nombreDeBacs?: number; // dimensions.bac
-  nombreDeBacsMeta?: number; // metaDonnees.nbreBacs
-  poidsEnKg?: number;
-  volumeEnCm3?: number;
-  
-  // Planification
-  date?: string | Date | Timestamp;
-  dateInitialeLivraison?: string;
-  debutCreneauInitial?: string;
-  finCreneauInitial?: string;
-  debutFenetre?: string;
-  finFenetre?: string;
-  margeFenetreHoraire?: number;
-  heureArriveeEstimee?: string;
-  tempsDeServiceEstime?: number;
+    // Contenu de la Tâche
+    bacsSurg: number;
+    bacsFrais: number;
+    bacsSec: number;
+    bacsPoisson: number;
+    bacsBoucherie: number;
+    totalSecFrais: number;
+    nombreDeBacs?: number;
+    poidsEnKg?: number;
+    volumeEnCm3?: number;
 
-  // Adresse & Instructions
-  adresse?: string;
-  numero?: string;
-  rue?: string;
-  batiment?: string;
-  etage?: string | number;
-  digicode1?: string;
-  avecAscenseur?: boolean;
-  avecInterphone?: boolean;
-  codeInterphone?: string;
-  ville?: string;
-  codePostal?: string;
-  pays?: string;
-  instructions?: string;
-  
-  // Contact Client
-  personneContact?: string;
-  compteContact?: string;
-  emailContact?: string;
-  telephoneContact?: string;
-  notifEmail?: boolean;
-  notifSms?: boolean;
+    // Planification
+    date?: string | Date | Timestamp;
+    dateInitialeLivraison?: string;
+    debutCreneauInitial?: string;
+    finCreneauInitial?: string;
+    heureArriveeEstimee?: string;
+    tempsDeServiceEstime?: number;
 
-  // Réalisation & Statuts
-  status?: string;
-  heureArriveeReelle?: string;
-  dateCloture?: string;
-  surPlaceForce?: boolean;
-  surPlaceValide?: boolean;
-  tempsDeRetard?: number;
-  dateDuRetard?: string;
-  tentatives?: number;
-  completePar?: string;
+    // Adresse & Instructions
+    adresse?: string;
+    numero?: string;
+    rue?: string;
+    batiment?: string;
+    etage?: string | number;
+    digicode1?: string;
+    avecAscenseur?: boolean;
+    avecInterphone?: boolean;
+    codeInterphone?: string;
+    ville?: string;
+    codePostal?: string;
+    pays?: string;
+    instructions?: string;
+    
+    // Contact Client
+    personneContact?: string;
+    compteContact?: string;
+    emailContact?: string;
+    telephoneContact?: string;
+    notifEmail?: boolean;
+    notifSms?: boolean;
 
-  // Temps de Service Réel
-  tempsDeServiceReel?: number;
-  debutTempsService?: string;
-  finTempsService?: string;
-  confianceTempsService?: string;
-  versionTempsService?: number;
-  horodatagesMinuteur?: any[];
-  
-  // Preuves & Échecs
-  sansContactForce?: boolean;
-  raisonSansContact?: string;
-  raisonEchec?: string;
-  raisonEchecCusto?: string;
-  nomSignature?: string;
-  photoSucces?: string;
-  latitudePosition?: number;
-  longitudePosition?: number;
+    // Réalisation & Statuts
+    status?: string;
+    heureArriveeReelle?: string;
+    dateCloture?: string;
+    surPlaceForce?: boolean;
+    surPlaceValide?: boolean;
+    tempsDeRetard?: number;
+    dateDuRetard?: string;
+    tentatives?: number;
+    completePar?: string;
+    
+    // Temps de Service Réel
+    tempsDeServiceReel?: number;
+    debutTempsService?: string;
+    finTempsService?: string;
+    confianceTempsService?: string;
+    versionTempsService?: number;
+    horodatagesMinuteur?: any[];
 
-  // Infos Tournée & Chauffeur
-  nomTournee?: string;
-  sequence?: number;
-  nomAssocie?: string;
-  idExterneChauffeur?: string;
-  prenomChauffeur?: string;
-  nomChauffeur?: string;
-  nomCompletChauffeur?: string;
-  nomHub?: string;
-  nomPlateforme?: string;
-  
-  // Métadonnées & Système
-  type?: string;
-  flux?: string;
-  progression?: string;
-  tachesMemeArret?: boolean;
-  categories?: any[];
-  codePe?: string;
-  notationLivreur?: number;
-  serviceMeta?: string;
-  codeEntrepôt?: string;
-  commentaireLivreur?: string;
-  infosSuiviTransp?: any;
-  desassocTranspRejetee?: boolean;
-  dateMiseAJour?: string;
-  dateCreation?: string;
-  
-  // Pour la flexibilité
-  [key: string]: any;
+    // Preuves & Échecs
+    sansContactForce?: boolean;
+    raisonSansContact?: string;
+    raisonEchec?: string;
+    raisonEchecCusto?: string;
+    nomSignature?: string;
+    photoSucces?: string;
+    latitudePosition?: number;
+    longitudePosition?: number;
+
+    // Infos Tournée & Chauffeur
+    nomTournee?: string;
+    sequence?: number;
+    nomAssocie?: string;
+    idExterneChauffeur?: string;
+    prenomChauffeur?: string;
+    nomChauffeur?: string;
+    nomCompletChauffeur?: string;
+    nomHub?: string;
+    nomPlateforme?: string;
+    
+    // Métadonnées & Système
+    type?: string;
+    flux?: string;
+    progression?: string;
+    tachesMemeArret?: boolean;
+    categories?: any[];
+    codePe?: string;
+    notationLivreur?: number;
+    serviceMeta?: string;
+    codeEntrepôt?: string;
+    commentaireLivreur?: string;
+    infosSuiviTransp?: any;
+    desassocTranspRejetee?: boolean;
+    dateMiseAJour?: string;
+    dateCreation?: string;
+
+    // Raw data
+    raw?: any;
+    articles?: any[];
 }
 
 
 export interface Tournee {
-  // Identification
-  id: string;
-  nom?: string;
-  statut?: string;
-  activite?: string;
-  date?: string | Date | Timestamp;
-  hubId?: string;
-  nomHub?: string;
+    // Identification
+    id: string;
+    nom?: string;
+    statut?: string;
+    activite?: string;
+    date?: string | Date | Timestamp;
+    hubId?: string;
+    nomHub?: string;
 
-  // Chauffeur & Véhicule
-  associeNom?: string;
-  emailChauffeur?: string;
-  prenomChauffeur?: string;
-  nomChauffeur?: string;
-  immatriculation?: string;
-  nomVehicule?: string;
-  energie?: string;
-  
-  // Totaux
-  bacsSurg: number;
-  bacsFrais: number;
-  bacsSec: number;
-  bacsPoisson: number;
-  bacsBoucherie: number;
-  totalSecFrais: number;
-  nombreDeBacs?: number;
-  poidsTournee?: number;
-  poidsReel?: number;
-  volumeTournee?: number;
-  nbCommandes?: number;
-  commandesTerminees?: number;
+    // Infos Chauffeur & Véhicule
+    associeNom?: string;
+    emailChauffeur?: string;
+    prenomChauffeur?: string;
+    nomChauffeur?: string;
+    immatriculation?: string;
+    nomVehicule?: string;
+    energie?: string;
 
-  // Horaires & Lieux
-  lieuDepart?: string;
-  heureDepart?: string;
-  lieuFin?: string;
-  heureFin?: string;
-  heureFinReelle?: string;
-  demarreeReel?: string;
-  prepareeReel?: string;
-  tempsPreparationReel?: number;
+    // Totaux de la Tournée
+    bacsSurg: number;
+    bacsFrais: number;
+    bacsSec: number;
+    bacsPoisson: number;
+    bacsBoucherie: number;
+    totalSecFrais: number;
+    nombreDeBacs?: number;
+    poidsTournee?: number;
+    poidsReel?: number;
+    volumeTournee?: number;
+    nbCommandes?: number;
+    commandesTerminees?: number;
 
-  // Métriques & Coûts
-  dureeReel?: number;
-  tempsTotal?: number;
-  tempsTrajetTotal?: number;
-  tempsServiceCmdTotal?: number;
-  tempsPauseTotal?: number;
-  tempsAttenteTotal?: number;
-  tempsDeRetard?: number;
-  dateDuRetard?: string;
-  tempsViolationTotal?: number;
-  distanceTotale?: number;
-  coutTotal?: number;
-  coutParTemps?: number;
-  
-  // Données Techniques
-  flux?: string;
-  tempSurgChargement?: string;
-  tempFraisChargement?: string;
-  tempFraisFin?: string;
-  tempSurgFin?: string;
-  codePostalMaitre?: string;
-  arrets?: any[];
-  tempsAccelerationVehicule?: number;
-  pausesVehicule?: boolean;
-  capaciteBacs?: number;
-  capacitePoids?: number;
-  dimVehiculeVolume?: number;
-  distanceMaxVehicule?: number;
-  dureeMaxVehicule?: number;
-  commandesMaxVehicule?: number;
-  misAJourLe?: string;
-  valide?: boolean;
-  
-  // Pour la flexibilité
-  [key: string]: any;
+    // Horaires & Lieux
+    lieuDepart?: string;
+    heureDepart?: string;
+    lieuFin?: string;
+    heureFin?: string;
+    heureFinReelle?: string;
+    demarreeReel?: string;
+    prepareeReel?: string;
+    tempsPreparationReel?: number;
+
+    // Métriques & Coûts
+    dureeReel?: number;
+    tempsTotal?: number;
+    tempsTrajetTotal?: number;
+    tempsServiceCmdTotal?: number;
+    tempsPauseTotal?: number;
+    tempsAttenteTotal?: number;
+    tempsDeRetard?: number;
+    dateDuRetard?: string;
+    tempsViolationTotal?: number;
+    distanceTotale?: number;
+    coutTotal?: number;
+    coutParTemps?: number;
+
+    // Données Techniques & Véhicule
+    flux?: string;
+    tempSurgChargement?: string;
+    tempFraisChargement?: string;
+    tempFraisFin?: string;
+    tempSurgFin?: string;
+    codePostalMaitre?: string;
+    arrets?: any[];
+    tempsAccelerationVehicule?: number;
+    pausesVehicule?: boolean;
+    capaciteBacs?: number;
+    capacitePoids?: number;
+    dimVehiculeVolume?: number;
+    distanceMaxVehicule?: number;
+    dureeMaxVehicule?: number;
+    commandesMaxVehicule?: number;
+    misAJourLe?: string;
+    valide?: boolean;
+
+    [key: string]: any;
 }
 
 
@@ -272,5 +268,3 @@ export interface Notification {
     id: string;
   };
 }
-
-    

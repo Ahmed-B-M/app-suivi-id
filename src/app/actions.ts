@@ -21,7 +21,6 @@ import { DateRange } from "react-day-picker";
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
-    // Calcul des bacs
     const bacs = (rawTask.articles || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
         if (type.includes('SURG')) acc.bacsSurg++;
@@ -33,22 +32,21 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
     const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
-    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask.id);
+    const stopInfo = roundInfo?.stops?.find((s: any) => s.taskId === rawTask._id);
     
     const prenomChauffeur = rawTask.livreur?.prenom;
     const nomChauffeur = rawTask.livreur?.nom;
     const nomCompletChauffeur = [prenomChauffeur, nomChauffeur].filter(Boolean).join(' ');
 
-
     return {
         // Identification
-        id: rawTask._id,
         tacheId: rawTask.id,
+        id: rawTask._id,
         referenceTache: rawTask.taskReference,
-        numeroCommande: rawTask.id,
+        numeroCommande: rawTask.id, // Task ID is used as order number
         client: rawTask.client,
         
-        // Contenu
+        // Contenu de la Tâche
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -56,7 +54,6 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         bacsBoucherie: bacs.bacsBoucherie,
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawTask.dimensions?.bac,
-        nombreDeBacsMeta: rawTask.metaDonnees?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
         volumeEnCm3: rawTask.dimensions?.volume,
 
@@ -65,9 +62,6 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         dateInitialeLivraison: rawTask.metaDonnees?.Date_Initiale_Livraison,
         debutCreneauInitial: rawTask.creneauHoraire?.debut,
         finCreneauInitial: rawTask.creneauHoraire?.fin,
-        debutFenetre: rawTask.creneauHoraire?.debut, // Doublon
-        finFenetre: rawTask.creneauHoraire?.fin,   // Doublon
-        margeFenetreHoraire: rawTask.timeWindowMargin,
         heureArriveeEstimee: stopInfo?.arriveTime,
         tempsDeServiceEstime: rawTask.tempsDeServiceEstime,
 
@@ -85,7 +79,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         codePostal: rawTask.localisation?.codePostal,
         pays: rawTask.localisation?.codePays,
         instructions: rawTask.instructions,
-
+        
         // Contact Client
         personneContact: rawTask.contact?.personne,
         compteContact: rawTask.contact?.compte,
@@ -104,7 +98,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         dateDuRetard: roundInfo?.delay?.when,
         tentatives: rawTask.tentatives,
         completePar: rawTask.completePar,
-
+        
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
         debutTempsService: rawTask.realServiceTime?.startTime,
@@ -122,14 +116,14 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         photoSucces: rawTask.execution?.successPicture,
         latitudePosition: rawTask.execution?.position?.latitude,
         longitudePosition: rawTask.execution?.position?.longitude,
-        
+
         // Infos Tournée & Chauffeur
         nomTournee: rawTask.nomTournee,
         sequence: rawTask.sequence,
         nomAssocie: rawTask.nomAssocie,
         idExterneChauffeur: rawTask.livreur?.idExterne,
-        prenomChauffeur: rawTask.livreur?.prenom,
-        nomChauffeur: rawTask.livreur?.nom,
+        prenomChauffeur: prenomChauffeur,
+        nomChauffeur: nomChauffeur,
         nomCompletChauffeur: nomCompletChauffeur,
         nomHub: rawTask.nomHub,
         nomPlateforme: rawTask.nomPlateforme,
@@ -149,8 +143,9 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: rawTask.dateMiseAJour,
         dateCreation: rawTask.dateCreation,
-        
-        // Full raw data for joins
+
+        // Articles pour calculs
+        articles: rawTask.articles,
         raw: rawTask,
     };
 }
@@ -183,7 +178,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         hubId: rawRound.hub,
         nomHub: rawRound.hubName,
 
-        // Chauffeur & Véhicule
+        // Infos Chauffeur & Véhicule
         associeNom: rawRound.associatedName,
         emailChauffeur: rawRound.driver?.externalId,
         prenomChauffeur: rawRound.driver?.firstName,
@@ -192,7 +187,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         nomVehicule: rawRound.vehicle?.name,
         energie: rawRound.metadata?.Energie,
 
-        // Totaux
+        // Totaux de la Tournée
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -230,7 +225,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         coutTotal: rawRound.totalCost,
         coutParTemps: rawRound.vehicle?.costPerUnitTime,
 
-        // Données Techniques
+        // Données Techniques & Véhicule
         flux: rawRound.flux,
         tempSurgChargement: rawRound.metadata?.TempSURG_Chargement,
         tempFraisChargement: rawRound.metadata?.TempsFRAIS_Chargement,

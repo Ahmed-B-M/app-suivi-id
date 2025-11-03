@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/table";
 import { Tache } from "@/lib/types";
 import { Badge } from "../ui/badge";
-import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
 import { Card, CardContent } from "../ui/card";
 import Link from "next/link";
@@ -51,7 +50,6 @@ const columns: ColumnDef<Tache>[] = [
   { accessorKey: "bacsBoucherie", header: "Bacs BOUCHERIE" },
   { accessorKey: "totalSecFrais", header: "Total SEC + FRAIS" },
   { accessorKey: "nombreDeBacs", header: "Nombre de bacs" },
-  { accessorKey: "nombreDeBacsMeta", header: "Nombre de Bacs (Méta)" },
   { accessorKey: "poidsEnKg", header: "Poids (kg)" },
   { accessorKey: "volumeEnCm3", header: "Volume (cm3)" },
   { accessorKey: "date", header: "Date", cell: ({row}) => row.getValue("date") ? format(new Date(row.getValue("date") as string), 'PP') : 'N/A' },
@@ -95,20 +93,11 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
       bacsPoisson: false,
       bacsBoucherie: false,
       totalSecFrais: false,
-      nombreDeBacsMeta: false,
       volumeEnCm3: false,
       dateInitialeLivraison: false,
-      margeFenetreHoraire: false,
       tempsDeServiceEstime: false,
-      numero: false,
-      rue: false,
-      batiment: false,
-      etage: false,
-      digicode1: false,
-      avecAscenseur: false,
-      avecInterphone: false,
-      codeInterphone: false,
-      pays: false,
+      adresse: false,
+      instructions: false,
       compteContact: false,
       emailContact: false,
       notifEmail: false,
@@ -279,5 +268,3 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
     </Card>
   );
 }
-
-    
