@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -13,17 +14,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Star } from "lucide-react";
+import { ArrowUpDown, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -40,106 +37,113 @@ import { Badge } from "../ui/badge";
 import { getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
 import { Card, CardContent } from "../ui/card";
-
-const countBacs = (task: Tache) => {
-    if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
-    return task.articles.reduce((acc, article) => {
-        if (article.type === 'BAC_SEC') acc.secs++;
-        else if (article.type === 'BAC_FRAIS') acc.frais++;
-        else if (article.type === 'BAC_SURGELE') acc.surgeles++;
-        return acc;
-    }, { secs: 0, frais: 0, surgeles: 0 });
-};
+import Link from "next/link";
 
 const columns: ColumnDef<Tache>[] = [
-  {
-    accessorKey: "date",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => {
-        const date = row.getValue("date");
-        return date ? format(new Date(date as string), "dd/MM/yy") : "N/A"
-    },
-  },
-  {
-    accessorKey: "nomTournee",
-    header: "Tournée",
-  },
-  {
-    id: 'livreur',
-    accessorFn: row => getDriverFullName(row),
-    header: "Livreur",
-  },
-  {
-    id: "client",
-    accessorFn: row => row.contact?.personne,
-    header: "Client",
-  },
-  {
-    accessorKey: "progression",
-    header: "Progression",
-    cell: ({ row }) => (
-        <Badge variant={row.getValue("progression") === "COMPLETED" ? "default" : "secondary"}>
-            {row.getValue("progression")}
-        </Badge>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Statut",
-    cell: ({ row }) => <Badge variant="outline">{row.getValue("status")}</Badge>
-  },
-  {
-    id: 'note',
-    accessorFn: row => row.metaDonnees?.notationLivreur,
-    header: ({ column }) => (
-      <div className="text-right">
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Note
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    ),
-    cell: ({ row }) => {
-      const rating = row.original.metaDonnees?.notationLivreur;
-      if (typeof rating !== 'number') return <div className="text-right text-muted-foreground">N/A</div>;
-      return <div className="text-right font-medium flex items-center justify-end gap-1">{rating} <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" /></div>
-    },
-  },
-  {
-    id: 'bacsSecs',
-    accessorFn: row => countBacs(row).secs,
-    header: () => <div className="text-right">Bacs Secs</div>,
-    cell: ({ row }) => <div className="text-right font-mono">{countBacs(row.original).secs}</div>,
-  },
-  {
-    id: 'bacsFrais',
-    accessorFn: row => countBacs(row).frais,
-    header: () => <div className="text-right">Bacs Frais</div>,
-    cell: ({ row }) => <div className="text-right font-mono">{countBacs(row.original).frais}</div>,
-  },
-  {
-    id: 'bacsSurgeles',
-    accessorFn: row => countBacs(row).surgeles,
-    header: () => <div className="text-right">Surgelés</div>,
-    cell: ({ row }) => <div className="text-right font-mono">{countBacs(row.original).surgeles}</div>,
-  },
+  { accessorKey: "tacheId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("tacheId")}`} className="text-blue-600 hover:underline">{row.getValue("tacheId")}</Link> },
+  { accessorKey: "referenceTache", header: "Référence Tâche" },
+  { accessorKey: "numeroCommande", header: "Commande" },
+  { accessorKey: "client", header: "Client (ID)" },
+  { accessorKey: "bacsSurg", header: "Bacs SURG" },
+  { accessorKey: "bacsFrais", header: "Bacs FRAIS" },
+  { accessorKey: "bacsSec", header: "Bacs SEC" },
+  { accessorKey: "bacsPoisson", header: "Bacs POISSON" },
+  { accessorKey: "bacsBoucherie", header: "Bacs BOUCHERIE" },
+  { accessorKey: "totalSecFrais", header: "Total SEC + FRAIS" },
+  { accessorKey: "nombreDeBacs", header: "Nombre de bacs" },
+  { accessorKey: "nombreDeBacsMeta", header: "Nombre de Bacs (Méta)" },
+  { accessorKey: "poidsEnKg", header: "Poids (kg)" },
+  { accessorKey: "volumeEnCm3", header: "Volume (cm3)" },
+  { accessorKey: "date", header: "Date", cell: ({row}) => row.getValue("date") ? format(new Date(row.getValue("date") as string), 'PP') : 'N/A' },
+  { accessorKey: "dateInitialeLivraison", header: "Date Initiale Livraison" },
+  { accessorKey: "debutCreneauInitial", header: "Début Créneau Initial", cell: ({row}) => row.getValue("debutCreneauInitial") ? format(new Date(row.getValue("debutCreneauInitial") as string), 'p') : 'N/A' },
+  { accessorKey: "finCreneauInitial", header: "Fin Créneau Initial", cell: ({row}) => row.getValue("finCreneauInitial") ? format(new Date(row.getValue("finCreneauInitial") as string), 'p') : 'N/A' },
+  { accessorKey: "heureArriveeEstimee", header: "Heure Arrivée (Estimée)", cell: ({row}) => row.getValue("heureArriveeEstimee") ? format(new Date(row.getValue("heureArriveeEstimee") as string), 'p') : 'N/A' },
+  { accessorKey: "tempsDeServiceEstime", header: "Temps service estimé (min)" },
+  { accessorKey: "adresse", header: "Adresse" },
+  { accessorKey: "ville", header: "Ville" },
+  { accessorKey: "codePostal", header: "Code Postal" },
+  { accessorKey: "instructions", header: "Instructions" },
+  { accessorKey: "personneContact", header: "Personne Contact" },
+  { accessorKey: "telephoneContact", header: "Téléphone Contact" },
+  { accessorKey: "status", header: "Statut", cell: ({row}) => <Badge variant="outline">{row.getValue("status")}</Badge> },
+  { accessorKey: "progression", header: "Progression", cell: ({row}) => <Badge variant={row.getValue("progression") === "COMPLETED" ? "default" : "secondary"}>{row.getValue("progression")}</Badge> },
+  { accessorKey: "dateCloture", header: "Date de Clôture", cell: ({row}) => row.getValue("dateCloture") ? format(new Date(row.getValue("dateCloture") as string), 'Pp') : 'N/A' },
+  { accessorKey: "tentatives", header: "Tentatives" },
+  { accessorKey: "terminePar", header: "Terminé Par" },
+  { accessorKey: "nomTournee", header: "Nom Tournée" },
+  { accessorKey: "sequence", header: "Séquence" },
+  { accessorKey: "nomAssocie", header: "Associé (Nom)" },
+  { accessorKey: "idExterneChauffeur", header: "ID Externe Chauffeur" },
+  { accessorFn: row => getDriverFullName(row), header: "Nom Chauffeur" },
+  { accessorKey: "nomHub", header: "Hub (Nom)" },
+  { accessorKey: "nomPlateforme", header: "Plateforme (Nom)" },
+  { accessorKey: "notationLivreur", header: "Notation Livreur" },
+  { accessorKey: "commentaireLivreur", header: "Commentaire Livreur" },
 ];
+
 
 export function DetailsTasksTable({ data }: { data: Tache[] }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+      referenceTache: false,
+      client: false,
+      bacsSurg: false,
+      bacsFrais: false,
+      bacsSec: false,
+      bacsPoisson: false,
+      bacsBoucherie: false,
+      totalSecFrais: false,
+      nombreDeBacsMeta: false,
+      volumeEnCm3: false,
+      dateInitialeLivraison: false,
+      margeFenetreHoraire: false,
+      tempsDeServiceEstime: false,
+      numero: false,
+      rue: false,
+      batiment: false,
+      etage: false,
+      digicode1: false,
+      avecAscenseur: false,
+      avecInterphone: false,
+      codeInterphone: false,
+      pays: false,
+      compteContact: false,
+      emailContact: false,
+      notifEmail: false,
+      notifSms: false,
+      heureArriveeReelle: false,
+      surPlaceForce: false,
+      surPlaceValide: false,
+      tempsDeRetard: false,
+      dateDuRetard: false,
+      tempsDeServiceReel: false,
+      debutTempsService: false,
+      finTempsService: false,
+      confianceTempsService: false,
+      versionTempsService: false,
+      horodatagesMinuteur: false,
+      sansContactForce: false,
+      raisonSansContact: false,
+      raisonEchec: false,
+      raisonEchecCusto: false,
+      nomSignature: false,
+      photoSucces: false,
+      latitudePosition: false,
+      longitudePosition: false,
+      type: false,
+      flux: false,
+      tachesMemeArret: false,
+      categories: false,
+      codePe: false,
+      serviceMeta: false,
+      codeEntrepôt: false,
+      infosSuiviTransp: false,
+      desassocTranspRejetee: false,
+      dateMiseAJour: false,
+      dateCreation: false
+  });
   const [globalFilter, setGlobalFilter] = React.useState("");
 
   const table = useReactTable({
@@ -166,7 +170,7 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
       <CardContent className="p-4">
         <div className="flex items-center py-4">
           <Input
-            placeholder="Rechercher dans toutes les colonnes..."
+            placeholder="Rechercher..."
             value={globalFilter ?? ""}
             onChange={(event) => setGlobalFilter(event.target.value)}
             className="max-w-sm"
@@ -177,7 +181,7 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
                 Colonnes <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
               {table
                 .getAllColumns()
                 .filter((column) => column.getCanHide())
@@ -205,7 +209,7 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead key={header.id}>
+                      <TableHead key={header.id} style={{minWidth: 150}}>
                         {header.isPlaceholder
                           ? null
                           : flexRender(
@@ -275,3 +279,5 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
     </Card>
   );
 }
+
+    
