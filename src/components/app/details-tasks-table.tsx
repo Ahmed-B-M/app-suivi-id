@@ -86,7 +86,7 @@ const columns: ColumnDef<Tache>[] = [
   { accessorKey: "nomTournee", header: "Nom Tournée" },
   { accessorKey: "sequence", header: "Séquence" },
   { accessorKey: "nomAssocie", header: "Associé (Nom)" },
-  { accessorFn: row => getDriverFullName(row), header: "Nom Complet Chauffeur" },
+  { accessorKey: "nomCompletChauffeur", header: "Nom Complet Chauffeur" },
   { accessorKey: "nomHub", header: "Hub (Nom)" },
   
   // Métadonnées
@@ -292,5 +292,3 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
     </Card>
   );
 }
-
-    
