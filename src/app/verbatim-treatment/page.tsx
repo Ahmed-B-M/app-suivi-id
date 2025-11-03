@@ -33,7 +33,7 @@ export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
 export default function VerbatimTreatmentPage() {
-  const { allProcessedVerbatims, isContextLoading } = useFilters();
+  const { allProcessedVerbatims, isContextLoading, allNpsData } = useFilters();
   const { toast } = useToast();
 
   const [editableVerbatims, setEditableVerbatims] = useState<ProcessedVerbatim[]>([]);
@@ -62,7 +62,16 @@ export default function VerbatimTreatmentPage() {
   const handleSave = (verbatim: ProcessedVerbatim) => {
     setSavingId(verbatim.id);
     startTransition(async () => {
-      const result = await saveProcessedVerbatimAction(verbatim);
+       const associationDateSource = Array.isArray(allNpsData) && allNpsData.length > 0 && allNpsData[0].associationDate 
+                                   ? new Date(allNpsData[0].associationDate.toString()) // Safely convert to Date
+                                   : new Date();
+
+       const verbatimToSave = {
+        ...verbatim,
+        associationDate: format(associationDateSource, 'yyyy-MM-dd'),
+      };
+
+      const result = await saveProcessedVerbatimAction(verbatimToSave);
       if (result.success) {
         toast({ title: 'Succès', description: 'Verbatim sauvegardé.' });
         // Update local state to reflect the change immediately
