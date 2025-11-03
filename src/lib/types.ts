@@ -16,7 +16,8 @@ export interface Tache {
     bacsPoisson: number;
     bacsBoucherie: number;
     totalSecFrais: number;
-    nombreDeBacs?: number;
+    nombreDeBacs?: number; // dimensions.bac
+    nombreDeBacsMeta?: number; // metaDonnees.nbreBacs
     poidsEnKg?: number;
     volumeEnCm3?: number;
 
@@ -25,6 +26,7 @@ export interface Tache {
     dateInitialeLivraison?: string;
     debutCreneauInitial?: string;
     finCreneauInitial?: string;
+    margeFenetreHoraire?: number;
     heureArriveeEstimee?: string;
     tempsDeServiceEstime?: number;
 
@@ -33,6 +35,7 @@ export interface Tache {
     numero?: string;
     rue?: string;
     batiment?: string;
+    batimentMeta?: string;
     etage?: string | number;
     digicode1?: string;
     avecAscenseur?: boolean;

@@ -43,7 +43,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         tacheId: rawTask.id,
         id: rawTask._id,
         referenceTache: rawTask.taskReference,
-        numeroCommande: rawTask.id, // Task ID is used as order number
+        numeroCommande: rawTask.metaDonnees?.numeroCommande,
         client: rawTask.client,
         
         // Contenu de la Tâche
@@ -54,6 +54,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         bacsBoucherie: bacs.bacsBoucherie,
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawTask.dimensions?.bac,
+        nombreDeBacsMeta: rawTask.metaDonnees?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
         volumeEnCm3: rawTask.dimensions?.volume,
 
@@ -62,6 +63,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         dateInitialeLivraison: rawTask.metaDonnees?.Date_Initiale_Livraison,
         debutCreneauInitial: rawTask.creneauHoraire?.debut,
         finCreneauInitial: rawTask.creneauHoraire?.fin,
+        margeFenetreHoraire: rawTask.timeWindowMargin,
         heureArriveeEstimee: stopInfo?.arriveTime,
         tempsDeServiceEstime: rawTask.tempsDeServiceEstime,
 
@@ -70,6 +72,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         numero: rawTask.localisation?.numero,
         rue: rawTask.localisation?.rue,
         batiment: rawTask.metaDonnees?.immeuble,
+        batimentMeta: rawTask.metaDonnees?.immeuble,
         etage: rawTask.contact?.infoImmeuble?.etage,
         digicode1: rawTask.contact?.infoImmeuble?.digicode1,
         avecAscenseur: rawTask.contact?.infoImmeuble?.ascenseur,
