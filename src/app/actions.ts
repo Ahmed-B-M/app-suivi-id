@@ -20,205 +20,221 @@ import { DateRange } from "react-day-picker";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-/**
- * Transforms a raw task object from the Urbantz API into the desired French structure.
- * @param rawTask - The raw task object from the API.
- * @returns A new, filtered and translated task object.
- */
-function transformTaskData(rawTask: any): Tache {
-  return {
-    tacheId: rawTask.taskId || rawTask.id,
-    type: rawTask.type,
-    date: rawTask.date,
-    progression: rawTask.progress,
-    status: rawTask.status,
-    client: rawTask.client,
-    nomPlateforme: rawTask.platformName,
-    dateCreation: rawTask.when,
-    dateCloture: rawTask.closureDate,
-    dateMiseAJour: rawTask.updated,
-    tentatives: rawTask.attempts,
-    completePar: rawTask.completedBy,
+function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
+    // Calcul des bacs
+    const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
+        const type = (item.type || '').toUpperCase();
+        if (type.includes('SURG')) acc.bacsSurg++;
+        if (type.includes('FRAIS')) acc.bacsFrais++;
+        if (type.includes('SEC')) acc.bacsSec++;
+        if (type.includes('POISSON')) acc.bacsPoisson++;
+        if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
+        return acc;
+    }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
+
+    const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
+    const stopInfo = roundInfo?.stops?.find((s: any) => s.taskId === rawTask.id);
+
+    return {
+        // Identification
+        id: rawTask._id,
+        tacheId: rawTask.id,
+        referenceTache: rawTask.taskReference,
+        numeroCommande: rawTask.metadata?.numeroCommande,
+        client: rawTask.client,
+        
+        // Contenu
+        bacsSurg: bacs.bacsSurg,
+        bacsFrais: bacs.bacsFrais,
+        bacsSec: bacs.bacsSec,
+        bacsPoisson: bacs.bacsPoisson,
+        bacsBoucherie: bacs.bacsBoucherie,
+        totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
+        nombreDeBacs: rawTask.dimensions?.bac,
+        nombreDeBacsMeta: rawTask.metadata?.nbreBacs,
+        poidsEnKg: rawTask.dimensions?.poids,
+        volumeEnCm3: rawTask.dimensions?.volume,
+
+        // Planification
+        date: rawTask.date,
+        dateInitialeLivraison: rawTask.metadata?.Date_Initiale_Livraison,
+        debutCreneauInitial: rawTask.timeWindow?.start,
+        finCreneauInitial: rawTask.timeWindow?.stop,
+        margeFenetreHoraire: rawTask.timeWindowMargin,
+        heureArriveeEstimee: stopInfo?.arriveTime,
+        tempsDeServiceEstime: rawTask.serviceTime,
+
+        // Adresse & Instructions
+        adresse: rawTask.location?.address,
+        numero: rawTask.location?.number,
+        rue: rawTask.location?.street,
+        batiment: rawTask.metadata?.immeuble,
+        etage: rawTask.contact?.buildingInfo?.floor,
+        digicode1: rawTask.contact?.buildingInfo?.digicode1,
+        avecAscenseur: rawTask.contact?.buildingInfo?.hasElevator,
+        avecInterphone: rawTask.contact?.buildingInfo?.hasInterphone,
+        codeInterphone: rawTask.contact?.buildingInfo?.interphoneCode,
+        ville: rawTask.location?.city,
+        codePostal: rawTask.location?.zip,
+        pays: rawTask.location?.countryCode,
+        instructions: rawTask.instructions,
+
+        // Contact Client
+        personneContact: rawTask.contact?.person,
+        compteContact: rawTask.contact?.account,
+        emailContact: rawTask.contact?.email,
+        telephoneContact: rawTask.contact?.phone,
+        notifEmail: rawTask.notificationSettings?.email,
+        notifSms: rawTask.notificationSettings?.sms,
+
+        // Réalisation & Statuts
+        status: rawTask.status,
+        heureArriveeReelle: rawTask.actualTime?.arrive?.when,
+        dateCloture: rawTask.closureDate,
+        surPlaceForce: rawTask.actualTime?.arrive?.forced,
+        surPlaceValide: rawTask.actualTime?.arrive?.isCorrectAddress,
+        tempsDeRetard: roundInfo?.delay?.time,
+        dateDuRetard: roundInfo?.delay?.when,
+        tentatives: rawTask.attempts,
+        terminePar: rawTask.completedBy,
+
+        // Temps de Service Réel
+        tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
+        debutTempsService: rawTask.realServiceTime?.startTime,
+        finTempsService: rawTask.realServiceTime?.endTime,
+        confianceTempsService: rawTask.realServiceTime?.confidence,
+        versionTempsService: rawTask.realServiceTime?.version,
+        horodatagesMinuteur: rawTask.execution?.timer?.timestamps,
+
+        // Preuves & Échecs
+        sansContactForce: rawTask.execution?.contactless?.forced,
+        raisonSansContact: rawTask.execution?.contactless?.reason,
+        raisonEchec: rawTask.execution?.failedReason?.reason,
+        raisonEchecCusto: rawTask.execution?.failedReason?.custom,
+        nomSignature: rawTask.execution?.signature?.name,
+        photoSucces: rawTask.execution?.successPicture,
+        latitudePosition: rawTask.execution?.position?.latitude,
+        longitudePosition: rawTask.execution?.position?.longitude,
+        
+        // Infos Tournée & Chauffeur
+        nomTournee: rawTask.roundName,
+        sequence: rawTask.sequence,
+        nomAssocie: rawTask.associatedName,
+        idExterneChauffeur: rawTask.driver?.externalId,
+        prenomChauffeur: rawTask.driver?.firstName,
+        nomChauffeur: rawTask.driver?.lastName,
+        nomHub: rawTask.hubName,
+        nomPlateforme: rawTask.platformName,
+        
+        // Métadonnées & Système
+        type: rawTask.type,
+        flux: rawTask.flux,
+        progression: rawTask.progress,
+        tachesMemeArret: rawTask.realServiceTime?.tasksDeliveredInSameStop,
+        categories: rawTask.categories,
+        codePe: rawTask.metadata?.codePe,
+        notationLivreur: rawTask.metadata?.notationLivreur,
+        serviceMeta: rawTask.metadata?.service,
+        codeEntrepôt: rawTask.metadata?.warehouseCode,
+        commentaireLivreur: rawTask.metadata?.commentaireLivr,
+        infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
+        desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
+        dateMiseAJour: rawTask.updated,
+        dateCreation: rawTask.when,
+    };
+}
+
+function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
+    const tasksForThisRound = allTasks.filter(t => t.nomTournee === rawRound.name && new Date(t.date as string).toDateString() === new Date(rawRound.date).toDateString());
     
-    hub: rawTask.hub,
-    nomHub: rawTask.hubName,
-    nomTournee: rawTask.roundName,
-    sequence: rawTask.sequence,
-    nomAssocie: rawTask.associatedName,
-    livreur: rawTask.driver ? {
-      prenom: rawTask.driver.firstName,
-      nom: rawTask.driver.lastName,
-      idExterne: rawTask.driver.externalId,
-    } : undefined,
+    const bacs = tasksForThisRound.reduce((acc, task) => {
+        acc.bacsSurg += task.bacsSurg;
+        acc.bacsFrais += task.bacsFrais;
+        acc.bacsSec += task.bacsSec;
+        acc.bacsPoisson += task.bacsPoisson;
+        acc.bacsBoucherie += task.bacsBoucherie;
+        return acc;
+    }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
-    creneauHoraire: rawTask.timeWindow ? {
-      debut: rawTask.timeWindow.start,
-      fin: rawTask.timeWindow.stop,
-    } : undefined,
-    heureReelle: rawTask.actualTime ? {
-      arrivee: rawTask.actualTime.arrive ? {
-        date: rawTask.actualTime.arrive.when,
-        adresseCorrecte: rawTask.actualTime.arrive.isCorrectAddress,
-      } : undefined,
-    } : undefined,
-    tempsDeServiceReel: rawTask.realServiceTime ? {
-      debut: rawTask.realServiceTime.startTime,
-      fin: rawTask.realServiceTime.endTime,
-      duree: rawTask.realServiceTime.serviceTime,
-    } : undefined,
-    tempsDeServiceEstime: rawTask.serviceTime,
+    return {
+        // Identification
+        id: rawRound.id || rawRound._id,
+        nom: rawRound.name,
+        statut: rawRound.status,
+        activite: rawRound.activity,
+        date: rawRound.date,
+        hubId: rawRound.hub,
+        nomHub: rawRound.hubName,
 
-    contact: rawTask.contact ? {
-      personne: rawTask.contact.person,
-      telephone: rawTask.contact.phone,
-      email: rawTask.contact.email,
-      infoImmeuble: rawTask.contact.buildingInfo ? {
-        etage: rawTask.contact.buildingInfo.floor,
-        ascenseur: rawTask.contact.buildingInfo.hasElevator,
-        digicode1: rawTask.contact.buildingInfo.digicode1,
-        interphone: rawTask.contact.buildingInfo.hasInterphone,
-        codeInterphone: rawTask.contact.buildingInfo.interphoneCode,
-      } : undefined,
-    } : undefined,
-    localisation: rawTask.location ? {
-      adresse: rawTask.location.address,
-      rue: rawTask.location.street,
-      numero: rawTask.location.number,
-      codePostal: rawTask.location.zip,
-      ville: rawTask.location.city,
-      codePays: rawTask.location.countryCode,
-      geometrie: rawTask.location.location?.geometry,
-    } : undefined,
-    instructions: rawTask.instructions,
+        // Chauffeur & Véhicule
+        associeNom: rawRound.associatedName,
+        emailChauffeur: rawRound.driver?.externalId,
+        prenomChauffeur: rawRound.driver?.firstName,
+        nomChauffeur: rawRound.driver?.lastName,
+        immatriculation: rawRound.metadata?.Immatriculation,
+        nomVehicule: rawRound.vehicle?.name,
+        energie: rawRound.metadata?.Energie,
 
-    dimensions: rawTask.dimensions ? {
-      volume: rawTask.dimensions.volume,
-      bac: rawTask.dimensions.bac,
-      poids: rawTask.dimensions.poids,
-    } : undefined,
-    articles: Array.isArray(rawTask.items) ? rawTask.items.map((item: any) => ({
-      nom: item.name,
-      statut: item.status,
-      codeBarre: item.barcode,
-      type: item.type, // This now correctly includes 'SURGELE'
-      dimensions: item.dimensions ? {
-        poids: item.dimensions.poids,
-      } : undefined,
-      log: Array.isArray(item.log) ? item.log.map((logEntry: any) => ({
-        date: logEntry.when,
-        vers: logEntry.to,
-      })) : undefined,
-    })) : undefined,
+        // Totaux
+        bacsSurg: bacs.bacsSurg,
+        bacsFrais: bacs.bacsFrais,
+        bacsSec: bacs.bacsSec,
+        bacsPoisson: bacs.bacsPoisson,
+        bacsBoucherie: bacs.bacsBoucherie,
+        totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
+        nombreDeBacs: rawRound.dimensions?.bac,
+        poidsTournee: rawRound.dimensions?.poids,
+        poidsReel: rawRound.dimensions?.poids, // Doublon
+        volumeTournee: rawRound.dimensions?.volume,
+        nbCommandes: rawRound.orderCount,
+        commandesTerminees: rawRound.orderDone,
+        
+        // Horaires & Lieux
+        lieuDepart: rawRound.startLocation,
+        heureDepart: rawRound.startTime,
+        lieuFin: rawRound.endLocation,
+        heureFin: rawRound.endTime,
+        heureFinReelle: rawRound.realInfo?.hasFinished,
+        demarreeReel: rawRound.realInfo?.hasStarted,
+        prepareeReel: rawRound.realInfo?.hasPrepared,
+        tempsPreparationReel: rawRound.realInfo?.preparationTime,
 
-    execution: rawTask.execution ? {
-        sansContact: rawTask.execution.contactless ? {
-            forced: rawTask.execution.contactless.forced,
-        } : undefined,
-    } : undefined,
-    metaDonnees: rawTask.metadata ? {
-      notationLivreur: rawTask.metadata.notationLivreur,
-      commentaireLivreur: rawTask.metadata.commentaireLivr,
-      immeuble: rawTask.metadata.building,
-    } : undefined,
-  };
-}
+        // Métriques & Coûts
+        dureeReel: rawRound.realInfo?.hasLasted,
+        tempsTotal: rawRound.totalTime,
+        tempsTrajetTotal: rawRound.totalTravelTime,
+        tempsServiceCmdTotal: rawRound.totalOrderServiceTime,
+        tempsPauseTotal: rawRound.totalBreakServiceTime,
+        tempsAttenteTotal: rawRound.totalWaitTime,
+        tempsDeRetard: rawRound.delay?.time,
+        dateDuRetard: rawRound.delay?.when,
+        tempsViolationTotal: rawRound.totalViolationTime,
+        distanceTotale: rawRound.totalDistance,
+        coutTotal: rawRound.totalCost,
+        coutParTemps: rawRound.vehicle?.costPerUnitTime,
 
-/**
- * Transforms a raw round object from the Urbantz API into the desired clean structure.
- * @param rawRound - The raw round object from the API.
- * @param hubIdToNameMap - A map to find hub names by their ID.
- * @returns A new, filtered and structured round object.
- */
-function transformRoundData(rawRound: any, hubIdToNameMap: Map<string, string>): Tournee {
-  const nomHub = rawRound.hub ? hubIdToNameMap.get(rawRound.hub) : undefined;
-  return {
-    id: rawRound.id || rawRound._id,
-    date: rawRound.date,
-    hub: rawRound.hub,
-    nomHub: nomHub,
-    dimensions: rawRound.dimensions,
-    endLocation: rawRound.endLocation,
-    endTime: rawRound.endTime,
-    labelsAndSkills: rawRound.labelsAndSkills,
-    metadata: rawRound.metadata ? {
-      codePostalMaitre: rawRound.metadata.codePostalMaitre,
-      TempsDepassementPlanifie: rawRound.metadata.TempsDepassementPlanifie,
-      TempSURG_Chargement: rawRound.metadata.TempSURG_Chargement,
-      TempsFRAIS_Chargement: rawRound.metadata.TempsFRAIS_Chargement,
-      Immatriculation: rawRound.metadata.Immatriculation,
-      TempsFRAIS_Fin: rawRound.metadata.TempsFRAIS_Fin,
-      TempsSURG_Fin: rawRound.metadata.TempsSURG_Fin
-    } : undefined,
-    name: rawRound.name,
-    orderCount: rawRound.orderCount,
-    realInfo: rawRound.realInfo,
-    reloads: rawRound.reloads,
-    senders: Array.isArray(rawRound.senders) ? rawRound.senders.map((sender: any) => ({
-      name: sender.name,
-      count: sender.count,
-    })) : [],
-    startLocation: rawRound.startLocation,
-    startTime: rawRound.startTime,
-    status: rawRound.status,
-    stops: Array.isArray(rawRound.stops) ? rawRound.stops.map((stop: any) => ({
-      coordinates: stop.coordinates,
-      taskId: stop.taskId,
-      progress: stop.progress,
-      status: stop.status,
-      sequence: stop.sequence,
-      stopSequence: stop.stopSequence,
-      travelDistance: stop.travelDistance,
-      arriveTime: stop.arriveTime,
-      departTime: stop.departTime,
-      travelTime: stop.travelTime,
-      serviceTime: stop.serviceTime,
-      waitTime: stop.waitTime,
-      violationTime: stop.violationTime,
-      closureDate: stop.closureDate,
-    })) : [],
-    totalDistance: rawRound.totalDistance,
-    totalOrderServiceTime: rawRound.totalOrderServiceTime,
-    totalTime: rawRound.totalTime,
-    totalTravelTime: rawRound.totalTravelTime,
-    totalViolationTime: rawRound.totalViolationTime,
-    totalWaitTime: rawRound.totalWaitTime,
-    updated: rawRound.updated,
-    validated: rawRound.validated,
-    driver: rawRound.driver ? {
-      externalId: rawRound.driver.externalId,
-      firstName: rawRound.driver.firstName,
-      lastName: rawRound.driver.lastName,
-    } : undefined,
-    delay: rawRound.delay,
-    orderDone: rawRound.orderDone,
-    vehicle: rawRound.vehicle ? {
-      name: rawRound.vehicle.name,
-      dimensions: rawRound.vehicle.dimensions,
-      accelerationTime: rawRound.vehicle.accelerationTime,
-      maxOrders: rawRound.vehicle.maxOrders,
-      maxDistance: rawRound.vehicle.maxDistance,
-      maxDuration: rawRound.vehicle.maxDuration,
-      fixedCost: rawRound.vehicle.fixedCost,
-      costPerUnitTime: rawRound.vehicle.costPerUnitTime,
-      costPerUnitDistance: rawRound.vehicle.costPerUnitDistance,
-      type: rawRound.vehicle.type,
-      reloading: rawRound.vehicle.reloading,
-      breaks: rawRound.vehicle.breaks,
-      labels: rawRound.vehicle.labels,
-    } : undefined,
-  };
+        // Données Techniques
+        flux: rawRound.flux,
+        tempSurgChargement: rawRound.metadata?.TempSURG_Chargement,
+        tempFraisChargement: rawRound.metadata?.TempsFRAIS_Chargement,
+        tempFraisFin: rawRound.metadata?.TempsFRAIS_Fin,
+        tempSurgFin: rawRound.metadata?.TempsSURG_Fin,
+        codePostalMaitre: rawRound.metadata?.codePostalMaitre,
+        arrets: rawRound.stops,
+        tempsAccelerationVehicule: rawRound.vehicle?.accelerationTime,
+        pausesVehicule: rawRound.vehicle?.breaks,
+        capaciteBacs: rawRound.vehicle?.dimensions?.bac,
+        capacitePoids: rawRound.vehicle?.dimensions?.poids,
+        dimVehiculeVolume: rawRound.vehicle?.dimensions?.volume,
+        distanceMaxVehicule: rawRound.vehicle?.maxDistance,
+        dureeMaxVehicule: rawRound.vehicle?.maxDuration,
+        commandesMaxVehicule: rawRound.vehicle?.maxOrders,
+        misAJourLe: rawRound.updated,
+        valide: rawRound.validated,
+    };
 }
 
 
-/**
- * Generic function to query an Urbantz API endpoint (task or round).
- * Manages pagination to retrieve all data.
- * @param endpoint - The endpoint to call ('task' or 'round').
- * @param apiKey - The API key for authentication.
- * @param params - The query parameters (filters) to send to the API.
- * @param logs - An array to record log messages of the process.
- * @returns An array containing all items retrieved after pagination.
- */
 async function fetchGeneric(
     endpoint: 'task' | 'round',
     apiKey: string,
@@ -274,34 +290,14 @@ async function fetchGeneric(
     return allItems;
 }
 
-// --- Task Fetching Logic ---
-async function fetchTasks(
-  apiKey: string,
-  params: URLSearchParams,
-  logs: string[]
-) {
-  const rawTasks = await fetchGeneric("task", apiKey, params, logs);
-  logs.push(`\n🔄 Transformation de ${rawTasks.length} tâches brutes...`);
-  const transformedTasks = rawTasks.map(transformTaskData);
-  logs.push(`   - Transformation des tâches terminée.`);
-  return transformedTasks;
+async function fetchAllTasks(apiKey: string, params: URLSearchParams, logs: string[]): Promise<any[]> {
+    return fetchGeneric("task", apiKey, params, logs);
 }
 
-// --- Round Fetching Logic ---
-async function fetchRounds(
-  apiKey: string,
-  params: URLSearchParams,
-  logs: string[],
-  hubIdToNameMap: Map<string, string>
-): Promise<Tournee[]> {
-  const rawRounds = await fetchGeneric("round", apiKey, params, logs);
-  logs.push(`\n🔄 Transformation de ${rawRounds.length} tournées brutes...`);
-  const transformedRounds = rawRounds.map(round => transformRoundData(round, hubIdToNameMap));
-  logs.push(`   - Transformation des tournées terminée.`);
-  return transformedRounds;
+async function fetchAllRounds(apiKey: string, params: URLSearchParams, logs: string[]): Promise<any[]> {
+    return fetchGeneric("round", apiKey, params, logs);
 }
 
-// --- Unified Export Action ---
 export async function runSyncAction(
   values: z.infer<typeof serverExportSchema>
 ) {
@@ -318,91 +314,61 @@ export async function runSyncAction(
   try {
     logs.push(`🚀 Début de l'exportation unifiée...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
+    logs.push(`   - Période: ${from} à ${to}`);
 
-    logs.push(
-      `   - Période sélectionnée: ${from}${from !== to ? ` à ${to}` : ''}`
-    );
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
 
-    // --- FETCH TASKS ---
-    logs.push(`\n\n🛰️  Interrogation de l'API pour les TÂCHES...`);
-    const taskParams = new URLSearchParams();
-    if (taskStatus && taskStatus !== "all") taskParams.append("progress", taskStatus);
-    if (taskId) taskParams.append("taskId", taskId);
-    if (roundId) taskParams.append("round", roundId);
-    if (unplanned) taskParams.append("unplanned", "true");
-    
-    logs.push(`   - Filtres Tâches: ${taskParams.toString() || "Aucun"}`);
-    
-    let allTasks: Tache[] = [];
+    logs.push(`\n🛰️  Récupération des données brutes...`);
+    const allRawRounds: any[] = [];
+    const dateCursorRounds = new Date(fromDate);
+    while (dateCursorRounds <= toDate) {
+        const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
+        logs.push(`   - Tournées pour le ${dateString}...`);
+        allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
+        dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
+    }
+
+    const allRawTasks: any[] = [];
     if (unplanned) {
-        logs.push(`\n🗓️  Traitement des tâches non planifiées...`);
-        const unplannedTasks = await fetchTasks(apiKey, taskParams, logs);
-        allTasks.push(...unplannedTasks);
+        logs.push(`   - Tâches non planifiées...`);
+        allRawTasks.push(...await fetchAllTasks(apiKey, new URLSearchParams({ unplanned: "true" }), logs));
     } else {
-        const fromDate = new Date(from);
-        const toDate = new Date(to);
-        const dateCursor = fromDate;
-
-        while (dateCursor <= toDate) {
-            const dateString = format(dateCursor, 'yyyy-MM-dd');
-            logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
-            const paramsForDay = new URLSearchParams(taskParams);
-            paramsForDay.append("date", dateString);
-            const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
-            allTasks.push(...tasksForDay);
-            dateCursor.setDate(dateCursor.getDate() + 1);
+        const dateCursorTasks = new Date(fromDate);
+        while (dateCursorTasks <= toDate) {
+            const dateString = format(dateCursorTasks, 'yyyy-MM-dd');
+            logs.push(`   - Tâches pour le ${dateString}...`);
+            const params = new URLSearchParams({ date: dateString });
+            if (taskStatus && taskStatus !== 'all') params.append('progress', taskStatus);
+            if (taskId) params.append('id', taskId);
+            if (roundId) params.append('round', roundId);
+            allRawTasks.push(...await fetchAllTasks(apiKey, params, logs));
+            dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
         }
     }
-    logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
+    logs.push(`\n✅ ${allRawRounds.length} tournées et ${allRawTasks.length} tâches brutes récupérées.`);
+
+    logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
-    // --- Create Hub ID to Name Map ---
-    logs.push("\n🗺️  Création de la table de correspondance des hubs...");
-    const hubIdToNameMap = new Map<string, string>();
-    allTasks.forEach(task => {
-      if (task.hub && task.nomHub && !hubIdToNameMap.has(task.hub)) {
-        hubIdToNameMap.set(task.hub, task.nomHub);
-      }
-    });
-    logs.push(`   - ${hubIdToNameMap.size} hubs uniques identifiés.`);
-
-
-    // --- FETCH ROUNDS ---
-    logs.push(`\n\n🛰️  Interrogation de l'API pour les TOURNÉES...`);
-    const roundParams = new URLSearchParams();
+    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, allRawRounds));
+    logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
-    let allRounds: Tournee[] = [];
-    const fromDateRounds = new Date(from);
-    const toDateRounds = new Date(to);
-    const dateCursorRounds = fromDateRounds;
+    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
+    logs.push(`   - ${transformedRounds.length} tournées transformées.`);
 
-     while (dateCursorRounds <= toDateRounds) {
-      const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
-      logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
-      const paramsForDay = new URLSearchParams(roundParams);
-      paramsForDay.append("date", dateString);
-      const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs, hubIdToNameMap);
-      allRounds.push(...roundsForDay);
-      dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
-    }
-
-    // Manual filtering for round status
-    let filteredRounds = allRounds;
+    let finalFilteredRounds = transformedRounds;
     if (roundStatus && roundStatus !== "all") {
-      logs.push(`\n🔄 Filtrage manuel des tournées par statut: ${roundStatus}`);
-      filteredRounds = allRounds.filter((round) => round.status === roundStatus);
-      logs.push(
-        `   - ${allRounds.length - filteredRounds.length} tournées écartées.`
-      );
+      logs.push(`\n🔄 Filtrage des tournées par statut: ${roundStatus}`);
+      finalFilteredRounds = transformedRounds.filter((round) => round.statut === roundStatus);
+      logs.push(`   - ${transformedRounds.length - finalFilteredRounds.length} tournées écartées.`);
     }
-     logs.push(`\n✅ ${filteredRounds.length} tournées épurées récupérées au total.`);
 
     logs.push(`\n\n🎉 Exportation terminée !`);
-    logs.push(`   - ${allTasks.length} tâches et ${filteredRounds.length} tournées prêtes.`);
-    logs.push(`✨ Les données sont affichées ci-dessous. Vous pouvez maintenant les télécharger ou les sauvegarder.`);
+    logs.push(`   - ${transformedTasks.length} tâches et ${finalFilteredRounds.length} tournées prêtes.`);
 
     return {
       logs,
-      data: { tasks: allTasks, rounds: filteredRounds },
+      data: { tasks: transformedTasks, rounds: finalFilteredRounds },
       error: null,
     };
 
@@ -812,7 +778,7 @@ export async function runDailySyncAction() {
         logs.push(`\n🗓️  Traitement des tâches pour le ${dateString}...`);
         const paramsForDay = new URLSearchParams(taskParams);
         paramsForDay.append("date", dateString);
-        const tasksForDay = await fetchTasks(apiKey, paramsForDay, logs);
+        const tasksForDay = await fetchAllTasks(apiKey, paramsForDay, logs);
         allTasks.push(...tasksForDay);
         dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
     }
@@ -820,8 +786,8 @@ export async function runDailySyncAction() {
     
     const hubIdToNameMap = new Map<string, string>();
     allTasks.forEach(task => {
-      if (task.hub && task.nomHub && !hubIdToNameMap.has(task.hub)) {
-        hubIdToNameMap.set(task.hub, task.nomHub);
+      if (task.hubId && task.nomHub && !hubIdToNameMap.has(task.hubId)) {
+        hubIdToNameMap.set(task.hubId, task.nomHub);
       }
     });
     logs.push(`\n🗺️ ${hubIdToNameMap.size} hubs uniques identifiés.`);
@@ -834,7 +800,7 @@ export async function runDailySyncAction() {
       logs.push(`\n🗓️  Traitement des tournées pour le ${dateString}...`);
       const paramsForDay = new URLSearchParams(roundParams);
       paramsForDay.append("date", dateString);
-      const roundsForDay = await fetchRounds(apiKey, paramsForDay, logs, hubIdToNameMap);
+      const roundsForDay = await fetchAllRounds(apiKey, paramsForDay, logs);
       allRounds.push(...roundsForDay);
       dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
     }
@@ -853,22 +819,20 @@ export async function runDailySyncAction() {
     logs.push(`\n🔔 Génération des notifications...`);
     let notificationCount = 0;
     // 1. Quality Alerts
-    const qualityAlertTasks = allTasks.filter(t => typeof t.metaDonnees?.notationLivreur === 'number' && t.metaDonnees.notationLivreur < 4);
+    const qualityAlertTasks = allTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
     for (const task of qualityAlertTasks) {
         await createNotification(firestore, {
             type: 'quality_alert',
-            message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.metaDonnees?.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
+            message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
             relatedEntity: { type: 'task', id: task.tacheId }
         });
         notificationCount++;
     }
     // 2. Overweight Rounds (assuming this logic is available or can be added)
-    // This is a placeholder for where you'd check for overweight rounds and create notifications.
-    // For now, we'll simulate one if any round exists.
-    if (allRounds.length > 0 && allRounds[0].dimensions && allRounds[0].dimensions.poids && allRounds[0].dimensions.poids > 1250) {
+    if (allRounds.length > 0 && allRounds[0].poidsTournee && allRounds[0].poidsTournee > 1250) {
        await createNotification(firestore, {
             type: 'overweight_round',
-            message: `La tournée ${allRounds[0].name} est en surcharge de poids (${allRounds[0].dimensions.poids} kg).`,
+            message: `La tournée ${allRounds[0].nom} est en surcharge de poids (${allRounds[0].poidsTournee} kg).`,
             relatedEntity: { type: 'round', id: allRounds[0].id }
         });
         notificationCount++;

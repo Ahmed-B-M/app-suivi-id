@@ -41,7 +41,6 @@ type BacRow = {
     tacheId: string;
     date: string | undefined;
     nomTournee: string | undefined;
-    nom: string | undefined;
     codeBarre: string | undefined;
     type: string | undefined;
     statut: string | undefined;
@@ -72,9 +71,17 @@ const columns: ColumnDef<BacRow>[] = [
     accessorKey: "nomTournee",
     header: "Tournée",
   },
-    {
+  {
     accessorKey: "type",
-    header: "Type d'Article",
+    header: "Type de Bac",
+     cell: ({ row }) => {
+        const type = row.getValue("type") as string;
+        let variant: "default" | "secondary" | "outline" | "destructive" = "secondary";
+        if (type?.includes('FRAIS')) variant = 'default';
+        if (type?.includes('SURG')) variant = 'destructive';
+        if (type?.includes('SEC')) variant = 'outline';
+        return <Badge variant={variant}>{type}</Badge>
+    }
   },
   {
     accessorKey: "codeBarre",
@@ -97,17 +104,16 @@ export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  const flatData = React.useMemo(() => {
+  const flatData: BacRow[] = React.useMemo(() => {
     return tasks.flatMap(task => 
-        task.articles?.map(article => ({
+        (task.articles ?? []).map(article => ({
             tacheId: task.tacheId,
             date: task.date as string,
             nomTournee: task.nomTournee,
-            nom: article.nom,
             codeBarre: article.codeBarre,
             type: article.type,
             statut: article.statut,
-        })) || []
+        }))
     )
   }, [tasks])
 
