@@ -153,12 +153,12 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         dateMiseAJour: rawTask.updated,
         dateCreation: rawTask.when,
         
-        // Données brutes et calculées
-        items: (rawTask.items || []).map((item: any) => ({
-            tacheId: rawTask.id, // Lien
-            tourneeId: rawTask.round, // Lien
-            nomTournee: rawTask.roundName, // Lien
+        // Données brutes des articles
+        articles: (rawTask.items || []).map((item: any) => ({
+            tacheId: rawTask.taskId,
             codeBarre: item.barcode,
+            tourneeId: rawTask.round,
+            nomTournee: rawTask.roundName,
             nom: item.name,
             type: item.type,
             statut: item.status,
@@ -381,7 +381,7 @@ export async function runSyncAction(
             logs.push(`   - Tâches pour le ${dateString}...`);
             const params = new URLSearchParams({ date: dateString });
             if (taskStatus && taskStatus !== 'all') params.append('progress', taskStatus);
-            if (taskId) params.append('id', taskId);
+            if (taskId) params.append('taskId', taskId);
             if (roundId) params.append('round', roundId);
             allRawTasks.push(...await fetchAllTasks(apiKey, params, logs));
             dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
@@ -899,7 +899,3 @@ export async function runDailySyncAction() {
     };
   }
 }
-
-    
-
-    
