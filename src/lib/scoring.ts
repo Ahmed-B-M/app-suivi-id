@@ -1,6 +1,7 @@
 
 import { addMinutes, differenceInMinutes, parseISO, subMinutes } from "date-fns";
 import { Tache, Tournee } from "./types";
+import { Timestamp } from "firebase/firestore";
 
 export interface DriverStats {
   name: string;
@@ -32,10 +33,20 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
   
   completedWithTime.forEach(t => {
     try {
-      const arrival = new Date(t.dateCloture!);
-      const windowStart = new Date(t.debutCreneauInitial!);
+      // Robust date parsing from string, Date, or Timestamp
+      const arrival = new Date(t.dateCloture as string | Date);
+      const windowStart = new Date(t.debutCreneauInitial as string | Date);
+
+      // Check for invalid dates
+      if (isNaN(arrival.getTime()) || isNaN(windowStart.getTime())) {
+          return; 
+      }
+
       // Default to a 2-hour window if 'fin' is not present
-      const windowEnd = t.finCreneauInitial ? new Date(t.finCreneauInitial) : addMinutes(windowStart, 120);
+      const windowEnd = t.finCreneauInitial ? new Date(t.finCreneauInitial as string | Date) : addMinutes(windowStart, 120);
+      if (isNaN(windowEnd.getTime())) {
+          return;
+      }
 
       // Check if inside the tolerance window
       const lowerBound = subMinutes(windowStart, 15);
