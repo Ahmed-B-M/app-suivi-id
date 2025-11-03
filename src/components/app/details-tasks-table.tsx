@@ -40,10 +40,13 @@ import Link from "next/link";
 import { getDriverFullName } from "@/lib/grouping";
 
 const columns: ColumnDef<Tache>[] = [
-  { accessorKey: "taskId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("id")}`} className="text-blue-600 hover:underline">{row.getValue("taskId")}</Link> },
+  // Identification
+  { accessorKey: "tacheId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("id")}`} className="text-blue-600 hover:underline">{row.getValue("tacheId")}</Link> },
   { accessorKey: "idInterne", header: "ID Interne" },
   { accessorKey: "commande", header: "Commande" },
   { accessorKey: "client", header: "Client (ID)" },
+  
+  // Contenu
   { accessorKey: "bacsSurg", header: "Bacs SURG" },
   { accessorKey: "bacsFrais", header: "Bacs FRAIS" },
   { accessorKey: "bacsSec", header: "Bacs SEC" },
@@ -53,33 +56,44 @@ const columns: ColumnDef<Tache>[] = [
   { accessorKey: "nombreDeBacs", header: "Nombre de bacs" },
   { accessorKey: "poidsEnKg", header: "Poids (kg)" },
   { accessorKey: "volumeEnCm3", header: "Volume (cm3)" },
+  
+  // Planification
   { accessorKey: "date", header: "Date", cell: ({row}) => row.getValue("date") ? format(new Date(row.getValue("date") as string), 'PP') : 'N/A' },
   { accessorKey: "dateInitialeLivraison", header: "Date Initiale Livraison" },
   { accessorKey: "debutCreneauInitial", header: "Début Créneau Initial", cell: ({row}) => row.getValue("debutCreneauInitial") ? format(new Date(row.getValue("debutCreneauInitial") as string), 'p') : 'N/A' },
   { accessorKey: "finCreneauInitial", header: "Fin Créneau Initial", cell: ({row}) => row.getValue("finCreneauInitial") ? format(new Date(row.getValue("finCreneauInitial") as string), 'p') : 'N/A' },
   { accessorKey: "heureArriveeEstimee", header: "Heure Arrivée (Estimée)", cell: ({row}) => row.getValue("heureArriveeEstimee") ? format(new Date(row.getValue("heureArriveeEstimee") as string), 'p') : 'N/A' },
   { accessorKey: "tempsDeServiceEstime", header: "Temps service estimé (min)" },
+  
+  // Adresse & Instructions
   { accessorKey: "adresse", header: "Adresse" },
   { accessorKey: "ville", header: "Ville" },
   { accessorKey: "codePostal", header: "Code Postal" },
   { accessorKey: "instructions", header: "Instructions" },
+  
+  // Contact
   { accessorKey: "personneContact", header: "Personne Contact" },
   { accessorKey: "telephoneContact", header: "Téléphone Contact" },
+  
+  // Réalisation & Statuts
   { accessorKey: "status", header: "Statut", cell: ({row}) => <Badge variant="outline">{row.getValue("status")}</Badge> },
   { accessorKey: "progression", header: "Progression", cell: ({row}) => <Badge variant={row.getValue("progression") === "COMPLETED" ? "default" : "secondary"}>{row.getValue("progression")}</Badge> },
   { accessorKey: "dateCloture", header: "Date de Clôture", cell: ({row}) => row.getValue("dateCloture") ? format(new Date(row.getValue("dateCloture") as string), 'Pp') : 'N/A' },
   { accessorKey: "tentatives", header: "Tentatives" },
-  { accessorKey: "completePar", header: "Terminé Par" },
+  { accessorKey: "terminePar", header: "Terminé Par" },
+  
+  // Infos Tournée & Chauffeur
   { accessorKey: "nomTournee", header: "Nom Tournée" },
   { accessorKey: "sequence", header: "Séquence" },
   { accessorKey: "nomAssocie", header: "Associé (Nom)" },
-  { accessorKey: "idExterneChauffeur", header: "ID Externe Chauffeur" },
   { accessorFn: row => getDriverFullName(row), header: "Nom Complet Chauffeur" },
   { accessorKey: "nomHub", header: "Hub (Nom)" },
-  { accessorKey: "nomPlateforme", header: "Plateforme (Nom)" },
+  
+  // Métadonnées
   { accessorKey: "notationLivreur", header: "Notation Livreur" },
   { accessorKey: "commentaireLivreur", header: "Commentaire Livreur" },
-  // Champs techniques ou moins pertinents pour l'affichage par défaut
+
+  // --- Champs masqués par défaut ---
   { accessorKey: "id", header: "ID DB" },
   { accessorKey: "referenceTache", header: "Référence Tâche" },
   { accessorKey: "nombreDeBacsMeta", header: "Nombre de Bacs (Méta)" },
