@@ -173,19 +173,6 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return roundsToFilter;
   }, [allRoundsData, filterType, selectedDepot, selectedStore]);
 
-  const processedVerbatims = useMemo(() => {
-    let verbatimsToFilter = allSavedVerbatims;
-
-    if (selectedDepot !== "all") {
-       verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
-    }
-    if (selectedStore !== "all") {
-      verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
-    }
-    return verbatimsToFilter;
-  }, [allSavedVerbatims, selectedDepot, selectedStore]);
-
-
   const allComments = useMemo(() => {
     // 1. Create a map of all saved comments from Firestore for quick lookup.
     const savedCommentsMap = new Map<string, CategorizedComment>();
@@ -265,6 +252,18 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         verbatims: verbatimsToFilter,
     }];
   }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
+  
+ const processedVerbatims = useMemo(() => {
+    let verbatimsToFilter = allSavedVerbatims;
+
+    if (selectedDepot !== "all") {
+       verbatimsToFilter = verbatimsToFilter.filter(v => v.depot === selectedDepot);
+    }
+    if (selectedStore !== "all") {
+      verbatimsToFilter = verbatimsToFilter.filter(v => v.store === selectedStore);
+    }
+    return verbatimsToFilter;
+  }, [allSavedVerbatims, selectedDepot, selectedStore]);
   
  const allProcessedVerbatims = useMemo(() => {
     const verbatimsMap = new Map<string, ProcessedVerbatim>();
