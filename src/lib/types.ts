@@ -30,12 +30,12 @@ export interface Article {
 
 export interface Tache {
     // Identification
-    tacheId: string;
-    idInterne: string;
-    referenceTache: string;
+    tacheId: string; // Votre ID de tâche (ex: 619118027)
+    idInterne: string; // taskReference
+    referenceTache: string; // taskReference (doublon)
     id: string; // _id from API
-    commande?: string;
-    client?: string;
+    commande?: string; // metadata.numeroCommande
+    client?: string; // L'expéditeur, ex: "CARREFOUR LAD"
 
     // Contenu de la Tâche
     bacsSurg: number;
@@ -77,7 +77,7 @@ export interface Tache {
     instructions?: string;
 
     // Contact Client
-    personneContact?: string;
+    personneContact?: string; // Le client final livré
     compteContact?: string;
     emailContact?: string;
     telephoneContact?: string;
@@ -116,7 +116,7 @@ export interface Tache {
     // Infos Tournée & Chauffeur
     nomTournee?: string;
     sequence?: number;
-    nomAssocie?: string;
+    nomAssocie?: string; // La plateforme associée (ex: "ID Logistics")
     idExterneChauffeur?: string;
     prenomChauffeur?: string;
     nomChauffeur?: string;
@@ -164,7 +164,7 @@ export interface Tournee {
     nomHub: string; // nomHub (venant de la tâche)
 
     // Infos Chauffeur & Véhicule
-    associeNom?: string; // associatedName
+    associeNom?: string; // La plateforme associée (ex: "ID Logistics")
     emailChauffeur?: string; // driver.externalId
     prenomChauffeur?: string; // driver.firstName
     nomChauffeur?: string; // driver.lastName

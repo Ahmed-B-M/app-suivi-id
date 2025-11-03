@@ -12,8 +12,8 @@ Liste des champs de données pour l'entité Round (Tournée).
 - **Activité**: `activity` (Texte) - Type d'activité pour l'entité (ex: classic, express). Exemple: "classic"
 - **Date**: `date` (Date/Heure) - Date à laquelle la tournée doit être exécutée. Exemple: "2025-10-26T00:00:00.000Z"
 - **Hub (ID)**: `hub` (Texte) - L'identifiant du hub (dépôt). Exemple: "64788b0a4f88d4949665f381"
-- **Nom du Hub**: `nomHub` (Texte) - Nom lisible du dépôt (Note: Présent dans votre JSON, pas dans le schéma API). Exemple: "Rungis Dimanche Zone1"
-- **Associé (Nom)**: `associatedName` (Texte) - Le nom de la plateforme associée. Exemple: "ID Logistics"
+- **Nom du Hub**: `nomHub` (Texte) - Nom lisible du dépôt. Exemple: "Rungis Dimanche Zone1"
+- **Associé (Nom)**: `associatedName` (Texte) - La plateforme associée (ex: "ID Logistics").
 - **email chauffeur**: `driver.externalId` (Texte) - L'identifiant externe d'un utilisateur (souvent l'email). Exemple: "Alexandre@idlog.com"
 - **Prénom Chauffeur**: `driver.firstName` (Texte) - Le prénom de l'utilisateur. Exemple: "Alexandre"
 - **Nom Chauffeur**: `driver.lastName` (Texte) - Le nom de famille de l'utilisateur. Exemple: "Karim 7"
@@ -78,7 +78,7 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Référence Tâche**: `taskReference` (Texte) - Doublon de ID Interne. Exemple: "019f7d77-e652-4636-aff9-..."
 - **ID**: `_id` (Texte) - ID interne de la tâche (à utiliser pour les appels API). Exemple: "68fcd8e22b1b25ce2fbd6f9a"
 - **Commande**: `metadata.numeroCommande` (Texte) - (Métadonnée) Numéro de commande client. Exemple: "WEB-12345"
-- **Client (ID)**: `client` (Texte) - L'identifiant de l'expéditeur (sender). Exemple: "CARREFOUR LAD"
+- **Client (ID)**: `client` (Texte) - L'identifiant de l'expéditeur (le donneur d'ordre, ex: "CARREFOUR LAD").
 - **Bacs SURG**: (Calculé depuis articles) (Nombre) - Nombre total de bacs "SURG". Exemple: 1
 - **Bacs FRAIS**: (Calculé depuis articles) (Nombre) - Nombre total de bacs "FRAIS". Exemple: 1
 - **Bacs SEC**: (Calculé depuis articles) (Nombre) - Nombre total de bacs "SEC". Exemple: 7
@@ -112,7 +112,7 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Code Postal**: `location.zip` (Texte) - Code postal. Exemple: "06600"
 - **Pays**: `location.countryCode` (Texte) - Le code ISO 3166-1 alpha-3 du pays. Exemple: "FRA"
 - **Instructions**: `instructions` (Texte) - Informations supplémentaires pour le chauffeur. Exemple: "Appeler au 0679882747"
-- **Personne Contact**: `contact.person` (Texte) - Nom et prénom du contact. Exemple: "MME Margaux Saccoccio"
+- **Personne Contact**: `contact.person` (Texte) - Le nom du client final livré. Exemple: "MME Margaux Saccoccio"
 - **Compte Contact**: `contact.account` (Texte) - Numéro de compte du contact. Exemple: "15868723"
 - **Email Contact**: `contact.email` (Texte) - Adresse email du contact. Exemple: "marg.sacc@orange.fr"
 - **Téléphone Contact**: `contact.phone` (Texte) - Numéro de téléphone du contact. Exemple: "33679882747"
@@ -143,7 +143,7 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Longitude Position**: `execution.position.longitude` (Nombre) - Longitude GPS à la clôture.
 - **Nom Tournée**: `roundName` (Texte) - Nom de la tournée où la tâche est assignée.
 - **Séquence**: `sequence` (Nombre) - Séquence de la tâche dans la tournée.
-- **Associé (Nom)**: `associatedName` (Texte) - Le nom de la plateforme associée.
+- **Associé (Nom)**: `associatedName` (Texte) - Le nom de la plateforme associée (ex: "ID Logistics").
 - **ID Externe Chauffeur**: `driver.externalId` (Texte) - Identifiant externe (email) du livreur.
 - **Prénom Chauffeur**: `driver.firstName` (Texte) - Prénom du livreur.
 - **Nom Chauffeur**: `driver.lastName` (Texte) - Nom du livreur.
@@ -159,7 +159,7 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Notation Livreur**: `metadata.notationLivreur` (Nombre) - (Métadonnée) Note donnée par le client.
 - **Service (Méta)**: `metadata.service` (Texte) - (Métadonnée) Type de service.
 - **Code Entrepôt**: `metadata.warehouseCode` (Texte) - (Métadonnée) Code de l'entrepôt.
-- **Méta Commentaire Livreur**: `metaDonnees.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
+- **Méta Commentaire Livreur**: `metadata.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
 - **Infos Suivi Transp.**: `externalCarrier.trackingInfo` (Objet/JSON) - Informations de tracking (JSON).
 - **Désassoc. Transp. Rejetée**: `externalCarrier.unassociationRejected` (Booléen) - Champ technique.
 - **Mis à jour le**: `updated` (Date/Heure) - Horodatage de la dernière modification.
