@@ -76,7 +76,7 @@ export function QualityAlertDialog({
                   {sortedTasks.map((task) => (
                     <TableRow key={task.tacheId}>
                       <TableCell>
-                        {task.dateCloture ? format(new Date(task.dateCloture), "dd/MM/yy HH:mm") : (task.date ? format(new Date(task.date), "dd/MM/yy") : 'N/A')}
+                        {task.dateCloture ? format(new Date(task.dateCloture), "dd/MM/yy HH:mm") : (task.date ? format(new Date(task.date as string), "dd/MM/yy") : 'N/A')}
                       </TableCell>
                        <TableCell>{getDriverFullName(task) || 'N/A'}</TableCell>
                        <TableCell>{task.nomHub || 'N/A'}</TableCell>
@@ -84,15 +84,15 @@ export function QualityAlertDialog({
                       <TableCell>{task.sequence ?? 'N/A'}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="destructive" className="flex items-center justify-center gap-1">
-                          {task.metaDonnees?.notationLivreur}
+                          {task.notationLivreur}
                           <Star className="h-3 w-3"/>
                         </Badge>
                       </TableCell>
                        <TableCell className="italic text-muted-foreground">
-                        {task.metaDonnees?.commentaireLivreur ? (
+                        {task.commentaireLivreur ? (
                            <div className="flex items-start gap-2">
                              <MessageSquare className="h-4 w-4 mt-1 shrink-0" />
-                             <span>"{task.metaDonnees.commentaireLivreur}"</span>
+                             <span>"{task.commentaireLivreur}"</span>
                            </div>
                         ) : 'Aucun commentaire'}
                        </TableCell>
@@ -111,3 +111,5 @@ export function QualityAlertDialog({
     </Dialog>
   );
 }
+
+    

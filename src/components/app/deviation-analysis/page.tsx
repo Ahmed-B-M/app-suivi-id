@@ -21,16 +21,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Building, Clock, Percent, Scale, Warehouse } from "lucide-react";
+import { AlertCircle, Building, Clock, Percent, Scale, Warehouse, Box } from "lucide-react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilters } from "@/context/filter-context";
 import { getDriverFullName, getDepotFromHub } from "@/lib/grouping";
 import { format, differenceInMinutes, parseISO, addMinutes, subMinutes } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 interface Deviation {
   round: Tournee;
   totalWeight: number;
   capacity: number;
+  deviation: number;
+}
+
+interface BacDeviation {
+  round: Tournee;
+  totalBacs: number;
   deviation: number;
 }
 
@@ -96,9 +104,9 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
 export default function DeviationAnalysisPage() {
   const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
 
-  const { deviations, depotSummary, warehouseSummary, punctualityIssues } = useMemo(() => {
+  const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations } = useMemo(() => {
     if (!filteredTasks || !filteredRounds) {
-      return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [] };
+      return { deviations: [], depotSummary: [], warehouseSummary: [], punctualityIssues: [], bacDeviations: [] };
     }
 
     // --- Weight Deviation Logic ---
@@ -108,7 +116,7 @@ export default function DeviationAnalysisPage() {
         continue;
       }
       const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
-      const taskWeight = task.dimensions?.poids ?? 0;
+      const taskWeight = task.poidsEnKg ?? 0;
 
       if (taskWeight > 0) {
         const currentWeight = tasksWeightByRound.get(roundKey) || 0;
@@ -116,41 +124,70 @@ export default function DeviationAnalysisPage() {
       }
     }
     
+    // --- Bac Deviation Logic ---
+    const tasksBacsByRound = new Map<string, number>();
+    const BAC_LIMIT = 105;
+    for (const task of filteredTasks) {
+        if (!task.nomTournee || !task.date || !task.nomHub) {
+            continue;
+        }
+        const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
+        const bacCount = (task.raw?.articles ?? []).filter(
+            (article: any) => article.type === 'BAC_SEC' || article.type === 'BAC_FRAIS'
+        ).length;
+        
+        if (bacCount > 0) {
+            const currentBacs = tasksBacsByRound.get(roundKey) || 0;
+            tasksBacsByRound.set(roundKey, currentBacs + bacCount);
+        }
+    }
+
+
     const weightResults: Deviation[] = [];
+    const bacResults: BacDeviation[] = [];
     const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
 
     for (const round of filteredRounds) {
-      const roundCapacity = round.vehicle?.dimensions?.poids;
-      
-      if (typeof roundCapacity !== "number" || !round.name || !round.date || !round.nomHub) {
-        continue;
-      }
-      
-      const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
-      const totalWeight = tasksWeightByRound.get(roundKey) || 0;
-      const isOverweight = totalWeight > roundCapacity;
+      const roundKey = `${round.nom}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
 
-      const depot = getDepotFromHub(round.nomHub);
-      const warehouse = round.nomHub;
+      // Weight check
+      const roundCapacity = round.capacitePoids;
+      if (typeof roundCapacity === "number" && round.nom && round.date && round.nomHub) {
+        const totalWeight = tasksWeightByRound.get(roundKey) || 0;
+        const isOverweight = totalWeight > roundCapacity;
 
-      if (depot) {
-          if (!depotAggregation[depot]) depotAggregation[depot] = { totalRounds: 0, overweightRounds: 0 };
-          depotAggregation[depot].totalRounds += 1;
-          if (isOverweight) depotAggregation[depot].overweightRounds += 1;
-      }
-      if (warehouse) {
-          if (!warehouseAggregation[warehouse]) warehouseAggregation[warehouse] = { totalRounds: 0, overweightRounds: 0 };
-          warehouseAggregation[warehouse].totalRounds += 1;
-          if (isOverweight) warehouseAggregation[warehouse].overweightRounds += 1;
+        const depot = getDepotFromHub(round.nomHub);
+        const warehouse = round.nomHub;
+
+        if (depot) {
+            if (!depotAggregation[depot]) depotAggregation[depot] = { totalRounds: 0, overweightRounds: 0 };
+            depotAggregation[depot].totalRounds += 1;
+            if (isOverweight) depotAggregation[depot].overweightRounds += 1;
+        }
+        if (warehouse) {
+            if (!warehouseAggregation[warehouse]) warehouseAggregation[warehouse] = { totalRounds: 0, overweightRounds: 0 };
+            warehouseAggregation[warehouse].totalRounds += 1;
+            if (isOverweight) warehouseAggregation[warehouse].overweightRounds += 1;
+        }
+
+        if (isOverweight) {
+          weightResults.push({
+            round,
+            totalWeight,
+            capacity: roundCapacity,
+            deviation: totalWeight - roundCapacity,
+          });
+        }
       }
 
-      if (isOverweight) {
-        weightResults.push({
-          round,
-          totalWeight,
-          capacity: roundCapacity,
-          deviation: totalWeight - roundCapacity,
+      // Bac check
+      const totalBacs = tasksBacsByRound.get(roundKey) || 0;
+      if (totalBacs > BAC_LIMIT) {
+        bacResults.push({
+            round,
+            totalBacs,
+            deviation: totalBacs - BAC_LIMIT,
         });
       }
     }
@@ -164,11 +201,11 @@ export default function DeviationAnalysisPage() {
         })).sort((a, b) => b.overloadRate - a.overloadRate);
     }
     
-    // --- Punctuality Logic ---
+    // --- Punctuality Logic (Provisional) ---
     const roundStopsByTaskId = new Map<string, any>();
     for (const round of filteredRounds) {
-      if (round.stops) {
-        for (const stop of round.stops) {
+      if (round.arrets) {
+        for (const stop of round.arrets) {
           if (stop.taskId) {
             roundStopsByTaskId.set(stop.taskId, stop);
           }
@@ -178,14 +215,14 @@ export default function DeviationAnalysisPage() {
 
     const punctualityResults: PunctualityIssue[] = [];
     for (const task of filteredTasks) {
-      if (task.tacheId && task.creneauHoraire?.debut) {
+      if (task.tacheId && task.debutCreneauInitial) {
         const stop = roundStopsByTaskId.get(task.tacheId);
         if (stop && stop.arriveTime) {
           try {
             const plannedArrive = parseISO(stop.arriveTime);
             
             // Check for earliness
-            const windowStart = parseISO(task.creneauHoraire.debut);
+            const windowStart = parseISO(task.debutCreneauInitial);
             const earlyThreshold = subMinutes(windowStart, 15);
             const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
             if (deviationEarly > 0) {
@@ -198,8 +235,8 @@ export default function DeviationAnalysisPage() {
             }
 
             // Check for lateness
-            if (task.creneauHoraire.fin) {
-              const windowEnd = parseISO(task.creneauHoraire.fin);
+            if (task.finCreneauInitial) {
+              const windowEnd = parseISO(task.finCreneauInitial);
               const lateThreshold = addMinutes(windowEnd, 15);
               const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
               if (deviationLate > 0) {
@@ -223,6 +260,7 @@ export default function DeviationAnalysisPage() {
         depotSummary: calculateSummary(depotAggregation),
         warehouseSummary: calculateSummary(warehouseAggregation),
         punctualityIssues: punctualityResults.sort((a, b) => Math.abs(b.deviationMinutes) - Math.abs(a.deviationMinutes)),
+        bacDeviations: bacResults.sort((a, b) => b.deviation - a.deviation),
     };
   }, [filteredTasks, filteredRounds]);
 
@@ -273,118 +311,183 @@ export default function DeviationAnalysisPage() {
                 <DeviationSummaryCard title="Synthèse par Dépôt" data={depotSummary} icon={<Building />} />
                 <DeviationSummaryCard title="Synthèse par Entrepôt" data={warehouseSummary} icon={<Warehouse />} />
             </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                    <Scale />
-                    Détail des Tournées en Surcharge
-                    </CardTitle>
-                    <CardDescription>
-                    Liste des tournées dont le poids total des tâches dépasse la capacité maximale du véhicule assigné.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {deviations.length > 0 ? (
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Tournée</TableHead>
-                            <TableHead>Entrepôt</TableHead>
-                            <TableHead>Livreur</TableHead>
-                            <TableHead className="text-right">Poids Calculé (kg)</TableHead>
-                            <TableHead className="text-right">Capacité (kg)</TableHead>
-                            <TableHead className="text-right text-destructive">Ecart (kg)</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {deviations.map(({ round, totalWeight, capacity, deviation }) => (
-                            <TableRow key={round.id}>
-                            <TableCell>
-                                {round.date
-                                ? format(new Date(round.date as string), "dd/MM/yyyy")
-                                : "N/A"}
-                            </TableCell>
-                            <TableCell className="font-medium">{round.name}</TableCell>
-                            <TableCell>{round.nomHub || 'N/A'}</TableCell>
-                            <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
-                            <TableCell className="text-right font-mono">
-                                {totalWeight.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-muted-foreground">
-                                {capacity.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-bold text-destructive">
-                                +{deviation.toFixed(2)}
-                            </TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody>
-                    </Table>
-                    ) : (
-                    <div className="text-center py-16 text-muted-foreground">
-                        <p>Aucune tournée en surcharge détectée pour la période sélectionnée.</p>
-                    </div>
-                    )}
-                </CardContent>
-            </Card>
 
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                    <Clock />
-                    Analyse de Ponctualité Prévisionnelle
-                    </CardTitle>
-                    <CardDescription>
-                    Liste des tâches dont l'heure d'arrivée planifiée est en dehors du créneau horaire promis au client (tolérance de +/- 15 min).
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {punctualityIssues.length > 0 ? (
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Tournée</TableHead>
-                            <TableHead>Entrepôt</TableHead>
-                            <TableHead>Client</TableHead>
-                            <TableHead>Créneau Promis</TableHead>
-                            <TableHead>Arrivée Prévue</TableHead>
-                            <TableHead className="text-right">Écart (min)</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {punctualityIssues.map(({ task, plannedArriveTime, deviationMinutes }) => (
-                            <TableRow key={task.tacheId}>
-                            <TableCell>
-                                {task.date
-                                ? format(new Date(task.date as string), "dd/MM/yyyy")
-                                : "N/A"}
-                            </TableCell>
-                            <TableCell className="font-medium">{task.nomTournee}</TableCell>
-                            <TableCell>{task.nomHub || 'N/A'}</TableCell>
-                            <TableCell>{task.contact?.personne || 'N/A'}</TableCell>
-                            <TableCell>
-                                {task.creneauHoraire?.debut ? format(new Date(task.creneauHoraire.debut), "HH:mm") : ''}
-                                {task.creneauHoraire?.fin ? ` - ${format(new Date(task.creneauHoraire.fin), "HH:mm")}`: ''}
-                            </TableCell>
-                            <TableCell>{format(new Date(plannedArriveTime), "HH:mm")}</TableCell>
-                            <TableCell className={`text-right font-bold ${deviationMinutes > 0 ? 'text-destructive' : 'text-blue-500'}`}>
-                                {deviationMinutes > 0 ? `+${deviationMinutes}` : deviationMinutes} min
-                            </TableCell>
+            <Tabs defaultValue="surcharge-poids">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="surcharge-poids">Surcharge Poids ({deviations.length})</TabsTrigger>
+                <TabsTrigger value="surcharge-bacs">Surcharge Bacs ({bacDeviations.length})</TabsTrigger>
+                <TabsTrigger value="ponctualite">Ponctualité ({punctualityIssues.length})</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="surcharge-poids" className="mt-4">
+                  <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                        <Scale />
+                        Détail des Tournées en Surcharge de Poids
+                        </CardTitle>
+                        <CardDescription>
+                        Liste des tournées dont le poids total des tâches dépasse la capacité maximale du véhicule assigné.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {deviations.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Tournée</TableHead>
+                                <TableHead>Entrepôt</TableHead>
+                                <TableHead>Livreur</TableHead>
+                                <TableHead className="text-right">Poids Calculé (kg)</TableHead>
+                                <TableHead className="text-right">Capacité (kg)</TableHead>
+                                <TableHead className="text-right text-destructive">Ecart (kg)</TableHead>
                             </TableRow>
-                        ))}
-                        </TableBody>
-                    </Table>
-                    ) : (
-                    <div className="text-center py-16 text-muted-foreground">
-                        <p>Aucun écart de ponctualité prévisionnel détecté pour la période sélectionnée.</p>
-                    </div>
-                    )}
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                            {deviations.map(({ round, totalWeight, capacity, deviation }) => (
+                                <TableRow key={round.id}>
+                                <TableCell>
+                                    {round.date
+                                    ? format(new Date(round.date as string), "dd/MM/yyyy")
+                                    : "N/A"}
+                                </TableCell>
+                                <TableCell className="font-medium">{round.nom}</TableCell>
+                                <TableCell>{round.nomHub || 'N/A'}</TableCell>
+                                <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                    {totalWeight.toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-muted-foreground">
+                                    {capacity.toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-right font-mono font-bold text-destructive">
+                                    +{deviation.toFixed(2)}
+                                </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                        ) : (
+                        <div className="text-center py-16 text-muted-foreground">
+                            <p>Aucune tournée en surcharge de poids détectée pour la période sélectionnée.</p>
+                        </div>
+                        )}
+                    </CardContent>
+                  </Card>
+              </TabsContent>
+
+              <TabsContent value="surcharge-bacs" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Box />
+                            Détail des Tournées en Surcharge de Bacs
+                        </CardTitle>
+                        <CardDescription>
+                            Liste des tournées dont le nombre total de bacs (secs et frais) dépasse la limite de 105.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {bacDeviations.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Tournée</TableHead>
+                                    <TableHead>Entrepôt</TableHead>
+                                    <TableHead>Livreur</TableHead>
+                                    <TableHead className="text-right">Bacs Calculés</TableHead>
+                                    <TableHead className="text-right text-destructive">Ecart</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {bacDeviations.map(({ round, totalBacs, deviation }) => (
+                                    <TableRow key={round.id}>
+                                        <TableCell>
+                                            {round.date ? format(new Date(round.date as string), "dd/MM/yyyy") : "N/A"}
+                                        </TableCell>
+                                        <TableCell className="font-medium">{round.nom}</TableCell>
+                                        <TableCell>{round.nomHub || 'N/A'}</TableCell>
+                                        <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
+                                        <TableCell className="text-right font-mono">{totalBacs}</TableCell>
+                                        <TableCell className="text-right font-mono font-bold text-destructive">
+                                            +{deviation}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        ) : (
+                        <div className="text-center py-16 text-muted-foreground">
+                            <p>Aucune tournée en surcharge de bacs détectée pour la période sélectionnée.</p>
+                        </div>
+                        )}
+                    </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="ponctualite" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                        <Clock />
+                        Analyse de Ponctualité Prévisionnelle
+                        </CardTitle>
+                        <CardDescription>
+                        Liste des tâches dont l'heure d'arrivée planifiée est en dehors du créneau horaire promis au client (tolérance de +/- 15 min).
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {punctualityIssues.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Tournée</TableHead>
+                                <TableHead>Entrepôt</TableHead>
+                                <TableHead>Client</TableHead>
+                                <TableHead>Créneau Promis</TableHead>
+                                <TableHead>Arrivée Prévue</TableHead>
+                                <TableHead className="text-right">Écart (min)</TableHead>
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {punctualityIssues.map(({ task, plannedArriveTime, deviationMinutes }) => (
+                                <TableRow key={task.tacheId}>
+                                <TableCell>
+                                    {task.date
+                                    ? format(new Date(task.date as string), "dd/MM/yyyy")
+                                    : "N/A"}
+                                </TableCell>
+                                <TableCell className="font-medium">{task.nomTournee}</TableCell>
+                                <TableCell>{task.nomHub || 'N/A'}</TableCell>
+                                <TableCell>{task.personneContact || 'N/A'}</TableCell>
+                                <TableCell>
+                                    {task.debutCreneauInitial ? format(new Date(task.debutCreneauInitial), "HH:mm") : ''}
+                                    {task.finCreneauInitial ? ` - ${format(new Date(task.finCreneauInitial), "HH:mm")}`: ''}
+                                </TableCell>
+                                <TableCell>{format(new Date(plannedArriveTime), "HH:mm")}</TableCell>
+                                <TableCell className={`text-right font-bold ${deviationMinutes > 0 ? 'text-destructive' : 'text-blue-500'}`}>
+                                    {deviationMinutes > 0 ? `+${deviationMinutes}` : deviationMinutes} min
+                                </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                        ) : (
+                        <div className="text-center py-16 text-muted-foreground">
+                            <p>Aucun écart de ponctualité prévisionnel détecté pour la période sélectionnée.</p>
+                        </div>
+                        )}
+                    </CardContent>
+                 </Card>
+              </TabsContent>
+            </Tabs>
         </div>
       )}
     </main>
   );
 }
+
+    

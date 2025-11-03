@@ -1,5 +1,4 @@
 
-
 import { Timestamp } from "firebase/firestore";
 
 export interface Tache {
@@ -27,6 +26,8 @@ export interface Tache {
   dateInitialeLivraison?: string;
   debutCreneauInitial?: string;
   finCreneauInitial?: string;
+  debutFenetre?: string;
+  finFenetre?: string;
   margeFenetreHoraire?: number;
   heureArriveeEstimee?: string;
   tempsDeServiceEstime?: number;
@@ -63,7 +64,7 @@ export interface Tache {
   tempsDeRetard?: number;
   dateDuRetard?: string;
   tentatives?: number;
-  terminePar?: string;
+  completePar?: string;
 
   // Temps de Service Réel
   tempsDeServiceReel?: number;
@@ -270,3 +271,5 @@ export interface Notification {
     id: string;
   };
 }
+
+    

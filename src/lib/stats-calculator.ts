@@ -94,13 +94,13 @@ export function calculateDashboardStats(
         (t.status && FAILED_STATUSES.includes(t.status.toUpperCase()))
     );
     
-    const ratedTasks = completedTasks.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+    const ratedTasks = completedTasks.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number');
     const averageRating = ratedTasks.length > 0 ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length : null;
     const numberOfRatings = ratedTasks.length;
     const ratingRate = completedTasks.length > 0 ? (numberOfRatings / completedTasks.length) * 100 : null;
 
     // --- Punctuality Calculation based on REAL closure time ---
-    const punctualityTasks = completedTasks.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+    const punctualityTasks = completedTasks.filter(t => t.debutCreneauInitial && t.dateCloture);
     let punctualCount = 0;
     const earlyTasks: { task: Tache; minutes: number }[] = [];
     const lateTasks: { task: Tache; minutes: number }[] = [];
@@ -109,8 +109,9 @@ export function calculateDashboardStats(
     punctualityTasks.forEach(task => {
         try {
             const closureTime = parseISO(task.dateCloture as string);
-            const windowStart = parseISO(task.creneauHoraire!.debut!);
-            const windowEnd = task.creneauHoraire!.fin ? parseISO(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+            const windowStart = parseISO(task.debutCreneauInitial as string);
+            // Default to a 2-hour window if 'fin' is not present
+            const windowEnd = task.finCreneauInitial ? parseISO(task.finCreneauInitial as string) : addMinutes(windowStart, 120);
 
             const earlyLimit = subMinutes(windowStart, 15);
             const lateLimit = addMinutes(windowEnd, 15);
@@ -137,23 +138,23 @@ export function calculateDashboardStats(
 
     const uniqueRoundIds = new Set(rounds.map(r => r.id));
     const totalRounds = uniqueRoundIds.size;
-    const completedRounds = rounds.filter(r => r.status === "COMPLETED");
+    const completedRounds = rounds.filter(r => r.statut === "COMPLETED");
 
     const scanbacRate = completedTasks.length > 0 ? (completedTasks.filter(t => t.completePar === 'mobile').length / completedTasks.length) * 100 : null;
     const webCompletedTasks = completedTasks.filter(t => t.completePar === 'web');
     
-    const forcedAddressTasks = completedTasks.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false);
+    const forcedAddressTasks = completedTasks.filter(t => t.surPlaceForce === true);
     const forcedAddressRate = completedTasks.length > 0 ? (forcedAddressTasks.length / completedTasks.length) * 100 : null;
     
-    const forcedContactlessTasks = completedTasks.filter(t => t.execution?.sansContact?.forced === true);
+    const forcedContactlessTasks = completedTasks.filter(t => t.sansContactForce === true);
     const forcedContactlessRate = completedTasks.length > 0 ? (forcedContactlessTasks.length / completedTasks.length) * 100 : null;
 
     const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
     
     const tasksWithMissingBacs = tasks.flatMap(task => 
-        (task.articles ?? [])
-          .filter(item => item.statut === 'MISSING')
-          .map(item => ({ task, bac: item }))
+        (task.raw.articles ?? [])
+          .filter((item: any) => item.status === 'MISSING')
+          .map((item: any) => ({ task, bac: item }))
     );
 
     const redeliveriesList = tasks.filter(t => (t.tentatives ?? 0) >= 2);
@@ -185,19 +186,19 @@ export function calculateDashboardStats(
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
 
     const tasksOverTime = Object.entries(tasks.reduce((acc, task) => {
-      const date = task.unplanned ? 'Unplanned' : (task.date ? (task.date as string).split("T")[0] : "Unknown");
-      acc[date] = (acc[date] || 0) + 1;
+      const dateKey = task.date ? new Date(task.date as string).toISOString().split('T')[0] : "Unplanned";
+      acc[dateKey] = (acc[dateKey] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([date, count]) => ({ date, count }));
 
     const roundsByStatus = Object.entries(rounds.reduce((acc, round) => {
-      const status = round.status || "Unknown";
+      const status = round.statut || "Unknown";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
     
     const roundsOverTime = Object.entries(rounds.reduce((acc, round) => {
-      const date = round.date ? (round.date as string).split("T")[0] : "Unknown";
+      const date = round.date ? new Date(round.date as string).toISOString().split('T')[0] : "Unknown";
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)).map(([date, count]) => ({ date, count }));
@@ -226,7 +227,7 @@ export function calculateDashboardStats(
 
     const top5StarDrivers = Object.entries(
         tasks.reduce((acc, task) => {
-            if (task.metaDonnees?.notationLivreur === 5) {
+            if (task.notationLivreur === 5) {
                 const driverName = getDriverFullName(task);
                 if (driverName) {
                     acc[driverName] = (acc[driverName] || 0) + 1;
@@ -244,7 +245,7 @@ export function calculateDashboardStats(
     const commentsByCategory = Object.entries(allNegativeComments.reduce((acc, comment) => {
         const categories = Array.isArray(comment.category) ? comment.category : [comment.category];
         categories.forEach(cat => {
-             if(cat) acc[cat] = (acc[cat] || 0) + 1;
+             if(cat) acc[cat as string] = (acc[cat as string] || 0) + 1;
         });
         return acc;
     }, {} as Record<string, number>))
@@ -337,8 +338,8 @@ export function calculateDashboardStats(
                 tasksDataByRound.set(roundKey, { weight: 0, bacs: 0 });
             }
             const data = tasksDataByRound.get(roundKey)!;
-            data.weight += task.dimensions?.poids ?? 0;
-            data.bacs += (task.articles ?? []).filter(a => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
+            data.weight += task.poidsEnKg ?? 0;
+            data.bacs += (task.raw.articles ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
         }
     });
 
@@ -346,7 +347,7 @@ export function calculateDashboardStats(
     const overbacsRoundsList: { round: Tournee, totalBacs: number, deviation: number }[] = [];
 
     rounds.forEach(round => {
-        const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
+        const roundKey = `${round.nom}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
         const roundData = tasksDataByRound.get(roundKey);
         if (roundData) {
             if (roundData.weight > WEIGHT_LIMIT) {
@@ -441,3 +442,5 @@ export function calculateDashboardStats(
       }
     };
 }
+
+    

@@ -1,5 +1,4 @@
 
-
 import { addMinutes, differenceInMinutes, parseISO, subMinutes } from "date-fns";
 import { Tache, Tournee } from "./types";
 
@@ -25,18 +24,18 @@ export interface DriverStats {
  */
 export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<DriverStats, 'score' | 'npsScore'> {
   const completed = tasks.filter(t => t.progression === 'COMPLETED');
-  const rated = completed.map(t => t.metaDonnees?.notationLivreur).filter((r): r is number => typeof r === 'number');
+  const rated = completed.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number');
 
-  const completedWithTime = completed.filter(t => t.creneauHoraire?.debut && t.dateCloture);
+  const completedWithTime = completed.filter(t => t.debutCreneauInitial && t.dateCloture);
   let punctual = 0;
   let lateOver1h = 0;
   
   completedWithTime.forEach(t => {
     try {
       const closure = new Date(t.dateCloture!);
-      const windowStart = new Date(t.creneauHoraire!.debut!);
+      const windowStart = new Date(t.debutCreneauInitial!);
       // Default to a 2-hour window if 'fin' is not present
-      const windowEnd = t.creneauHoraire!.fin ? new Date(t.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+      const windowEnd = t.finCreneauInitial ? new Date(t.finCreneauInitial) : addMinutes(windowStart, 120);
 
       // Check if inside the tolerance window
       const lowerBound = subMinutes(windowStart, 15);
@@ -64,8 +63,8 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
     averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
     punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
     scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
-    forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.heureReelle?.arrivee?.adresseCorrecte === false).length / completed.length) * 100 : null,
-    forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.execution?.sansContact?.forced === true).length / completed.length) * 100 : null,
+    forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.surPlaceForce === true).length / completed.length) * 100 : null,
+    forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.sansContactForce === true).length / completed.length) * 100 : null,
     lateOver1hRate: completedWithTime.length > 0 ? (lateOver1h / completedWithTime.length) * 100 : null,
   };
 }
@@ -124,15 +123,15 @@ export function calculateDriverScore(stats: Omit<DriverStats, 'score'>, maxCompl
 
 
 export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averageRating: number | null, punctualityRate: number | null } {
-    const roundTasks = allTasks.filter(t => t.nomTournee === round.name && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString());
+    const roundTasks = allTasks.filter(t => t.nomTournee === round.nom && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString());
 
     if (roundTasks.length === 0) {
         return { averageRating: null, punctualityRate: null };
     }
 
     const roundStopsByTaskId = new Map<string, any>();
-    if (round.stops) {
-      for (const stop of round.stops) {
+    if (round.arrets) {
+      for (const stop of round.arrets) {
         if (stop.taskId) {
           roundStopsByTaskId.set(stop.taskId, stop);
         }
@@ -141,14 +140,14 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
 
     // Average Rating Calculation
     const ratedTasks = roundTasks
-        .map(t => t.metaDonnees?.notationLivreur)
+        .map(t => t.notationLivreur)
         .filter((r): r is number => typeof r === 'number');
     const averageRating = ratedTasks.length > 0
         ? ratedTasks.reduce((a, b) => a + b, 0) / ratedTasks.length
         : null;
 
     // Punctuality Calculation
-    const punctualityTasks = roundTasks.filter(t => t.creneauHoraire?.debut && roundStopsByTaskId.has(t.tacheId));
+    const punctualityTasks = roundTasks.filter(t => t.debutCreneauInitial && roundStopsByTaskId.has(t.tacheId));
     let punctualCount = 0;
     punctualityTasks.forEach(task => {
         try {
@@ -156,8 +155,8 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
             if (!stop || !stop.arriveTime) return;
 
             const plannedArrive = parseISO(stop.arriveTime);
-            const windowStart = parseISO(task.creneauHoraire!.debut!);
-            const windowEnd = task.creneauHoraire!.fin ? parseISO(task.creneauHoraire!.fin) : addMinutes(windowStart, 120);
+            const windowStart = parseISO(task.debutCreneauInitial as string);
+            const windowEnd = task.finCreneauInitial ? parseISO(task.finCreneauInitial as string) : addMinutes(windowStart, 120);
 
             const lowerBound = subMinutes(windowStart, 15);
             const upperBound = addMinutes(windowEnd, 15);
@@ -173,3 +172,5 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
 
     return { averageRating, punctualityRate };
 }
+
+    

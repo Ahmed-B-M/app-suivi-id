@@ -24,13 +24,11 @@ import { format } from "date-fns";
 import { Badge } from "../ui/badge";
 
 const countBacs = (task: Tache) => {
-    if (!task.articles) return { secs: 0, frais: 0, surgeles: 0 };
-    return task.articles.reduce((acc, article) => {
-        if (article.type === 'BAC_SEC') acc.secs++;
-        else if (article.type === 'BAC_FRAIS') acc.frais++;
-        else if (article.type === 'BAC_SURGELE') acc.surgeles++;
-        return acc;
-    }, { secs: 0, frais: 0, surgeles: 0 });
+    return {
+        secs: task.bacsSec,
+        frais: task.bacsFrais,
+        surgeles: task.bacsSurg
+    };
 };
 
 
@@ -110,7 +108,7 @@ export function RedeliveryDetailsDialog({
                         <TableCell>{task.nomTournee || 'N/A'}</TableCell>
                         <TableCell className="text-center">{task.sequence ?? 'N/A'}</TableCell>
                         <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
-                        <TableCell>{task.contact?.personne || "N/A"}</TableCell>
+                        <TableCell>{task.personneContact || "N/A"}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant="destructive">{task.tentatives}</Badge>
                         </TableCell>
@@ -133,3 +131,5 @@ export function RedeliveryDetailsDialog({
     </Dialog>
   );
 }
+
+    

@@ -25,10 +25,10 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     const bacs = (rawTask.articles || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
         if (type.includes('SURG')) acc.bacsSurg++;
-        if (type.includes('FRAIS')) acc.bacsFrais++;
-        if (type.includes('SEC')) acc.bacsSec++;
-        if (type.includes('POISSON')) acc.bacsPoisson++;
-        if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
+        else if (type.includes('FRAIS')) acc.bacsFrais++;
+        else if (type.includes('SEC')) acc.bacsSec++;
+        else if (type.includes('POISSON')) acc.bacsPoisson++;
+        else if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
         return acc;
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
@@ -60,8 +60,8 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         dateInitialeLivraison: rawTask.metadata?.Date_Initiale_Livraison,
         debutCreneauInitial: rawTask.timeWindow?.start,
         finCreneauInitial: rawTask.timeWindow?.stop,
-        debutFenetre: rawTask.timeWindow?.start,
-        finFenetre: rawTask.timeWindow?.stop,
+        debutFenetre: rawTask.timeWindow?.start, // Doublon
+        finFenetre: rawTask.timeWindow?.stop,   // Doublon
         margeFenetreHoraire: rawTask.timeWindowMargin,
         heureArriveeEstimee: stopInfo?.arriveTime,
         tempsDeServiceEstime: rawTask.serviceTime,
@@ -872,5 +872,7 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
 
     
