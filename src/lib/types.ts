@@ -1,12 +1,12 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export interface Tache {
     // Identification
-    tacheId: string;
-    id: string;
+    taskId: string;
+    idInterne?: string;
     referenceTache?: string;
-    numeroCommande?: string;
+    id: string;
+    commande?: string;
     client?: string;
 
     // Contenu de la Tâche
@@ -26,6 +26,8 @@ export interface Tache {
     dateInitialeLivraison?: string;
     debutCreneauInitial?: string;
     finCreneauInitial?: string;
+    debutFenetre?: string;
+    finFenetre?: string;
     margeFenetreHoraire?: number;
     heureArriveeEstimee?: string;
     tempsDeServiceEstime?: number;
@@ -90,7 +92,7 @@ export interface Tache {
     idExterneChauffeur?: string;
     prenomChauffeur?: string;
     nomChauffeur?: string;
-    nomCompletChauffeur?: string;
+    hubId?: string;
     nomHub?: string;
     nomPlateforme?: string;
     
@@ -98,31 +100,29 @@ export interface Tache {
     type?: string;
     flux?: string;
     progression?: string;
-    tachesMemeArret?: boolean;
+    tachesMemeArret?: number;
     categories?: any[];
     codePe?: string;
     notationLivreur?: number;
     serviceMeta?: string;
     codeEntrepôt?: string;
-
     commentaireLivreur?: string;
     infosSuiviTransp?: any;
     desassocTranspRejetee?: boolean;
     dateMiseAJour?: string;
     dateCreation?: string;
 
-    // Articles pour calculs
-    articles?: Bac[];
-    raw: any; // Keep raw data for specific cases like bac calculation
+    // Gardé pour les calculs et la flexibilité
+    items: any[]; 
     carrierOverride?: string;
-    contact?: any;
-    metaDonnees?: any;
+    driver?: any;
+    [key: string]: any; // Pour la flexibilité avec les données brutes
 }
-
 
 export interface Tournee {
     // Identification
     id: string;
+    idInterne: string;
     nom?: string;
     statut?: string;
     activite?: string;
@@ -199,6 +199,7 @@ export interface Tournee {
     driver?: any;
     vehicle?: any;
 }
+
 
 export interface Bac {
     // Identification & Liens

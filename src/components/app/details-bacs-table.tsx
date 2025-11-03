@@ -106,13 +106,13 @@ export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
 
   const flatData: BacRow[] = React.useMemo(() => {
     return tasks.flatMap(task => 
-        (task.articles ?? []).map((article: any) => ({
-            tacheId: task.tacheId,
+        (task.items ?? []).map((article: any) => ({
+            tacheId: task.taskId,
             date: task.date as string,
             nomTournee: task.nomTournee,
-            codeBarre: article.codeBarre,
+            codeBarre: article.barcode,
             type: article.type,
-            statut: article.statut,
+            statut: article.status,
         }))
     )
   }, [tasks])

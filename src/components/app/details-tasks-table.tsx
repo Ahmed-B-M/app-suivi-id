@@ -37,11 +37,12 @@ import { Badge } from "../ui/badge";
 import { format } from "date-fns";
 import { Card, CardContent } from "../ui/card";
 import Link from "next/link";
+import { getDriverFullName } from "@/lib/grouping";
 
 const columns: ColumnDef<Tache>[] = [
-  { accessorKey: "tacheId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("tacheId")}`} className="text-blue-600 hover:underline">{row.getValue("tacheId")}</Link> },
-  { accessorKey: "referenceTache", header: "Référence Tâche" },
-  { accessorKey: "numeroCommande", header: "Commande" },
+  { accessorKey: "taskId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("id")}`} className="text-blue-600 hover:underline">{row.getValue("taskId")}</Link> },
+  { accessorKey: "idInterne", header: "ID Interne" },
+  { accessorKey: "commande", header: "Commande" },
   { accessorKey: "client", header: "Client (ID)" },
   { accessorKey: "bacsSurg", header: "Bacs SURG" },
   { accessorKey: "bacsFrais", header: "Bacs FRAIS" },
@@ -73,11 +74,18 @@ const columns: ColumnDef<Tache>[] = [
   { accessorKey: "sequence", header: "Séquence" },
   { accessorKey: "nomAssocie", header: "Associé (Nom)" },
   { accessorKey: "idExterneChauffeur", header: "ID Externe Chauffeur" },
-  { accessorKey: "nomCompletChauffeur", header: "Nom Complet Chauffeur" },
+  { accessorFn: row => getDriverFullName(row), header: "Nom Complet Chauffeur" },
   { accessorKey: "nomHub", header: "Hub (Nom)" },
   { accessorKey: "nomPlateforme", header: "Plateforme (Nom)" },
   { accessorKey: "notationLivreur", header: "Notation Livreur" },
   { accessorKey: "commentaireLivreur", header: "Commentaire Livreur" },
+  // Champs techniques ou moins pertinents pour l'affichage par défaut
+  { accessorKey: "id", header: "ID DB" },
+  { accessorKey: "referenceTache", header: "Référence Tâche" },
+  { accessorKey: "nombreDeBacsMeta", header: "Nombre de Bacs (Méta)" },
+  { accessorKey: "margeFenetreHoraire", header: "Marge Fenêtre Horaire" },
+  { accessorKey: "type", header: "Type" },
+  { accessorKey: "flux", header: "Flux" },
 ];
 
 
@@ -85,7 +93,7 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-      referenceTache: false,
+      idInterne: false,
       client: false,
       bacsSurg: false,
       bacsFrais: false,
@@ -98,10 +106,8 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
       tempsDeServiceEstime: false,
       adresse: false,
       instructions: false,
-      compteContact: false,
-      emailContact: false,
-      notifEmail: false,
-      notifSms: false,
+      personneContact: false,
+      telephoneContact: false,
       heureArriveeReelle: false,
       surPlaceForce: false,
       surPlaceValide: false,
@@ -131,7 +137,11 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
       infosSuiviTransp: false,
       desassocTranspRejetee: false,
       dateMiseAJour: false,
-      dateCreation: false
+      dateCreation: false,
+      id: false,
+      referenceTache: false,
+      nombreDeBacsMeta: false,
+      margeFenetreHoraire: false,
   });
   const [globalFilter, setGlobalFilter] = React.useState("");
 
@@ -215,7 +225,7 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow
-                    key={row.id}
+                    key={row.original.id}
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => (

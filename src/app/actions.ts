@@ -20,8 +20,8 @@ import { DateRange } from "react-day-picker";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
-    const bacs = (rawTask.articles || []).reduce((acc: any, item: any) => {
+function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
+    const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
         if (type.includes('SURG')) acc.bacsSurg++;
         else if (type.includes('FRAIS')) acc.bacsFrais++;
@@ -32,18 +32,17 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
     const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
-    const stopInfo = roundInfo?.stops?.find((s: any) => s.taskId === rawTask._id);
-    
-    const prenomChauffeur = rawTask.livreur?.prenom;
-    const nomChauffeur = rawTask.livreur?.nom;
-    const nomCompletChauffeur = [prenomChauffeur, nomChauffeur].filter(Boolean).join(' ');
 
     return {
-        tacheId: rawTask.id,
-        id: rawTask._id,
+        // Identification
+        taskId: rawTask.taskId,
+        idInterne: rawTask.taskReference,
         referenceTache: rawTask.taskReference,
-        numeroCommande: rawTask.id,
+        id: rawTask._id,
+        commande: rawTask.metadata?.numeroCommande,
         client: rawTask.client,
+
+        // Contenu de la Tâche
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -51,51 +50,65 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         bacsBoucherie: bacs.bacsBoucherie,
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawTask.dimensions?.bac,
-        nombreDeBacsMeta: rawTask.metaDonnees?.nbreBacs,
+        nombreDeBacsMeta: rawTask.metadata?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
         volumeEnCm3: rawTask.dimensions?.volume,
+
+        // Planification
         date: rawTask.date,
-        dateInitialeLivraison: rawTask.metaDonnees?.Date_Initiale_Livraison,
-        debutCreneauInitial: rawTask.creneauHoraire?.debut,
-        finCreneauInitial: rawTask.creneauHoraire?.fin,
+        dateInitialeLivraison: rawTask.metadata?.Date_Initiale_Livraison,
+        debutCreneauInitial: rawTask.timeWindow?.start,
+        finCreneauInitial: rawTask.timeWindow?.stop,
+        debutFenetre: rawTask.timeWindow?.start,
+        finFenetre: rawTask.timeWindow?.stop,
         margeFenetreHoraire: rawTask.timeWindowMargin,
-        heureArriveeEstimee: stopInfo?.arriveTime,
-        tempsDeServiceEstime: rawTask.tempsDeServiceEstime,
-        adresse: rawTask.localisation?.adresse,
-        numero: rawTask.localisation?.numero,
-        rue: rawTask.localisation?.rue,
-        batiment: rawTask.metaDonnees?.immeuble,
-        batimentMeta: rawTask.metaDonnees?.immeuble,
-        etage: rawTask.contact?.infoImmeuble?.etage,
-        digicode1: rawTask.contact?.infoImmeuble?.digicode1,
-        avecAscenseur: rawTask.contact?.infoImmeuble?.ascenseur,
-        avecInterphone: rawTask.contact?.infoImmeuble?.interphone,
-        codeInterphone: rawTask.contact?.infoImmeuble?.codeInterphone,
-        ville: rawTask.localisation?.ville,
-        codePostal: rawTask.localisation?.codePostal,
-        pays: rawTask.localisation?.codePays,
+        heureArriveeEstimee: rawTask.arriveTime,
+        tempsDeServiceEstime: rawTask.serviceTime,
+
+        // Adresse & Instructions
+        adresse: rawTask.location?.address,
+        numero: rawTask.location?.number,
+        rue: rawTask.location?.street,
+        batiment: rawTask.location?.building,
+        batimentMeta: rawTask.metadata?.building,
+        etage: rawTask.contact?.buildingInfo?.floor,
+        digicode1: rawTask.contact?.buildingInfo?.digicode1,
+        avecAscenseur: rawTask.contact?.buildingInfo?.hasElevator,
+        avecInterphone: rawTask.contact?.buildingInfo?.hasInterphone,
+        codeInterphone: rawTask.contact?.buildingInfo?.interphoneCode,
+        ville: rawTask.location?.city,
+        codePostal: rawTask.location?.zip,
+        pays: rawTask.location?.countryCode,
         instructions: rawTask.instructions,
-        personneContact: rawTask.contact?.personne,
-        compteContact: rawTask.contact?.compte,
+
+        // Contact Client
+        personneContact: rawTask.contact?.person,
+        compteContact: rawTask.contact?.account,
         emailContact: rawTask.contact?.email,
-        telephoneContact: rawTask.contact?.telephone,
+        telephoneContact: rawTask.contact?.phone,
         notifEmail: rawTask.notificationSettings?.email,
         notifSms: rawTask.notificationSettings?.sms,
+
+        // Réalisation & Statuts
         status: rawTask.status,
-        heureArriveeReelle: rawTask.actualTime?.arrive?.when,
-        dateCloture: rawTask.dateCloture,
-        surPlaceForce: rawTask.actualTime?.arrive?.forced,
-        surPlaceValide: rawTask.actualTime?.arrive?.isCorrectAddress,
-        tempsDeRetard: roundInfo?.delay?.time,
-        dateDuRetard: roundInfo?.delay?.when,
-        tentatives: rawTask.tentatives,
-        completePar: rawTask.completePar,
+        heureArriveeReelle: rawTask.actualTime?.arrive.when,
+        dateCloture: rawTask.closureDate,
+        surPlaceForce: rawTask.actualTime?.arrive.forced,
+        surPlaceValide: rawTask.actualTime?.arrive.isCorrectAddress,
+        tempsDeRetard: roundInfo?.tempsDeRetard,
+        dateDuRetard: roundInfo?.dateDuRetard,
+        tentatives: rawTask.attempts,
+        completePar: rawTask.completedBy,
+
+        // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
         debutTempsService: rawTask.realServiceTime?.startTime,
         finTempsService: rawTask.realServiceTime?.endTime,
         confianceTempsService: rawTask.realServiceTime?.confidence,
         versionTempsService: rawTask.realServiceTime?.version,
         horodatagesMinuteur: rawTask.execution?.timer?.timestamps,
+
+        // Preuves & Échecs
         sansContactForce: rawTask.execution?.contactless?.forced,
         raisonSansContact: rawTask.execution?.contactless?.reason,
         raisonEchec: rawTask.execution?.failedReason?.reason,
@@ -104,33 +117,36 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         photoSucces: rawTask.execution?.successPicture,
         latitudePosition: rawTask.execution?.position?.latitude,
         longitudePosition: rawTask.execution?.position?.longitude,
-        nomTournee: rawTask.nomTournee,
+
+        // Infos Tournée & Chauffeur
+        nomTournee: rawTask.roundName,
         sequence: rawTask.sequence,
-        nomAssocie: rawTask.nomAssocie,
-        idExterneChauffeur: rawTask.livreur?.idExterne,
-        prenomChauffeur: prenomChauffeur,
-        nomChauffeur: nomChauffeur,
-        nomCompletChauffeur: nomCompletChauffeur,
-        nomHub: rawTask.nomHub,
-        nomPlateforme: rawTask.nomPlateforme,
+        nomAssocie: rawTask.associatedName,
+        idExterneChauffeur: rawTask.driver?.externalId,
+        prenomChauffeur: rawTask.driver?.firstName,
+        nomChauffeur: rawTask.driver?.lastName,
+        hubId: rawTask.hub,
+        nomHub: rawTask.hubName,
+        nomPlateforme: rawTask.platformName,
+
+        // Métadonnées & Système
         type: rawTask.type,
         flux: rawTask.flux,
-        progression: rawTask.progression,
+        progression: rawTask.progress,
         tachesMemeArret: rawTask.realServiceTime?.tasksDeliveredInSameStop,
         categories: rawTask.categories,
-        codePe: rawTask.metaDonnees?.codePe,
-        notationLivreur: rawTask.metaDonnees?.notationLivreur,
-        serviceMeta: rawTask.metaDonnees?.service,
-        codeEntrepôt: rawTask.metaDonnees?.warehouseCode,
-        commentaireLivreur: rawTask.metaDonnees?.commentaireLivreur,
+        codePe: rawTask.metadata?.codePe,
+        notationLivreur: rawTask.metadata?.notationLivreur,
+        serviceMeta: rawTask.metadata?.service,
+        codeEntrepôt: rawTask.metadata?.warehouseCode,
+        commentaireLivreur: rawTask.metadata?.commentaireLivreur,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
-        dateMiseAJour: rawTask.dateMiseAJour,
-        dateCreation: rawTask.dateCreation,
-        articles: rawTask.articles,
-        raw: rawTask,
-        contact: rawTask.contact,
-        metaDonnees: rawTask.metaDonnees,
+        dateMiseAJour: rawTask.updated,
+        dateCreation: rawTask.when,
+        
+        // Données brutes et calculées
+        items: rawTask.items || [],
     };
 }
 
@@ -153,6 +169,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
     const poidsReelCalcule = tasksForThisRound.reduce((sum, task) => sum + (task.poidsEnKg || 0), 0);
 
     return {
+        // Identification
+        idInterne: rawRound.id || rawRound._id,
         id: rawRound.id || rawRound._id,
         nom: rawRound.name,
         statut: rawRound.status,
@@ -160,6 +178,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         date: rawRound.date,
         hubId: rawRound.hub,
         nomHub: rawRound.hubName,
+
+        // Chauffeur & Véhicule
         associeNom: rawRound.associatedName,
         emailChauffeur: rawRound.driver?.externalId,
         prenomChauffeur: rawRound.driver?.firstName,
@@ -167,6 +187,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         immatriculation: rawRound.metadata?.Immatriculation,
         nomVehicule: rawRound.vehicle?.name,
         energie: rawRound.metadata?.Energie,
+
+        // Totaux
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -175,10 +197,12 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawRound.dimensions?.bac,
         poidsTournee: rawRound.dimensions?.poids,
-        poidsReel: poidsReelCalcule,
+        poidsReel: rawRound.dimensions?.poids,
         volumeTournee: rawRound.dimensions?.volume,
         nbCommandes: rawRound.orderCount,
         commandesTerminees: rawRound.orderDone,
+        
+        // Horaires & Lieux
         lieuDepart: rawRound.startLocation,
         heureDepart: rawRound.startTime,
         lieuFin: rawRound.endLocation,
@@ -187,6 +211,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         demarreeReel: rawRound.realInfo?.hasStarted,
         prepareeReel: rawRound.realInfo?.hasPrepared,
         tempsPreparationReel: rawRound.realInfo?.preparationTime,
+
+        // Métriques & Coûts
         dureeReel: rawRound.realInfo?.hasLasted,
         tempsTotal: rawRound.totalTime,
         tempsTrajetTotal: rawRound.totalTravelTime,
@@ -199,6 +225,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         distanceTotale: rawRound.totalDistance,
         coutTotal: rawRound.totalCost,
         coutParTemps: rawRound.vehicle?.costPerUnitTime,
+
+        // Données Techniques
         flux: rawRound.flux,
         tempSurgChargement: rawRound.metadata?.TempSURG_Chargement,
         tempFraisChargement: rawRound.metadata?.TempsFRAIS_Chargement,
@@ -307,16 +335,6 @@ export async function runSyncAction(
     const toDate = new Date(to);
 
     logs.push(`\n🛰️  Récupération des données brutes...`);
-    const allRawRounds: any[] = [];
-    const dateCursorRounds = new Date(fromDate);
-    while (dateCursorRounds <= toDate) {
-        const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
-        logs.push(`   - Tournées pour le ${dateString}...`);
-        allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
-        dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
-    }
-    logs.push(`\n✅ ${allRawRounds.length} tournées brutes récupérées au total.`);
-
     const allRawTasks: any[] = [];
     if (unplanned) {
         logs.push(`   - Tâches non planifiées...`);
@@ -336,22 +354,35 @@ export async function runSyncAction(
     }
     logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées.`);
 
+    const allRawRounds: any[] = [];
+    const dateCursorRounds = new Date(fromDate);
+    while (dateCursorRounds <= toDate) {
+        const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
+        logs.push(`   - Tournées pour le ${dateString}...`);
+        allRawRounds.push(...await fetchAllRounds(apiKey, new URLSearchParams({ date: dateString }), logs));
+        dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
+    }
+    logs.push(`\n✅ ${allRawRounds.length} tournées brutes récupérées au total.`);
+
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
-    // On transforme les tâches d'abord, car la transformation des tournées en dépend pour les calculs
-    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, allRawRounds));
+    // On transforme les tournées d'abord pour pouvoir les passer aux tâches
+    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, []));
+    logs.push(`   - ${transformedRounds.length} tournées initialement transformées.`);
+
+    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, transformedRounds));
     logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
-    // Ensuite, on transforme les tournées, en leur passant les tâches déjà transformées
-    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
-    logs.push(`   - ${transformedRounds.length} tournées transformées.`);
-
+    // On re-transforme les tournées pour inclure les calculs basés sur les tâches
+    const finalTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
+    logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs.`);
+    
     // Filtrage final des tournées si un statut est spécifié
-    let finalFilteredRounds = transformedRounds;
+    let finalFilteredRounds = finalTransformedRounds;
     if (roundStatus && roundStatus !== "all") {
       logs.push(`\n🔄 Filtrage des tournées par statut: ${roundStatus}`);
-      finalFilteredRounds = transformedRounds.filter((round) => round.statut === roundStatus);
-      logs.push(`   - ${transformedRounds.length - finalFilteredRounds.length} tournées écartées.`);
+      finalFilteredRounds = finalTransformedRounds.filter((round) => round.statut === roundStatus);
+      logs.push(`   - ${finalTransformedRounds.length - finalFilteredRounds.length} tournées écartées.`);
     }
 
     logs.push(`\n\n🎉 Exportation terminée !`);
@@ -791,11 +822,14 @@ export async function runDailySyncAction() {
 
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
-    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, allRawRounds));
+    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, []));
+    logs.push(`   - ${transformedRounds.length} tournées initialement transformées.`);
+
+    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, transformedRounds));
     logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
-    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
-    logs.push(`   - ${transformedRounds.length} tournées transformées.`);
+    const finalTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
+    logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs.`);
 
 
     // --- SAVE TO FIRESTORE ---
@@ -804,8 +838,8 @@ export async function runDailySyncAction() {
     const tasksCollectionRef = firestore.collection('tasks');
     const roundsCollectionRef = firestore.collection('rounds');
 
-    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'tacheId', { from, to }, logs);
-    await saveCollectionInAction(roundsCollectionRef, transformedRounds, 'id', { from, to }, logs);
+    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'id', { from, to }, logs);
+    await saveCollectionInAction(roundsCollectionRef, finalTransformedRounds, 'id', { from, to }, logs);
     
     // --- Generate Notifications ---
     logs.push(`\n🔔 Génération des notifications...`);
@@ -816,12 +850,12 @@ export async function runDailySyncAction() {
         await createNotification(firestore, {
             type: 'quality_alert',
             message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
-            relatedEntity: { type: 'task', id: task.tacheId }
+            relatedEntity: { type: 'task', id: task.id }
         });
         notificationCount++;
     }
     // 2. Overweight Rounds (assuming this logic is available or can be added)
-    const overweightRounds = transformedRounds.filter(r => r.poidsReel && r.poidsReel > 1250);
+    const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > 1250);
     for (const round of overweightRounds) {
        await createNotification(firestore, {
             type: 'overweight_round',
