@@ -38,8 +38,8 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     return {
         // Identification
         tacheId: rawTask.id,
-        referenceTache: rawTask.taskReference,
         id: rawTask._id,
+        referenceTache: rawTask.taskReference,
         numeroCommande: rawTask.metadata?.numeroCommande,
         client: rawTask.client,
         
@@ -60,6 +60,8 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         dateInitialeLivraison: rawTask.metadata?.Date_Initiale_Livraison,
         debutCreneauInitial: rawTask.timeWindow?.start,
         finCreneauInitial: rawTask.timeWindow?.stop,
+        debutFenetre: rawTask.timeWindow?.start,
+        finFenetre: rawTask.timeWindow?.stop,
         margeFenetreHoraire: rawTask.timeWindowMargin,
         heureArriveeEstimee: stopInfo?.arriveTime,
         tempsDeServiceEstime: rawTask.serviceTime,
@@ -96,7 +98,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         tempsDeRetard: roundInfo?.delay?.time,
         dateDuRetard: roundInfo?.delay?.when,
         tentatives: rawTask.attempts,
-        terminePar: rawTask.completedBy,
+        completePar: rawTask.completedBy,
 
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
@@ -120,9 +122,9 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         nomTournee: rawTask.roundName,
         sequence: rawTask.sequence,
         nomAssocie: rawTask.associatedName,
-        idExterneChauffeur: rawTask.driver?.externalId,
-        prenomChauffeur: rawTask.driver?.firstName,
-        nomChauffeur: rawTask.driver?.lastName,
+        idExterneChauffeur: rawTask.livreur?.idExterne,
+        prenomChauffeur: rawTask.livreur?.prenom,
+        nomChauffeur: rawTask.livreur?.nom,
         nomHub: rawTask.hubName,
         nomPlateforme: rawTask.platformName,
         
@@ -136,16 +138,23 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        commentaireLivreur: rawTask.metadata?.commentaireLivr,
+        commentaireLivreur: rawTask.metadata?.commentaireLivreur,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: rawTask.updated,
         dateCreation: rawTask.when,
+        
+        // Full raw data for joins
+        raw: rawTask,
     };
 }
 
 function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
-    const tasksForThisRound = allTasks.filter(t => t.nomTournee === rawRound.name && new Date(t.date as string).toDateString() === new Date(rawRound.date).toDateString());
+    const tasksForThisRound = allTasks.filter(t => 
+        t.nomTournee === rawRound.name && 
+        t.nomHub === rawRound.hubName &&
+        new Date(t.date as string).toDateString() === new Date(rawRound.date).toDateString()
+    );
     
     const bacs = tasksForThisRound.reduce((acc, task) => {
         acc.bacsSurg += task.bacsSurg;
@@ -777,7 +786,7 @@ export async function runDailySyncAction() {
     logs.push(`🚀 Début de la synchronisation 48h... (${fromString} - ${toString})`);
 
     const taskParams = new URLSearchParams();
-    let allTasks: Tache[] = [];
+    let allRawTasks: Tache[] = [];
     const dateCursorTasks = startOfDay(from);
     while (dateCursorTasks <= to) {
         const dateString = format(dateCursorTasks, 'yyyy-MM-dd');
@@ -785,21 +794,13 @@ export async function runDailySyncAction() {
         const paramsForDay = new URLSearchParams(taskParams);
         paramsForDay.append("date", dateString);
         const tasksForDay = await fetchAllTasks(apiKey, paramsForDay, logs);
-        allTasks.push(...tasksForDay);
+        allRawTasks.push(...tasksForDay);
         dateCursorTasks.setDate(dateCursorTasks.getDate() + 1);
     }
-    logs.push(`\n✅ ${allTasks.length} tâches épurées récupérées au total.`);
+    logs.push(`\n✅ ${allRawTasks.length} tâches brutes récupérées au total.`);
     
-    const hubIdToNameMap = new Map<string, string>();
-    allTasks.forEach(task => {
-      if (task.hubId && task.nomHub && !hubIdToNameMap.has(task.hubId)) {
-        hubIdToNameMap.set(task.hubId, task.nomHub);
-      }
-    });
-    logs.push(`\n🗺️ ${hubIdToNameMap.size} hubs uniques identifiés.`);
-
     const roundParams = new URLSearchParams();
-    let allRounds: Tournee[] = [];
+    let allRawRounds: Tournee[] = [];
     const dateCursorRounds = startOfDay(from);
      while (dateCursorRounds <= to) {
       const dateString = format(dateCursorRounds, 'yyyy-MM-dd');
@@ -807,10 +808,19 @@ export async function runDailySyncAction() {
       const paramsForDay = new URLSearchParams(roundParams);
       paramsForDay.append("date", dateString);
       const roundsForDay = await fetchAllRounds(apiKey, paramsForDay, logs);
-      allRounds.push(...roundsForDay);
+      allRawRounds.push(...roundsForDay);
       dateCursorRounds.setDate(dateCursorRounds.getDate() + 1);
     }
-    logs.push(`\n✅ ${allRounds.length} tournées épurées récupérées au total.`);
+    logs.push(`\n✅ ${allRawRounds.length} tournées brutes récupérées au total.`);
+
+    logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
+    
+    const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, allRawRounds));
+    logs.push(`   - ${transformedTasks.length} tâches transformées.`);
+    
+    const transformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
+    logs.push(`   - ${transformedRounds.length} tournées transformées.`);
+
 
     // --- SAVE TO FIRESTORE ---
     logs.push(`\n💾 Début de la sauvegarde intelligente dans Firestore...`);
@@ -818,14 +828,14 @@ export async function runDailySyncAction() {
     const tasksCollectionRef = firestore.collection('tasks');
     const roundsCollectionRef = firestore.collection('rounds');
 
-    await saveCollectionInAction(tasksCollectionRef, allTasks, 'tacheId', { from, to }, logs);
-    await saveCollectionInAction(roundsCollectionRef, allRounds, 'id', { from, to }, logs);
+    await saveCollectionInAction(tasksCollectionRef, transformedTasks, 'tacheId', { from, to }, logs);
+    await saveCollectionInAction(roundsCollectionRef, transformedRounds, 'id', { from, to }, logs);
     
     // --- Generate Notifications ---
     logs.push(`\n🔔 Génération des notifications...`);
     let notificationCount = 0;
     // 1. Quality Alerts
-    const qualityAlertTasks = allTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
+    const qualityAlertTasks = transformedTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
     for (const task of qualityAlertTasks) {
         await createNotification(firestore, {
             type: 'quality_alert',
@@ -835,11 +845,12 @@ export async function runDailySyncAction() {
         notificationCount++;
     }
     // 2. Overweight Rounds (assuming this logic is available or can be added)
-    if (allRounds.length > 0 && allRounds[0].poidsTournee && allRounds[0].poidsTournee > 1250) {
+    const overweightRounds = transformedRounds.filter(r => r.poidsReel && r.poidsReel > 1250);
+    for (const round of overweightRounds) {
        await createNotification(firestore, {
             type: 'overweight_round',
-            message: `La tournée ${allRounds[0].nom} est en surcharge de poids (${allRounds[0].poidsTournee} kg).`,
-            relatedEntity: { type: 'round', id: allRounds[0].id }
+            message: `La tournée ${round.nom} est en surcharge de poids (${round.poidsReel?.toFixed(0)} kg).`,
+            relatedEntity: { type: 'round', id: round.id }
         });
         notificationCount++;
     }
@@ -861,7 +872,3 @@ export async function runDailySyncAction() {
     };
   }
 }
-
-    
-
-    
