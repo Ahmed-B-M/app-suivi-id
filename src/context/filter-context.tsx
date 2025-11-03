@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { getDepotFromHub, getHubCategory, getDriverFullName } from '@/lib/grouping';
+import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, groupTasksByMonth } from '@/lib/grouping';
 import { useCollection, clearCollectionCache } from '@/firebase/firestore/use-collection';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
@@ -111,7 +111,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const roundsCollection = useMemo(() => firestore ? collectionGroup(firestore, 'rounds') : null, [firestore]);
   const npsDataCollection = useMemo(() => firestore ? collection(firestore, 'nps_data') : null, [firestore]);
   const categorizedCommentsCollection = useMemo(() => firestore ? collectionGroup(firestore, 'categorized_comments') : null, [firestore]);
-  const processedVerbatimsCollection = useMemo(() => firestore ? collectionGroup(firestore, 'processed_nps_verbatims') : null, [firestore]);
+  const processedVerbatimsCollection = useMemo(() => firestore ? collection(firestore, 'processed_nps_verbatims') : null, [firestore]);
 
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useCollection<Tache>(tasksCollection, firestoreDateFilters);
   const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useCollection<Tournee>(roundsCollection, firestoreDateFilters);
@@ -209,13 +209,17 @@ export function FilterProvider({ children }: { children: ReactNode }) {
           acc.set(taskId, savedCommentsMap.get(taskId)!);
         }
       } else if (isNegativeComment) {
+        const taskDate = task.date && typeof (task.date as any).toDate === 'function' 
+                         ? (task.date as any).toDate() 
+                         : task.date;
+
         acc.set(taskId, {
           id: taskId,
           taskId: taskId,
           comment: task.metaDonnees!.commentaireLivreur!,
           rating: task.metaDonnees!.notationLivreur!,
           category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
-          taskDate: task.date,
+          taskDate: taskDate as string | Date | undefined,
           driverName: getDriverFullName(task),
           status: 'à traiter' as const,
         });
@@ -282,7 +286,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         associationDate: new Date(),
         verbatims: verbatimsToFilter,
     }];
-  }, [npsDataFromDaterange, filterType, selectedDepot, selectedStore]);
+  }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
   
  const allProcessedVerbatims = useMemo(() => {
     const verbatimsMap = new Map<string, ProcessedVerbatim>();
@@ -337,6 +341,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         selectedDepot,
         setSelectedDepot,
         availableStores,
+        selectedStore,
         setSelectedStore,
         lastUpdateTime,
         allTasks,
@@ -360,3 +365,5 @@ export function useFilters() {
   }
   return context;
 }
+
+    
