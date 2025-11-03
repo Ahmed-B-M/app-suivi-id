@@ -26,13 +26,13 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
   const completed = tasks.filter(t => t.progression === 'COMPLETED');
   const rated = completed.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number');
 
-  const completedWithTime = completed.filter(t => t.debutCreneauInitial && t.dateCloture);
+  const completedWithTime = completed.filter(t => t.debutCreneauInitial && t.heureArriveeReelle);
   let punctual = 0;
   let lateOver1h = 0;
   
   completedWithTime.forEach(t => {
     try {
-      const closure = new Date(t.dateCloture!);
+      const arrival = new Date(t.heureArriveeReelle!);
       const windowStart = new Date(t.debutCreneauInitial!);
       // Default to a 2-hour window if 'fin' is not present
       const windowEnd = t.finCreneauInitial ? new Date(t.finCreneauInitial) : addMinutes(windowStart, 120);
@@ -41,11 +41,11 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
       const lowerBound = subMinutes(windowStart, 15);
       const upperBound = addMinutes(windowEnd, 15);
       
-      if (closure >= lowerBound && closure <= upperBound) {
+      if (arrival >= lowerBound && arrival <= upperBound) {
         punctual++;
-      } else if (closure > upperBound) {
+      } else if (arrival > upperBound) {
          // It's late, check if it's over 1h late
-         const minutesLate = differenceInMinutes(closure, upperBound);
+         const minutesLate = differenceInMinutes(arrival, upperBound);
          if (minutesLate > 60) {
             lateOver1h++;
          }
@@ -62,7 +62,7 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
     totalRatings: rated.length,
     averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
     punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
-    scanbacRate: completed.length > 0 ? (completed.filter(t => t.completePar === 'mobile').length / completed.length) * 100 : null,
+    scanbacRate: completed.length > 0 ? (completed.filter(t => t.terminePar === 'mobile').length / completed.length) * 100 : null,
     forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.surPlaceForce === true).length / completed.length) * 100 : null,
     forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.sansContactForce === true).length / completed.length) * 100 : null,
     lateOver1hRate: completedWithTime.length > 0 ? (lateOver1h / completedWithTime.length) * 100 : null,
@@ -147,11 +147,11 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
         : null;
 
     // Punctuality Calculation
-    const punctualityTasks = roundTasks.filter(t => t.debutCreneauInitial && roundStopsByTaskId.has(t.tacheId));
+    const punctualityTasks = roundTasks.filter(t => t.debutCreneauInitial && roundStopsByTaskId.has(t.id));
     let punctualCount = 0;
     punctualityTasks.forEach(task => {
         try {
-            const stop = roundStopsByTaskId.get(task.tacheId);
+            const stop = roundStopsByTaskId.get(task.id);
             if (!stop || !stop.arriveTime) return;
 
             const plannedArrive = parseISO(stop.arriveTime);
