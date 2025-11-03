@@ -86,28 +86,23 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
 
 /**
  * Determines the carrier name from a driver's name or a round object.
- * @param driverNameOrRound - The full name of the driver or a Tournee object.
+ * @param driverNameOrRound - The full name of the driver or a Tache/Tournee object.
  * @returns The name of the carrier.
  */
 export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee | undefined | null): string {
-    let driverName: string | undefined | null = null;
-
     // Check for carrierOverride first
     if (driverNameOrRound && typeof driverNameOrRound === 'object' && 'carrierOverride' in driverNameOrRound && driverNameOrRound.carrierOverride) {
         return driverNameOrRound.carrierOverride;
     }
 
-    if (typeof driverNameOrRound === 'string') {
-        driverName = driverNameOrRound;
-    } else if (driverNameOrRound && typeof driverNameOrRound === 'object') {
-       driverName = getDriverFullName(driverNameOrRound);
-    }
+    // Always use getDriverFullName to reliably get the driver's name from any object type
+    const driverName = getDriverFullName(driverNameOrRound);
     
-    if (!driverName) {
+    if (!driverName || driverName === "Inconnu") {
         return "Inconnu";
     }
 
-    // Use the logic from the existing getCarrierFromDriver function
+    // Use the logic from the existing getCarrierFromDriver function on the full name
     const lowerCaseName = driverName.toLowerCase();
 
     if (lowerCaseName.includes("id log")) {
@@ -134,7 +129,6 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
     if (lastChar === '2') return "Express";
     if (lastChar === '5') return "MLG";
 
-
     // New logic based on suffix in lastName
     const driver = (driverNameOrRound && typeof driverNameOrRound === 'object' && 'driver' in driverNameOrRound) ? (driverNameOrRound as Tournee).driver : (driverNameOrRound as Tache).livreur;
     const lastName = driver?.nom || driver?.lastName;
@@ -148,8 +142,13 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
     return "Inconnu";
 }
 
-export function getDriverFullName(item: Tache | Tournee | undefined | null): string {
+export function getDriverFullName(item: string | Tache | Tournee | undefined | null): string {
     if (!item) return "Inconnu";
+
+    // If it's just a string, return it.
+    if (typeof item === 'string') {
+        return item;
+    }
 
     if ('driver' in item && item.driver) { // Tournee
         const { firstName, lastName } = item.driver;
