@@ -368,32 +368,37 @@ export function UnifiedExportForm({
             const chunk = itemsToUpdate.slice(i, i + writeBatchSize);
             
             chunk.forEach(item => {
-                const docIdForFirestore = collectionName === 'tasks' ? item['id'] : item[idKey];
-                if (docIdForFirestore) {
-                    const docRef = doc(collectionRef, String(docIdForFirestore));
-                    const dataToSet: { [key: string]: any } = {};
-                    Object.keys(item).forEach(key => {
-                        const value = item[key];
-                        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
-                            try { dataToSet[key] = new Date(value); } catch (e) { dataToSet[key] = value; }
-                        } else {
+                const docIdForFirestore = String(item[idKey]);
+                const docRef = doc(collectionRef, docIdForFirestore);
+                
+                const dataToSet: { [key: string]: any } = {};
+                Object.keys(item).forEach(key => {
+                    const value = item[key];
+                    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) {
+                        try {
+                            dataToSet[key] = new Date(value);
+                        } catch (e) {
                             dataToSet[key] = value;
                         }
-                    });
-                    batch.set(docRef, dataToSet, { merge: true });
-                }
+                    } else {
+                        dataToSet[key] = value;
+                    }
+                });
+                batch.set(docRef, dataToSet, { merge: true });
             });
 
           try {
             onLogUpdate([`      - Écriture du lot ${currentBatchNumber}/${Math.ceil(itemsToUpdate.length / writeBatchSize)}...`]);
             await batch.commit();
             onLogUpdate([`      - ✅ Lot sauvegardé avec succès.`]);
-             if (batchCount % 5 === 0 && itemsToUpdate.length > (i + writeBatchSize)) {
+
+            if (batchCount % 5 === 0 && itemsToUpdate.length > (i + writeBatchSize)) {
                 onLogUpdate([`      - ⏱️ Grosse pause de 10 secondes après 5 lots d'écriture...`]);
                 await delay(10000);
             } else if (itemsToUpdate.length > writeBatchSize) {
                 await delay(1500);
             }
+
           } catch (e) {
             success = false;
             onLogUpdate([`      - ❌ Échec de la sauvegarde du lot ${currentBatchNumber}. Erreur: ${(e as Error).message}`]);
@@ -597,8 +602,3 @@ export function UnifiedExportForm({
     </Card>
   );
 }
-
-    
-
-    
-
