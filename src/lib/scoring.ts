@@ -26,13 +26,13 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
   const completed = tasks.filter(t => t.progression === 'COMPLETED');
   const rated = completed.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number');
 
-  const completedWithTime = completed.filter(t => t.debutCreneauInitial && t.heureArriveeReelle);
+  const completedWithTime = completed.filter(t => t.debutCreneauInitial && t.dateCloture);
   let punctual = 0;
   let lateOver1h = 0;
   
   completedWithTime.forEach(t => {
     try {
-      const arrival = new Date(t.heureArriveeReelle!);
+      const arrival = new Date(t.dateCloture!);
       const windowStart = new Date(t.debutCreneauInitial!);
       // Default to a 2-hour window if 'fin' is not present
       const windowEnd = t.finCreneauInitial ? new Date(t.finCreneauInitial) : addMinutes(windowStart, 120);
@@ -172,5 +172,3 @@ export function calculateRoundStats(round: Tournee, allTasks: Tache[]): { averag
 
     return { averageRating, punctualityRate };
 }
-
-    
