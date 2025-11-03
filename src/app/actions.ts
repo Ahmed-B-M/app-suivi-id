@@ -34,6 +34,11 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
 
     const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
     const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask.id);
+    
+    const prenomChauffeur = rawTask.livreur?.prenom;
+    const nomChauffeur = rawTask.livreur?.nom;
+    const nomCompletChauffeur = [prenomChauffeur, nomChauffeur].filter(Boolean).join(' ');
+
 
     return {
         // Identification
@@ -125,7 +130,7 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         idExterneChauffeur: rawTask.livreur?.idExterne,
         prenomChauffeur: rawTask.livreur?.prenom,
         nomChauffeur: rawTask.livreur?.nom,
-        nomCompletChauffeur: getDriverFullName(rawTask),
+        nomCompletChauffeur: nomCompletChauffeur,
         nomHub: rawTask.nomHub,
         nomPlateforme: rawTask.nomPlateforme,
         

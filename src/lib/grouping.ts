@@ -148,26 +148,25 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
     return "Inconnu";
 }
 
-export function getDriverFullName(item: Tache | Tournee | any): string | undefined {
-    let firstName: string | undefined = '';
-    let lastName: string | undefined = '';
-    
-    // Check for Tournee structure
-    if (item && item.driver) {
-        firstName = item.driver.firstName;
-        lastName = item.driver.lastName;
-    } 
-    // Check for Tache structure
-    else if (item && item.livreur) {
-        firstName = item.livreur.prenom;
-        lastName = item.livreur.nom;
+export function getDriverFullName(item: Tache | Tournee | undefined | null): string {
+    if (!item) return "Inconnu";
+
+    if ('driver' in item && item.driver) { // Tournee
+        const { firstName, lastName } = item.driver;
+        return [firstName, lastName].filter(Boolean).join(' ');
     }
     
-    if (firstName || lastName) {
-        return `${firstName || ''} ${lastName || ''}`.trim();
+    if ('livreur' in item && item.livreur) { // Tache
+        const { prenom, nom } = item.livreur;
+        return [prenom, nom].filter(Boolean).join(' ');
+    }
+    
+    // Fallback for raw task data if needed, or other structures
+    if ('prenomChauffeur' in item || 'nomChauffeur' in item) {
+       return [item.prenomChauffeur, item.nomChauffeur].filter(Boolean).join(' ');
     }
 
-    return undefined;
+    return "Inconnu";
 }
 
 
