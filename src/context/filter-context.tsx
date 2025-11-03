@@ -201,10 +201,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     // 2. Iterate through all tasks from the current context (already filtered by date/depot).
     // This will create a list of comments based on the tasks currently in view.
     const commentsFromTasks = allTasks.reduce((acc, task) => {
-      const taskId = String(task.tacheId);
-      const isNegativeComment = typeof task.metaDonnees?.notationLivreur === 'number' &&
-                                task.metaDonnees.notationLivreur < 4 &&
-                                task.metaDonnees.commentaireLivreur;
+      const taskId = String(task.id);
+      const isNegativeComment = typeof task.notationLivreur === 'number' &&
+                                task.notationLivreur < 4 &&
+                                task.metaCommentaireLivreur;
   
       // If the comment is already saved, use the saved version.
       if (savedCommentsMap.has(taskId)) {
@@ -221,9 +221,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         acc.set(taskId, {
           id: taskId,
           taskId: taskId,
-          comment: task.metaDonnees!.commentaireLivreur!,
-          rating: task.metaDonnees!.notationLivreur!,
-          category: getCategoryFromKeywords(task.metaDonnees!.commentaireLivreur!),
+          comment: task.metaCommentaireLivreur!,
+          rating: task.notationLivreur!,
+          category: getCategoryFromKeywords(task.metaCommentaireLivreur!),
           taskDate: taskDate as string | Date | undefined,
           driverName: getDriverFullName(task),
           nomHub: task.nomHub, // Include hub name

@@ -41,7 +41,7 @@ import { getDriverFullName } from "@/lib/grouping";
 
 const columns: ColumnDef<Tache>[] = [
   // Identification
-  { accessorKey: "tacheId", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("id")}`} className="text-blue-600 hover:underline">{row.getValue("tacheId")}</Link> },
+  { accessorKey: "id", header: "ID Tâche", cell: ({ row }) => <Link href={`/task/${row.getValue("id")}`} className="text-blue-600 hover:underline">{row.getValue("id")}</Link> },
   { accessorKey: "idInterne", header: "ID Interne" },
   { accessorKey: "commande", header: "Commande" },
   { accessorKey: "client", header: "Client (ID)" },
@@ -91,10 +91,10 @@ const columns: ColumnDef<Tache>[] = [
   
   // Métadonnées
   { accessorKey: "notationLivreur", header: "Notation Livreur" },
-  { accessorKey: "commentaireLivreur", header: "Commentaire Livreur" },
+  { accessorKey: "metaCommentaireLivreur", header: "Méta Commentaire Livreur" },
 
   // --- Champs masqués par défaut ---
-  { accessorKey: "id", header: "ID DB" },
+  { accessorKey: "idInterne", header: "ID DB" },
   { accessorKey: "referenceTache", header: "Référence Tâche" },
   { accessorKey: "nombreDeBacsMeta", header: "Nombre de Bacs (Méta)" },
   { accessorKey: "margeFenetreHoraire", header: "Marge Fenêtre Horaire" },
@@ -152,7 +152,6 @@ export function DetailsTasksTable({ data }: { data: Tache[] }) {
       desassocTranspRejetee: false,
       dateMiseAJour: false,
       dateCreation: false,
-      id: false,
       referenceTache: false,
       nombreDeBacsMeta: false,
       margeFenetreHoraire: false,
