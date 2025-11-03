@@ -1,4 +1,3 @@
-
 # Spécification de la Structure des Données
 
 Ce document définit la structure de données finale pour les entités "Tâche" (Task), "Tournée" (Round) et "Article" (Item) après transformation des données brutes de l'API Urbantz.
@@ -160,7 +159,7 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Notation Livreur**: `metadata.notationLivreur` (Nombre) - (Métadonnée) Note donnée par le client.
 - **Service (Méta)**: `metadata.service` (Texte) - (Métadonnée) Type de service.
 - **Code Entrepôt**: `metadata.warehouseCode` (Texte) - (Métadonnée) Code de l'entrepôt.
-- **Méta Commentaire Livreur**: `metadata.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
+- **Méta Commentaire Livreur**: `metaDonnees.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
 - **Infos Suivi Transp.**: `externalCarrier.trackingInfo` (Objet/JSON) - Informations de tracking (JSON).
 - **Désassoc. Transp. Rejetée**: `externalCarrier.unassociationRejected` (Booléen) - Champ technique.
 - **Mis à jour le**: `updated` (Date/Heure) - Horodatage de la dernière modification.
@@ -189,5 +188,3 @@ Liste des champs de données pour l'entité Item (Bac/Article).
 - **Métadonnées**: `metadata` (Objet/JSON) - Métadonnées de l'article.
 - **Description**: `description` (Texte) - Description de l'article.
 - **Groupe**: `group` (Texte) - Code-barres du groupe dans lequel l'article est placé.
-
-    

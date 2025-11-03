@@ -1,4 +1,3 @@
-
 "use server";
 
 import { z } from "zod";
@@ -12,8 +11,8 @@ import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
-import type { ProcessedNpsData } from "./nps-analysis/page";
-import { ProcessedVerbatim } from "./verbatim-treatment/page";
+import type { ProcessedNpsData } from "../nps-analysis/page";
+import { ProcessedVerbatim } from "../verbatim-treatment/page";
 import { FieldValue } from 'firebase-admin/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
@@ -147,7 +146,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        commentaireLivreur: rawTask.metadata?.commentaireLivreur,
+        metaCommentaireLivreur: rawTask.metadata?.commentaireLivr,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: rawTask.updated,
@@ -902,5 +901,3 @@ export async function runDailySyncAction() {
     };
   }
 }
-
-    

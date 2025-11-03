@@ -2,37 +2,37 @@ import { Timestamp } from "firebase/firestore";
 
 export interface Article {
     // Identification & Liens
-    tacheId?: number;
-    codeBarre?: string; // barcode
-    tourneeId?: string;
-    nomTournee?: string;
+    tacheId: string;
+    codeBarre: string;
+    tourneeId: string;
+    nomTournee: string;
 
     // Détails du Bac
-    nom?: string; // name
-    type?: string;
-    statut?: string; // status
-    quantite?: number; // quantity
-    quantiteTraitee?: number; // processedQuantity
-    dimensions?: any;
-    encodageCodeBarres?: string; // barcodeEncoding
-    endommage?: any; // damaged
+    nom: string;
+    type: string;
+    statut: string;
+    quantite: number;
+    quantiteTraitee: number;
+    dimensions: any;
+    encodageCodeBarres: string;
+    endommage: any;
 
     // Champs Techniques & Vides
-    log?: any[];
-    reference?: string;
-    etiquettes?: any[]; // labels
-    competences?: any[]; // skills
-    metaDonnees?: any; // metadata
-    description?: string;
-    groupe?: string;
+    log: any[];
+    reference: string;
+    etiquettes: any[];
+    competences: any[];
+    metaDonnees: any;
+    description: string;
+    groupe: string;
 }
 
 
 export interface Tache {
     // Identification
     tacheId: string;
-    idInterne?: string;
-    referenceTache?: string;
+    idInterne: string;
+    referenceTache: string;
     id: string; // _id from API
     commande?: string;
     client?: string;
@@ -135,26 +135,26 @@ export interface Tache {
     notationLivreur?: number;
     serviceMeta?: string;
     codeEntrepôt?: string;
-    commentaireLivreur?: string;
+    metaCommentaireLivreur?: string;
     infosSuiviTransp?: any;
     desassocTranspRejetee?: boolean;
     dateMiseAJour?: string;
     dateCreation?: string;
     
-    // Données brutes et calculées
-    items: Article[];
+    // Données brutes des articles
+    articles: Article[];
 }
 
 export interface Tournee {
     // Identification
     id: string; // id ou _id
     idInterne: string; // id ou _id (doublon)
-    nom?: string; // name
-    statut?: string; // status
-    activite?: string; // activity
-    date?: string | Date | Timestamp; // date
-    hubId?: string; // hub
-    nomHub?: string; // nomHub (venant de la tâche)
+    nom: string; // name
+    statut: string; // status
+    activite: string; // activity
+    date: string | Date | Timestamp; // date
+    hubId: string; // hub
+    nomHub: string; // nomHub (venant de la tâche)
 
     // Infos Chauffeur & Véhicule
     associeNom?: string; // associatedName
