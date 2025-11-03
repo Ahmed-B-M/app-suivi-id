@@ -122,9 +122,9 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         nomTournee: rawTask.roundName,
         sequence: rawTask.sequence,
         nomAssocie: rawTask.associatedName,
-        idExterneChauffeur: rawTask.livreur?.idExterne,
-        prenomChauffeur: rawTask.livreur?.prenom,
-        nomChauffeur: rawTask.livreur?.nom,
+        idExterneChauffeur: rawTask.driver?.externalId,
+        prenomChauffeur: rawTask.driver?.firstName,
+        nomChauffeur: rawTask.driver?.lastName,
         nomHub: rawTask.hubName,
         nomPlateforme: rawTask.platformName,
         
@@ -872,3 +872,5 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
