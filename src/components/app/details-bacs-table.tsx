@@ -37,18 +37,7 @@ import { Badge } from "../ui/badge";
 import { format } from "date-fns";
 import { Card, CardContent } from "../ui/card";
 
-type BacRow = {
-    tacheId: string;
-    date: string | undefined;
-    nomTournee: string | undefined;
-    codeBarre: string | undefined; // barcode
-    type: string | undefined;
-    statut: string | undefined; // status
-    nom: string | undefined; // name
-    quantite: number | undefined; // quantity
-}
-
-const columns: ColumnDef<BacRow>[] = [
+const columns: ColumnDef<Article>[] = [
   {
     accessorKey: "date",
     header: ({ column }) => (
@@ -61,7 +50,7 @@ const columns: ColumnDef<BacRow>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-        const date = row.getValue("date");
+        const date = row.original.tacheId ? (row.original as any).tacheDate : undefined;
         return date ? format(new Date(date as string), "dd/MM/yy") : "N/A"
     },
   },
@@ -114,17 +103,13 @@ export function DetailsBacsTable({ data: tasks }: { data: Tache[] }) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  const flatData: BacRow[] = React.useMemo(() => {
+  const flatData: Article[] = React.useMemo(() => {
     return tasks.flatMap(task => 
-        (task.items ?? []).map((article: Article) => ({
+        (task.articles ?? []).map((article: Article) => ({
+            ...article,
             tacheId: task.tacheId,
-            date: task.date as string,
+            tacheDate: task.date, // Pass date for sorting/display
             nomTournee: task.nomTournee,
-            codeBarre: article.codeBarre,
-            type: article.type,
-            statut: article.statut,
-            nom: article.nom,
-            quantite: article.quantite,
         }))
     )
   }, [tasks])
