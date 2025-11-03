@@ -750,7 +750,7 @@ async function saveCollectionInAction(
                 }
             });
             await batch.commit();
-            logs.push(`      - Lot de suppression ${i / deleteBatchSize + 1}/${Math.ceil(idsToDelete.length / deleteBatchSize)} terminé.`);
+            logs.push(`      - Lot de suppression ${Math.floor(i / deleteBatchSize) + 1}/${Math.ceil(idsToDelete.length / deleteBatchSize)} terminé.`);
             
             if (batchCount % 5 === 0 && idsToDelete.length > (i + deleteBatchSize)) {
                 logs.push(`      - ⏱️ Grosse pause de 10 secondes après 5 lots de suppression...`);
