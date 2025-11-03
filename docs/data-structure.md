@@ -123,68 +123,68 @@ Liste des champs de données pour l'entité Task (Tâche/Arrêt).
 - **Date de Clôture**: `closureDate` (Date/Heure) - Date et heure de complétion de la tâche. Exemple: "2025-11-02T08:37:15.181Z"
 - **sur place forcé**: `actualTime.arrive.forced` (Booléen) - Indique si le chauffeur a forcé l'arrivée. Exemple: false
 - **sur place validé**: `actualTime.arrive.isCorrectAddress` (Booléen) - Indique si le chauffeur était à une autre adresse mais a validé. Exemple: true
-- **Temps de Retard**: `delay.time` (via Tournée) (Nombre) - (Info de la Tournée) Temps de retard (ms). Exemple: 0
-- **Date du Retard**: `delay.when` (via Tournée) (Date/Heure) - (Info de la Tournée) Horodatage du calcul de retard. Exemple: "2025-10-26T08:32:00.592Z"
+- **Temps de Retard**: `delay.time` (via Tournée) (Nombre) - (Info de la Tournée) Temps de retard (ms).
+- **Date du Retard**: `delay.when` (via Tournée) (Date/Heure) - (Info de la Tournée) Horodatage du calcul de retard.
 - **Tentatives**: `attempts` (Nombre) - Le nombre de tentatives de livraison effectuées. Exemple: 1
-- **Terminé Par**: `completePar` (Texte) - Outil utilisé pour clôturer la tâche (ex: mobile). Exemple: "mobile"
-- **temps de service réel**: `realServiceTime.serviceTime` (Nombre) - Durée (en secondes) calculée par Urbantz. Exemple: 181.001
-- **Début Temps Service**: `realServiceTime.startTime` (Date/Heure) - Début de l'action de livraison. Exemple: "2025-11-02T08:36:00.087Z"
-- **Fin Temps Service**: `realServiceTime.endTime` (Date/Heure) - Fin de l'action de livraison. Exemple: "2025-11-02T08:39:01.088Z"
-- **Confiance Temps Service**: `realServiceTime.confidence` (Texte) - Fiabilité du calcul du temps de service (HIGH/LOW). Exemple: "HIGH"
-- **Version Temps Service**: `realServiceTime.version` (Nombre) - Version de l'algorithme de calcul. Exemple: 2
-- **Horodatages Minuteur**: `execution.timer.timestamps` (Objet/JSON) - Données de minuteurs (JSON). Exemple: []
-- **Sans contact (Forcé)**: `execution.contactless.forced` (Booléen) - Indique si le code PIN a été sauté. Exemple: false
-- **Raison Sans Contact**: `execution.contactless.reason` (Texte) - La raison pour laquelle le code PIN a été sauté. Exemple: "N/A"
-- **Raison Échec**: `execution.failedReason.reason` (Texte) - Raison (officielle) de l'échec de la tâche. Exemple: "N/A"
-- **Raison Échec (Perso)**: `execution.failedReason.custom` (Texte) - Raison (personnalisée) de l'échec de la tâche. Exemple: (Vide)
-- **Nom Signature**: `execution.signature.name` (Texte) - Nom de la personne qui a signé. Exemple: "MME Jennifer Cornu"
-- **Photo Succès**: `execution.successPicture` (Texte) - URL de la photo prise comme preuve de succès. Exemple: "9943d017-86b3-4fcd-8d81-..."
-- **Latitude Position**: `execution.position.latitude` (Nombre) - Latitude GPS à la clôture. Exemple: 43.5973
-- **Longitude Position**: `execution.position.longitude` (Nombre) - Longitude GPS à la clôture. Exemple: 7.1195
-- **Nom Tournée**: `roundName` (Texte) - Nom de la tournée où la tâche est assignée. Exemple: "R01"
-- **Séquence**: `sequence` (Nombre) - Séquence de la tâche dans la tournée. Exemple: 4
-- **Associé (Nom)**: `associatedName` (Texte) - Le nom de la plateforme associée. Exemple: "ID Logistics"
-- **ID Externe Chauffeur**: `driver.externalId` (Texte) - Identifiant externe (email) du livreur. Exemple: "alexandremantibes@..."
-- **Prénom Chauffeur**: `driver.firstName` (Texte) - Prénom du livreur. Exemple: "Alexandre"
-- **Nom Chauffeur**: `driver.lastName` (Texte) - Nom du livreur. Exemple: "Market Antibes"
-- **Hub (ID)**: `hub` (Texte) - L'identifiant du hub (dépôt). Exemple: "5cf0d7036760b37187ed8070"
-- **Hub (Nom)**: `hubName` (Texte) - Nom du dépôt (plateforme) de départ. Exemple: "Carrefour Market Antibes 7827"
-- **Plateforme (Nom)**: `platformName` (Texte) - Le nom de la plateforme. Exemple: "Carrefour LAD Caisse"
-- **Type**: `type` (Texte) - Le type de tâche (delivery ou pickup). Exemple: "delivery"
-- **Flux**: `flux` (Texte) - L'identifiant de l'optimisation utilisée. Exemple: "5c6e788b839b92144f5de1e1"
-- **Progression**: `progress` (Texte) - Étape de haut niveau de la tâche (ex: ANNOUNCED, COMPLETED). Exemple: "COMPLETED"
-- **Tâches même arrêt**: `realServiceTime.tasksDeliveredInSameStop` (Nombre) - Nombre de tâches complétées sans bouger. Exemple: 1
-- **Catégories**: `categories` (Objet/JSON) - Catégories assignées aux tâches. Exemple: []
-- **Code PE**: `metadata.codePe` (Texte) - (Métadonnée) Code Point d'Entrée. Exemple: "1434"
-- **Notation Livreur**: `metadata.notationLivreur` (Nombre) - (Métadonnée) Note donnée par le client. Exemple: 5
-- **Service (Méta)**: `metadata.service` (Texte) - (Métadonnée) Type de service. Exemple: "METI"
-- **Code Entrepôt**: `metadata.warehouseCode` (Texte) - (Métadonnée) Code de l'entrepôt. Exemple: "VDF"
-- **Méta Commentaire Livreur**: `metadata.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur. Exemple: (Vide)
-- **Infos Suivi Transp.**: `externalCarrier.trackingInfo` (Objet/JSON) - Informations de tracking. Exemple: {}
-- **Désassoc. Transp. Rejetée**: `externalCarrier.unassociationRejected` (Booléen) - Champ technique. Exemple: false
-- **Mis à jour le**: `updated` (Date/Heure) - Horodatage de la dernière modification. Exemple: "2025-10-26T08:56:39.263Z"
-- **Créé le**: `when` (Date/Heure) - Quand la tâche a été créée. Exemple: "2025-10-25T14:04:18.764Z"
+- **Terminé Par**: `completePar` (Texte) - Outil utilisé pour clôturer la tâche (ex: mobile).
+- **temps de service réel**: `realServiceTime.serviceTime` (Nombre) - Durée (en secondes) calculée par Urbantz.
+- **Début Temps Service**: `realServiceTime.startTime` (Date/Heure) - Début de l'action de livraison.
+- **Fin Temps Service**: `realServiceTime.endTime` (Date/Heure) - Fin de l'action de livraison.
+- **Confiance Temps Service**: `realServiceTime.confidence` (Texte) - Fiabilité du calcul du temps de service (HIGH/LOW).
+- **Version Temps Service**: `realServiceTime.version` (Nombre) - Version de l'algorithme de calcul.
+- **Horodatages Minuteur**: `execution.timer.timestamps` (Objet/JSON) - Données de minuteurs (JSON).
+- **Sans contact (Forcé)**: `execution.contactless.forced` (Booléen) - Indique si le code PIN a été sauté.
+- **Raison Sans Contact**: `execution.contactless.reason` (Texte) - La raison pour laquelle le code PIN a été sauté.
+- **Raison Échec**: `execution.failedReason.reason` (Texte) - Raison (officielle) de l'échec de la tâche.
+- **Raison Échec (Perso)**: `execution.failedReason.custom` (Texte) - Raison (personnalisée) de l'échec de la tâche.
+- **Nom Signature**: `execution.signature.name` (Texte) - Nom de la personne qui a signé.
+- **Photo Succès**: `execution.successPicture` (Texte) - URL de la photo prise comme preuve de succès.
+- **Latitude Position**: `execution.position.latitude` (Nombre) - Latitude GPS à la clôture.
+- **Longitude Position**: `execution.position.longitude` (Nombre) - Longitude GPS à la clôture.
+- **Nom Tournée**: `roundName` (Texte) - Nom de la tournée où la tâche est assignée.
+- **Séquence**: `sequence` (Nombre) - Séquence de la tâche dans la tournée.
+- **Associé (Nom)**: `associatedName` (Texte) - Le nom de la plateforme associée.
+- **ID Externe Chauffeur**: `driver.externalId` (Texte) - Identifiant externe (email) du livreur.
+- **Prénom Chauffeur**: `driver.firstName` (Texte) - Prénom du livreur.
+- **Nom Chauffeur**: `driver.lastName` (Texte) - Nom du livreur.
+- **Hub (ID)**: `hub` (Texte) - L'identifiant du hub (dépôt).
+- **Hub (Nom)**: `hubName` (Texte) - Nom du dépôt (plateforme) de départ.
+- **Plateforme (Nom)**: `platformName` (Texte) - Le nom de la plateforme.
+- **Type**: `type` (Texte) - Le type de tâche (delivery ou pickup).
+- **Flux**: `flux` (Texte) - L'identifiant de l'optimisation utilisée.
+- **Progression**: `progress` (Texte) - Étape de haut niveau de la tâche (ex: ANNOUNCED, COMPLETED).
+- **Tâches même arrêt**: `realServiceTime.tasksDeliveredInSameStop` (Nombre) - Nombre de tâches complétées sans bouger.
+- **Catégories**: `categories` (Objet/JSON) - Catégories assignées aux tâches (JSON).
+- **Code PE**: `metadata.codePe` (Texte) - (Métadonnée) Code Point d'Entrée.
+- **Notation Livreur**: `metadata.notationLivreur` (Nombre) - (Métadonnée) Note donnée par le client.
+- **Service (Méta)**: `metadata.service` (Texte) - (Métadonnée) Type de service.
+- **Code Entrepôt**: `metadata.warehouseCode` (Texte) - (Métadonnée) Code de l'entrepôt.
+- **Méta Commentaire Livreur**: `metadata.commentaireLivreur` (Texte) - (Métadonnée) Commentaire du client sur le livreur.
+- **Infos Suivi Transp.**: `externalCarrier.trackingInfo` (Objet/JSON) - Informations de tracking (JSON).
+- **Désassoc. Transp. Rejetée**: `externalCarrier.unassociationRejected` (Booléen) - Champ technique.
+- **Mis à jour le**: `updated` (Date/Heure) - Horodatage de la dernière modification.
+- **Créé le**: `when` (Date/Heure) - Quand la tâche a été créée.
 
 ## 3. Fichier Bacs (20 colonnes)
 Liste des champs de données pour l'entité Item (Bac/Article).
 
-- **ID Tâche**: (Lien) (Nombre) - Clé de liaison : Identifie la tâche (livraison) à laquelle ce bac appartient. Exemple: 621723118
-- **Code-barres**: `barcode` (Texte) - Le code-barres de l'article. Exemple: "C009504991367824"
-- **ID de la Tournée**: (Lien) (Texte) - Clé de liaison : Identifie la tournée à laquelle ce bac appartient. Exemple: "68fdcd936309d5ede86068db"
-- **Nom de la Tournée**: (Lien) (Texte) - Nom de la tournée (redondant). Exemple: "R01"
-- **Nom**: `name` (Texte) - Nom de l'article. Exemple: "Bac 1"
-- **Type**: `type` (Texte) - Type d'article défini dans la config plateforme. Exemple: "SEC"
-- **Statut**: `status` (Texte) - Statut individuel de l'article (ex: DELIVERED, PENDING). Exemple: "DELIVERED"
-- **Quantité**: `quantity` (Nombre) - Quantité d'unités de cet article. Exemple: 1
-- **Quantité Traitée**: `processedQuantity` (Nombre) - Quantité d'unités traitées de cet article. Exemple: 1
-- **Dimensions**: `dimensions` (Objet/JSON) - Poids et volume de l'article. Exemple: {"bac": 1, "weight": 40, ...}
-- **Encodage Code-barres**: `barcodeEncoding` (Texte) - Encodage du code-barres (ex: CODE128). Exemple: "CODE128"
-- **Endommagé**: `damaged` (Objet/JSON) - Indique si l'article est endommagé. Exemple: {"confirmed": false, ...}
-- **Log**: `log` (Objet/JSON) - Log de la transition de statut de l'article. Exemple: [{"when": "...", "to": "..."}, ...]
+- **ID Tâche**: (Lien) (Nombre) - Clé de liaison : Identifie la tâche (livraison) à laquelle ce bac appartient.
+- **Code-barres**: `barcode` (Texte) - Le code-barres de l'article.
+- **ID de la Tournée**: (Lien) (Texte) - Clé de liaison : Identifie la tournée à laquelle ce bac appartient.
+- **Nom de la Tournée**: (Lien) (Texte) - Nom de la tournée (redondant).
+- **Nom**: `name` (Texte) - Nom de l'article.
+- **Type**: `type` (Texte) - Type d'article défini dans la config plateforme.
+- **Statut**: `status` (Texte) - Statut individuel de l'article (ex: DELIVERED, PENDING).
+- **Quantité**: `quantity` (Nombre) - Quantité d'unités de cet article.
+- **Quantité Traitée**: `processedQuantity` (Nombre) - Quantité d'unités traitées de cet article.
+- **Dimensions**: `dimensions` (Objet/JSON) - Poids et volume de l'article.
+- **Encodage Code-barres**: `barcodeEncoding` (Texte) - Encodage du code-barres (ex: CODE128).
+- **Endommagé**: `damaged` (Objet/JSON) - Indique si l'article est endommagé.
+- **Log**: `log` (Objet/JSON) - Log de la transition de statut de l'article.
 - **Référence**: `reference` (Vide) - Référence externe de l'article.
 - **Client**: (N/A) (Vide) - (Champ vide - Non présent dans le schéma Item).
-- **Étiquettes**: `labels` (Objet/JSON) - Étiquettes requises. Exemple: []
-- **Compétences**: `skills` (Objet/JSON) - Compétences requises. Exemple: []
-- **Métadonnées**: `metadata` (Objet/JSON) - Métadonnées de l'article. Exemple: {}
+- **Étiquettes**: `labels` (Objet/JSON) - Étiquettes requises.
+- **Compétences**: `skills` (Objet/JSON) - Compétences requises.
+- **Métadonnées**: `metadata` (Objet/JSON) - Métadonnées de l'article.
 - **Description**: `description` (Texte) - Description de l'article.
 - **Groupe**: `group` (Texte) - Code-barres du groupe dans lequel l'article est placé.

@@ -21,20 +21,15 @@ import { DateRange } from "react-day-picker";
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
-    // Calcul des bacs
-    const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
-        const type = (item.type || '').toUpperCase();
-        if (type.includes('SURG')) acc.bacsSurg++;
-        else if (type.includes('FRAIS')) acc.bacsFrais++;
-        else if (type.includes('SEC')) acc.bacsSec++;
-        else if (type.includes('POISSON')) acc.bacsPoisson++;
-        else if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
-        return acc;
-    }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
+    const roundInfo = allRoundsData.find(r => 
+        r.nom === rawTask.roundName && 
+        r.nomHub === rawTask.hubName &&
+        r.date && rawTask.date &&
+        new Date(r.date as string).toDateString() === new Date(rawTask.date).toDateString()
+    );
 
-    const roundInfo = allRoundsData.find(r => r.id === rawTask.round);
     const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask._id);
-    
+
     return {
         // Identification
         tacheId: rawTask.id,
@@ -45,12 +40,12 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         client: rawTask.client,
         
         // Contenu
-        bacsSurg: bacs.bacsSurg,
-        bacsFrais: bacs.bacsFrais,
-        bacsSec: bacs.bacsSec,
-        bacsPoisson: bacs.bacsPoisson,
-        bacsBoucherie: bacs.bacsBoucherie,
-        totalSecFrais: bacs.bacsSec + bacs.bacsFrais,
+        bacsSurg: (rawTask.items || []).filter((i: any) => i.type === 'BAC_SURG').length,
+        bacsFrais: (rawTask.items || []).filter((i: any) => i.type === 'BAC_FRAIS').length,
+        bacsSec: (rawTask.items || []).filter((i: any) => i.type === 'BAC_SEC').length,
+        bacsPoisson: (rawTask.items || []).filter((i: any) => i.type === 'BAC_POISSON').length,
+        bacsBoucherie: (rawTask.items || []).filter((i: any) => i.type === 'BAC_BOUCHERIE').length,
+        totalSecFrais: (rawTask.items || []).filter((i: any) => i.type === 'BAC_SEC' || i.type === 'BAC_FRAIS').length,
         nombreDeBacs: rawTask.dimensions?.bac,
         nombreDeBacsMeta: rawTask.metadata?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
@@ -150,6 +145,9 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         
         // Données brutes et calculées
         items: (rawTask.items || []).map((item: any) => ({
+            tacheId: rawTask.id,
+            tourneeId: rawTask.round,
+            nomTournee: rawTask.roundName,
             codeBarre: item.barcode,
             nom: item.name,
             type: item.type,
@@ -383,16 +381,16 @@ export async function runSyncAction(
 
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
-    // Transform rounds first to pass to tasks
+    // An initial transformation of rounds is needed to correctly link tasks later.
     const initialTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, []));
     logs.push(`   - ${initialTransformedRounds.length} tournées initialement transformées.`);
-    
+
     const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, initialTransformedRounds));
     logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
-    // Retransform rounds to include calculations based on tasks
+    // Now, re-transform rounds to include calculations based on the fully transformed tasks.
     const finalTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
-    logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs.`);
+    logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs de bacs/poids.`);
     
     let finalFilteredRounds = finalTransformedRounds;
     if (roundStatus && roundStatus !== "all") {
@@ -891,3 +889,5 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
