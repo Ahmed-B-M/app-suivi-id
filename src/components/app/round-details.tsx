@@ -1,5 +1,4 @@
 "use client";
-
 import {
   Table,
   TableBody,
@@ -8,15 +7,34 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tournee } from "@/lib/types";
+import { Timestamp } from "firebase/firestore";
 
-const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
+const formatDate = (dateValue?: string | Date | Timestamp) => {
+    if (!dateValue) return "N/A";
+
     try {
-        return new Date(dateString).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'medium' });
+        let date: Date;
+        if (dateValue instanceof Timestamp) {
+            date = dateValue.toDate();
+        } else if (dateValue instanceof Date) {
+            date = dateValue;
+        } else {
+            // Attempt to parse the string
+            date = new Date(dateValue);
+        }
+
+        // Check if the date is valid after conversion/parsing
+        if (isNaN(date.getTime())) {
+            return "Date invalide";
+        }
+
+        return date.toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'medium' });
     } catch (e) {
+        console.error("Failed to format date:", dateValue, e);
         return "Date invalide";
     }
 }
+
 
 const renderValue = (value: any, path: string): React.ReactNode => {
   if (value === null || value === undefined) {
@@ -25,11 +43,9 @@ const renderValue = (value: any, path: string): React.ReactNode => {
   if (typeof value === 'boolean') {
     return <Badge variant={value ? 'default' : 'secondary'}>{value ? 'Oui' : 'Non'}</Badge>;
   }
-  if (value instanceof Date) {
-    return formatDate(value.toISOString());
-  }
-  if (typeof value === 'string' && (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/).test(value)) {
-    return formatDate(value);
+  // Use the robust formatDate for any potential date-like value
+  if (value instanceof Date || value instanceof Timestamp || (typeof value === 'string' && /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value))) {
+      return formatDate(value);
   }
   if (typeof value === 'object') {
     return (
@@ -57,6 +73,7 @@ const DataObjectTable = ({ data, path = '' }: { data: any, path?: string }) => {
            
            if (value === null || value === undefined) return null;
            if (Array.isArray(value) && value.length === 0) return null;
+           // Avoid rendering empty objects
            if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) return null;
 
            return (

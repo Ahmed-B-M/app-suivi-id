@@ -13,7 +13,7 @@
         "**/node_modules/**": true,
         "**/.next/**": true
     },
-    "editor.formatOnSave": true,
+    // "editor.formatOnSave": true,
     "editor.inlineSuggest.enabled": true,
     "editor.quickSuggestions": {
         "other": "on",
@@ -22,10 +22,10 @@
     },
     "breadcrumbs.enabled": true,
     "typescript.updateImportsOnFileMove.enabled": "always",
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": "explicit",
-        "source.fixAll.eslint": "explicit"
-    },
+    // "editor.codeActionsOnSave": {
+    //     "source.organizeImports": "explicit",
+    //     "source.fixAll.eslint": "explicit"
+    // },
     "editor.experimental.treeSitterTelemetry": false,
     "diffEditor.maxFileSize": 90,
     "workbench.commandPalette.experimental.suggestCommands": false,

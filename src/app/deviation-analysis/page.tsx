@@ -116,7 +116,7 @@ export default function DeviationAnalysisPage() {
         continue;
       }
       const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
-      const taskWeight = task.dimensions?.poids ?? 0;
+      const taskWeight = task.poidsEnKg ?? 0;
 
       if (taskWeight > 0) {
         const currentWeight = tasksWeightByRound.get(roundKey) || 0;
@@ -133,7 +133,7 @@ export default function DeviationAnalysisPage() {
         }
         const roundKey = `${task.nomTournee}-${new Date(task.date as string).toISOString().split('T')[0]}-${task.nomHub}`;
         const bacCount = (task.articles ?? []).filter(
-            article => article.type === 'BAC_SEC' || article.type === 'BAC_FRAIS'
+            (article: any) => article.type === 'BAC_SEC' || article.type === 'BAC_FRAIS'
         ).length;
         
         if (bacCount > 0) {
@@ -149,11 +149,11 @@ export default function DeviationAnalysisPage() {
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
 
     for (const round of filteredRounds) {
-      const roundKey = `${round.name}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
+      const roundKey = `${round.nom}-${new Date(round.date as string).toISOString().split('T')[0]}-${round.nomHub}`;
 
       // Weight check
-      const roundCapacity = round.vehicle?.dimensions?.poids;
-      if (typeof roundCapacity === "number" && round.name && round.date && round.nomHub) {
+      const roundCapacity = round.capacitePoids;
+      if (typeof roundCapacity === "number" && round.nom && round.date && round.nomHub) {
         const totalWeight = tasksWeightByRound.get(roundKey) || 0;
         const isOverweight = totalWeight > roundCapacity;
 
@@ -204,8 +204,8 @@ export default function DeviationAnalysisPage() {
     // --- Punctuality Logic (Provisional) ---
     const roundStopsByTaskId = new Map<string, any>();
     for (const round of filteredRounds) {
-      if (round.stops) {
-        for (const stop of round.stops) {
+      if (round.arrets) {
+        for (const stop of round.arrets) {
           if (stop.taskId) {
             roundStopsByTaskId.set(stop.taskId, stop);
           }
@@ -215,14 +215,14 @@ export default function DeviationAnalysisPage() {
 
     const punctualityResults: PunctualityIssue[] = [];
     for (const task of filteredTasks) {
-      if (task.tacheId && task.creneauHoraire?.debut) {
+      if (task.tacheId && task.debutCreneauInitial) {
         const stop = roundStopsByTaskId.get(task.tacheId);
         if (stop && stop.arriveTime) {
           try {
             const plannedArrive = parseISO(stop.arriveTime);
             
             // Check for earliness
-            const windowStart = parseISO(task.creneauHoraire.debut);
+            const windowStart = parseISO(task.debutCreneauInitial);
             const earlyThreshold = subMinutes(windowStart, 15);
             const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
             if (deviationEarly > 0) {
@@ -235,8 +235,8 @@ export default function DeviationAnalysisPage() {
             }
 
             // Check for lateness
-            if (task.creneauHoraire.fin) {
-              const windowEnd = parseISO(task.creneauHoraire.fin);
+            if (task.finCreneauInitial) {
+              const windowEnd = parseISO(task.finCreneauInitial);
               const lateThreshold = addMinutes(windowEnd, 15);
               const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
               if (deviationLate > 0) {
@@ -352,7 +352,7 @@ export default function DeviationAnalysisPage() {
                                     ? format(new Date(round.date as string), "dd/MM/yyyy")
                                     : "N/A"}
                                 </TableCell>
-                                <TableCell className="font-medium">{round.name}</TableCell>
+                                <TableCell className="font-medium">{round.nom}</TableCell>
                                 <TableCell>{round.nomHub || 'N/A'}</TableCell>
                                 <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
                                 <TableCell className="text-right font-mono">
@@ -407,7 +407,7 @@ export default function DeviationAnalysisPage() {
                                         <TableCell>
                                             {round.date ? format(new Date(round.date as string), "dd/MM/yyyy") : "N/A"}
                                         </TableCell>
-                                        <TableCell className="font-medium">{round.name}</TableCell>
+                                        <TableCell className="font-medium">{round.nom}</TableCell>
                                         <TableCell>{round.nomHub || 'N/A'}</TableCell>
                                         <TableCell>{getDriverFullName(round) || "N/A"}</TableCell>
                                         <TableCell className="text-right font-mono">{totalBacs}</TableCell>
@@ -462,10 +462,10 @@ export default function DeviationAnalysisPage() {
                                 </TableCell>
                                 <TableCell className="font-medium">{task.nomTournee}</TableCell>
                                 <TableCell>{task.nomHub || 'N/A'}</TableCell>
-                                <TableCell>{task.contact?.personne || 'N/A'}</TableCell>
+                                <TableCell>{task.personneContact || 'N/A'}</TableCell>
                                 <TableCell>
-                                    {task.creneauHoraire?.debut ? format(new Date(task.creneauHoraire.debut), "HH:mm") : ''}
-                                    {task.creneauHoraire?.fin ? ` - ${format(new Date(task.creneauHoraire.fin), "HH:mm")}`: ''}
+                                    {task.debutCreneauInitial ? format(new Date(task.debutCreneauInitial), "HH:mm") : ''}
+                                    {task.finCreneauInitial ? ` - ${format(new Date(task.finCreneauInitial), "HH:mm")}`: ''}
                                 </TableCell>
                                 <TableCell>{format(new Date(plannedArriveTime), "HH:mm")}</TableCell>
                                 <TableCell className={`text-right font-bold ${deviationMinutes > 0 ? 'text-destructive' : 'text-blue-500'}`}>
@@ -489,5 +489,3 @@ export default function DeviationAnalysisPage() {
     </main>
   );
 }
-
-    

@@ -1,14 +1,14 @@
 # Spécification de la Structure des Données
 
-Ce document définit la structure de données finale pour les entités "Tâche" (Task) and "Tournée" (Round) après transformation des données brutes de l'API Urbantz.
+Ce document définit la structure de données finale pour les entités "Tâche" (Task), "Tournée" (Round) et "Bac" (Item) après transformation des données brutes de l'API Urbantz.
 
 ## Tournées (Rounds)
 
 | Nom de la Colonne | Champ JSON Correspondant | Description | Type de Donnée | Exemple |
 | --- | --- | --- | --- | --- |
 | **Identification** | | | | |
-| ID Interne | `id` | Identifiant unique de la tournée. | Texte | "68fca1af8334a870b5d5563c" |
-| ID | `id` | Identifiant unique (doublon). | Texte | "68fca1af8334a870b5d5563c" |
+| ID Interne | `id` ou `_id` | Identifiant unique de la tournée. | Texte | "68fca1af8334a870b5d5563c" |
+| ID | `id` ou `_id` | Identifiant unique (doublon). | Texte | "68fca1af8334a870b5d5563c" |
 | Nom | `name` | Nom lisible ou code de la tournée. | Texte | "150" |
 | Statut | `status` | Statut de la tournée. | Texte | "COMPLETED" |
 | Activité | `activity` | Type d'activité (ex: classic). | Texte | "classic" |
@@ -181,3 +181,20 @@ Ce document définit la structure de données finale pour les entités "Tâche" 
 | Désassoc. Transp. Rejetée | `externalCarrier.unassociationRejected` | Champ technique. | Booléen | false |
 | Mis à jour le | `dateMiseAJour` | Horodatage de la dernière modification. | Date/Heure | "2025-10-26T08:56:39.263Z" |
 | Créé le | `dateCreation` | Horodatage de la création de la tâche. | Date/Heure | "2025-10-25T14:04:18.764Z" |
+
+## Bacs (Items)
+
+| Nom de la Colonne | Champ JSON Correspondant (probable) | Description | Type de Donnée | Exemple |
+| --- | --- | --- | --- | --- |
+| **Identification & Liens** | | | | |
+| ID Tâche | (Lien) | Clé de liaison : Identifie la tâche (livraison). | Nombre | 621723118 |
+| Code-barres | `codeBarre` | Clé principale : L'identifiant unique du bac. | Texte | "C009504991367824" |
+| ID de la Tournée | (Lien) | Clé de liaison : Identifie la tournée. | Texte | "68fdcd936309d5ede86068db" |
+| Nom de la Tournée | (Lien) | Nom de la tournée (redondant). | Texte | "R01" |
+| **Détails du Bac** | | | | |
+| Nom | `nom` | Nom lisible du bac. | Texte | "Bac 1" |
+| Type | `type` | Catégorie du bac. | Texte | "SEC" |
+| Statut | `statut` | Statut individuel du bac. | Texte | "DELIVERED" |
+| Quantité | `dimensions.bac` | Quantité (généralement 1). | Nombre | 1 |
+| Quantité Traitée | (Interne) | Quantité réellement scannée. | Nombre | 1 |
+| Dimensions | `dimensions` | Poids et volume du bac (JSON). | Objet/JSON | `{"bac": 1, "weight": 40, ...}` |

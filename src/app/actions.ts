@@ -39,14 +39,11 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
     const nomCompletChauffeur = [prenomChauffeur, nomChauffeur].filter(Boolean).join(' ');
 
     return {
-        // Identification
         tacheId: rawTask.id,
         id: rawTask._id,
         referenceTache: rawTask.taskReference,
-        numeroCommande: rawTask.metaDonnees?.numeroCommande,
+        numeroCommande: rawTask.id,
         client: rawTask.client,
-        
-        // Contenu de la Tâche
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -57,8 +54,6 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         nombreDeBacsMeta: rawTask.metaDonnees?.nbreBacs,
         poidsEnKg: rawTask.dimensions?.poids,
         volumeEnCm3: rawTask.dimensions?.volume,
-
-        // Planification
         date: rawTask.date,
         dateInitialeLivraison: rawTask.metaDonnees?.Date_Initiale_Livraison,
         debutCreneauInitial: rawTask.creneauHoraire?.debut,
@@ -66,8 +61,6 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         margeFenetreHoraire: rawTask.timeWindowMargin,
         heureArriveeEstimee: stopInfo?.arriveTime,
         tempsDeServiceEstime: rawTask.tempsDeServiceEstime,
-
-        // Adresse & Instructions
         adresse: rawTask.localisation?.adresse,
         numero: rawTask.localisation?.numero,
         rue: rawTask.localisation?.rue,
@@ -82,16 +75,12 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         codePostal: rawTask.localisation?.codePostal,
         pays: rawTask.localisation?.codePays,
         instructions: rawTask.instructions,
-        
-        // Contact Client
         personneContact: rawTask.contact?.personne,
         compteContact: rawTask.contact?.compte,
         emailContact: rawTask.contact?.email,
         telephoneContact: rawTask.contact?.telephone,
         notifEmail: rawTask.notificationSettings?.email,
         notifSms: rawTask.notificationSettings?.sms,
-
-        // Réalisation & Statuts
         status: rawTask.status,
         heureArriveeReelle: rawTask.actualTime?.arrive?.when,
         dateCloture: rawTask.dateCloture,
@@ -101,16 +90,12 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         dateDuRetard: roundInfo?.delay?.when,
         tentatives: rawTask.tentatives,
         completePar: rawTask.completePar,
-        
-        // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
         debutTempsService: rawTask.realServiceTime?.startTime,
         finTempsService: rawTask.realServiceTime?.endTime,
         confianceTempsService: rawTask.realServiceTime?.confidence,
         versionTempsService: rawTask.realServiceTime?.version,
         horodatagesMinuteur: rawTask.execution?.timer?.timestamps,
-
-        // Preuves & Échecs
         sansContactForce: rawTask.execution?.contactless?.forced,
         raisonSansContact: rawTask.execution?.contactless?.reason,
         raisonEchec: rawTask.execution?.failedReason?.reason,
@@ -119,8 +104,6 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         photoSucces: rawTask.execution?.successPicture,
         latitudePosition: rawTask.execution?.position?.latitude,
         longitudePosition: rawTask.execution?.position?.longitude,
-
-        // Infos Tournée & Chauffeur
         nomTournee: rawTask.nomTournee,
         sequence: rawTask.sequence,
         nomAssocie: rawTask.nomAssocie,
@@ -130,8 +113,6 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         nomCompletChauffeur: nomCompletChauffeur,
         nomHub: rawTask.nomHub,
         nomPlateforme: rawTask.nomPlateforme,
-        
-        // Métadonnées & Système
         type: rawTask.type,
         flux: rawTask.flux,
         progression: rawTask.progression,
@@ -146,10 +127,10 @@ function transformTaskData(rawTask: any, allRoundsData: any[]): Tache {
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: rawTask.dateMiseAJour,
         dateCreation: rawTask.dateCreation,
-
-        // Articles pour calculs
         articles: rawTask.articles,
         raw: rawTask,
+        contact: rawTask.contact,
+        metaDonnees: rawTask.metaDonnees,
     };
 }
 
@@ -172,7 +153,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
     const poidsReelCalcule = tasksForThisRound.reduce((sum, task) => sum + (task.poidsEnKg || 0), 0);
 
     return {
-        // Identification
         id: rawRound.id || rawRound._id,
         nom: rawRound.name,
         statut: rawRound.status,
@@ -180,8 +160,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         date: rawRound.date,
         hubId: rawRound.hub,
         nomHub: rawRound.hubName,
-
-        // Infos Chauffeur & Véhicule
         associeNom: rawRound.associatedName,
         emailChauffeur: rawRound.driver?.externalId,
         prenomChauffeur: rawRound.driver?.firstName,
@@ -189,8 +167,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         immatriculation: rawRound.metadata?.Immatriculation,
         nomVehicule: rawRound.vehicle?.name,
         energie: rawRound.metadata?.Energie,
-
-        // Totaux de la Tournée
         bacsSurg: bacs.bacsSurg,
         bacsFrais: bacs.bacsFrais,
         bacsSec: bacs.bacsSec,
@@ -203,8 +179,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         volumeTournee: rawRound.dimensions?.volume,
         nbCommandes: rawRound.orderCount,
         commandesTerminees: rawRound.orderDone,
-        
-        // Horaires & Lieux
         lieuDepart: rawRound.startLocation,
         heureDepart: rawRound.startTime,
         lieuFin: rawRound.endLocation,
@@ -213,8 +187,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         demarreeReel: rawRound.realInfo?.hasStarted,
         prepareeReel: rawRound.realInfo?.hasPrepared,
         tempsPreparationReel: rawRound.realInfo?.preparationTime,
-
-        // Métriques & Coûts
         dureeReel: rawRound.realInfo?.hasLasted,
         tempsTotal: rawRound.totalTime,
         tempsTrajetTotal: rawRound.totalTravelTime,
@@ -227,8 +199,6 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         distanceTotale: rawRound.totalDistance,
         coutTotal: rawRound.totalCost,
         coutParTemps: rawRound.vehicle?.costPerUnitTime,
-
-        // Données Techniques & Véhicule
         flux: rawRound.flux,
         tempSurgChargement: rawRound.metadata?.TempSURG_Chargement,
         tempFraisChargement: rawRound.metadata?.TempsFRAIS_Chargement,
@@ -246,6 +216,8 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         commandesMaxVehicule: rawRound.vehicle?.maxOrders,
         misAJourLe: rawRound.updated,
         valide: rawRound.validated,
+        driver: rawRound.driver,
+        vehicle: rawRound.vehicle
     };
 }
 

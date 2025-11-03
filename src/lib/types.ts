@@ -4,7 +4,7 @@ import { Timestamp } from "firebase/firestore";
 export interface Tache {
     // Identification
     tacheId: string;
-    id: string; // from _id
+    id: string;
     referenceTache?: string;
     numeroCommande?: string;
     client?: string;
@@ -16,8 +16,8 @@ export interface Tache {
     bacsPoisson: number;
     bacsBoucherie: number;
     totalSecFrais: number;
-    nombreDeBacs?: number; // dimensions.bac
-    nombreDeBacsMeta?: number; // metaDonnees.nbreBacs
+    nombreDeBacs?: number;
+    nombreDeBacsMeta?: number;
     poidsEnKg?: number;
     volumeEnCm3?: number;
 
@@ -104,15 +104,19 @@ export interface Tache {
     notationLivreur?: number;
     serviceMeta?: string;
     codeEntrepôt?: string;
+
     commentaireLivreur?: string;
     infosSuiviTransp?: any;
     desassocTranspRejetee?: boolean;
     dateMiseAJour?: string;
     dateCreation?: string;
 
-    // Raw data
-    raw?: any;
-    articles?: any[];
+    // Articles pour calculs
+    articles?: Bac[];
+    raw: any; // Keep raw data for specific cases like bac calculation
+    carrierOverride?: string;
+    contact?: any;
+    metaDonnees?: any;
 }
 
 
@@ -191,8 +195,25 @@ export interface Tournee {
     commandesMaxVehicule?: number;
     misAJourLe?: string;
     valide?: boolean;
+    carrierOverride?: string;
+    driver?: any;
+    vehicle?: any;
+}
 
-    [key: string]: any;
+export interface Bac {
+    // Identification & Liens
+    tacheId: number;
+    codeBarre: string;
+    tourneeId: string;
+    nomTournee: string;
+
+    // Détails du Bac
+    nom: string;
+    type: string;
+    statut: string;
+    quantite: number;
+    quantiteTraitee: number;
+    dimensions: any;
 }
 
 
