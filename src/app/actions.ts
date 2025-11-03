@@ -484,7 +484,7 @@ export async function saveCategorizedCommentsAction(
     rating: number;
     category: string[];
     taskDate?: string;
-    driverName?: string;
+    nomCompletChauffeur?: string;
     nomHub?: string;
   }[]
 ) {
@@ -519,7 +519,7 @@ export async function updateSingleCommentAction(
     rating: number;
     category: string[];
     taskDate?: string;
-    driverName?: string;
+    nomCompletChauffeur?: string;
     nomHub?: string;
   }
 ) {
@@ -915,5 +915,7 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
 
     

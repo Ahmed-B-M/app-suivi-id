@@ -200,7 +200,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
           rating: task.notationLivreur!,
           category: getCategoryFromKeywords(task.metaCommentaireLivreur!),
           taskDate: taskDate,
-          driverName: getDriverFullName(task),
+          driverName: task.nomCompletChauffeur,
           nomHub: task.nomHub,
           status: 'à traiter' as const,
         });
@@ -329,3 +329,5 @@ export function useFilters() {
   }
   return context;
 }
+
+    
