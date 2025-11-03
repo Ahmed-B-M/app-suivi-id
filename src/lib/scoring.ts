@@ -19,6 +19,26 @@ export interface DriverStats {
 }
 
 /**
+ * Safely converts a string, Date, or Firestore Timestamp into a Date object.
+ * Returns null if the conversion fails.
+ */
+function safeParseDate(dateValue: any): Date | null {
+    if (!dateValue) return null;
+    try {
+        if (dateValue instanceof Date) return dateValue;
+        if (dateValue.toDate && typeof dateValue.toDate === 'function') { // Firestore Timestamp
+            return dateValue.toDate();
+        }
+        const parsed = new Date(dateValue);
+        if (!isNaN(parsed.getTime())) return parsed;
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+
+/**
  * Calculates all performance stats for a given list of tasks.
  * @param tasks - The tasks performed by a single driver.
  * @returns A raw stats object, without the composite score.
@@ -27,24 +47,20 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
   const completed = tasks.filter(t => t.progression === 'COMPLETED');
   const rated = completed.map(t => t.notationLivreur).filter((r): r is number => typeof r === 'number');
 
-  const completedWithTime = completed.filter(t => t.debutCreneauInitial && t.dateCloture);
+  const punctualityTasks = completed.filter(t => t.debutCreneauInitial && t.dateCloture);
   let punctual = 0;
   let lateOver1h = 0;
   
-  completedWithTime.forEach(t => {
-    try {
-      // Robust date parsing from string, Date, or Timestamp
-      const arrival = new Date(t.dateCloture as string | Date);
-      const windowStart = new Date(t.debutCreneauInitial as string | Date);
+  punctualityTasks.forEach(t => {
+      const arrival = safeParseDate(t.dateCloture);
+      const windowStart = safeParseDate(t.debutCreneauInitial);
 
-      // Check for invalid dates
-      if (isNaN(arrival.getTime()) || isNaN(windowStart.getTime())) {
-          return; 
+      if (!arrival || !windowStart) {
+          return; // Skip if dates are invalid
       }
-
-      // Default to a 2-hour window if 'fin' is not present
-      const windowEnd = t.finCreneauInitial ? new Date(t.finCreneauInitial as string | Date) : addMinutes(windowStart, 120);
-      if (isNaN(windowEnd.getTime())) {
+      
+      const windowEnd = t.finCreneauInitial ? safeParseDate(t.finCreneauInitial) : addMinutes(windowStart, 120);
+      if (!windowEnd) {
           return;
       }
 
@@ -61,9 +77,6 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
             lateOver1h++;
          }
       }
-    } catch (e) {
-      // Ignore tasks with invalid dates
-    }
   });
 
   return {
@@ -72,11 +85,11 @@ export function calculateRawDriverStats(name: string, tasks: Tache[]): Omit<Driv
     completedTasks: completed.length,
     totalRatings: rated.length,
     averageRating: rated.length > 0 ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
-    punctualityRate: completedWithTime.length > 0 ? (punctual / completedWithTime.length) * 100 : null,
+    punctualityRate: punctualityTasks.length > 0 ? (punctual / punctualityTasks.length) * 100 : null,
     scanbacRate: completed.length > 0 ? (completed.filter(t => t.terminePar === 'mobile').length / completed.length) * 100 : null,
     forcedAddressRate: completed.length > 0 ? (completed.filter(t => t.surPlaceForce === true).length / completed.length) * 100 : null,
     forcedContactlessRate: completed.length > 0 ? (completed.filter(t => t.sansContactForce === true).length / completed.length) * 100 : null,
-    lateOver1hRate: completedWithTime.length > 0 ? (lateOver1h / completedWithTime.length) * 100 : null,
+    lateOver1hRate: punctualityTasks.length > 0 ? (lateOver1h / punctualityTasks.length) * 100 : null,
   };
 }
 

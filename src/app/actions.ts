@@ -20,6 +20,16 @@ import { DateRange } from "react-day-picker";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+const toIsoOrUndefined = (date: any): string | undefined => {
+    if (!date) return undefined;
+    try {
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? undefined : d.toISOString();
+    } catch {
+        return undefined;
+    }
+};
+
 function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
     const roundInfo = allRoundsData.find(r => 
         r.nom === rawTask.roundName && 
@@ -62,14 +72,14 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         volumeEnCm3: rawTask.dimensions?.volume,
 
         // Planification
-        date: rawTask.date,
+        date: toIsoOrUndefined(rawTask.date),
         dateInitialeLivraison: rawTask.metadata?.Date_Initiale_Livraison,
-        debutCreneauInitial: rawTask.timeWindow?.start,
-        finCreneauInitial: rawTask.timeWindow?.stop,
-        debutFenetre: rawTask.timeWindow?.start,
-        finFenetre: rawTask.timeWindow?.stop,
+        debutCreneauInitial: toIsoOrUndefined(rawTask.timeWindow?.start),
+        finCreneauInitial: toIsoOrUndefined(rawTask.timeWindow?.stop),
+        debutFenetre: toIsoOrUndefined(rawTask.timeWindow?.start),
+        finFenetre: toIsoOrUndefined(rawTask.timeWindow?.stop),
         margeFenetreHoraire: rawTask.timeWindowMargin,
-        heureArriveeEstimee: rawTask.arriveTime,
+        heureArriveeEstimee: toIsoOrUndefined(rawTask.arriveTime),
         tempsDeServiceEstime: rawTask.serviceTime,
 
         // Adresse & Instructions
@@ -98,19 +108,19 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
 
         // Réalisation & Statuts
         status: rawTask.status,
-        heureArriveeReelle: rawTask.actualTime?.arrive.when,
-        dateCloture: rawTask.closureDate,
+        heureArriveeReelle: toIsoOrUndefined(rawTask.actualTime?.arrive.when),
+        dateCloture: toIsoOrUndefined(rawTask.closureDate),
         surPlaceForce: rawTask.actualTime?.arrive.forced,
         surPlaceValide: rawTask.actualTime?.arrive.isCorrectAddress,
         tempsDeRetard: roundInfo?.tempsDeRetard,
-        dateDuRetard: roundInfo?.dateDuRetard,
+        dateDuRetard: toIsoOrUndefined(roundInfo?.dateDuRetard),
         tentatives: rawTask.attempts,
         terminePar: rawTask.completedBy,
 
         // Temps de Service Réel
         tempsDeServiceReel: rawTask.realServiceTime?.serviceTime,
-        debutTempsService: rawTask.realServiceTime?.startTime,
-        finTempsService: rawTask.realServiceTime?.endTime,
+        debutTempsService: toIsoOrUndefined(rawTask.realServiceTime?.startTime),
+        finTempsService: toIsoOrUndefined(rawTask.realServiceTime?.endTime),
         confianceTempsService: rawTask.realServiceTime?.confidence,
         versionTempsService: rawTask.realServiceTime?.version,
         horodatagesMinuteur: rawTask.execution?.timer?.timestamps,
@@ -147,11 +157,11 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        metaCommentaireLivreur: rawTask.metadata?.commentaireLivreur,
+        metaCommentaireLivreur: rawTask.metadata?.commentaireLivr,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
-        dateMiseAJour: rawTask.updated,
-        dateCreation: rawTask.when,
+        dateMiseAJour: toIsoOrUndefined(rawTask.updated),
+        dateCreation: toIsoOrUndefined(rawTask.when),
         
         // Données brutes des articles
         articles: (rawTask.items || []).map((item: any): Article => ({
@@ -208,7 +218,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         nom: rawRound.name,
         statut: rawRound.status,
         activite: rawRound.activity,
-        date: rawRound.date,
+        date: toIsoOrUndefined(rawRound.date),
         hubId: rawRound.hub,
         nomHub: nomHub || rawRound.hubName,
 
@@ -237,12 +247,12 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         
         // Horaires & Lieux
         lieuDepart: rawRound.startLocation,
-        heureDepart: rawRound.startTime,
+        heureDepart: toIsoOrUndefined(rawRound.startTime),
         lieuFin: rawRound.endLocation,
-        heureFin: rawRound.endTime,
-        heureFinReelle: rawRound.realInfo?.hasFinished,
-        demarreeReel: rawRound.realInfo?.hasStarted,
-        prepareeReel: rawRound.realInfo?.hasPrepared,
+        heureFin: toIsoOrUndefined(rawRound.endTime),
+        heureFinReelle: toIsoOrUndefined(rawRound.realInfo?.hasFinished),
+        demarreeReel: toIsoOrUndefined(rawRound.realInfo?.hasStarted),
+        prepareeReel: toIsoOrUndefined(rawRound.realInfo?.hasPrepared),
         tempsPreparationReel: rawRound.realInfo?.preparationTime,
 
         // Métriques & Coûts
@@ -253,7 +263,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         tempsPauseTotal: rawRound.totalBreakServiceTime,
         tempsAttenteTotal: rawRound.totalWaitTime,
         tempsDeRetard: rawRound.delay?.time,
-        dateDuRetard: rawRound.delay?.when,
+        dateDuRetard: toIsoOrUndefined(rawRound.delay?.when),
         tempsViolationTotal: rawRound.totalViolationTime,
         distanceTotale: rawRound.totalDistance,
         coutTotal: rawRound.totalCost,
@@ -275,7 +285,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         distanceMaxVehicule: rawRound.vehicle?.maxDistance,
         dureeMaxVehicule: rawRound.vehicle?.maxDuration,
         commandesMaxVehicule: rawRound.vehicle?.maxOrders,
-        misAJourLe: rawRound.updated,
+        misAJourLe: toIsoOrUndefined(rawRound.updated),
         valide: rawRound.validated,
         driver: rawRound.driver,
     };
