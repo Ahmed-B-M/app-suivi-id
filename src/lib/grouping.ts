@@ -149,26 +149,26 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
 }
 
 export function getDriverFullName(item: Tache | Tournee | any): string | undefined {
-    if (item && item.livreur) {
-        const prenom = item.livreur.prenom || '';
-        const nom = item.livreur.nom || '';
-        if (prenom || nom) {
-            return `${prenom} ${nom}`.trim();
+    let firstName: string | undefined = '';
+    let lastName: string | undefined = '';
+
+    if (item) {
+        if (item.driver) { // For Tournee
+            firstName = item.driver.firstName;
+            lastName = item.driver.lastName;
+        } else if (item.livreur) { // For Tache
+            firstName = item.livreur.prenom;
+            lastName = item.livreur.nom;
+        } else if (item.prenomChauffeur || item.nomChauffeur) { // Fallback for flat structure
+            firstName = item.prenomChauffeur;
+            lastName = item.nomChauffeur;
         }
     }
-    if (item && item.driver) {
-        const prenom = item.driver.firstName || '';
-        const nom = item.driver.lastName || '';
-        if (prenom || nom) {
-            return `${prenom} ${nom}`.trim();
-        }
+
+    if (firstName || lastName) {
+        return `${firstName || ''} ${lastName || ''}`.trim();
     }
-    // Fallback for flat structure, just in case
-    const prenomChauffeur = item?.prenomChauffeur;
-    const nomChauffeur = item?.nomChauffeur;
-    if (prenomChauffeur || nomChauffeur) {
-        return `${prenomChauffeur || ''} ${nomChauffeur || ''}`.trim();
-    }
+
     return undefined;
 }
 
@@ -196,5 +196,3 @@ export function groupTasksByMonth(tasks: Tache[]) {
         return acc;
     }, {} as Record<string, Tache[]>);
 }
-
-
