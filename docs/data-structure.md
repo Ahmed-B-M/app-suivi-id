@@ -1,3 +1,4 @@
+
 # Spécification de la Structure des Données
 
 Ce document définit la structure de données finale pour les entités "Tâche" (Task), "Tournée" (Round) et "Article" (Item) après transformation des données brutes de l'API Urbantz.
@@ -188,3 +189,5 @@ Liste des champs de données pour l'entité Item (Bac/Article).
 - **Métadonnées**: `metadata` (Objet/JSON) - Métadonnées de l'article.
 - **Description**: `description` (Texte) - Description de l'article.
 - **Groupe**: `group` (Texte) - Code-barres du groupe dans lequel l'article est placé.
+
+    

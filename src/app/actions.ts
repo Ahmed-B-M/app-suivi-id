@@ -32,11 +32,11 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
     
     const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
-        if (type.includes('SURG')) acc.bacsSurg++;
-        else if (type.includes('FRAIS')) acc.bacsFrais++;
-        else if (type.includes('SEC')) acc.bacsSec++;
-        else if (type.includes('POISSON')) acc.bacsPoisson++;
-        else if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
+        if (type === 'SURG') acc.bacsSurg++;
+        else if (type === 'FRAIS') acc.bacsFrais++;
+        else if (type === 'SEC') acc.bacsSec++;
+        else if (type === 'POISSON') acc.bacsPoisson++;
+        else if (type === 'BOUCHERIE') acc.bacsBoucherie++;
         return acc;
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
 
@@ -160,7 +160,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
             tourneeId: rawTask.round,
             nomTournee: rawTask.roundName,
             nom: item.name,
-            type: item.type, // This line was missing
+            type: item.type,
             statut: item.status,
             quantite: item.quantity,
             quantiteTraitee: item.processedQuantity,
@@ -189,11 +189,11 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
     const bacs = tasksForThisRound.reduce((acc, task) => {
         (task.articles || []).forEach(article => {
             const type = (article.type || '').toUpperCase();
-            if (type.includes('SURG')) acc.bacsSurg++;
-            else if (type.includes('FRAIS')) acc.bacsFrais++;
-            else if (type.includes('SEC')) acc.bacsSec++;
-            else if (type.includes('POISSON')) acc.bacsPoisson++;
-            else if (type.includes('BOUCHERIE')) acc.bacsBoucherie++;
+            if (type === 'SURG') acc.bacsSurg++;
+            else if (type === 'FRAIS') acc.bacsFrais++;
+            else if (type === 'SEC') acc.bacsSec++;
+            else if (type === 'POISSON') acc.bacsPoisson++;
+            else if (type === 'BOUCHERIE') acc.bacsBoucherie++;
         });
         return acc;
     }, { bacsSurg: 0, bacsFrais: 0, bacsSec: 0, bacsPoisson: 0, bacsBoucherie: 0 });
@@ -898,7 +898,9 @@ export async function runDailySyncAction() {
     return {
       success: false,
       error: errorMsg,
-      logs
+      logs,
     };
   }
 }
+
+    
