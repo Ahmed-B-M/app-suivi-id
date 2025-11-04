@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, groupTasksByMonth } from '@/lib/grouping';
-import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
+import { useQuery } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
@@ -69,7 +69,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         setDateRange({ from, to });
       }
     }
-  }, [date, dateFilterMode]);
+  }, [date, dateFilterMode, dateRange]);
 
   useEffect(() => {
     if (dateFilterMode === 'range' && dateRange?.from) {
@@ -78,7 +78,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
          setDate(fromDate);
        }
     }
-  }, [dateRange, dateFilterMode]);
+  }, [dateRange, dateFilterMode, date]);
 
   const firestoreDateFilters = useMemo(() => {
     const from = dateRange?.from;
@@ -101,12 +101,12 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     
     if (!from) return [];
     
-    const startDate = startOfDay(from);
-    const endDate = endOfDay(to ?? from);
+    const startDate = startOfDay(from).toISOString();
+    const endDate = endOfDay(to ?? from).toISOString();
     
     return [
-      where("taskDate", ">=", startDate.toISOString()),
-      where("taskDate", "<=", endDate.toISOString())
+      where("taskDate", ">=", startDate),
+      where("taskDate", "<=", endDate)
     ];
   }, [dateRange]);
   
@@ -138,7 +138,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     () => {
         if (!allTasksData) return [];
         const depots = allTasksData.map(t => getDepotFromHub(t.nomHub));
-        const filteredDepots = depots.filter((d): d is string => !!d && d !== "Magasin");
+        const filteredDepots = depots.filter((d): d is string => !!d && getHubCategory(d) === 'entrepot');
         return [...new Set(filteredDepots)].sort();
     },
     [allTasksData]
@@ -147,7 +147,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const availableStores = useMemo(
     () => {
         if (!allTasksData) return [];
-        const stores = allTasksData.filter(t => getDepotFromHub(t.nomHub) === 'Magasin').map(t => t.nomHub);
+        const stores = allTasksData.filter(t => getHubCategory(t.nomHub) === 'magasin').map(t => t.nomHub);
         const filteredStores = stores.filter((s): s is string => !!s);
         return [...new Set(filteredStores)].sort();
     },

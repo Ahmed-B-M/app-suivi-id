@@ -8,6 +8,7 @@ export interface Depot {
   hubs: string[];
 }
 
+// Règle métier : Les noms de dépôts et les préfixes correspondants
 export const DEPOT_RULES: { name: string; prefixes: string[] }[] = [
   { name: "Aix", prefixes: ["Aix"] },
   { name: "Castries", prefixes: ["Cast"] },
@@ -19,68 +20,62 @@ export const DEPOT_RULES: { name: string; prefixes: string[] }[] = [
 
 export const DEPOTS_LIST = DEPOT_RULES.map(rule => rule.name);
 
-/**
- * Determines if a hub is a main depot.
- * @param hubName - The name of the hub.
- * @returns True if the hub is a depot, false otherwise.
- */
-function isDepot(hubName: string): boolean {
-    if (!hubName) return false;
-    return DEPOT_RULES.some(rule => 
-        rule.prefixes.some(prefix => 
-            hubName.toLowerCase().startsWith(prefix.toLowerCase())
-        )
-    );
-}
+// Règle métier : Les préfixes qui identifient un hub comme étant un magasin
+const STORE_PREFIXES = ['f', 'carrefour', 'lex'];
+
 
 /**
- * Determines the category ('entrepot' or 'magasin') of a hub.
- * @param hubName - The name of the hub.
- * @returns 'entrepot' or 'magasin'.
+ * Détermine la catégorie d'un hub ('entrepot' ou 'magasin') en se basant sur les règles métier.
+ * @param hubName - Le nom du hub.
+ * @returns 'entrepot' ou 'magasin'.
  */
 export function getHubCategory(hubName: string | undefined | null): 'entrepot' | 'magasin' {
   if (!hubName) {
+    // Par défaut, un hub sans nom est considéré comme un magasin pour éviter les erreurs,
+    // mais cela peut être ajusté selon la logique souhaitée.
     return "magasin";
   }
   
-  if (isDepot(hubName)) {
-    return "entrepot";
+  const lowerHubName = hubName.toLowerCase();
+  
+  // Si le nom du hub correspond à une règle de dépôt, c'est un entrepôt.
+  for (const rule of DEPOT_RULES) {
+    if (rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))) {
+      return "entrepot";
+    }
   }
 
-  // Specific rules for stores
-  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour') || hubName.toLowerCase().startsWith('lex')) {
+  // Si le nom du hub correspond à une règle de magasin, c'est un magasin.
+  if (STORE_PREFIXES.some(prefix => lowerHubName.startsWith(prefix))) {
     return 'magasin';
   }
 
-  // By default, if it's not a depot, it's a store
+  // Règle par défaut : si aucune règle de dépôt ne correspond, c'est un magasin.
   return "magasin";
 }
 
 
 /**
- * Determines the depot name from a hub name based on predefined rules.
- * @param hubName - The name of the hub.
- * @returns The name of the depot or a classification.
+ * Extrait le nom du dépôt groupé à partir d'un nom de hub.
+ * Si le hub est un magasin, il renvoie "Magasin".
+ * @param hubName - Le nom du hub.
+ * @returns Le nom du dépôt (ex: "Aix", "Vitry") ou "Magasin".
  */
 export function getDepotFromHub(hubName: string | undefined | null): string {
   if (!hubName) {
-    return "Magasin";
+    return "Magasin"; // Cas par défaut
   }
 
+  const lowerHubName = hubName.toLowerCase();
+
   for (const rule of DEPOT_RULES) {
-    for (const prefix of rule.prefixes) {
-      if (hubName.toLowerCase().startsWith(prefix.toLowerCase())) {
-        return rule.name;
-      }
+    if (rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))) {
+      return rule.name;
     }
   }
 
-  // Specific rules for stores
-  if (hubName.toLowerCase().startsWith('f') || hubName.toLowerCase().startsWith('carrefour') || hubName.toLowerCase().startsWith('lex')) {
-    return 'Magasin';
-  }
-
-  return hubName.split(" ")[0] || "Autre";
+  // Si aucune règle de regroupement de dépôt ne correspond, il s'agit d'un magasin.
+  return "Magasin";
 }
 
 

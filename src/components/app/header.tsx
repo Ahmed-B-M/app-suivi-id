@@ -49,16 +49,16 @@ export function AppHeader() {
   const handleDepotChange = (value: string) => {
     setSelectedDepot(value);
     if (value !== 'all') {
-      setSelectedStore('all');
-      setFilterType('entrepot');
+      setSelectedStore('all'); // Reset store filter
+      setFilterType('entrepot'); // Force filter type to entrepot
     }
   };
   
   const handleStoreChange = (value: string) => {
     setSelectedStore(value);
      if (value !== 'all') {
-      setSelectedDepot('all');
-      setFilterType('magasin');
+      setSelectedDepot('all'); // Reset depot filter
+      setFilterType('magasin'); // Force filter type to magasin
     }
   };
 
@@ -177,7 +177,7 @@ export function AppHeader() {
             </PopoverContent>
           </Popover>
           
-           <Select value={selectedDepot} onValueChange={handleDepotChange}>
+           <Select value={selectedDepot} onValueChange={handleDepotChange} disabled={filterType === 'magasin'}>
             <SelectTrigger className="w-[180px]">
               <Building className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par dépôt" />
@@ -192,7 +192,7 @@ export function AppHeader() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedStore} onValueChange={handleStoreChange}>
+          <Select value={selectedStore} onValueChange={handleStoreChange} disabled={filterType === 'entrepot'}>
             <SelectTrigger className="w-[180px]">
               <Warehouse className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filtrer par entrepôt" />
