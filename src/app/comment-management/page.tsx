@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
@@ -161,32 +160,42 @@ export default function CommentManagementPage() {
 
   const handleBulkSuggest = () => {
     startBulkAnalyzeTransition(async () => {
-      const commentsToAnalyze = finalCommentsToDisplay.filter(c => c.status === 'à traiter');
-      if (commentsToAnalyze.length === 0) {
-        toast({ title: "Aucun commentaire à analyser", description: "Il n'y a pas de commentaires avec le statut 'à traiter'."});
-        return;
-      }
-      
-      toast({ title: "Analyse en cours...", description: `Analyse de ${commentsToAnalyze.length} commentaires.`});
-
-      let successCount = 0;
-      for (const comment of commentsToAnalyze) {
-        try {
-          const result = await categorizeSingleCommentAction(comment.comment);
-          const updates: Partial<CategorizedComment> = { status: 'en cours' };
-          if (result.categories) updates.category = result.categories;
-          if (result.responsibilities) updates.responsibilities = result.responsibilities;
-          addPendingComment({ ...comment, ...updates });
-          successCount++;
-        } catch (error) {
-          // Silently fail for one, but maybe log it
-          console.error(`Failed to analyze comment for task ${comment.taskId}:`, error);
+        const commentsToAnalyze = finalCommentsToDisplay.filter(c => c.status === 'à traiter');
+        if (commentsToAnalyze.length === 0) {
+            toast({ title: "Aucun commentaire à analyser", description: "Il n'y a pas de commentaires avec le statut 'à traiter'."});
+            return;
         }
-      }
 
-      toast({ title: "Analyse terminée", description: `${successCount} sur ${commentsToAnalyze.length} commentaires ont été analysés et mis en cache.`});
+        toast({ title: "Analyse en cours...", description: `Lancement de l'analyse pour ${commentsToAnalyze.length} commentaires.` });
+
+        const analysisPromises = commentsToAnalyze.map(comment =>
+            categorizeSingleCommentAction(comment.comment)
+                .then(result => ({ comment, result }))
+                .catch(error => {
+                    console.error(`Échec de l'analyse pour la tâche ${comment.taskId}:`, error);
+                    return { comment, error }; // Retourner l'erreur pour la gestion
+                })
+        );
+
+        const results = await Promise.all(analysisPromises);
+
+        let successCount = 0;
+        results.forEach(({ comment, result, error }) => {
+            if (result && !error) {
+                const updates: Partial<CategorizedComment> = { status: 'en cours' };
+                if (result.categories) updates.category = result.categories;
+                if (result.responsibilities) updates.responsibilities = result.responsibilities;
+                addPendingComment({ ...comment, ...updates });
+                successCount++;
+            }
+        });
+        
+        toast({
+            title: "Analyse terminée",
+            description: `${successCount} sur ${commentsToAnalyze.length} commentaires ont été analysés et mis en cache.`
+        });
     });
-  };
+};
 
 
   if (isContextLoading) {
@@ -303,4 +312,3 @@ export default function CommentManagementPage() {
     </div>
   );
 }
-
