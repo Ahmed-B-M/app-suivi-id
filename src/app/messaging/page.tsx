@@ -2,14 +2,15 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useCollection, useUser, useFirebase, useMemoFirebase } from "@/firebase";
+import { useUser, useFirebase, useMemoFirebase } from "@/firebase";
+import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, query, where, orderBy, serverTimestamp, addDoc, updateDoc, doc } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Users, Hash, Loader2 } from "lucide-react";
+import { Send, Users, Hash, Loader2, MessageCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
