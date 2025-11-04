@@ -25,6 +25,7 @@ import { useMemo, useTransition } from "react";
 import { runDailySyncAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { clearCollectionCache } from "@/firebase/firestore/use-collection";
+import { useFilters } from "@/context/filter-context";
 
 
 const allLinks = [
@@ -55,14 +56,19 @@ export function SidebarNav() {
   const auth = useAuth();
   const { toast } = useToast();
   const { user, isUserLoading, userProfile } = useUser();
+  const { allComments, allProcessedVerbatims } = useFilters();
   
-  // THE FIX: Use the hooks correctly to get the pending objects
   const { pendingComments } = usePendingComments();
   const { pendingVerbatims } = usePendingVerbatims();
 
-  // THE FIX: Calculate the count from the length of the object keys
-  const pendingCommentsCount = Object.keys(pendingComments).length;
-  const pendingVerbatimsCount = Object.keys(pendingVerbatims).length;
+  const pendingCommentsCount = useMemo(() => {
+    return allComments.filter(c => c.status === 'à traiter').length;
+  }, [allComments]);
+
+  const pendingVerbatimsCount = useMemo(() => {
+    return allProcessedVerbatims.filter(v => v.status === 'à traiter').length;
+  }, [allProcessedVerbatims]);
+
 
   const [isSyncing, startSyncTransition] = useTransition();
 
@@ -114,7 +120,6 @@ export function SidebarNav() {
                 >
                   {link.icon}
                   <span>{link.label}</span>
-                   {/* THE FIX: Use the calculated count */}
                    {link.isCommentLink && pendingCommentsCount > 0 && (
                      <Badge variant="secondary" className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
                        {pendingCommentsCount}
