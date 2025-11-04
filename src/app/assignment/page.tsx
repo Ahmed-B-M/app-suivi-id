@@ -150,7 +150,7 @@ export default function AssignmentPage() {
                                                                         <TableBody>
                                                                             {rounds.map(round => (
                                                                                 <TableRow key={round.id}>
-                                                                                    <TableCell className="font-medium">{round.name}</TableCell>
+                                                                                    <TableCell className="font-medium">{round.nom}</TableCell>
                                                                                     <TableCell>{getDriverFullName(round)}</TableCell>
                                                                                     <TableCell>
                                                                                         <Badge variant="outline">{getCarrierFromDriver({ ...round, carrierOverride: undefined })}</Badge>
