@@ -11,7 +11,9 @@ const cache = new Map<string, { data: any[]; lastUpdateTime: Date; unsubscribe: 
  * Clears the entire collection cache and unsubscribes from all listeners.
  */
 export function clearCollectionCache() {
-  for (const cached of cache.values()) {
+  console.log("Clearing collection cache...");
+  for (const [key, cached] of cache.entries()) {
+    console.log(`Unsubscribing from ${key}`);
     cached.unsubscribe();
   }
   cache.clear();
@@ -98,7 +100,7 @@ export function useCollection<T>(
     }
 
     return () => {
-        if (cache.has(cacheKey)) {
+        if (cacheKey && cache.has(cacheKey)) {
            const cached = cache.get(cacheKey)!;
            cached.listeners--;
            if (cached.listeners === 0) {

@@ -1,10 +1,10 @@
 
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, groupTasksByMonth } from '@/lib/grouping';
-import { useQuery } from '@/firebase/firestore/use-query';
+import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup, orderBy } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
@@ -43,6 +43,7 @@ interface FilterContextProps {
   processedVerbatims: SavedProcessedNpsVerbatim[];
   allProcessedVerbatims: ProcessedVerbatim[];
   isContextLoading: boolean;
+  clearAllData: () => void;
 }
 
 const FilterContext = createContext<FilterContextProps | undefined>(undefined);
@@ -61,6 +62,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const [selectedDepot, setSelectedDepot] = useState('all');
   const [selectedStore, setSelectedStore] = useState('all');
   
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const clearAllData = useCallback(() => {
+    clearQueryCache();
+    setRefreshKey(prev => prev + 1);
+  }, []);
+
   useEffect(() => {
     if (dateFilterMode === 'day' && date) {
       const from = startOfDay(date);
@@ -130,11 +138,11 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const categorizedCommentsCollection = useMemo(() => firestore ? collection(firestore, 'categorized_comments') : null, [firestore]);
   const processedVerbatimsCollection = useMemo(() => firestore ? collection(firestore, 'processed_nps_verbatims') : null, [firestore]);
 
-  const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: true});
-  const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useQuery<Tournee>(roundsCollection, firestoreDateFilters, {realtime: true});
-  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: true});
-  const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, commentsDateFilters, {realtime: true});
-  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true});
+  const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: true, refreshKey});
+  const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useQuery<Tournee>(roundsCollection, firestoreDateFilters, {realtime: true, refreshKey});
+  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: true, refreshKey});
+  const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, commentsDateFilters, {realtime: true, refreshKey});
+  const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true, refreshKey});
   
   const availableDepots = useMemo(
     () => {
@@ -332,6 +340,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         processedVerbatims,
         allProcessedVerbatims,
         isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims,
+        clearAllData,
       }}
     >
       {children}
@@ -346,5 +355,3 @@ export function useFilters() {
   }
   return context;
 }
-
-    

@@ -1,16 +1,12 @@
+
 "use client";
 
 import { useMemo } from "react";
-import { useQuery, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
+import { useFilters } from "@/context/filter-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
-import type { Tache, Tournee } from "@/lib/types";
-import { useFilters } from "@/context/filter-context";
-import { getHubCategory, getDepotFromHub } from "@/lib/grouping";
 import { DetailsTasksTable } from "@/components/app/details-tasks-table";
 import { DetailsRoundsTable } from "@/components/app/details-rounds-table";
 import { DetailsBacsTable } from "@/components/app/details-bacs-table";
@@ -19,7 +15,7 @@ export default function DetailsPage() {
   const { allTasks: filteredTasks, allRounds: filteredRounds, isContextLoading } = useFilters();
 
   const isLoading = isContextLoading;
-  const error = null; // Assuming no errors from context
+  const error = null; // No direct error fetching here, comes from context
 
   return (
     <main className="flex-1 container py-8">
@@ -44,10 +40,10 @@ export default function DetailsPage() {
           </CardHeader>
           <CardContent>
             <p>
-              Impossible de charger les données depuis Firestore.
+              Impossible de charger les données.
             </p>
             <pre className="mt-4 text-sm bg-background p-2 rounded">
-              {error.message}
+              {(error as Error).message}
             </pre>
           </CardContent>
         </Card>

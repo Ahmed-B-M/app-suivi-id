@@ -24,7 +24,6 @@ import { hasAccess } from "@/lib/roles";
 import { useMemo, useTransition } from "react";
 import { runDailySyncAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
-import { clearCollectionCache } from "@/firebase/firestore/use-collection";
 import { useFilters } from "@/context/filter-context";
 
 
@@ -56,7 +55,7 @@ export function SidebarNav() {
   const auth = useAuth();
   const { toast } = useToast();
   const { user, isUserLoading, userProfile } = useUser();
-  const { allComments, allProcessedVerbatims } = useFilters();
+  const { allComments, allProcessedVerbatims, clearAllData } = useFilters();
   
   const { pendingComments } = usePendingComments();
   const { pendingVerbatims } = usePendingVerbatims();
@@ -86,7 +85,7 @@ export function SidebarNav() {
       });
       const result = await runDailySyncAction();
       if (result.success) {
-        clearCollectionCache();
+        clearAllData(); // Clear context cache
         toast({
           title: "Synchronisation terminée !",
           description: "Les données des dernières 48h ont été mises à jour.",
