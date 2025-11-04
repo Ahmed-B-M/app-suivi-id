@@ -17,7 +17,7 @@ import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig,
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useQuery } from "@/firebase";
 import { Skeleton } from "../ui/skeleton";
 import type { Role } from "@/lib/roles";
 import { hasAccess } from "@/lib/roles";
@@ -26,6 +26,7 @@ import { runSyncAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useFilters } from "@/context/filter-context";
 import { format, subDays } from "date-fns";
+import { collection, where } from "firebase/firestore";
 
 
 const allLinks = [
@@ -33,7 +34,7 @@ const allLinks = [
   { href: "/", label: "Tableau de Bord", icon: <LayoutDashboard /> },
   { href: "/summary", label: "Synthèse", icon: <BarChartBig /> },
   { href: "/forecast", label: "FORECAST", icon: <TrendingUp /> },
-  { href: "/notifications", label: "Notifications", icon: <Bell /> },
+  { href: "/notifications", label: "Notifications", icon: <Bell />, isNotificationLink: true },
   { href: "/messaging", label: "Messagerie", icon: <MessageCircle /> },
   // --- Analyse & Opérations ---
   { href: "/deviation-analysis", label: "Analyse des Écarts", icon: <Scale /> },
@@ -56,11 +57,15 @@ export function SidebarNav() {
   const pathname = usePathname();
   const auth = useAuth();
   const { toast } = useToast();
-  const { user, isUserLoading, userProfile } = useUser();
+  const { user, isUserLoading, userProfile, firestore } = useUser();
   const { allComments, allProcessedVerbatims, clearAllData } = useFilters();
   
   const { pendingComments } = usePendingComments();
   const { pendingVerbatims } = usePendingVerbatims();
+
+  const notificationsCollection = useMemo(() => firestore ? collection(firestore, 'notifications') : null, [firestore]);
+  const { data: unreadNotifications } = useQuery<{id: string}>(notificationsCollection, [where('status', '==', 'unread')], { realtime: true });
+  const unreadCount = unreadNotifications.length;
 
   const pendingCommentsCount = useMemo(() => {
     return allComments.filter(c => c.status === 'à traiter').length;
@@ -132,6 +137,11 @@ export function SidebarNav() {
                 >
                   {link.icon}
                   <span>{link.label}</span>
+                   {link.isNotificationLink && unreadCount > 0 && (
+                     <Badge variant="destructive" className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
+                       {unreadCount > 9 ? '9+' : unreadCount}
+                     </Badge>
+                   )}
                    {link.isCommentLink && pendingCommentsCount > 0 && (
                      <Badge variant="secondary" className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center p-1 text-xs">
                        {pendingCommentsCount}

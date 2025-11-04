@@ -9,7 +9,7 @@ import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay, parseISO, addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, getDocs, collection, query, where, Timestamp } from 'firebase-admin/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
@@ -356,13 +356,21 @@ async function fetchAllRounds(apiKey: string, params: URLSearchParams, logs: str
     return fetchGeneric("round", apiKey, params, logs);
 }
 
-async function createNotification(firestore: FirebaseFirestore.Firestore, notification: Omit<Notification, 'id' | 'createdAt' | 'status'>) {
+async function createNotification(firestore: FirebaseFirestore.Firestore, notification: Omit<Notification, 'id' | 'createdAt' | 'status'>, existingNotifications: Set<string>) {
+    const uniqueKey = `${notification.type}-${notification.relatedEntity.type}-${notification.relatedEntity.id}`;
+    
+    if (existingNotifications.has(uniqueKey)) {
+        return false; // Notification already exists, do not create
+    }
+
     const notificationWithTimestamp = {
         ...notification,
         status: 'unread' as const,
         createdAt: FieldValue.serverTimestamp(),
     };
     await firestore.collection('notifications').add(notificationWithTimestamp);
+    existingNotifications.add(uniqueKey); // Add to our set to prevent duplicates in the same run
+    return true; // Notification was created
 }
 
 export async function runSyncAction(
@@ -435,53 +443,62 @@ export async function runSyncAction(
     }
     
     logs.push(`\n🔔 Génération des notifications...`);
+    
+    // --- Déduplication des notifications ---
+    logs.push(`   - Vérification des notifications existantes pour éviter les doublons...`);
+    const existingNotificationsSnapshot = await getDocs(query(collection(firestore, 'notifications'), where('status', '==', 'unread')));
+    const existingUnreadNotifications = new Set<string>();
+    existingNotificationsSnapshot.forEach(doc => {
+        const notif = doc.data() as Notification;
+        const uniqueKey = `${notif.type}-${notif.relatedEntity.type}-${notif.relatedEntity.id}`;
+        existingUnreadNotifications.add(uniqueKey);
+    });
+    logs.push(`   - ${existingUnreadNotifications.size} notifications non lues trouvées.`);
+    // --- Fin déduplication ---
+
     let notificationCount = 0;
     const WEIGHT_LIMIT = 1250;
     const NEGATIVE_COMMENT_KEYWORDS = ["impoli", "agressif", "pas aimable", "desagreable"];
     
-    const processedTaskIdsForNotif = new Set<string>();
-
     const qualityAlertTasks = transformedTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
     for (const task of qualityAlertTasks) {
-        if (task.tacheId && !processedTaskIdsForNotif.has(task.tacheId)) {
+        if (task.tacheId) {
             const clientName = task.personneContact || 'Un client';
-            await createNotification(firestore, {
+            const created = await createNotification(firestore, {
                 type: 'quality_alert',
                 message: `Note de ${task.notationLivreur}/5 de ${clientName} pour ${getDriverFullName(task) || 'un livreur'} sur la tournée ${task.nomTournee || 'inconnue'}.`,
                 relatedEntity: { type: 'task', id: task.tacheId }
-            });
-            notificationCount++;
-            processedTaskIdsForNotif.add(task.tacheId);
+            }, existingUnreadNotifications);
+            if (created) notificationCount++;
         }
     }
 
     const commentAlertTasks = transformedTasks.filter(t => 
-        t.tacheId && !processedTaskIdsForNotif.has(t.tacheId) &&
+        t.tacheId &&
         t.metaCommentaireLivreur &&
         NEGATIVE_COMMENT_KEYWORDS.some(keyword => t.metaCommentaireLivreur!.toLowerCase().includes(keyword))
     );
      for (const task of commentAlertTasks) {
         if (task.tacheId) {
             const commentExtract = task.metaCommentaireLivreur!.substring(0, 30);
-             await createNotification(firestore, {
+             const created = await createNotification(firestore, {
                 type: 'quality_alert',
                 message: `Commentaire négatif pour ${getDriverFullName(task) || 'un livreur'}: "${commentExtract}..."`,
                 relatedEntity: { type: 'task', id: task.tacheId }
-            });
-            notificationCount++;
-            processedTaskIdsForNotif.add(task.tacheId);
+            }, existingUnreadNotifications);
+            if (created) notificationCount++;
         }
     }
 
     const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > WEIGHT_LIMIT);
     for (const round of overweightRounds) {
        const driverName = getDriverFullName(round) || "un livreur";
-       await createNotification(firestore, {
+       const created = await createNotification(firestore, {
             type: 'overweight_round',
             message: `Surcharge poids pour ${driverName} sur la tournée ${round.nom} (${round.poidsReel.toFixed(0)} kg).`,
             relatedEntity: { type: 'round', id: round.id }
-        });
-        notificationCount++;
+        }, existingUnreadNotifications);
+        if (created) notificationCount++;
     }
 
     const lateDrivers: Record<string, { count: number, total: number }> = {};
@@ -506,16 +523,16 @@ export async function runSyncAction(
     for (const [driver, stats] of Object.entries(lateDrivers)) {
         const latePercentage = (stats.count / stats.total) * 100;
         if (stats.total >= 5 && latePercentage > 40) {
-             await createNotification(firestore, {
+             const created = await createNotification(firestore, {
                 type: 'late_delivery_pattern',
                 message: `Tendance de retard détectée pour ${driver} (${stats.count}/${stats.total} livraisons en retard).`,
                 relatedEntity: { type: 'driver', id: driver }
-            });
-            notificationCount++;
+            }, existingUnreadNotifications);
+            if (created) notificationCount++;
         }
     }
 
-    logs.push(`   - ✅ ${notificationCount} notifications générées.`);
+    logs.push(`   - ✅ ${notificationCount} nouvelle(s) notification(s) générée(s).`);
 
     logs.push(`\n\n🎉 Exportation terminée !`);
     logs.push(`   - ${transformedTasks.length} tâches et ${finalFilteredRounds.length} tournées prêtes.`);
@@ -703,5 +720,3 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
     };
   }
 }
-
-    

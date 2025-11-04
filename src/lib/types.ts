@@ -296,7 +296,7 @@ export interface Notification {
   type: 'quality_alert' | 'overweight_round' | 'late_delivery_pattern';
   message: string;
   status: 'unread' | 'read' | 'archived';
-  createdAt: string; // ISO string
+  createdAt: string | Timestamp;
   relatedEntity: {
     type: 'task' | 'round' | 'driver';
     id: string;
@@ -324,6 +324,7 @@ export interface Room {
     senderName: string;
     timestamp: Timestamp;
   };
+  notificationId?: string; // Optional ID of the notification this room is about
 }
 
 export interface Message {
