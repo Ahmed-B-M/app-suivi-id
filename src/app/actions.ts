@@ -541,3 +541,45 @@ export async function getScheduleAction(
 export async function categorizeSingleCommentAction(comment: string): Promise<CategorizeCommentOutput> {
   return await categorizeComment({ comment });
 }
+
+// --- Save Categorized Comments to Firestore ---
+export async function saveCategorizedCommentsAction(
+  categorizedComments: {
+    taskId: string;
+    comment: string;
+    rating: number;
+    category: string[];
+    taskDate?: string;
+    driverName?: string;
+    nomHub?: string;
+  }[]
+) {
+  try {
+    const { firestore } = useFirebase();
+    const batch = writeBatch(firestore);
+    
+    categorizedComments.forEach(comment => {
+      if (comment.taskId) {
+        const docRef = doc(firestore, "categorized_comments", comment.taskId);
+        // Ensure a default status is set when saving
+        batch.set(docRef, { ...comment, status: 'traité' }, { merge: true });
+      }
+    });
+
+    await batch.commit();
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error saving categorized comments:", error);
+    const permissionError = new FirestorePermissionError({
+        path: 'categorized_comments',
+        operation: 'write',
+        requestResourceData: categorizedComments.map(c => c.taskId)
+    });
+    errorEmitter.emit('permission-error', permissionError);
+
+    return {
+      success: false,
+      error: error.message || "Failed to save categorized comments to Firestore.",
+    };
+  }
+}
