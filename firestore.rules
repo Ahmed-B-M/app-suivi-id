@@ -20,11 +20,11 @@ service cloud.firestore {
 
     match /rooms/{roomId}/messages/{messageId} {
       // Only members of the room can read messages
-      allow list, get: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.members.hasAny([request.auth.uid]);
+      allow list, get: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.members.includes(request.auth.uid);
 
       // Only members of the room can create (send) messages
       allow create: if request.auth != null 
-                    && get(/databases/$(database)/documents/rooms/$(roomId)).data.members.hasAny([request.auth.uid])
+                    && get(/databases/$(database)/documents/rooms/$(roomId)).data.members.includes(request.auth.uid)
                     && request.resource.data.senderId == request.auth.uid; // User can only send as themselves
     }
   }
