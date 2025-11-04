@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -158,44 +159,65 @@ export default function CommentManagementPage() {
     }
   };
 
-  const handleBulkSuggest = () => {
+  const handleBulkSuggest = useCallback(() => {
     startBulkAnalyzeTransition(async () => {
-        const commentsToAnalyze = finalCommentsToDisplay.filter(c => c.status === 'à traiter');
-        if (commentsToAnalyze.length === 0) {
-            toast({ title: "Aucun commentaire à analyser", description: "Il n'y a pas de commentaires avec le statut 'à traiter'."});
-            return;
-        }
-
-        toast({ title: "Analyse en cours...", description: `Lancement de l'analyse pour ${commentsToAnalyze.length} commentaires.` });
-
-        const analysisPromises = commentsToAnalyze.map(comment =>
-            categorizeSingleCommentAction(comment.comment)
-                .then(result => ({ comment, result }))
-                .catch(error => {
-                    console.error(`Échec de l'analyse pour la tâche ${comment.taskId}:`, error);
-                    return { comment, error }; // Retourner l'erreur pour la gestion
-                })
-        );
-
-        const results = await Promise.all(analysisPromises);
-
-        let successCount = 0;
-        results.forEach(({ comment, result, error }) => {
-            if (result && !error) {
-                const updates: Partial<CategorizedComment> = { status: 'en cours' };
-                if (result.categories) updates.category = result.categories;
-                if (result.responsibilities) updates.responsibilities = result.responsibilities;
-                addPendingComment({ ...comment, ...updates });
-                successCount++;
-            }
-        });
-        
+      const commentsToAnalyze = finalCommentsToDisplay.filter(
+        (c) => c.status === "à traiter"
+      );
+      if (commentsToAnalyze.length === 0) {
         toast({
-            title: "Analyse terminée",
-            description: `${successCount} sur ${commentsToAnalyze.length} commentaires ont été analysés et mis en cache.`
+          title: "Aucun commentaire à analyser",
+          description: "Il n'y a pas de commentaires avec le statut 'à traiter'.",
         });
+        return;
+      }
+
+      toast({
+        title: "Analyse en cours...",
+        description: `Lancement de l'analyse pour ${commentsToAnalyze.length} commentaires.`,
+      });
+
+      const analysisPromises = commentsToAnalyze.map((comment) =>
+        categorizeSingleCommentAction(comment.comment)
+          .then((result) => ({
+            success: true,
+            comment,
+            result,
+          }))
+          .catch((error) => {
+            console.error(`Échec de l'analyse pour la tâche ${comment.taskId}:`, error);
+            return { success: false, comment, error }; // Retourner l'erreur pour la gestion
+          })
+      );
+
+      const results = await Promise.all(analysisPromises);
+      
+      let successCount = 0;
+      let newPendingComments: Record<string, CategorizedComment> = {};
+
+      for (const res of results) {
+        if (res.success) {
+          const { comment, result } = res;
+          const updates: Partial<CategorizedComment> = { status: "en cours" };
+          if (result.categories) updates.category = result.categories;
+          if (result.responsibilities) updates.responsibilities = result.responsibilities;
+          
+          newPendingComments[comment.taskId] = { ...comment, ...updates };
+          successCount++;
+        }
+      }
+
+      // Batch update the state to avoid multiple re-renders
+      if(Object.keys(newPendingComments).length > 0) {
+        addPendingComment(newPendingComments);
+      }
+
+      toast({
+        title: "Analyse terminée",
+        description: `${successCount} sur ${commentsToAnalyze.length} commentaires ont été analysés et mis en cache.`,
+      });
     });
-};
+  }, [finalCommentsToDisplay, toast, startBulkAnalyzeTransition, addPendingComment]);
 
 
   if (isContextLoading) {
@@ -312,3 +334,4 @@ export default function CommentManagementPage() {
     </div>
   );
 }
+

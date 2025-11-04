@@ -43,10 +43,21 @@ export function usePendingComments() {
     }
   };
 
-  const addPendingComment = useCallback((comment: CategorizedComment) => {
-    const newComments = { ...pendingComments, [comment.taskId]: comment };
-    updateCache(newComments);
-  }, [pendingComments]);
+  const addPendingComment = useCallback((commentOrComments: CategorizedComment | Record<string, CategorizedComment>) => {
+    setPendingComments(prev => {
+      const newComments = { ...prev };
+      if ('taskId' in commentOrComments) { // Single comment
+        newComments[commentOrComments.taskId] = commentOrComments;
+      } else { // Batch of comments
+        Object.assign(newComments, commentOrComments);
+      }
+      
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(newComments));
+      }
+      return newComments;
+    });
+  }, []);
 
   const removePendingComment = useCallback((taskId: string) => {
     const { [taskId]: _, ...rest } = pendingComments;
