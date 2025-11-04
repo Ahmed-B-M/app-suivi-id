@@ -490,8 +490,9 @@ export async function saveCategorizedCommentsAction(
     rating: number;
     category: string[];
     taskDate?: string;
-    nomCompletChauffeur?: string;
+    driverName?: string; // Corrected from nomCompletChauffeur
     nomHub?: string;
+    status: 'à traiter' | 'traité';
   }[]
 ) {
   try {
@@ -501,8 +502,8 @@ export async function saveCategorizedCommentsAction(
     categorizedComments.forEach(comment => {
       if (comment.taskId) {
         const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
-        // Ensure a default status is set when saving
-        batch.set(docRef, { ...comment, status: 'à traiter' }, { merge: true });
+        // The comment object passed in now contains the correct status
+        batch.set(docRef, comment, { merge: true });
       }
     });
 
@@ -525,7 +526,7 @@ export async function updateSingleCommentAction(
     rating: number;
     category: string[];
     taskDate?: string;
-    nomCompletChauffeur?: string;
+    driverName?: string;
     nomHub?: string;
   }
 ) {
