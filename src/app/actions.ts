@@ -583,3 +583,35 @@ export async function saveCategorizedCommentsAction(
     };
   }
 }
+
+// --- Save Processed Verbatims to Firestore ---
+export async function saveProcessedVerbatimsAction(
+  verbatims: ProcessedVerbatim[]
+) {
+  try {
+    const { firestore } = useFirebase();
+    const batch = writeBatch(firestore);
+    
+    verbatims.forEach(verbatim => {
+      const { id, ...dataToSave } = verbatim;
+      const docRef = doc(firestore, "processed_nps_verbatims", id);
+      batch.set(docRef, { ...dataToSave, status: 'traité' }, { merge: true });
+    });
+
+    await batch.commit();
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error saving processed verbatims:", error);
+    const permissionError = new FirestorePermissionError({
+        path: 'processed_nps_verbatims',
+        operation: 'write',
+        requestResourceData: verbatims.map(v => v.taskId)
+    });
+    errorEmitter.emit('permission-error', permissionError);
+
+    return {
+      success: false,
+      error: error.message || "Failed to save processed verbatims to Firestore.",
+    };
+  }
+}
