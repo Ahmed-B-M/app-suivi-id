@@ -85,7 +85,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         debutFenetre: toIsoOrUndefined(rawTask.timeWindow?.start),
         finFenetre: toIsoOrUndefined(rawTask.timeWindow?.stop),
         margeFenetreHoraire: rawTask.timeWindowMargin,
-        heureArriveeEstimee: toIsoOrUndefined(rawTask.arriveTime),
+        heureArriveeEstimee: toIsoOrUndefined(stopInfo?.arriveTime),
         tempsDeServiceEstime: rawTask.serviceTime,
 
         // Adresse & Instructions
@@ -611,33 +611,37 @@ export async function saveNpsDataAction(
 }
 
 
-// --- Save a single Processed Verbatim to Firestore ---
-export async function saveProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
+// --- Save Processed Verbatims (Batch) ---
+export async function saveProcessedVerbatimsAction(verbatims: ProcessedVerbatim[]) {
   try {
     const { firestore } = await initializeFirebaseOnServer();
+    const batch = firestore.batch();
     
-    if (!verbatim.associationDate) {
-        throw new Error("La date d'association est manquante pour le verbatim. Impossible de sauvegarder.");
-    }
-    
-    const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
+    verbatims.forEach(verbatim => {
+        if (!verbatim.associationDate) {
+            throw new Error(`La date d'association est manquante pour le verbatim de la tâche ${verbatim.taskId}.`);
+        }
+        
+        const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.taskId);
 
-    const dataToSave: Omit<ProcessedVerbatim, 'id'> & { status: 'traité' } = {
-      ...verbatim,
-      status: 'traité',
-    };
-    
-    // Explicitly remove taskDate to avoid conflicts
-    delete (dataToSave as any).taskDate;
-    
-    await docRef.set(dataToSave, { merge: true });
+        const dataToSave: Omit<ProcessedVerbatim, 'id'> & { status: 'traité' } = {
+          ...verbatim,
+          status: 'traité',
+        };
+        
+        delete (dataToSave as any).taskDate; // Avoid potential conflicts if field exists
+        
+        batch.set(docRef, dataToSave, { merge: true });
+    });
+
+    await batch.commit();
     return { success: true, error: null };
 
   } catch (error: any) {
-    console.error("Error saving processed verbatim:", error);
+    console.error("Error batch saving processed verbatims:", error);
     return {
       success: false,
-      error: error.message || "Failed to save processed verbatim to Firestore.",
+      error: error.message || "Failed to save processed verbatims to Firestore.",
     };
   }
 }

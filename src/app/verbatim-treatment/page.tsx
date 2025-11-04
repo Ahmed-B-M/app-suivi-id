@@ -15,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ThumbsDown, Sparkles, Save, User, Truck, Building, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveProcessedVerbatimAction, categorizeSingleCommentAction } from '../actions';
+import { saveProcessedVerbatimsAction, categorizeSingleCommentAction } from '../actions';
 import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
 import { format } from 'date-fns';
 import { categories as categoryOptions } from '@/components/app/comment-analysis';
@@ -77,24 +77,20 @@ export default function VerbatimTreatmentPage() {
       const verbatimsToSave = Object.values(pendingVerbatims);
       if (verbatimsToSave.length === 0) return;
 
-      const results = await Promise.all(
-        verbatimsToSave.map(verbatim => saveProcessedVerbatimAction(verbatim))
-      );
+      const result = await saveProcessedVerbatimsAction(verbatimsToSave);
 
-      const failedSaves = results.filter(r => !r.success);
-
-      if (failedSaves.length > 0) {
-        toast({
-          variant: "destructive",
-          title: `Erreur de sauvegarde`,
-          description: `${failedSaves.length} verbatim(s) n'ont pas pu être sauvegardés.`,
-        });
-      } else {
+      if (result.success) {
         toast({
           title: "Succès",
           description: `${verbatimsToSave.length} verbatim(s) ont été sauvegardés.`,
         });
         clearAllPendingVerbatims();
+      } else {
+        toast({
+          variant: "destructive",
+          title: `Erreur de sauvegarde`,
+          description: result.error || "Une erreur inconnue est survenue lors de la sauvegarde.",
+        });
       }
     });
   };
