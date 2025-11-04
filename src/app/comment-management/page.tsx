@@ -23,18 +23,37 @@ import type { CommentStatus } from "@/lib/types";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import { format } from "date-fns";
 import Link from "next/link";
+import { useFirebase, useQuery, useMemoFirebase } from "@/firebase";
+import { collection, where, orderBy, query, QueryConstraint } from "firebase/firestore";
 
 const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
 export default function CommentManagementPage() {
-  const { allComments, isContextLoading } = useFilters();
+  const { isContextLoading: isFiltersLoading } = useFilters();
+  const { firestore } = useFirebase();
   const [statusFilter, setStatusFilter] = useState<CommentStatus | 'tous'>('à traiter');
   
   const { toast } = useToast();
   const [isSaving, startSaveTransition] = useTransition();
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isBulkAnalyzing, startBulkAnalyzeTransition] = useTransition();
+
+  // --- Data Fetching Logic ---
+  const commentsCollection = useMemoFirebase(() => 
+    firestore ? collection(firestore, 'categorized_comments') : null
+  , [firestore]);
+
+  const commentsConstraints = useMemo(() => {
+    const constraints: QueryConstraint[] = [orderBy("taskDate", "desc")];
+    if (statusFilter !== 'tous') {
+        constraints.unshift(where("status", "==", statusFilter));
+    }
+    return constraints;
+  }, [statusFilter]);
+  
+  const { data: allComments, loading: isCommentsLoading } = useQuery<CategorizedComment>(commentsCollection, commentsConstraints, {realtime: true});
+  // --- End Data Fetching ---
 
   const {
     pendingComments,
@@ -57,18 +76,14 @@ export default function CommentManagementPage() {
         responsibilities: Array.isArray(responsibilities) ? responsibilities : (responsibilities ? [responsibilities] : []),
       };
     });
-
-    const commentsToFilter = statusFilter === 'tous' 
-      ? mergedComments 
-      : mergedComments.filter(comment => comment.status === statusFilter);
     
-    return commentsToFilter.sort((a, b) => {
+    return mergedComments.sort((a, b) => {
         const dateA = a.taskDate ? new Date(a.taskDate as string).getTime() : 0;
         const dateB = b.taskDate ? new Date(b.taskDate as string).getTime() : 0;
         return dateB - dateA;
     });
 
-  }, [allComments, pendingComments, statusFilter]);
+  }, [allComments, pendingComments]);
 
   const handleFieldChange = (comment: CategorizedComment, field: keyof CategorizedComment, value: any) => {
     const updatedComment = { ...comment, [field]: value, status: 'en cours' as const };
@@ -219,8 +234,9 @@ export default function CommentManagementPage() {
     });
   }, [finalCommentsToDisplay, toast, startBulkAnalyzeTransition, addPendingComment]);
 
+  const isLoading = isFiltersLoading || isCommentsLoading;
 
-  if (isContextLoading) {
+  if (isLoading) {
     return <div className="container mx-auto py-10 text-center">Chargement des données...</div>;
   }
 

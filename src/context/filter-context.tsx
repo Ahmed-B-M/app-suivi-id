@@ -141,7 +141,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: true, refreshKey});
   const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useQuery<Tournee>(roundsCollection, firestoreDateFilters, {realtime: true, refreshKey});
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: true, refreshKey});
-  const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, commentsDateFilters, {realtime: true, refreshKey});
+  const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, [], {realtime: true, refreshKey});
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true, refreshKey});
   
   const availableDepots = useMemo(() => {
