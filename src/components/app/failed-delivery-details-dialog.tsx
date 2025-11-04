@@ -76,7 +76,7 @@ export function FailedDeliveryDetailsDialog({
                       <TableCell>{task.nomHub || 'N/A'}</TableCell>
                       <TableCell className="text-center">{task.sequence ?? 'N/A'}</TableCell>
                       <TableCell>{getDriverFullName(task) || "N/A"}</TableCell>
-                      <TableCell>{task.contact?.telephone || "N/A"}</TableCell>
+                      <TableCell>{task.telephoneContact || "N/A"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
