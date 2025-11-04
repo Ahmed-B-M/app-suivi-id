@@ -14,6 +14,9 @@ interface UserProfile {
   email: string;
   role: string;
   displayName: string;
+  firstName?: string;
+  lastName?: string;
+  depots?: string[];
 }
 
 interface FirebaseProviderProps {
@@ -103,11 +106,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             if (userSnap.exists()) {
                setUserAuthState({ user: firebaseUser, userProfile: userSnap.data() as UserProfile, isUserLoading: false, userError: null });
             } else {
+              const [firstName, ...lastNameParts] = firebaseUser.displayName?.split(' ') || [firebaseUser.email, ''];
               const newUserProfile: UserProfile = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 displayName: firebaseUser.displayName || firebaseUser.email || 'Nouvel utilisateur',
-                role: 'viewer' // Default role
+                role: 'viewer', // Default role
+                firstName: firstName || '',
+                lastName: lastNameParts.join(' ') || '',
+                depots: []
               };
               
               await setDoc(userRef, newUserProfile);

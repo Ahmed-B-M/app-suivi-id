@@ -293,12 +293,12 @@ export interface ActionNoteDepot {
 
 export interface Notification {
   id: string;
-  type: 'quality_alert' | 'overweight_round' | 'late_delivery_pattern';
+  type: 'quality_alert' | 'overweight_round' | 'late_delivery_pattern' | 'new_message';
   message: string;
   status: 'unread' | 'read' | 'archived';
   createdAt: string | Timestamp;
   relatedEntity: {
-    type: 'task' | 'round' | 'driver';
+    type: 'task' | 'round' | 'driver' | 'room';
     id: string;
   };
 }
@@ -335,10 +335,12 @@ export interface Message {
   timestamp: any;
 }
 
-
 export interface UserProfile {
     uid: string;
     email: string;
     displayName: string;
     role: string;
+    firstName?: string;
+    lastName?: string;
+    depots?: string[];
 }

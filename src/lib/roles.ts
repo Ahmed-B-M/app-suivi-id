@@ -18,6 +18,7 @@ export const ALL_PAGES = [
   "/verbatim-treatment",
   "/verbatims",
   "/verbatim-analysis",
+  "/user-management",
   "/settings",
 ];
 
@@ -49,6 +50,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/billing",
     "/assignment",
     "/messaging",
+    "/user-management"
   ],
   Qualité: [
     "/",

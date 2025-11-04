@@ -5,12 +5,15 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user profile with their role.",
+      "description": "Represents a user profile with their role and depot assignments.",
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["admin", "RD", "Dispatch", "RH", "Qualité"] },
-        "displayName": { "type": "string" }
+        "role": { "type": "string", "enum": ["admin", "RD", "Dispatch", "RH", "Qualité", "viewer"] },
+        "firstName": { "type": "string", "description": "User's first name." },
+        "lastName": { "type": "string", "description": "User's last name." },
+        "displayName": { "type": "string", "description": "Full name of the user." },
+        "depots": { "type": "array", "items": { "type": "string" }, "description": "List of depots the user is assigned to." }
       },
       "required": ["uid", "email", "role"]
     },
