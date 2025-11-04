@@ -1,7 +1,8 @@
 
+"use client";
+
 import { useMemo, useState } from "react";
 import type { Tache } from "@/lib/types";
-import { getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
 import { useFilters } from "@/context/filter-context";
 import { CommentAnalysis } from "@/components/app/comment-analysis";
 import { calculateDriverScore, calculateRawDriverStats, DriverStats } from "@/lib/scoring";
@@ -14,70 +15,32 @@ import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
 import { useToast } from "@/hooks/use-toast";
 import { EmailPreviewDialog } from "@/components/app/email-preview-dialog";
-import { initializeFirebaseOnServer } from "@/firebase/server-init";
-
-export const dynamic = "force-dynamic";
-
-async function getQualityPageData() {
-    const { firestore } = await initializeFirebaseOnServer();
-    const tasksSnapshot = await firestore.collection("tasks").get();
-    const allTasks = tasksSnapshot.docs.map(doc => doc.data() as Tache);
-    
-    // De-duplicate tasks based on tacheId
-    const uniqueTasksMap = new Map<string, Tache>();
-    allTasks.forEach(task => {
-        uniqueTasksMap.set(task.tacheId, task);
-    });
-    const uniqueTasks = Array.from(uniqueTasksMap.values());
-    
-    const npsSnapshot = await firestore.collection("nps_data").get();
-    const allNpsData = npsSnapshot.docs.map(doc => doc.data());
-    
-    const commentsSnapshot = await firestore.collection("categorized_comments").get();
-    const allComments = commentsSnapshot.docs.map(doc => doc.data());
-    
-    const processedSnapshot = await firestore.collection("processed_nps_verbatims").get();
-    const processedVerbatims = processedSnapshot.docs.map(doc => doc.data());
-
-    return {
-        allTasks: uniqueTasks,
-        allNpsData,
-        allComments,
-        processedVerbatims
-    };
-}
+import { getDriverFullName } from "@/lib/grouping";
 
 
 export default function QualityPage() {
-  const { isContextLoading: isFiltersLoading, dateRange } = useFilters();
-  const [initialData, setInitialData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { 
+    allTasks,
+    allNpsData,
+    allComments,
+    processedVerbatims,
+    isContextLoading,
+    dateRange
+  } = useFilters();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [emailHtmlContent, setEmailHtmlContent] = useState('');
   
-  useMemo(async () => {
-      setIsLoading(true);
-      const data = await getQualityPageData();
-      setInitialData(data);
-      setIsLoading(false);
-  }, []);
-
-  const {
-    allTasks = [],
-    allNpsData = [],
-    allComments = [],
-    processedVerbatims = []
-  } = initialData || {};
 
   const qualityData: QualityData | null = useMemo(() => {
-    if (isLoading || !allTasks.length) return null;
+    if (isContextLoading || !allTasks.length) return null;
 
     const driverTasks: Record<string, Tache[]> = {};
     allTasks.forEach((task: Tache) => {
         const driverName = getDriverFullName(task);
-        if (driverName) {
+        if (driverName && driverName !== 'Inconnu') {
             if (!driverTasks[driverName]) driverTasks[driverName] = [];
             driverTasks[driverName].push(task);
         }
@@ -85,14 +48,15 @@ export default function QualityPage() {
 
     const driverNpsData: Record<string, { promoter: number, passive: number, detractor: number, count: number }> = {};
     allNpsData.flatMap((d: any) => d.verbatims).forEach((v: any) => {
-        if (v.driver) {
-            if (!driverNpsData[v.driver]) {
-                driverNpsData[v.driver] = { promoter: 0, passive: 0, detractor: 0, count: 0 };
+        const driverName = v.driver;
+        if (driverName && driverName !== 'Inconnu') {
+            if (!driverNpsData[driverName]) {
+                driverNpsData[driverName] = { promoter: 0, passive: 0, detractor: 0, count: 0 };
             }
-            if (v.npsCategory === 'Promoter') driverNpsData[v.driver].promoter++;
-            else if (v.npsCategory === 'Passive') driverNpsData[v.driver].passive++;
-            else if (v.npsCategory === 'Detractor') driverNpsData[v.driver].detractor++;
-            driverNpsData[v.driver].count++;
+            if (v.npsCategory === 'Promoter') driverNpsData[driverName].promoter++;
+            else if (v.npsCategory === 'Passive') driverNpsData[driverName].passives++;
+            else if (v.npsCategory === 'Detractor') driverNpsData[driverName].detractors++;
+            driverNpsData[driverName].count++;
         }
     });
     
@@ -126,7 +90,7 @@ export default function QualityPage() {
         if (!mainHub) return;
 
         const depotName = getDepotFromHub(mainHub);
-        if (!depotName) return;
+        if (!depotName || depotName === 'Magasin') return;
 
         const carrierName = getCarrierFromDriver(driverStat.name);
         
@@ -194,7 +158,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, allNpsData, isLoading]);
+  }, [allTasks, allNpsData, isContextLoading]);
 
 
   const filteredQualityData = useMemo(() => {
@@ -218,7 +182,7 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (isLoading || !allTasks.length || !allComments.length) return { driverRankings: null, alertData: [] };
+    if (isContextLoading || !allTasks.length || !allComments.length) return { driverRankings: null, alertData: [] };
     
     const driverTasks: Record<string, Tache[]> = {};
     allTasks.forEach((task: Tache) => {
@@ -248,7 +212,7 @@ export default function QualityPage() {
 
         const task = allTasks.find((t: Tache) => t.tacheId === comment.taskId);
         const depot = getDepotFromHub(task?.nomHub);
-        if (!depot) return;
+        if (!depot || depot === 'Magasin') return;
 
         const driverName = comment.driverName;
         if (!driverName) return;
@@ -300,7 +264,7 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isLoading, allComments]);
+  }, [allTasks, isContextLoading, allComments]);
 
 
   const handleGenerateEmail = () => {
@@ -371,12 +335,12 @@ export default function QualityPage() {
         </div>
       </div>
       <div className="space-y-8">
-        <QualityDashboard data={filteredQualityData} isLoading={isLoading || isFiltersLoading} />
+        <QualityDashboard data={filteredQualityData} isLoading={isContextLoading} />
         <DriverPerformanceRankings 
             data={driverRankings || []}
-            isLoading={isLoading || isFiltersLoading}
+            isLoading={isContextLoading}
         />
-        <AlertRecurrenceTable data={alertData} isLoading={isLoading || isFiltersLoading} />
+        <AlertRecurrenceTable data={alertData} isLoading={isContextLoading} />
         <CommentAnalysis 
             data={allComments.filter((c: any) => c.rating < 4)}
         />
