@@ -10,12 +10,16 @@ import { ChatWindow } from "@/components/app/messaging/chat-window";
 import { NewChatDialog } from "@/components/app/messaging/new-chat-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Room } from "@/lib/types";
+import { useSearchParams } from "next/navigation";
 
 
 export default function MessagingPage() {
     const { firestore } = useFirebase();
     const { user } = useUser();
-    const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+    const searchParams = useSearchParams();
+    const initialRoomId = searchParams.get('roomId');
+
+    const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId);
 
     const roomsQuery = useMemoFirebase(() => 
         firestore && user ? query(collection(firestore, 'rooms'), where('members', 'array-contains', user.uid), orderBy('lastMessage.timestamp', 'desc')) : null
@@ -24,10 +28,14 @@ export default function MessagingPage() {
     const { data: rooms, loading } = useCollection<Room>(roomsQuery, [], { realtime: true });
 
     useEffect(() => {
-        if (!selectedRoomId && rooms.length > 0) {
+        // If there's an initial room ID from URL, keep it.
+        // Otherwise, if no room is selected and rooms have loaded, select the first one.
+        if (initialRoomId && !selectedRoomId) {
+            setSelectedRoomId(initialRoomId);
+        } else if (!selectedRoomId && !initialRoomId && rooms.length > 0) {
             setSelectedRoomId(rooms[0].id);
         }
-    }, [rooms, selectedRoomId]);
+    }, [rooms, selectedRoomId, initialRoomId]);
 
     const selectedRoom = useMemo(() => rooms.find(r => r.id === selectedRoomId), [rooms, selectedRoomId]);
     

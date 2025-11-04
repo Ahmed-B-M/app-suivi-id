@@ -2,21 +2,22 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { useQuery, useFirebase } from "@/firebase";
-import { collection, orderBy, writeBatch, doc, where, query, QueryConstraint } from "firebase/firestore";
+import { useQuery, useFirebase, useUser } from "@/firebase";
+import { collection, orderBy, writeBatch, doc, where, query, QueryConstraint, addDoc, serverTimestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle, Search } from "lucide-react";
+import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle, Search, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Notification } from "@/lib/types";
+import type { Notification, Room } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
 
 type NotificationTypeFilter = "all" | Notification['type'];
 
@@ -190,6 +191,50 @@ export default function NotificationsPage() {
 
 const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = false }: { notifications: Notification[], onUpdateStatus: (ids: string[], status: 'read' | 'archived') => void, isPending: boolean, isRead?: boolean}) => {
     
+    const { firestore } = useFirebase();
+    const { user } = useUser();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [discussingId, setDiscussingId] = useState<string | null>(null);
+    
+    const handleDiscuss = async (notification: Notification) => {
+        if (!firestore || !user) return;
+        setDiscussingId(notification.id);
+
+        try {
+            const newRoomData = {
+                name: `Discussion: ${notification.message.substring(0, 40)}...`,
+                isGroup: true,
+                members: [user.uid],
+                createdAt: serverTimestamp(),
+            };
+            const newRoomRef = await addDoc(collection(firestore, 'rooms'), newRoomData);
+            
+            // Send an initial message to the room with the notification details
+            const initialMessage = `
+                **Alerte discutée :**
+                - **Type :** ${notification.type}
+                - **Message :** ${notification.message}
+                - **Entité :** ${notification.relatedEntity.type} - ${notification.relatedEntity.id}
+            `;
+            await addDoc(collection(firestore, 'rooms', newRoomRef.id, 'messages'), {
+                text: initialMessage,
+                senderId: 'system',
+                senderName: 'ID-360 Bot',
+                timestamp: serverTimestamp(),
+            });
+
+
+            toast({ title: "Salon créé", description: "Vous avez été redirigé vers le salon de discussion." });
+            router.push(`/messaging?roomId=${newRoomRef.id}`);
+
+        } catch (error: any) {
+            toast({ title: "Erreur", description: `Impossible de créer le salon : ${error.message}`, variant: "destructive" });
+        } finally {
+            setDiscussingId(null);
+        }
+    };
+
     const parseDate = (dateValue: any): Date | null => {
         if (!dateValue) return null;
         if (typeof dateValue === 'object' && dateValue.seconds) {
@@ -281,10 +326,13 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                                     {info.detail && <Badge variant="outline">{info.detail}</Badge>}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <div className="flex gap-2 justify-end">
+                                    <div className="flex gap-1 justify-end">
+                                        <Button size="sm" variant="ghost" onClick={() => handleDiscuss(notification)} disabled={isPending || discussingId === notification.id}>
+                                            {discussingId === notification.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MessageSquare className="mr-2 h-4 w-4" />} Discuter
+                                        </Button>
                                         {!isRead && (
                                             <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'read')} disabled={isPending}>
-                                                <Eye className="mr-2 h-4 w-4" /> Marquer comme lu
+                                                <Eye className="mr-2 h-4 w-4" /> Marquer lu
                                             </Button>
                                         )}
                                         <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'archived')} disabled={isPending}>
@@ -300,5 +348,3 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         </div>
     )
 }
-
-    

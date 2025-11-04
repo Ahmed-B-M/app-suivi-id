@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Users, Loader2, User as UserIcon } from "lucide-react";
 import { ChatMessage } from "./chat-message";
 import type { Room, Message } from "@/lib/types";
+import { Textarea } from "@/components/ui/textarea";
 
 export const ChatWindow = ({ room }: { room: Room }) => {
     const { firestore } = useFirebase();
@@ -69,6 +70,13 @@ export const ChatWindow = ({ room }: { room: Room }) => {
         }
     }
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage(e);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full">
             <header className="p-4 border-b flex items-center gap-3">
@@ -83,12 +91,15 @@ export const ChatWindow = ({ room }: { room: Room }) => {
             </ScrollArea>
 
             <footer className="p-4 border-t">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <Input 
+                <form onSubmit={handleSendMessage} className="flex items-start gap-2">
+                    <Textarea 
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Écrivez votre message..."
                         disabled={isSending}
+                        className="min-h-[40px] max-h-48 resize-none"
+                        rows={1}
+                        onKeyDown={handleKeyDown}
                     />
                     <Button type="submit" disabled={!newMessage.trim() || isSending}>
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
