@@ -39,7 +39,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
       );
     }
 
-    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask.id);
+    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask.taskId);
     
     const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
@@ -667,4 +667,5 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
   }
 }
 
+    
     

@@ -348,14 +348,14 @@ export default function DeviationAnalysisPage() {
     allTasks.forEach(task => {
         if (task.heureArriveeEstimee && task.debutCreneauInitial) {
             try {
-                const plannedArrive = parseISO(task.heureArriveeEstimee as string);
-                const windowStart = parseISO(task.debutCreneauInitial as string);
+                const plannedArrive = parseISO(task.heureArriveeEstimee);
+                const windowStart = parseISO(task.debutCreneauInitial);
                 const earlyThreshold = subMinutes(windowStart, 15);
                 const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
                 if (deviationEarly > 0) {
                     punctualityResults.push({ task, plannedArriveTime: task.heureArriveeEstimee, deviationMinutes: -deviationEarly });
                 } else if (task.finCreneauInitial) {
-                    const windowEnd = parseISO(task.finCreneauInitial as string);
+                    const windowEnd = parseISO(task.finCreneauInitial);
                     const lateThreshold = addMinutes(windowEnd, 15);
                     const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
                     if (deviationLate > 0) {
@@ -562,4 +562,5 @@ export default function DeviationAnalysisPage() {
   );
 }
 
+    
     
