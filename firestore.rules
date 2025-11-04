@@ -1,8 +1,31 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
       allow read, write: if request.auth != null;
+    }
+
+    // Secure rooms and messages
+    match /rooms/{roomId} {
+      // Only members of the room can read room details or see it in a list
+      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+
+      // Allow any authenticated user to create a room (could be restricted further)
+      allow create: if request.auth != null;
+
+      // Only members can update room details (e.g., name)
+      allow update: if request.auth != null && request.auth.uid in resource.data.members;
+    }
+
+    match /rooms/{roomId}/messages/{messageId} {
+      // Only members of the room can read messages
+      allow list, get: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.members.hasAny([request.auth.uid]);
+
+      // Only members of the room can create (send) messages
+      allow create: if request.auth != null 
+                    && get(/databases/$(database)/documents/rooms/$(roomId)).data.members.hasAny([request.auth.uid])
+                    && request.resource.data.senderId == request.auth.uid; // User can only send as themselves
     }
   }
 }

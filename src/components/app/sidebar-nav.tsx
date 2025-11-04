@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut, User as UserIcon, RefreshCw, Loader2, Bell } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut, User as UserIcon, RefreshCw, Loader2, Bell, MessageCircle } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ const allLinks = [
   { href: "/summary", label: "Synthèse", icon: <BarChartBig /> },
   { href: "/forecast", label: "FORECAST", icon: <TrendingUp /> },
   { href: "/notifications", label: "Notifications", icon: <Bell /> },
+  { href: "/messaging", label: "Messagerie", icon: <MessageCircle /> },
   // --- Analyse & Opérations ---
   { href: "/deviation-analysis", label: "Analyse des Écarts", icon: <Scale /> },
   { href: "/details", label: "Détails", icon: <ListChecks /> },

@@ -6,6 +6,7 @@ export const ALL_PAGES = [
   "/summary",
   "/forecast",
   "/notifications",
+  "/messaging",
   "/deviation-analysis",
   "/details",
   "/assignment",
@@ -27,6 +28,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/summary",
     "/forecast",
     "/notifications",
+    "/messaging",
     "/deviation-analysis",
     "/assignment",
     "/quality",
@@ -38,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/",
     "/details",
     "/notifications",
+    "/messaging",
     "/quality",
     "/settings",
   ],
@@ -45,6 +48,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/forecast",
     "/billing",
     "/assignment",
+    "/messaging",
   ],
   Qualité: [
     "/",
@@ -58,8 +62,9 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/verbatim-analysis",
     "/settings",
     "/notifications",
+    "/messaging",
   ],
-  viewer: ["/", "/notifications"]
+  viewer: ["/", "/notifications", "/messaging"]
 };
 
 export function hasAccess(role: Role, path: string): boolean {
