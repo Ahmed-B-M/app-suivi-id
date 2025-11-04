@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Building, Truck } from "lucide-react";
-import { useCollection } from "@/firebase";
+import { useQuery } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import type { ForecastRule, Tournee } from "@/lib/types";
@@ -26,7 +26,7 @@ export default function ForecastPage() {
       : null, 
     [firestore]
   );
-  const { data: activeRules, loading: rulesLoading } = useCollection<ForecastRule>(rulesCollection);
+  const { data: activeRules, loading: rulesLoading } = useQuery<ForecastRule>(rulesCollection, [], {realtime: true});
 
 
   const forecastData = useMemo(() => {

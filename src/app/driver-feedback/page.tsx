@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { saveActionNoteAction } from "../actions";
-import { useCollection } from "@/firebase";
+import { useQuery } from "@/firebase";
 import { collection, where } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { getDepotFromHub } from "@/lib/grouping";
@@ -57,7 +57,7 @@ export default function DriverFeedbackPage() {
     const notesCollection = useMemo(() => {
         return firestore ? collection(firestore, 'action_notes_depot') : null;
     }, [firestore]);
-    const { data: savedNotes, loading: notesLoading } = useCollection<ActionNoteDepot>(notesCollection, [where('date', '==', todayString)]);
+    const { data: savedNotes, loading: notesLoading } = useQuery<ActionNoteDepot>(notesCollection, [where('date', '==', todayString)], {realtime: true});
 
     // Initialize notes state when saved notes are loaded
     useEffect(() => {

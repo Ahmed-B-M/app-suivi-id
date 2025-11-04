@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { format } from "date-fns";
 import type { Tournee } from "@/lib/types";
+import { errorEmitter, FirestorePermissionError } from "@/firebase";
 
 // Helper to group rounds by a key
 function groupRoundsBy<T extends keyof any>(rounds: Tournee[], getKey: (round: Tournee) => T) {
@@ -46,16 +47,26 @@ export default function AssignmentPage() {
         if (!firestore) return;
         startTransition(async () => {
             const batch = writeBatch(firestore);
-            Object.entries(editedRounds).forEach(([roundId, carrier]) => {
+            const roundIds = Object.keys(editedRounds);
+            
+            roundIds.forEach((roundId) => {
                 const roundRef = doc(firestore, "rounds", roundId);
-                batch.update(roundRef, { carrierOverride: carrier === 'default' ? null : carrier });
+                const newCarrier = editedRounds[roundId];
+                batch.update(roundRef, { carrierOverride: newCarrier === 'default' ? null : newCarrier });
             });
+
             try {
                 await batch.commit();
-                toast({ title: "Succès", description: `${Object.keys(editedRounds).length} affectation(s) sauvegardée(s).` });
+                toast({ title: "Succès", description: `${roundIds.length} affectation(s) sauvegardée(s).` });
                 setEditedRounds({});
             } catch (error: any) {
-                toast({ title: "Erreur", description: error.message, variant: "destructive" });
+                toast({ title: "Erreur de Sauvegarde", description: error.message, variant: "destructive" });
+                 const permissionError = new FirestorePermissionError({
+                    path: 'rounds',
+                    operation: 'write',
+                    requestResourceData: roundIds.map(id => ({ roundId: id, carrierOverride: editedRounds[id] }))
+                 });
+                errorEmitter.emit('permission-error', permissionError);
             }
         });
     };

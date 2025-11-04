@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useTransition } from "react";
-import { UnifiedExportForm } from "@/components/app/unified-export-form";
+import { UnifiedExportForm } from "@/app/unified-export-form";
 import { Scheduler } from "@/components/app/scheduler";
 import { LogDisplay } from "@/components/app/log-display";
 import { TasksTable } from "@/components/app/tasks-table";
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FileSearch, PlusCircle, Save, Trash2, Edit } from "lucide-react";
 import type { Tache, Tournee, ForecastRule } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCollection } from "@/firebase";
+import { useQuery } from "@/firebase";
 import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -161,8 +161,8 @@ function DatabaseTab() {
     return query(collection(firestore, "rounds"), orderBy("date", "desc"));
   }, [firestore]);
 
-  const { data: tasks, loading: isLoadingTasks, error: tasksError } = useCollection<Tache>(tasksCollection);
-  const { data: rounds, loading: isLoadingRounds, error: roundsError } = useCollection<Tournee>(roundsCollection);
+  const { data: tasks, loading: isLoadingTasks, error: tasksError } = useQuery<Tache>(tasksCollection, [], { realtime: true });
+  const { data: rounds, loading: isLoadingRounds, error: roundsError } = useQuery<Tournee>(roundsCollection, [], { realtime: true });
 
   const tasksByStatus = useMemo(() => {
     if (!tasks) return {};
@@ -304,7 +304,7 @@ function ForecastRulesTab() {
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const rulesCollection = useMemo(() => firestore ? collection(firestore, "forecast_rules") : null, [firestore]);
-    const { data: rules, loading, error } = useCollection<ForecastRule>(rulesCollection);
+    const { data: rules, loading, error } = useQuery<ForecastRule>(rulesCollection, [], {realtime: true});
     const [isPending, startTransition] = useTransition();
 
     const [editedRules, setEditedRules] = useState<Record<string, Partial<ForecastRule>>>({});

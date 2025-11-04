@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { useCollection, useFirebase } from "@/firebase";
-import { collection, orderBy, query, writeBatch, doc } from "firebase/firestore";
+import { useQuery, useFirebase } from "@/firebase";
+import { collection, orderBy, writeBatch, doc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,7 +26,7 @@ export default function NotificationsPage() {
         firestore ? query(collection(firestore, "notifications"), orderBy("createdAt", "desc")) : null
     , [firestore]);
 
-    const { data: notifications, loading, error } = useCollection<Notification>(notificationsCollection);
+    const { data: notifications, loading, error } = useQuery<Notification>(notificationsCollection, [], {realtime: true});
 
     const handleUpdateStatus = (ids: string[], status: 'read' | 'archived') => {
         if (!firestore || ids.length === 0) return;
