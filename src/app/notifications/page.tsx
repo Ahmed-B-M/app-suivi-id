@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Archive, Eye, Loader2 } from "lucide-react";
+import { Bell, Archive, Eye, Link as LinkIcon, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Notification } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 
 export default function NotificationsPage() {
@@ -133,15 +134,12 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
     
     const parseDate = (dateValue: any): Date | null => {
         if (!dateValue) return null;
-        // Check if it's a Firestore Timestamp
         if (typeof dateValue === 'object' && dateValue.seconds) {
             return new Date(dateValue.seconds * 1000);
         }
-        // Check if it's already a Date object
         if (dateValue instanceof Date) {
             return dateValue;
         }
-        // Try to parse from string
         const parsedDate = new Date(dateValue);
         return isNaN(parsedDate.getTime()) ? null : parsedDate;
     };
@@ -160,6 +158,8 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                 <TableBody>
                     {notifications.map(notification => {
                         const createdAtDate = parseDate(notification.createdAt);
+                        const linkHref = notification.relatedEntity ? `/${notification.relatedEntity.type}/${notification.relatedEntity.id}` : '#';
+
                         return (
                             <TableRow key={notification.id} className={cn(isRead && "text-muted-foreground")}>
                                 <TableCell className="text-xs">
@@ -170,7 +170,12 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                                         {notification.type}
                                     </Badge>
                                 </TableCell>
-                                <TableCell>{notification.message}</TableCell>
+                                <TableCell>
+                                    <Link href={linkHref} className="hover:underline flex items-center gap-2">
+                                        <span>{notification.message}</span>
+                                        {notification.relatedEntity && <LinkIcon className="h-3 w-3 shrink-0" />}
+                                    </Link>
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex gap-2 justify-end">
                                         {!isRead && (
