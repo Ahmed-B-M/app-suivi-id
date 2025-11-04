@@ -444,9 +444,10 @@ export async function runSyncAction(
     const qualityAlertTasks = transformedTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
     for (const task of qualityAlertTasks) {
         if (task.tacheId && !processedTaskIdsForNotif.has(task.tacheId)) {
+            const clientName = task.personneContact || 'Un client';
             await createNotification(firestore, {
                 type: 'quality_alert',
-                message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
+                message: `Note de ${task.notationLivreur}/5 de ${clientName} pour ${getDriverFullName(task) || 'un livreur'} sur la tournée ${task.nomTournee || 'inconnue'}.`,
                 relatedEntity: { type: 'task', id: task.tacheId }
             });
             notificationCount++;
@@ -461,9 +462,10 @@ export async function runSyncAction(
     );
      for (const task of commentAlertTasks) {
         if (task.tacheId) {
+            const commentExtract = task.metaCommentaireLivreur!.substring(0, 30);
              await createNotification(firestore, {
                 type: 'quality_alert',
-                message: `Commentaire négatif de ${getDriverFullName(task) || 'un livreur'} sur la tournée ${task.nomTournee || 'inconnue'}.`,
+                message: `Commentaire négatif pour ${getDriverFullName(task) || 'un livreur'}: "${commentExtract}..."`,
                 relatedEntity: { type: 'task', id: task.tacheId }
             });
             notificationCount++;
@@ -473,9 +475,10 @@ export async function runSyncAction(
 
     const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > WEIGHT_LIMIT);
     for (const round of overweightRounds) {
+       const driverName = getDriverFullName(round) || "un livreur";
        await createNotification(firestore, {
             type: 'overweight_round',
-            message: `La tournée ${round.nom} est en surcharge de poids (${round.poidsReel.toFixed(0)} kg).`,
+            message: `Surcharge poids pour ${driverName} sur la tournée ${round.nom} (${round.poidsReel.toFixed(0)} kg).`,
             relatedEntity: { type: 'round', id: round.id }
         });
         notificationCount++;
@@ -700,3 +703,5 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
     };
   }
 }
+
+    
