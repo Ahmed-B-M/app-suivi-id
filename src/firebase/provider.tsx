@@ -8,23 +8,8 @@ import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { errorEmitter } from './error-emitter';
 import { FirestorePermissionError } from './errors';
+import type { UserProfile } from '@/lib/types';
 
-interface UserProfile {
-  uid: string;
-  email: string;
-  role: string;
-  displayName: string;
-  firstName?: string;
-  lastName?: string;
-  depots?: string[];
-}
-
-interface FirebaseProviderProps {
-  children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-}
 
 // Internal state for user authentication
 interface UserAuthState {
@@ -72,7 +57,12 @@ export const FirebaseContext = createContext<FirebaseContextState | undefined>(u
 /**
  * FirebaseProvider manages and provides Firebase services and user authentication state.
  */
-export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
+export const FirebaseProvider: React.FC<{
+  children: ReactNode;
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth;
+}> = ({
   children,
   firebaseApp,
   firestore,
@@ -112,6 +102,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                 email: firebaseUser.email || '',
                 displayName: firebaseUser.displayName || firebaseUser.email || 'Nouvel utilisateur',
                 role: 'viewer', // Default role
+                jobTitle: 'N/A',
                 firstName: firstName || '',
                 lastName: lastNameParts.join(' ') || '',
                 depots: []

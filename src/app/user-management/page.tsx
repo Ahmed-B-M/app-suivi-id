@@ -87,7 +87,7 @@ export default function UserManagementPage() {
                     <div className="flex justify-between items-center">
                         <div>
                             <CardTitle className="flex items-center gap-2"><Users /> Gestion des Utilisateurs</CardTitle>
-                            <CardDescription>Modifiez les informations et les permissions des utilisateurs.</CardDescription>
+                            <CardDescription>Modifiez les informations, le poste et les permissions des utilisateurs.</CardDescription>
                         </div>
                         <Button onClick={handleSaveChanges} disabled={isSaving || Object.keys(editedUsers).length === 0}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -100,10 +100,11 @@ export default function UserManagementPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[200px]">Nom</TableHead>
-                                    <TableHead className="w-[200px]">Prénom</TableHead>
+                                    <TableHead className="w-[150px]">Nom</TableHead>
+                                    <TableHead className="w-[150px]">Prénom</TableHead>
                                     <TableHead>Email</TableHead>
-                                    <TableHead className="w-[150px]">Poste (Rôle)</TableHead>
+                                    <TableHead className="w-[200px]">Poste</TableHead>
+                                    <TableHead className="w-[150px]">Rôle (Permissions)</TableHead>
                                     <TableHead className="w-[250px]">Dépôts d'affectation</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -125,6 +126,13 @@ export default function UserManagementPage() {
                                                 />
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                                            <TableCell>
+                                                 <Input
+                                                    value={currentUserState.jobTitle || ''}
+                                                    placeholder="Ex: Responsable Qualité"
+                                                    onChange={(e) => handleUserChange(user.uid, 'jobTitle', e.target.value)}
+                                                />
+                                            </TableCell>
                                             <TableCell>
                                                 <Select value={currentUserState.role} onValueChange={(value) => handleUserChange(user.uid, 'role', value)}>
                                                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -164,4 +172,3 @@ export default function UserManagementPage() {
         </main>
     );
 }
-

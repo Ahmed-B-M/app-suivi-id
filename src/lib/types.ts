@@ -339,7 +339,8 @@ export interface UserProfile {
     uid: string;
     email: string;
     displayName: string;
-    role: string;
+    role: string; // The role used for permissions
+    jobTitle?: string; // The user's actual job title
     firstName?: string;
     lastName?: string;
     depots?: string[];

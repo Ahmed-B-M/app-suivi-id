@@ -10,6 +10,7 @@
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "role": { "type": "string", "enum": ["admin", "RD", "Dispatch", "RH", "Qualité", "viewer"] },
+        "jobTitle": { "type": "string", "description": "User's job title in the company." },
         "firstName": { "type": "string", "description": "User's first name." },
         "lastName": { "type": "string", "description": "User's last name." },
         "displayName": { "type": "string", "description": "Full name of the user." },
