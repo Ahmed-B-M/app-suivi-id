@@ -44,7 +44,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
       );
     }
 
-    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask._id);
+    const stopInfo = roundInfo?.arrets?.find((s: any) => s.taskId === rawTask.id);
     
     const bacs = (rawTask.items || []).reduce((acc: any, item: any) => {
         const type = (item.type || '').toUpperCase();
@@ -422,7 +422,7 @@ export async function runSyncAction(
     
     // Now, re-transform rounds to include calculations based on the fully transformed tasks.
     const finalTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
-    logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs de bacs/poids.`);
+    logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs.`);
     
     let finalFilteredRounds = finalTransformedRounds;
     if (roundStatus && roundStatus !== "all") {
@@ -444,7 +444,7 @@ export async function runSyncAction(
     const errorMsg = "❌ Une erreur inattendue est survenue durant l'exportation.";
     logs.push(errorMsg);
     if (e instanceof Error) {
-      logs.push(e.message);
+      logs.push((e as Error).message);
     }
     return {
       logs,
