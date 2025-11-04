@@ -46,6 +46,7 @@ export const ChatWindow = ({ room }: { room: Room }) => {
         try {
             const messagesCol = collection(firestore, "rooms", room.id, "messages");
             const roomDoc = doc(firestore, "rooms", room.id);
+            const notificationsCol = collection(firestore, "notifications");
 
             await addDoc(messagesCol, {
                 text: messageText,
@@ -61,6 +62,24 @@ export const ChatWindow = ({ room }: { room: Room }) => {
                     timestamp: serverTimestamp(),
                 }
             });
+
+            // Create notifications for other members
+            const recipients = room.members.filter(memberId => memberId !== user.uid);
+            for (const recipientId of recipients) {
+                // Here you might want to check user preferences before sending a notification
+                // For now, we'll create one for each recipient.
+                await addDoc(notificationsCol, {
+                    type: 'new_message',
+                    message: `Nouveau message de ${userProfile.displayName} dans "${room.name}"`,
+                    status: 'unread',
+                    createdAt: serverTimestamp(),
+                    relatedEntity: {
+                        type: 'room',
+                        id: room.id,
+                    },
+                    recipientId: recipientId // Target a specific user
+                });
+            }
 
         } catch (error) {
             console.error("Error sending message:", error);

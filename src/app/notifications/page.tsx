@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle, Search, MessageSquare } from "lucide-react";
+import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle, Search, MessageSquare, MessageCircle as MessageCircleIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -23,13 +23,14 @@ type NotificationTypeFilter = "all" | Notification['type'];
 
 const filterOptions: { value: NotificationTypeFilter, label: string, icon: React.ReactNode }[] = [
     { value: 'all', label: 'Toutes', icon: <Bell className="h-4 w-4 mr-2" /> },
+    { value: 'new_message', label: 'Messages', icon: <MessageCircleIcon className="h-4 w-4 mr-2" /> },
     { value: 'quality_alert', label: 'Qualité', icon: <AlertCircle className="h-4 w-4 mr-2" /> },
     { value: 'overweight_round', label: 'Surcharge', icon: <Weight className="h-4 w-4 mr-2" /> },
     { value: 'late_delivery_pattern', label: 'Retards', icon: <AlertTriangle className="h-4 w-4 mr-2" /> },
 ]
 
 export default function NotificationsPage() {
-    const { firestore } = useFirebase();
+    const { firestore, user } = useFirebase();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [activeFilter, setActiveFilter] = useState<NotificationTypeFilter>('all');
@@ -37,11 +38,16 @@ export default function NotificationsPage() {
 
     const notificationsQueryConstraints = useMemo(() => {
         const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
+        if(user){
+            // This is a temporary solution to show user-specific and global notifications.
+            // A better solution would involve user groups or topics.
+            constraints.push(where('recipientId', 'in', [user.uid, 'all']));
+        }
         if (activeFilter !== 'all') {
             constraints.push(where("type", "==", activeFilter));
         }
         return constraints;
-    }, [activeFilter]);
+    }, [activeFilter, user]);
     
 
     const notificationsCollection = useMemo(() => {
@@ -265,7 +271,7 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
     };
     
     const extractInfo = (message: string): { driver: string | null; round: string | null; mainMessage: string, detail: string | null } => {
-        const driverMatch = message.match(/pour (.*?)\./);
+        const driverMatch = message.match(/pour (.*?)\./) || message.match(/de (.*?)\s(dans|sur)/);
         const roundMatch = message.match(/tournée (.*?)\./);
         const noteMatch = message.match(/Note de (\d+\/\d+)/);
         const weightMatch = message.match(/\((\d+(\.\d+)?) kg\)/);
@@ -289,6 +295,7 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
             case 'quality_alert': return <AlertCircle className="h-4 w-4 text-destructive" />;
             case 'overweight_round': return <Weight className="h-4 w-4 text-orange-500" />;
             case 'late_delivery_pattern': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+            case 'new_message': return <MessageCircleIcon className="h-4 w-4 text-blue-500" />;
             default: return <Bell className="h-4 w-4" />;
         }
     }
@@ -311,7 +318,10 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                 <TableBody>
                     {notifications.map(notification => {
                         const createdAtDate = parseDate(notification.createdAt);
-                        const linkHref = notification.relatedEntity ? `/${notification.relatedEntity.type}/${notification.relatedEntity.id}` : '#';
+                        const linkHref = notification.relatedEntity ? 
+                            notification.relatedEntity.type === 'room' ? `/messaging?roomId=${notification.relatedEntity.id}`
+                            : `/${notification.relatedEntity.type}/${notification.relatedEntity.id}` 
+                            : '#';
                         const info = extractInfo(notification.message);
 
                         return (
@@ -344,9 +354,11 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex gap-1 justify-end">
-                                        <Button size="sm" variant="ghost" onClick={() => handleDiscuss(notification)} disabled={isPending || discussingId === notification.id}>
-                                            {discussingId === notification.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MessageSquare className="mr-2 h-4 w-4" />} Discuter
-                                        </Button>
+                                        {notification.type !== 'new_message' && (
+                                            <Button size="sm" variant="ghost" onClick={() => handleDiscuss(notification)} disabled={isPending || discussingId === notification.id}>
+                                                {discussingId === notification.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MessageSquare className="mr-2 h-4 w-4" />} Discuter
+                                            </Button>
+                                        )}
                                         {!isRead && (
                                             <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'read')} disabled={isPending}>
                                                 <Eye className="mr-2 h-4 w-4" /> Marquer lu

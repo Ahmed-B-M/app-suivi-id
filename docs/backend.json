@@ -412,7 +412,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["quality_alert", "overweight_round", "late_delivery_pattern"]
+          "enum": ["quality_alert", "overweight_round", "late_delivery_pattern", "new_message"]
         },
         "message": { "type": "string" },
         "status": {
@@ -423,7 +423,7 @@
         "relatedEntity": {
           "type": "object",
           "properties": {
-            "type": { "type": "string", "enum": ["task", "round", "driver"] },
+            "type": { "type": "string", "enum": ["task", "round", "driver", "room"] },
             "id": { "type": "string" }
           },
           "required": ["type", "id"]
