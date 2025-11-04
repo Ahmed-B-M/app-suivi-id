@@ -446,7 +446,8 @@
             "senderName": { "type": "string" }
           }
         },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "notificationId": { "type": "string", "description": "Optional ID of the notification this room is about." }
       },
       "required": ["name", "members", "createdAt"]
     },
@@ -593,7 +594,7 @@
         "definition": {
           "entityName": "Room",
           "schema": { "$ref": "#/backend/entities/Room" },
-          "description": "Stores information about a chat room.",
+          "description": "Stores information about a chat room. Can be linked to a notification.",
           "params": [{ "name": "roomId", "description": "The unique ID for the chat room." }]
         }
       },

@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useQuery, useFirebase, useUser } from "@/firebase";
-import { collection, orderBy, writeBatch, doc, where, query, QueryConstraint, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, orderBy, writeBatch, doc, where, query, QueryConstraint, addDoc, serverTimestamp, getDocs } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -202,34 +202,51 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         setDiscussingId(notification.id);
 
         try {
-            const newRoomData = {
-                name: `Discussion: ${notification.message.substring(0, 40)}...`,
-                isGroup: true,
-                members: [user.uid],
-                createdAt: serverTimestamp(),
-            };
-            const newRoomRef = await addDoc(collection(firestore, 'rooms'), newRoomData);
-            
-            // Send an initial message to the room with the notification details
-            const initialMessage = `
-                **Alerte discutée :**
-                - **Type :** ${notification.type}
-                - **Message :** ${notification.message}
-                - **Entité :** ${notification.relatedEntity.type} - ${notification.relatedEntity.id}
-            `;
-            await addDoc(collection(firestore, 'rooms', newRoomRef.id, 'messages'), {
-                text: initialMessage,
-                senderId: 'system',
-                senderName: 'ID-360 Bot',
-                timestamp: serverTimestamp(),
-            });
+            // 1. Check if a room for this notification already exists
+            const roomsCollection = collection(firestore, 'rooms');
+            const q = query(roomsCollection, where("notificationId", "==", notification.id));
+            const existingRoomsSnapshot = await getDocs(q);
 
+            let roomId: string;
 
-            toast({ title: "Salon créé", description: "Vous avez été redirigé vers le salon de discussion." });
-            router.push(`/messaging?roomId=${newRoomRef.id}`);
+            if (!existingRoomsSnapshot.empty) {
+                // 2a. Room exists, get its ID
+                roomId = existingRoomsSnapshot.docs[0].id;
+                toast({ title: "Salon existant", description: "Redirection vers la discussion en cours." });
+            } else {
+                // 2b. Room does not exist, create it
+                const newRoomData = {
+                    name: `Alerte: ${notification.message.substring(0, 40)}...`,
+                    isGroup: true,
+                    members: [user.uid],
+                    notificationId: notification.id, // Link notification to room
+                    createdAt: serverTimestamp(),
+                };
+                const newRoomRef = await addDoc(collection(firestore, 'rooms'), newRoomData);
+                roomId = newRoomRef.id;
+                
+                // Send an initial message with the notification details
+                const initialMessage = `
+                    **Alerte discutée :**
+                    - **Type :** ${notification.type}
+                    - **Message :** ${notification.message}
+                    - **Entité :** ${notification.relatedEntity.type} - ${notification.relatedEntity.id}
+                `;
+                await addDoc(collection(firestore, 'rooms', roomId, 'messages'), {
+                    text: initialMessage,
+                    senderId: 'system',
+                    senderName: 'ID-360 Bot',
+                    timestamp: serverTimestamp(),
+                });
+
+                toast({ title: "Salon créé", description: "Vous avez été redirigé vers le salon de discussion." });
+            }
+
+            // 3. Redirect to the room
+            router.push(`/messaging?roomId=${roomId}`);
 
         } catch (error: any) {
-            toast({ title: "Erreur", description: `Impossible de créer le salon : ${error.message}`, variant: "destructive" });
+            toast({ title: "Erreur", description: `Impossible de créer ou rejoindre le salon : ${error.message}`, variant: "destructive" });
         } finally {
             setDiscussingId(null);
         }
