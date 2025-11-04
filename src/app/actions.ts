@@ -1,22 +1,18 @@
 "use server";
 
 import { z } from "zod";
-import {
-  schedulerSchema,
-  serverExportSchema,
-} from "@/lib/schemas";
+import { schedulerSchema, serverExportSchema } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, Article, CommentStatus, ProcessedNpsVerbatim } from "@/lib/types";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
-import { writeBatch, collection, doc, getDocs, query, where, Timestamp, addDoc, setDoc } from 'firebase/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
-import { useFirebase } from "@/firebase/provider";
-import { errorEmitter, FirestorePermissionError } from "@/firebase";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
+import { initializeFirebaseOnServer } from "@/firebase/server-init";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -359,13 +355,13 @@ async function fetchAllRounds(apiKey: string, params: URLSearchParams, logs: str
     return fetchGeneric("round", apiKey, params, logs);
 }
 
-async function createNotification(firestore: any, notification: Omit<Notification, 'id' | 'createdAt' | 'status'>) {
+async function createNotification(firestore: FirebaseFirestore.Firestore, notification: Omit<Notification, 'id' | 'createdAt' | 'status'>) {
     const notificationWithTimestamp = {
         ...notification,
         status: 'unread' as const,
-        createdAt: new Date(),
+        createdAt: FieldValue.serverTimestamp(),
     };
-    await addDoc(collection(firestore, 'notifications'), notificationWithTimestamp);
+    await firestore.collection('notifications').add(notificationWithTimestamp);
 }
 
 export async function runSyncAction(
@@ -382,7 +378,7 @@ export async function runSyncAction(
   const logs: string[] = [];
 
   try {
-    const { firestore } = useFirebase();
+    const { firestore } = await initializeFirebaseOnServer();
     logs.push(`🚀 Début de l'exportation unifiée...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
     logs.push(`   - Période: ${from} à ${to}`);
@@ -421,14 +417,12 @@ export async function runSyncAction(
 
     logs.push(`\n\n🔄 Transformation et enrichissement des données...`);
     
-    // An initial transformation of rounds is needed to correctly link tasks later.
     const initialTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, []));
     logs.push(`   - ${initialTransformedRounds.length} tournées initialement transformées.`);
 
     const transformedTasks: Tache[] = allRawTasks.map(rawTask => transformTaskData(rawTask, initialTransformedRounds));
     logs.push(`   - ${transformedTasks.length} tâches transformées.`);
     
-    // Now, re-transform rounds to include calculations based on the fully transformed tasks.
     const finalTransformedRounds: Tournee[] = allRawRounds.map(rawRound => transformRoundData(rawRound, transformedTasks));
     logs.push(`   - ${finalTransformedRounds.length} tournées finalisées avec calculs.`);
     
@@ -439,7 +433,6 @@ export async function runSyncAction(
       logs.push(`   - ${finalTransformedRounds.length - finalFilteredRounds.length} tournées écartées.`);
     }
     
-    // --- Generate Notifications ---
     logs.push(`\n🔔 Génération des notifications...`);
     let notificationCount = 0;
     const WEIGHT_LIMIT = 1250;
@@ -447,7 +440,6 @@ export async function runSyncAction(
     
     const processedTaskIdsForNotif = new Set<string>();
 
-    // 1. Quality Alerts from bad ratings
     const qualityAlertTasks = transformedTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
     for (const task of qualityAlertTasks) {
         if (!processedTaskIdsForNotif.has(task.tacheId)) {
@@ -461,7 +453,6 @@ export async function runSyncAction(
         }
     }
 
-    // 2. Quality Alerts from negative comments
     const commentAlertTasks = transformedTasks.filter(t => 
         !processedTaskIdsForNotif.has(t.tacheId) &&
         t.metaCommentaireLivreur &&
@@ -477,8 +468,6 @@ export async function runSyncAction(
         processedTaskIdsForNotif.add(task.tacheId);
     }
 
-
-    // 3. Overweight Rounds
     const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > WEIGHT_LIMIT);
     for (const round of overweightRounds) {
        await createNotification(firestore, {
@@ -514,7 +503,6 @@ export async function runSyncAction(
 }
 
 
-// --- AI Scheduler Action ---
 export async function getScheduleAction(
   values: z.infer<typeof schedulerSchema>
 ) {
@@ -536,98 +524,68 @@ export async function getScheduleAction(
   }
 }
 
-// --- AI Comment Categorization (Single) ---
 export async function categorizeSingleCommentAction(comment: string): Promise<CategorizeCommentOutput> {
   return await categorizeComment({ comment });
 }
 
-// --- Save Categorized Comments to Firestore ---
 export async function saveCategorizedCommentsAction(comments: CategorizedComment[]) {
   try {
-    const { firestore } = useFirebase();
-    const batch = writeBatch(firestore);
+    const { firestore } = await initializeFirebaseOnServer();
+    const batch = firestore.batch();
     comments.forEach(comment => {
-      const docRef = doc(firestore, "categorized_comments", comment.taskId);
-      batch.set(docRef, { ...comment }, { merge: true });
+      if (comment.taskId) {
+        const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
+        batch.set(docRef, comment, { merge: true });
+      }
     });
     await batch.commit();
     return { success: true, error: null };
   } catch (error: any) {
     console.error("Error saving categorized comments:", error);
-    const permissionError = new FirestorePermissionError({
-        path: 'categorized_comments',
-        operation: 'write',
-        requestResourceData: comments.map(c => c.taskId)
-    });
-    errorEmitter.emit('permission-error', permissionError);
     return { success: false, error: error.message || "Failed to save comments." };
   }
 }
 
-// --- Save a single Categorized Comment to Firestore ---
 export async function saveSingleCategorizedCommentAction(comment: CategorizedComment) {
   try {
-    const { firestore } = useFirebase();
+    const { firestore } = await initializeFirebaseOnServer();
     if (!comment.taskId) throw new Error("Task ID is missing.");
-    const docRef = doc(firestore, "categorized_comments", comment.taskId);
-    await setDoc(docRef, comment, { merge: true });
+    const docRef = firestore.collection("categorized_comments").doc(comment.taskId);
+    await docRef.set(comment, { merge: true });
     return { success: true, error: null };
   } catch (error: any) {
     console.error("Error saving single comment:", error);
-    const permissionError = new FirestorePermissionError({
-        path: `categorized_comments/${comment.taskId}`,
-        operation: 'write',
-        requestResourceData: comment
-    });
-    errorEmitter.emit('permission-error', permissionError);
     return { success: false, error: error.message || "Failed to save comment." };
   }
 }
 
-
-// --- Save Processed Verbatims to Firestore ---
 export async function saveProcessedVerbatimsAction(verbatims: ProcessedNpsVerbatim[]) {
   try {
-    const { firestore } = useFirebase();
-    const batch = writeBatch(firestore);
+    const { firestore } = await initializeFirebaseOnServer();
+    const batch = firestore.batch();
     verbatims.forEach(verbatim => {
-      const docRef = doc(firestore, "processed_nps_verbatims", verbatim.id);
-      // Remove id from the data being saved
+      const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.id);
       const { id, ...dataToSave } = verbatim;
-      batch.set(docRef, { ...dataToSave }, { merge: true });
+      batch.set(docRef, dataToSave, { merge: true });
     });
     await batch.commit();
     return { success: true, error: null };
   } catch (error: any) {
     console.error("Error saving processed verbatims:", error);
-    const permissionError = new FirestorePermissionError({
-        path: 'processed_nps_verbatims',
-        operation: 'write',
-        requestResourceData: verbatims.map(v => v.taskId)
-    });
-    errorEmitter.emit('permission-error', permissionError);
     return { success: false, error: error.message || "Failed to save verbatims." };
   }
 }
 
-// --- Save a single Processed Verbatim to Firestore ---
 export async function saveSingleProcessedVerbatimAction(verbatim: ProcessedNpsVerbatim) {
   try {
-    const { firestore } = useFirebase();
+    const { firestore } = await initializeFirebaseOnServer();
     if (!verbatim.id) throw new Error("Verbatim ID is missing.");
-    const docRef = doc(firestore, "processed_nps_verbatims", verbatim.id);
-     // Remove id from the data being saved
+    const docRef = firestore.collection("processed_nps_verbatims").doc(verbatim.id);
     const { id, ...dataToSave } = verbatim;
-    await setDoc(docRef, dataToSave, { merge: true });
+    await docRef.set(dataToSave, { merge: true });
     return { success: true, error: null };
   } catch (error: any) {
     console.error("Error saving single verbatim:", error);
-    const permissionError = new FirestorePermissionError({
-        path: `processed_nps_verbatims/${verbatim.id}`,
-        operation: 'write',
-        requestResourceData: verbatim
-    });
-    errorEmitter.emit('permission-error', permissionError);
     return { success: false, error: error.message || "Failed to save verbatim." };
   }
 }
