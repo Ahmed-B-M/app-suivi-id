@@ -437,7 +437,7 @@ export async function runSyncAction(
     logs.push(`\n🔔 Génération des notifications...`);
     let notificationCount = 0;
     const WEIGHT_LIMIT = 1250;
-    const NEGATIVE_COMMENT_KEYWORDS = ["casse", "abime", "manquant", "erreur", "retard", "impoli"];
+    const NEGATIVE_COMMENT_KEYWORDS = ["impoli", "agressif", "pas aimable", "desagreable"];
     
     const processedTaskIdsForNotif = new Set<string>();
 
@@ -670,6 +670,8 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
 }
 
     
+    
+
     
 
     
