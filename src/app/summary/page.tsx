@@ -37,7 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFilters } from "@/context/filter-context";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { groupTasksByDay, groupTasksByMonth } from "@/lib/grouping";
+import { groupTasksByDay, groupTasksByMonth, getDriverFullName } from "@/lib/grouping";
 import { calculateDashboardStats } from "@/lib/stats-calculator";
 import {
   Tooltip,
