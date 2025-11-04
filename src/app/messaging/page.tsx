@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useUser, useFirebase, useCollection } from "@/firebase";
 import { collection, query, where, orderBy, serverTimestamp, getDoc, doc, QueryConstraint } from "firebase/firestore";
 import { Loader2, MessageCircle } from "lucide-react";
 import { RoomListItem } from "@/components/app/messaging/room-list-item";
@@ -21,11 +21,11 @@ export default function MessagingPage() {
 
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId);
 
-    const roomsCollection = useMemoFirebase(() => 
+    const roomsCollection = useMemo(() => 
         firestore ? collection(firestore, 'rooms') : null
     , [firestore]);
     
-    const roomsConstraints = useMemoFirebase((): QueryConstraint[] => 
+    const roomsConstraints = useMemo((): QueryConstraint[] => 
         user 
             ? [
                 where('members', 'array-contains', user.uid),
