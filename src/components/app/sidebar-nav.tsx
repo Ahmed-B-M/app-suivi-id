@@ -22,9 +22,10 @@ import { Skeleton } from "../ui/skeleton";
 import type { Role } from "@/lib/roles";
 import { hasAccess } from "@/lib/roles";
 import { useMemo, useTransition } from "react";
-import { runDailySyncAction } from "@/app/actions";
+import { runSyncAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useFilters } from "@/context/filter-context";
+import { format, subDays } from "date-fns";
 
 
 const allLinks = [
@@ -83,18 +84,29 @@ export function SidebarNav() {
         title: "Synchronisation 48h lancée",
         description: "La récupération et la sauvegarde des données ont commencé...",
       });
-      const result = await runDailySyncAction();
-      if (result.success) {
+      
+      const to = new Date();
+      const from = subDays(to, 1);
+
+      const result = await runSyncAction({
+        apiKey: process.env.NEXT_PUBLIC_URBANTZ_API_KEY || "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
+        from: format(from, 'yyyy-MM-dd'),
+        to: format(to, 'yyyy-MM-dd'),
+        taskStatus: 'all',
+        roundStatus: 'all',
+      });
+      
+      if (result.error) {
+         toast({
+          title: "Erreur de synchronisation",
+          description: result.error || "Une erreur inconnue est survenue.",
+          variant: "destructive",
+        });
+      } else {
         clearAllData(); // Clear context cache
         toast({
           title: "Synchronisation terminée !",
           description: "Les données des dernières 48h ont été mises à jour.",
-        });
-      } else {
-        toast({
-          title: "Erreur de synchronisation",
-          description: result.error || "Une erreur inconnue est survenue.",
-          variant: "destructive",
         });
       }
     });
