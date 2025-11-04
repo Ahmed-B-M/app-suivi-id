@@ -243,7 +243,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         bacsSec: aggregatedBacs.bacsSec,
         bacsPoisson: aggregatedBacs.bacsPoisson,
         bacsBoucherie: aggregatedBacs.bacsBoucherie,
-        totalSecFrais: aggregatedBacs.bacsSec + bacs.bacsFrais,
+        totalSecFrais: aggregatedBacs.bacsSec + aggregatedBacs.bacsFrais,
         nombreDeBacs: rawRound.dimensions?.bac,
         poidsTournee: rawRound.dimensions?.poids,
         poidsReel: poidsReel,
@@ -895,5 +895,7 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
 
     
