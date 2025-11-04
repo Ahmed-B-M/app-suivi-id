@@ -45,7 +45,6 @@ function createAvatar(name: string): string {
     if (!name) return '';
     const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
     
-    // Simple hash to get a color from a palette
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
         hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -82,9 +81,9 @@ function createCard(content: string, title?: string, icon?: string, options: {bg
 function createKpiGrid(kpis: { label: string; value: string; color: string }[]): string {
     let cells = kpis.map(kpi => `
         <td align="left" style="padding: 0 8px; width: 14%; vertical-align: top;">
-          <div style="padding-left: 12px; margin-bottom: 12px; border-left: 3px solid ${kpi.color};">
+          <div style="padding-bottom: 12px;">
               <p style="font-size: 12px; color: ${COLORS.TEXT_SECONDARY}; text-transform: uppercase; margin: 0 0 4px 0; ${FONT_FAMILY}">${kpi.label}</p>
-              <p style="font-size: 24px; font-weight: 700; color: ${COLORS.TEXT_PRIMARY}; margin: 0; ${FONT_FAMILY}">${kpi.value}</p>
+              <p style="font-size: 24px; font-weight: 700; color: ${kpi.color}; margin: 0; ${FONT_FAMILY}">${kpi.value}</p>
           </div>
         </td>`).join('');
     return `<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%"><tr>${cells}</tr></table>`;
@@ -104,7 +103,7 @@ function createCategoryTable(title: string, data: { name: string; count: number;
         </tr>`).join('');
     return `
         <h4 style="font-size: 16px; font-weight: 600; color: ${COLORS.TEXT_PRIMARY}; margin: 24px 0 12px 0; ${FONT_FAMILY}">${title} (${total})</h4>
-        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">${rows}</table>`;
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">${rows}</tbody></table>`;
 }
 
 function createCriticalAlertsSection(comments: CategorizedComment[], verbatims: ProcessedNpsVerbatim[]): string {
@@ -184,7 +183,7 @@ export function generateQualityEmailBody(
     allComments: CategorizedComment[],
     processedVerbatims: ProcessedNpsVerbatim[],
     dateRange: { from: Date, to: Date },
-    allTasks: Tache[] // Pass all tasks for the period
+    allTasks: Tache[]
 ): string {
     const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} au ${new Date(dateRange.to).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
