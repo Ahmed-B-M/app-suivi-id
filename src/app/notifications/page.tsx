@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useQuery, useFirebase } from "@/firebase";
-import { collection, orderBy, writeBatch, doc } from "firebase/firestore";
+import { collection, orderBy, writeBatch, doc, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,7 +23,14 @@ export default function NotificationsPage() {
     const [isPending, startTransition] = useTransition();
 
     const notificationsCollection = useMemo(() => 
-        firestore ? query(collection(firestore, "notifications"), orderBy("createdAt", "desc")) : null
+        firestore 
+            ? query(
+                collection(firestore, "notifications"), 
+                where("status", "!=", "archived"), 
+                orderBy("status", "asc"), 
+                orderBy("createdAt", "desc")
+              ) 
+            : null
     , [firestore]);
 
     const { data: notifications, loading, error } = useQuery<Notification>(notificationsCollection, [], {realtime: true});
@@ -138,7 +145,7 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                     {notifications.map(notification => (
                         <TableRow key={notification.id} className={cn(isRead && "text-muted-foreground")}>
                             <TableCell className="text-xs">
-                                {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: fr })}
+                                {notification.createdAt ? formatDistanceToNow(new Date(notification.createdAt as string), { addSuffix: true, locale: fr }) : 'N/A'}
                             </TableCell>
                             <TableCell>
                                 <Badge variant={notification.type === 'quality_alert' ? 'destructive' : 'secondary'}>
@@ -165,3 +172,5 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         </div>
     )
 }
+
+    
