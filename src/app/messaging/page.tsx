@@ -22,22 +22,38 @@ export default function MessagingPage() {
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId);
 
     const roomsQuery = useMemoFirebase(() => 
-        firestore && user ? query(collection(firestore, 'rooms'), where('members', 'array-contains', user.uid), orderBy('lastMessage.timestamp', 'desc')) : null
+        firestore && user 
+            ? query(
+                collection(firestore, 'rooms'), 
+                where('members', 'array-contains', user.uid), 
+                orderBy('createdAt', 'desc')
+              ) 
+            : null
     , [firestore, user]);
 
     const { data: rooms, loading, setData: setRooms } = useCollection<Room>(roomsQuery, [], { realtime: true });
+    
+    const sortedRooms = useMemo(() => {
+        return [...rooms].sort((a, b) => {
+            const timeA = a.lastMessage?.timestamp?.toDate?.()?.getTime() || a.createdAt?.toDate?.()?.getTime() || 0;
+            const timeB = b.lastMessage?.timestamp?.toDate?.()?.getTime() || b.createdAt?.toDate?.()?.getTime() || 0;
+            return timeB - timeA;
+        });
+    }, [rooms]);
+
 
     useEffect(() => {
         if (initialRoomId && !selectedRoomId) {
             setSelectedRoomId(initialRoomId);
-        } else if (!selectedRoomId && !initialRoomId && rooms.length > 0) {
-            setSelectedRoomId(rooms[0].id);
+        } else if (!selectedRoomId && !initialRoomId && sortedRooms.length > 0) {
+            setSelectedRoomId(sortedRooms[0].id);
         }
-    }, [rooms, selectedRoomId, initialRoomId]);
+    }, [sortedRooms, selectedRoomId, initialRoomId]);
 
-    const selectedRoom = useMemo(() => rooms.find(r => r.id === selectedRoomId), [rooms, selectedRoomId]);
+    const selectedRoom = useMemo(() => sortedRooms.find(r => r.id === selectedRoomId), [sortedRooms, selectedRoomId]);
     
-    const handleRoomCreated = async (newRoom: Room) => {
+    const handleRoomCreated = (newRoom: Room) => {
+        // Optimistically add the new room to the list to avoid waiting for the listener
         setRooms(prevRooms => {
             const roomExists = prevRooms.some(r => r.id === newRoom.id);
             if (!roomExists) {
@@ -80,9 +96,9 @@ export default function MessagingPage() {
                 </header>
                 <ScrollArea className="flex-1 p-2">
                     {loading && <div className="p-4 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></div>}
-                    {!loading && rooms.length === 0 && <p className="p-4 text-center text-muted-foreground">Aucun salon de discussion.</p>}
+                    {!loading && sortedRooms.length === 0 && <p className="p-4 text-center text-muted-foreground">Aucun salon de discussion.</p>}
                     <div className="space-y-1">
-                        {rooms.map(room => (
+                        {sortedRooms.map(room => (
                             <RoomListItem 
                                 key={room.id} 
                                 room={room} 
@@ -99,15 +115,15 @@ export default function MessagingPage() {
                     <ChatWindow room={selectedRoom} />
                  ) : (
                     <div className="flex flex-col h-full items-center justify-center text-center text-muted-foreground p-8">
-                        {loading || !selectedRoomId ? (
+                        {loading ? (
                             <Loader2 className="h-16 w-16 animate-spin mb-4" />
                         ) : (
                             <MessageCircle className="h-16 w-16 mb-4"/>
                         )}
                         <h2 className="text-xl font-semibold">
-                           {loading || !selectedRoomId ? "Chargement..." : "Sélectionnez un salon"}
+                           {loading ? "Chargement..." : "Sélectionnez un salon"}
                         </h2>
-                        <p>{loading || !selectedRoomId ? "Récupération des discussions..." : "Choisissez un salon de discussion dans la liste pour commencer à chatter."}</p>
+                        <p>{loading ? "Récupération des discussions..." : "Choisissez un salon de discussion dans la liste pour commencer à chatter."}</p>
                     </div>
                  )}
             </main>
