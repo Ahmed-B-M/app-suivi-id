@@ -34,23 +34,33 @@ export default function NotificationsPage() {
     const [activeFilter, setActiveFilter] = useState<NotificationTypeFilter>('all');
     const [searchQuery, setSearchQuery] = useState("");
 
+    const notificationsQueryConstraints = useMemo(() => {
+        const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
+        if (activeFilter !== 'all') {
+            constraints.push(where("type", "==", activeFilter));
+        }
+        return constraints;
+    }, [activeFilter]);
+    
+
     const notificationsCollection = useMemo(() => {
         if (!firestore) return null;
-        return query(collection(firestore, "notifications"), orderBy("createdAt", "desc"));
+        return collection(firestore, "notifications");
     }, [firestore]);
 
-    const { data: allNotifications, loading, error } = useQuery<Notification>(notificationsCollection, [], {realtime: true});
+    const { data: allNotifications, loading, error } = useQuery<Notification>(notificationsCollection, notificationsQueryConstraints, {realtime: true});
     
     const filteredNotifications = useMemo(() => {
         if (!allNotifications) return [];
+        if (!searchQuery) return allNotifications;
+        
         return allNotifications.filter(n => {
-            const typeMatch = activeFilter === 'all' || n.type === activeFilter;
             const searchMatch = searchQuery === "" || 
                                 n.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                 n.relatedEntity?.id.toLowerCase().includes(searchQuery.toLowerCase());
-            return typeMatch && searchMatch;
+            return searchMatch;
         });
-    }, [allNotifications, activeFilter, searchQuery]);
+    }, [allNotifications, searchQuery]);
 
 
     const handleUpdateStatus = (ids: string[], status: 'read' | 'archived') => {
@@ -290,3 +300,5 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         </div>
     )
 }
+
+    
