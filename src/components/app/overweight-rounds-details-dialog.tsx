@@ -69,7 +69,7 @@ export function OverweightRoundsDetailsDialog({
                       ? format(new Date(round.date as string), "dd/MM/yyyy")
                       : "N/A"}
                   </TableCell>
-                  <TableCell className="font-medium">{round.name}</TableCell>
+                  <TableCell className="font-medium">{round.nom}</TableCell>
                   <TableCell>{round.nomHub || "N/A"}</TableCell>
                   <TableCell className="text-right font-mono">
                     {totalWeight.toFixed(2)}
