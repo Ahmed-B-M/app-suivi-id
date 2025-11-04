@@ -24,8 +24,8 @@ export const ChatMessage = ({ message, isOwn }: { message: Message; isOwn: boole
                 isOwn ? "bg-primary text-primary-foreground" : "bg-muted",
                 isBot && "bg-blue-100 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800"
             )}>
-                <p className="font-semibold text-sm mb-1">{message.senderName}</p>
-                <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                <p className={cn("font-semibold text-sm mb-1", isOwn ? "text-primary-foreground" : "text-foreground")}>{message.senderName}</p>
+                <div className={cn("text-sm prose prose-sm dark:prose-invert max-w-none", isOwn ? "text-primary-foreground" : "text-foreground")}>
                   <ReactMarkdown
                     components={{
                         p: ({node, ...props}) => <p className="my-0" {...props} />,
