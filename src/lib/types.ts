@@ -312,3 +312,20 @@ export interface ForecastRule {
   category: 'Matin' | 'Soir' | 'BU' | 'Classique';
   isActive: boolean;
 }
+
+export interface Room {
+  id: string;
+  name: string;
+  members: string[]; // array of user UIDs
+  isGroup: boolean; // true for group chats, false for 1-on-1
+  createdAt: Timestamp;
+  lastMessage?: {
+    text: string;
+    senderName: string;
+    timestamp: Timestamp;
+  };
+}
+
+export interface Message {
+  id: string;
+  text: string;
