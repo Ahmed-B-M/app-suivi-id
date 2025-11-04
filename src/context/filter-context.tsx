@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, groupTasksByMonth } from '@/lib/grouping';
+import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, groupTasksByMonth, DEPOTS_LIST } from '@/lib/grouping';
 import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup, orderBy } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
@@ -144,15 +144,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, commentsDateFilters, {realtime: true, refreshKey});
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true, refreshKey});
   
-  const availableDepots = useMemo(
-    () => {
-        if (!allTasksData) return [];
-        const depots = allTasksData.map(t => getDepotFromHub(t.nomHub));
-        const filteredDepots = depots.filter((d): d is string => !!d && getHubCategory(d) === 'entrepot');
-        return [...new Set(filteredDepots)].sort();
-    },
-    [allTasksData]
-  );
+  const availableDepots = useMemo(() => {
+    return [...DEPOTS_LIST].sort();
+  }, []);
   
   const availableStores = useMemo(
     () => {

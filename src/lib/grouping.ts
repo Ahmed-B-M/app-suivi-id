@@ -31,8 +31,6 @@ const STORE_PREFIXES = ['f', 'carrefour', 'lex'];
  */
 export function getHubCategory(hubName: string | undefined | null): 'entrepot' | 'magasin' {
   if (!hubName) {
-    // Par défaut, un hub sans nom est considéré comme un magasin pour éviter les erreurs,
-    // mais cela peut être ajusté selon la logique souhaitée.
     return "magasin";
   }
   
