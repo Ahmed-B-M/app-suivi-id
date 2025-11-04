@@ -91,31 +91,30 @@ export default function NpsAnalysisPage() {
         setProcessedData([]);
 
         try {
-            // 1. Parse all CSV files and get all unique task IDs
             const allCsvRows = (await Promise.all(files.map(file => processFile(file)))).flat();
-            const taskIdsFromCsv = [...new Set(allCsvRows.map(row => row.Num_commande))];
+            const normalizedTaskIdsFromCsv = [...new Set(allCsvRows.map(row => row.Num_commande.replace(/^0+/, '')))];
 
-            if (taskIdsFromCsv.length === 0) {
+            if (normalizedTaskIdsFromCsv.length === 0) {
                 setError("Aucun numéro de commande trouvé dans les fichiers CSV.");
                 setIsProcessing(false);
                 return;
             }
 
-            // 2. Fetch only the necessary tasks from Firestore in batches of 30 (Firestore 'in' query limit)
             const taskMap = new Map<string, Tache>();
             const tasksCollection = collection(firestore, 'tasks');
             const fetchPromises: Promise<void>[] = [];
 
-            for (let i = 0; i < taskIdsFromCsv.length; i += 30) {
-                const batchIds = taskIdsFromCsv.slice(i, i + 30);
+            for (let i = 0; i < normalizedTaskIdsFromCsv.length; i += 30) {
+                const batchIds = normalizedTaskIdsFromCsv.slice(i, i + 30);
                 const q = query(tasksCollection, where('tacheId', 'in', batchIds));
                 
                 fetchPromises.push(
                     getDocs(q).then(snapshot => {
                         snapshot.forEach(doc => {
                             const taskData = doc.data();
-                            if (taskData.tacheId) {
-                                taskMap.set(taskData.tacheId, { ...taskData, id: taskData.tacheId } as Tache);
+                            const normalizedTaskId = taskData.tacheId.replace(/^0+/, '');
+                            if (normalizedTaskId) {
+                                taskMap.set(normalizedTaskId, { ...taskData, id: taskData.tacheId } as Tache);
                             }
                         });
                     })
@@ -124,15 +123,13 @@ export default function NpsAnalysisPage() {
 
             await Promise.all(fetchPromises);
             
-            // 3. Process and link the data
             const linkedData: ProcessedNpsData[] = [];
             let notFoundCount = 0;
 
             allCsvRows.forEach(row => {
-                const taskId = row.Num_commande;
-                // Look up using the 'Num_commande' which corresponds to 'tacheId'
-                if (taskMap.has(taskId)) {
-                    const task = taskMap.get(taskId)!;
+                const normalizedTaskId = row.Num_commande.replace(/^0+/, '');
+                if (taskMap.has(normalizedTaskId)) {
+                    const task = taskMap.get(normalizedTaskId)!;
                     const npsScore = parseInt(row.NOTE_RECOMMANDATION, 10);
                     let npsCategory: ProcessedNpsData['npsCategory'];
                     
@@ -142,22 +139,15 @@ export default function NpsAnalysisPage() {
 
                     let taskDateStr: string = "N/A";
                      if (task.date) {
-                        // Handle both Firestore Timestamp and string formats
                         if ((task.date as unknown as Timestamp)?.toDate) {
                             taskDateStr = (task.date as unknown as Timestamp).toDate().toISOString();
                         } else if (typeof task.date === 'string') {
-                            try {
-                                taskDateStr = new Date(task.date).toISOString();
-                            } catch (e) {
-                                // If parsing fails, leave it as is or log an error
-                                console.error(`Invalid date format for task ${task.tacheId}:`, task.date);
-                            }
+                            try { taskDateStr = new Date(task.date).toISOString(); } catch (e) { }
                         }
                     }
 
-
                     linkedData.push({
-                        taskId,
+                        taskId: task.tacheId,
                         npsScore,
                         npsCategory,
                         verbatim: row.VERBATIM,
@@ -174,7 +164,7 @@ export default function NpsAnalysisPage() {
 
             setProcessedData(linkedData);
             if (notFoundCount > 0) {
-                 setError(`${notFoundCount} sur ${allCsvRows.length} commandes des fichiers CSV n'ont pas été trouvées dans la base de données et ont été ignorées.`);
+                 setError(`${notFoundCount} sur ${allCsvRows.length} commandes n'ont pas été trouvées dans la base de données et ont été ignorées.`);
             }
         } catch (err: any) {
             setError(`Erreur lors du traitement : ${err.message}`);
@@ -202,7 +192,7 @@ export default function NpsAnalysisPage() {
             if(result.success) {
                 toast({
                     title: "Sauvegarde réussie",
-                    description: `${processedData.length} verbatims ont été sauvegardés avec la date du ${format(associationDate, 'dd/MM/yyyy')}.`
+                    description: `${result.newCount} verbatims ont été sauvegardés pour le ${format(associationDate, 'dd/MM/yyyy')}.`
                 })
             } else {
                 toast({
@@ -220,7 +210,7 @@ export default function NpsAnalysisPage() {
         const promoterCount = processedData.filter(d => d.npsCategory === 'Promoter').length;
         const detractorCount = processedData.filter(d => d.npsCategory === 'Detractor').length;
         
-        const global = ((promoterCount / processedData.length) - (detractorCount / processedData.length)) * 100;
+        const global = processedData.length > 0 ? ((promoterCount / processedData.length) - (detractorCount / processedData.length)) * 100 : 0;
 
         const byEntity = processedData.reduce((acc, curr) => {
             const entityName = curr.depot || curr.store || 'Inconnu';
@@ -236,7 +226,7 @@ export default function NpsAnalysisPage() {
         
         const entityNps = Object.fromEntries(
             Object.entries(byEntity).map(([name, data]) => {
-                const score = ((data.promoters / data.total) - (data.detractors / data.total)) * 100;
+                const score = data.total > 0 ? ((data.promoters / data.total) - (data.detractors / data.total)) * 100 : 0;
                 return [name, score];
             })
         );
@@ -298,7 +288,7 @@ export default function NpsAnalysisPage() {
                                 
                                  <Button onClick={handleSave} disabled={isSaving || processedData.length === 0} className="w-full">
                                     {isSaving ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2"/>}
-                                    {isProcessing ? 'Sauvegarde en cours...' : 'Sauvegarder les résultats'}
+                                    {isSaving ? 'Sauvegarde en cours...' : 'Sauvegarder les résultats'}
                                 </Button>
 
                                 {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Avertissement</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}

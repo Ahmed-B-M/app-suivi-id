@@ -567,39 +567,21 @@ export async function saveNpsDataAction(
     const docRef = firestore.collection("nps_data").doc(docId);
 
     try {
-        // Fetch existing document for this date
-        const existingDoc = await docRef.get();
-        let finalVerbatims: ProcessedNpsData[] = [];
-
-        if (existingDoc.exists) {
-            const existingData = existingDoc.data() as NpsData;
-            // Create a Map to handle deduplication based on taskId
-            const verbatimsMap = new Map<string, ProcessedNpsData>();
-
-            // Add existing verbatims to the map
-            (existingData.verbatims || []).forEach(v => {
-                verbatimsMap.set(v.taskId, v);
-            });
-
-            // Add new/updated verbatims, overwriting duplicates
-            payload.verbatims.forEach(v => {
-                verbatimsMap.set(v.taskId, v);
-            });
-            
-            finalVerbatims = Array.from(verbatimsMap.values());
-        } else {
-            // No existing document, just use the new data
-            finalVerbatims = payload.verbatims;
-        }
+        const verbatimsMap = new Map<string, ProcessedNpsData>();
+        
+        // Add new/updated verbatims, overwriting duplicates
+        payload.verbatims.forEach(v => {
+            verbatimsMap.set(v.taskId, v);
+        });
 
         // Save the merged and deduplicated data
         await docRef.set({
             id: docId,
             associationDate: payload.associationDate,
-            verbatims: finalVerbatims
+            verbatims: Array.from(verbatimsMap.values())
         }, { merge: true });
 
-        return { success: true, error: null, newCount: finalVerbatims.length };
+        return { success: true, error: null, newCount: verbatimsMap.size };
 
     } catch (error: any) {
         console.error("Error saving/merging NPS data:", error);
