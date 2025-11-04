@@ -443,7 +443,7 @@ export async function runSyncAction(
 
     const qualityAlertTasks = transformedTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
     for (const task of qualityAlertTasks) {
-        if (!processedTaskIdsForNotif.has(task.tacheId)) {
+        if (task.tacheId && !processedTaskIdsForNotif.has(task.tacheId)) {
             await createNotification(firestore, {
                 type: 'quality_alert',
                 message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
@@ -455,18 +455,20 @@ export async function runSyncAction(
     }
 
     const commentAlertTasks = transformedTasks.filter(t => 
-        !processedTaskIdsForNotif.has(t.tacheId) &&
+        t.tacheId && !processedTaskIdsForNotif.has(t.tacheId) &&
         t.metaCommentaireLivreur &&
         NEGATIVE_COMMENT_KEYWORDS.some(keyword => t.metaCommentaireLivreur!.toLowerCase().includes(keyword))
     );
      for (const task of commentAlertTasks) {
-        await createNotification(firestore, {
-            type: 'quality_alert',
-            message: `Commentaire négatif de ${getDriverFullName(task) || 'un livreur'} sur la tournée ${task.nomTournee || 'inconnue'}.`,
-            relatedEntity: { type: 'task', id: task.tacheId }
-        });
-        notificationCount++;
-        processedTaskIdsForNotif.add(task.tacheId);
+        if (task.tacheId) {
+             await createNotification(firestore, {
+                type: 'quality_alert',
+                message: `Commentaire négatif de ${getDriverFullName(task) || 'un livreur'} sur la tournée ${task.nomTournee || 'inconnue'}.`,
+                relatedEntity: { type: 'task', id: task.tacheId }
+            });
+            notificationCount++;
+            processedTaskIdsForNotif.add(task.tacheId);
+        }
     }
 
     const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > WEIGHT_LIMIT);
@@ -668,4 +670,6 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
 }
 
     
+    
+
     
