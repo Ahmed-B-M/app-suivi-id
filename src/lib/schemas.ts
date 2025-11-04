@@ -2,8 +2,9 @@ import { z } from "zod";
 
 export const unifiedExportFormSchema = z.object({
   apiKey: z.string().min(1, "La clé d'API est requise."),
-  selectedDate: z.date({
-    required_error: "Une date est requise.",
+  dateRange: z.object({
+    from: z.date({ required_error: "Une date de début est requise."}),
+    to: z.date().optional(),
   }),
   taskStatus: z.string().optional(),
   roundStatus: z.string().optional(),
@@ -19,7 +20,7 @@ export type UnifiedExportFormValues = z.infer<typeof unifiedExportFormSchema>;
 export const serverExportSchema = unifiedExportFormSchema.extend({
     from: z.string(),
     to: z.string(),
-}).omit({ selectedDate: true });
+}).omit({ dateRange: true });
 
 
 // --- Legacy Schemas (can be removed if no longer used) ---
