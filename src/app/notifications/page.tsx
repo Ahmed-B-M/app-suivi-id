@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useQuery, useFirebase } from "@/firebase";
-import { collection, orderBy, writeBatch, doc, where, query } from "firebase/firestore";
+import { collection, orderBy, writeBatch, doc, where, query, QueryConstraint } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,22 +17,36 @@ import type { Notification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
+type NotificationTypeFilter = "all" | Notification['type'];
+
+const filterOptions: { value: NotificationTypeFilter, label: string, icon: React.ReactNode }[] = [
+    { value: 'all', label: 'Toutes', icon: <Bell className="h-4 w-4 mr-2" /> },
+    { value: 'quality_alert', label: 'Qualité', icon: <AlertCircle className="h-4 w-4 mr-2" /> },
+    { value: 'overweight_round', label: 'Surcharge', icon: <Weight className="h-4 w-4 mr-2" /> },
+    { value: 'late_delivery_pattern', label: 'Retards', icon: <AlertTriangle className="h-4 w-4 mr-2" /> },
+]
 
 export default function NotificationsPage() {
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
+    const [activeFilter, setActiveFilter] = useState<NotificationTypeFilter>('all');
 
-    const notificationsCollection = useMemo(() => 
-        firestore 
-            ? query(
-                collection(firestore, "notifications"), 
-                where("status", "!=", "archived"), 
-                orderBy("status", "asc"), 
-                orderBy("createdAt", "desc")
-              ) 
-            : null
-    , [firestore]);
+    const notificationsCollection = useMemo(() => {
+        if (!firestore) return null;
+
+        const constraints: QueryConstraint[] = [
+            where("status", "!=", "archived"),
+            orderBy("status", "asc"),
+            orderBy("createdAt", "desc")
+        ];
+
+        if (activeFilter !== 'all') {
+            constraints.unshift(where("type", "==", activeFilter));
+        }
+
+        return query(collection(firestore, "notifications"), ...constraints);
+    }, [firestore, activeFilter]);
 
     const { data: notifications, loading, error } = useQuery<Notification>(notificationsCollection, [], {realtime: true});
 
@@ -57,7 +71,7 @@ export default function NotificationsPage() {
     const unreadNotifications = useMemo(() => notifications.filter(n => n.status === 'unread'), [notifications]);
     const readNotifications = useMemo(() => notifications.filter(n => n.status === 'read'), [notifications]);
 
-    if (loading) {
+    if (loading && notifications.length === 0) {
         return (
             <main className="container mx-auto py-8">
                 <div className="space-y-4">
@@ -76,13 +90,29 @@ export default function NotificationsPage() {
         <main className="container mx-auto py-8">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-2xl">
-                        <Bell />
-                        Centre de Notifications
-                    </CardTitle>
-                    <CardDescription>
-                        Liste des alertes et notifications générées par le système.
-                    </CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                             <CardTitle className="flex items-center gap-2 text-2xl">
+                                <Bell />
+                                Centre de Notifications
+                            </CardTitle>
+                            <CardDescription>
+                                Liste des alertes et notifications générées par le système.
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {filterOptions.map(option => (
+                                <Button 
+                                    key={option.value}
+                                    variant={activeFilter === option.value ? 'default' : 'outline'}
+                                    onClick={() => setActiveFilter(option.value)}
+                                >
+                                    {option.icon}
+                                    {option.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <h3 className="text-lg font-semibold mb-4">Non lues ({unreadNotifications.length})</h3>
@@ -90,10 +120,12 @@ export default function NotificationsPage() {
                         <div className="mb-8">
                              <div className="flex justify-end gap-2 mb-4">
                                 <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(unreadNotifications.map(n => n.id), 'read')} disabled={isPending}>
-                                    <Eye className="mr-2 h-4 w-4" /> Marquer tout comme lu
+                                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+                                    Marquer tout comme lu
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(unreadNotifications.map(n => n.id), 'archived')} disabled={isPending}>
-                                    <Archive className="mr-2 h-4 w-4" /> Tout archiver
+                                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
+                                     Tout archiver
                                 </Button>
                             </div>
                             <NotificationTable 
@@ -111,7 +143,8 @@ export default function NotificationsPage() {
                         <div>
                             <div className="flex justify-end gap-2 mb-4">
                                 <Button size="sm" variant="outline" onClick={() => handleUpdateStatus(readNotifications.map(n => n.id), 'archived')} disabled={isPending}>
-                                    <Archive className="mr-2 h-4 w-4" /> Tout archiver
+                                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
+                                    Tout archiver
                                 </Button>
                             </div>
                             <NotificationTable 
