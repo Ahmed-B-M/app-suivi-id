@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle } from "lucide-react";
+import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Notification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
 
 type NotificationTypeFilter = "all" | Notification['type'];
 
@@ -31,24 +32,26 @@ export default function NotificationsPage() {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [activeFilter, setActiveFilter] = useState<NotificationTypeFilter>('all');
+    const [searchQuery, setSearchQuery] = useState("");
 
     const notificationsCollection = useMemo(() => {
         if (!firestore) return null;
+        return query(collection(firestore, "notifications"), orderBy("createdAt", "desc"));
+    }, [firestore]);
 
-        const constraints: QueryConstraint[] = [
-            where("status", "!=", "archived"),
-            orderBy("status", "asc"),
-            orderBy("createdAt", "desc")
-        ];
+    const { data: allNotifications, loading, error } = useQuery<Notification>(notificationsCollection, [], {realtime: true});
+    
+    const filteredNotifications = useMemo(() => {
+        if (!allNotifications) return [];
+        return allNotifications.filter(n => {
+            const typeMatch = activeFilter === 'all' || n.type === activeFilter;
+            const searchMatch = searchQuery === "" || 
+                                n.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                n.relatedEntity?.id.toLowerCase().includes(searchQuery.toLowerCase());
+            return typeMatch && searchMatch;
+        });
+    }, [allNotifications, activeFilter, searchQuery]);
 
-        if (activeFilter !== 'all') {
-            constraints.unshift(where("type", "==", activeFilter));
-        }
-
-        return query(collection(firestore, "notifications"), ...constraints);
-    }, [firestore, activeFilter]);
-
-    const { data: notifications, loading, error } = useQuery<Notification>(notificationsCollection, [], {realtime: true});
 
     const handleUpdateStatus = (ids: string[], status: 'read' | 'archived') => {
         if (!firestore || ids.length === 0) return;
@@ -68,10 +71,10 @@ export default function NotificationsPage() {
         });
     };
 
-    const unreadNotifications = useMemo(() => notifications.filter(n => n.status === 'unread'), [notifications]);
-    const readNotifications = useMemo(() => notifications.filter(n => n.status === 'read'), [notifications]);
+    const unreadNotifications = useMemo(() => filteredNotifications.filter(n => n.status === 'unread'), [filteredNotifications]);
+    const readNotifications = useMemo(() => filteredNotifications.filter(n => n.status === 'read'), [filteredNotifications]);
 
-    if (loading && notifications.length === 0) {
+    if (loading && filteredNotifications.length === 0) {
         return (
             <main className="container mx-auto py-8">
                 <div className="space-y-4">
@@ -90,7 +93,7 @@ export default function NotificationsPage() {
         <main className="container mx-auto py-8">
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                              <CardTitle className="flex items-center gap-2 text-2xl">
                                 <Bell />
@@ -100,17 +103,29 @@ export default function NotificationsPage() {
                                 Liste des alertes et notifications générées par le système.
                             </CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
-                            {filterOptions.map(option => (
-                                <Button 
-                                    key={option.value}
-                                    variant={activeFilter === option.value ? 'default' : 'outline'}
-                                    onClick={() => setActiveFilter(option.value)}
-                                >
-                                    {option.icon}
-                                    {option.label}
-                                </Button>
-                            ))}
+                         <div className="w-full sm:w-auto flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2">
+                             <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Rechercher..." 
+                                    className="pl-8 sm:w-64"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {filterOptions.map(option => (
+                                    <Button 
+                                        key={option.value}
+                                        variant={activeFilter === option.value ? 'default' : 'outline'}
+                                        onClick={() => setActiveFilter(option.value)}
+                                        className="flex-1 sm:flex-none"
+                                    >
+                                        {option.icon}
+                                        {option.label}
+                                    </Button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
@@ -135,7 +150,7 @@ export default function NotificationsPage() {
                             />
                         </div>
                     ) : (
-                        <p className="text-muted-foreground text-center py-8 border rounded-md">Aucune nouvelle notification.</p>
+                        <p className="text-muted-foreground text-center py-8 border rounded-md">Aucune nouvelle notification pour les filtres actuels.</p>
                     )}
 
                     <h3 className="text-lg font-semibold my-4">Lues ({readNotifications.length})</h3>
@@ -155,7 +170,7 @@ export default function NotificationsPage() {
                             />
                         </div>
                     ) : (
-                         <p className="text-muted-foreground text-center py-8 border rounded-md">Aucune notification lue.</p>
+                         <p className="text-muted-foreground text-center py-8 border rounded-md">Aucune notification lue pour les filtres actuels.</p>
                     )}
                 </CardContent>
             </Card>
