@@ -130,6 +130,22 @@ export default function NotificationsPage() {
 }
 
 const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = false }: { notifications: Notification[], onUpdateStatus: (ids: string[], status: 'read' | 'archived') => void, isPending: boolean, isRead?: boolean}) => {
+    
+    const parseDate = (dateValue: any): Date | null => {
+        if (!dateValue) return null;
+        // Check if it's a Firestore Timestamp
+        if (typeof dateValue === 'object' && dateValue.seconds) {
+            return new Date(dateValue.seconds * 1000);
+        }
+        // Check if it's already a Date object
+        if (dateValue instanceof Date) {
+            return dateValue;
+        }
+        // Try to parse from string
+        const parsedDate = new Date(dateValue);
+        return isNaN(parsedDate.getTime()) ? null : parsedDate;
+    };
+
     return (
         <div className="rounded-md border">
             <Table>
@@ -142,31 +158,34 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {notifications.map(notification => (
-                        <TableRow key={notification.id} className={cn(isRead && "text-muted-foreground")}>
-                            <TableCell className="text-xs">
-                                {notification.createdAt ? formatDistanceToNow(new Date(notification.createdAt as string), { addSuffix: true, locale: fr }) : 'N/A'}
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={notification.type === 'quality_alert' ? 'destructive' : 'secondary'}>
-                                    {notification.type}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>{notification.message}</TableCell>
-                            <TableCell className="text-right">
-                                <div className="flex gap-2 justify-end">
-                                    {!isRead && (
-                                        <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'read')} disabled={isPending}>
-                                            <Eye className="mr-2 h-4 w-4" /> Marquer comme lu
+                    {notifications.map(notification => {
+                        const createdAtDate = parseDate(notification.createdAt);
+                        return (
+                            <TableRow key={notification.id} className={cn(isRead && "text-muted-foreground")}>
+                                <TableCell className="text-xs">
+                                    {createdAtDate ? formatDistanceToNow(createdAtDate, { addSuffix: true, locale: fr }) : 'Date inconnue'}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant={notification.type === 'quality_alert' ? 'destructive' : 'secondary'}>
+                                        {notification.type}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{notification.message}</TableCell>
+                                <TableCell className="text-right">
+                                    <div className="flex gap-2 justify-end">
+                                        {!isRead && (
+                                            <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'read')} disabled={isPending}>
+                                                <Eye className="mr-2 h-4 w-4" /> Marquer comme lu
+                                            </Button>
+                                        )}
+                                        <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'archived')} disabled={isPending}>
+                                            <Archive className="mr-2 h-4 w-4" /> Archiver
                                         </Button>
-                                    )}
-                                    <Button size="sm" variant="ghost" onClick={() => onUpdateStatus([notification.id], 'archived')} disabled={isPending}>
-                                        <Archive className="mr-2 h-4 w-4" /> Archiver
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </div>
