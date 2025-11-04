@@ -15,13 +15,14 @@ import { saveCategorizedCommentsAction, categorizeSingleCommentAction, saveSingl
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Loader2, Sparkles, Save, User, Building, Calendar, Bot } from "lucide-react";
+import { Loader2, Sparkles, Save, User, Building, Calendar, Bot, Link as LinkIcon } from "lucide-react";
 import { usePendingComments, type CategorizedComment } from "@/hooks/use-pending-comments";
 import { categories as categoryOptions } from "@/components/app/comment-analysis";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CommentStatus } from "@/lib/types";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import { format } from "date-fns";
+import Link from "next/link";
 
 const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
@@ -186,16 +187,16 @@ export default function CommentManagementPage() {
           }))
           .catch((error) => {
             console.error(`Échec de l'analyse pour la tâche ${comment.taskId}:`, error);
-            return { success: false, comment, error }; // Retourner l'erreur pour la gestion
+            return { success: false, comment, error };
           })
       );
 
       const results = await Promise.all(analysisPromises);
       
+      const newPendingComments: Record<string, CategorizedComment> = {};
       let successCount = 0;
-      let newPendingComments: Record<string, CategorizedComment> = {};
 
-      for (const res of results) {
+      results.forEach(res => {
         if (res.success) {
           const { comment, result } = res;
           const updates: Partial<CategorizedComment> = { status: "en cours" };
@@ -205,9 +206,8 @@ export default function CommentManagementPage() {
           newPendingComments[comment.taskId] = { ...comment, ...updates };
           successCount++;
         }
-      }
-
-      // Batch update the state to avoid multiple re-renders
+      });
+      
       if(Object.keys(newPendingComments).length > 0) {
         addPendingComment(newPendingComments);
       }
@@ -230,7 +230,7 @@ export default function CommentManagementPage() {
         <h1 className="text-2xl font-bold">Gestion des Commentaires</h1>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Button variant={statusFilter === 'à traiter' ? 'default' : 'outline'} onClick={() => setStatusFilter('à traiter')}>À traiter</Button>
+            <Button variant={statusFilter === 'à traiter' ? 'destructive' : 'outline'} onClick={() => setStatusFilter('à traiter')}>À traiter</Button>
             <Button variant={statusFilter === 'en cours' ? 'default' : 'outline'} onClick={() => setStatusFilter('en cours')}>En cours</Button>
             <Button variant={statusFilter === 'traité' ? 'default' : 'outline'} onClick={() => setStatusFilter('traité')}>Traités</Button>
             <Button variant={statusFilter === 'tous' ? 'default' : 'outline'} onClick={() => setStatusFilter('tous')}>Tous</Button>
@@ -277,9 +277,12 @@ export default function CommentManagementPage() {
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1 text-xs">
-                        <div className="font-mono text-primary">{comment.taskId}</div>
-                        <div className="flex items-center gap-1.5 font-medium"><User className="h-3 w-3 text-muted-foreground"/>{comment.driverName || 'N/A'}</div>
+                    <div className="flex flex-col gap-1.5 text-xs">
+                        <Link href={`/task/${comment.taskId}`} className="flex items-center gap-1.5 font-mono text-primary hover:underline">
+                            <LinkIcon className="h-3 w-3"/>
+                            {comment.taskId}
+                        </Link>
+                        <div className="flex items-center gap-1.5 font-medium text-foreground"><User className="h-3 w-3 text-muted-foreground"/>{comment.driverName || 'N/A'}</div>
                         <div className="flex items-center gap-1.5 text-muted-foreground"><Building className="h-3 w-3"/>{comment.nomHub || 'N/A'}</div>
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Calendar className="h-3 w-3"/>
@@ -334,4 +337,3 @@ export default function CommentManagementPage() {
     </div>
   );
 }
-
