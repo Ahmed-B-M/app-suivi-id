@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Archive, Eye, Link as LinkIcon, Loader2 } from "lucide-react";
+import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -143,6 +143,27 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         const parsedDate = new Date(dateValue);
         return isNaN(parsedDate.getTime()) ? null : parsedDate;
     };
+    
+    const extractInfo = (message: string): { driver: string | null; round: string | null; mainMessage: string, detail: string | null } => {
+        const driverMatch = message.match(/pour (.*?)\./);
+        const roundMatch = message.match(/tournée (.*?)\./);
+        const noteMatch = message.match(/Note de (\d+\/\d+)/);
+        const weightMatch = message.match(/\((\d+(\.\d+)?) kg\)/);
+
+        let mainMessage = message;
+        if (driverMatch) mainMessage = mainMessage.replace(driverMatch[0], '');
+        if (roundMatch) mainMessage = mainMessage.replace(roundMatch[0], '');
+        if (noteMatch) mainMessage = mainMessage.replace(noteMatch[0], '');
+        if (weightMatch) mainMessage = mainMessage.replace(weightMatch[0], '');
+
+        return {
+            driver: driverMatch ? driverMatch[1] : null,
+            round: roundMatch ? roundMatch[1] : null,
+            mainMessage: mainMessage.replace(/\.$/, '').trim(),
+            detail: noteMatch ? noteMatch[1] : (weightMatch ? `${weightMatch[1]} kg` : null)
+        };
+    };
+
 
     return (
         <div className="rounded-md border">
@@ -151,7 +172,10 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                     <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
-                        <TableHead className="w-1/2">Message</TableHead>
+                        <TableHead>Livreur</TableHead>
+                        <TableHead>Tournée</TableHead>
+                        <TableHead>Message</TableHead>
+                        <TableHead>Détail</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -159,6 +183,7 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                     {notifications.map(notification => {
                         const createdAtDate = parseDate(notification.createdAt);
                         const linkHref = notification.relatedEntity ? `/${notification.relatedEntity.type}/${notification.relatedEntity.id}` : '#';
+                        const info = extractInfo(notification.message);
 
                         return (
                             <TableRow key={notification.id} className={cn(isRead && "text-muted-foreground")}>
@@ -167,14 +192,27 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={notification.type === 'quality_alert' ? 'destructive' : 'secondary'}>
-                                        {notification.type}
+                                        <div className="flex items-center gap-1">
+                                            {notification.type === 'quality_alert' && <AlertCircle className="h-3 w-3" />}
+                                            {notification.type === 'overweight_round' && <Weight className="h-3 w-3" />}
+                                            {notification.type.replace(/_/g, ' ')}
+                                        </div>
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
+                                  {info.driver && <span className="flex items-center gap-1.5"><User className="h-4 w-4"/>{info.driver}</span>}
+                                </TableCell>
+                                <TableCell>
+                                  {info.round && <span className="flex items-center gap-1.5"><Route className="h-4 w-4"/>{info.round}</span>}
+                                </TableCell>
+                                <TableCell>
                                     <Link href={linkHref} className="hover:underline flex items-center gap-2">
-                                        <span>{notification.message}</span>
+                                        <span>{info.mainMessage}</span>
                                         {notification.relatedEntity && <LinkIcon className="h-3 w-3 shrink-0" />}
                                     </Link>
+                                </TableCell>
+                                <TableCell>
+                                    {info.detail && <Badge variant="outline">{info.detail}</Badge>}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex gap-2 justify-end">
