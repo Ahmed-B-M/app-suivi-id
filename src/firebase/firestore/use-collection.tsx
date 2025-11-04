@@ -64,9 +64,9 @@ export function useCollection<T>(
         return;
     }
         
-    const q = query(collectionQuery, ...constraints);
+    const finalQuery = constraints.length > 0 ? query(collectionQuery, ...constraints) : (collectionQuery as Query);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(finalQuery, (snapshot) => {
       try {
         const newData = snapshot.docs.map(doc => {
             const docData = doc.data();
