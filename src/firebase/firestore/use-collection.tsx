@@ -21,7 +21,7 @@ export function clearCollectionCache() {
 
 
 export function useCollection<T>(
-  collectionQuery: Query<DocumentData> | CollectionReference<DocumentData> | null,
+  collectionRef: CollectionReference<DocumentData> | null,
   constraints: QueryConstraint[] = [],
   options: { realtime?: boolean, refreshKey?: number } = {}
 ): { data: T[]; loading: boolean; error: Error | null; lastUpdateTime: Date | null; setData: React.Dispatch<React.SetStateAction<T[]>> } {
@@ -32,15 +32,15 @@ export function useCollection<T>(
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
 
   const cacheKey = useMemo(() => {
-    if (!collectionQuery) return null;
-    const path = (collectionQuery as any).path;
-    const constraintsString = constraints.map(c => c.constructor.name + JSON.stringify(c)).join('-');
+    if (!collectionRef) return null;
+    const path = collectionRef.path;
+    const constraintsString = constraints.map(c => (c as any)._type + JSON.stringify((c as any)._queryConstraints || (c as any)._field)).join('-');
     return `${path}-${constraintsString}-${refreshKey}`; // Include refreshKey in the cacheKey
-  }, [collectionQuery, constraints, refreshKey]);
+  }, [collectionRef, constraints, refreshKey]);
 
 
   useEffect(() => {
-    if (!collectionQuery || !cacheKey) {
+    if (!collectionRef || !cacheKey) {
       setLoading(false);
       return;
     }
@@ -64,7 +64,7 @@ export function useCollection<T>(
         return;
     }
         
-    const finalQuery = constraints.length > 0 ? query(collectionQuery, ...constraints) : (collectionQuery as Query);
+    const finalQuery = query(collectionRef, ...constraints);
 
     const unsubscribe = onSnapshot(finalQuery, (snapshot) => {
       try {
@@ -111,7 +111,7 @@ export function useCollection<T>(
            }
         }
     };
-  }, [cacheKey, realtime]); 
+  }, [cacheKey, realtime, collectionRef, ...constraints]); // Add constraints to dependency array
 
   return { data, loading, error, lastUpdateTime, setData };
 }

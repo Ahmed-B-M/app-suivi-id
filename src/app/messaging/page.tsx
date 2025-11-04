@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, serverTimestamp, getDoc, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, serverTimestamp, getDoc, doc, QueryConstraint } from "firebase/firestore";
 import { Loader2, MessageCircle } from "lucide-react";
 import { RoomListItem } from "@/components/app/messaging/room-list-item";
 import { ChatWindow } from "@/components/app/messaging/chat-window";
@@ -21,17 +21,20 @@ export default function MessagingPage() {
 
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(initialRoomId);
 
-    const roomsQuery = useMemoFirebase(() => 
-        firestore && user 
-            ? query(
-                collection(firestore, 'rooms'), 
-                where('members', 'array-contains', user.uid), 
+    const roomsCollection = useMemoFirebase(() => 
+        firestore ? collection(firestore, 'rooms') : null
+    , [firestore]);
+    
+    const roomsConstraints = useMemoFirebase((): QueryConstraint[] => 
+        user 
+            ? [
+                where('members', 'array-contains', user.uid),
                 orderBy('createdAt', 'desc')
-              ) 
-            : null
-    , [firestore, user]);
+              ] 
+            : []
+    , [user]);
 
-    const { data: rooms, loading, setData: setRooms } = useCollection<Room>(roomsQuery, [], { realtime: true });
+    const { data: rooms, loading, setData: setRooms } = useCollection<Room>(roomsCollection, roomsConstraints, { realtime: true });
     
     const sortedRooms = useMemo(() => {
         return [...rooms].sort((a, b) => {
