@@ -3,8 +3,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
-import { Loader2, MessageCircle, Pencil } from "lucide-react";
+import { collection, query, where, orderBy, serverTimestamp, getDoc } from "firebase/firestore";
+import { Loader2, MessageCircle } from "lucide-react";
 import { RoomListItem } from "@/components/app/messaging/room-list-item";
 import { ChatWindow } from "@/components/app/messaging/chat-window";
 import { NewChatDialog } from "@/components/app/messaging/new-chat-dialog";
@@ -25,11 +25,9 @@ export default function MessagingPage() {
         firestore && user ? query(collection(firestore, 'rooms'), where('members', 'array-contains', user.uid), orderBy('lastMessage.timestamp', 'desc')) : null
     , [firestore, user]);
 
-    const { data: rooms, loading } = useCollection<Room>(roomsQuery, [], { realtime: true });
+    const { data: rooms, loading, setData: setRooms } = useCollection<Room>(roomsQuery, [], { realtime: true });
 
     useEffect(() => {
-        // If there's an initial room ID from URL, keep it.
-        // Otherwise, if no room is selected and rooms have loaded, select the first one.
         if (initialRoomId && !selectedRoomId) {
             setSelectedRoomId(initialRoomId);
         } else if (!selectedRoomId && !initialRoomId && rooms.length > 0) {
@@ -39,8 +37,15 @@ export default function MessagingPage() {
 
     const selectedRoom = useMemo(() => rooms.find(r => r.id === selectedRoomId), [rooms, selectedRoomId]);
     
-    const handleRoomCreated = (roomId: string) => {
-        setSelectedRoomId(roomId);
+    const handleRoomCreated = async (newRoom: Room) => {
+        setRooms(prevRooms => {
+            const roomExists = prevRooms.some(r => r.id === newRoom.id);
+            if (!roomExists) {
+                return [newRoom, ...prevRooms];
+            }
+            return prevRooms;
+        });
+        setSelectedRoomId(newRoom.id);
     };
 
     return (

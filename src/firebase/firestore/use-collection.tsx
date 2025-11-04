@@ -23,8 +23,9 @@ export function clearCollectionCache() {
 export function useCollection<T>(
   collectionQuery: Query<DocumentData> | CollectionReference<DocumentData> | null,
   constraints: QueryConstraint[] = [],
-  refreshKey: number = 0
-): { data: T[]; loading: boolean; error: Error | null; lastUpdateTime: Date | null } {
+  options: { realtime?: boolean, refreshKey?: number } = {}
+): { data: T[]; loading: boolean; error: Error | null; lastUpdateTime: Date | null; setData: React.Dispatch<React.SetStateAction<T[]>> } {
+  const { realtime = true, refreshKey = 0 } = options;
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -44,60 +45,61 @@ export function useCollection<T>(
       return;
     }
 
-    // If a listener for this exact query already exists, just use its data.
     if (cache.has(cacheKey)) {
         const cached = cache.get(cacheKey)!;
-        cached.listeners++;
+        if (realtime) {
+          cached.listeners++;
+        }
         setData(cached.data as T[]);
         setLastUpdateTime(cached.lastUpdateTime);
         setLoading(false);
+        if (!realtime) return;
     } else {
         setLoading(true);
+    }
+    
+    if (!realtime) {
+        // One-time fetch logic would go here if needed, but this hook is primarily for real-time
+        setLoading(false);
+        return;
+    }
         
-        const q = query(collectionQuery, ...constraints);
+    const q = query(collectionQuery, ...constraints);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          try {
-            const newData = snapshot.docs.map(doc => {
-                const docData = doc.data();
-                Object.keys(docData).forEach(key => {
-                    if (docData[key]?.toDate) {
-                        docData[key] = docData[key].toDate().toISOString();
-                    }
-                });
-                return { ...docData, id: doc.id };
-            }) as T[];
-            
-            const newUpdateTime = new Date();
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      try {
+        const newData = snapshot.docs.map(doc => {
+            const docData = doc.data();
+            Object.keys(docData).forEach(key => {
+                if (docData[key]?.toDate) {
+                    docData[key] = docData[key].toDate().toISOString();
+                }
+            });
+            return { ...docData, id: doc.id };
+        }) as T[];
+        
+        const newUpdateTime = new Date();
 
-            setData(newData);
-            setLastUpdateTime(newUpdateTime);
-            
-            // If another component set up the listener while we were fetching,
-            // update the existing cache entry instead of creating a new one.
-            if (cache.has(cacheKey)) {
-              const existing = cache.get(cacheKey)!;
-              existing.data = newData;
-              existing.lastUpdateTime = newUpdateTime;
-            } else {
-              cache.set(cacheKey, { data: newData, lastUpdateTime: newUpdateTime, unsubscribe, listeners: 1 });
-            }
-
-          } catch (e: any) {
-            setError(e);
-          } finally {
-            setLoading(false);
-          }
-        }, (err) => {
-          setError(err);
-          setLoading(false);
+        setData(newData);
+        setLastUpdateTime(newUpdateTime);
+        
+        const existingCached = cache.get(cacheKey);
+        cache.set(cacheKey, { 
+            data: newData, 
+            lastUpdateTime: newUpdateTime, 
+            unsubscribe, 
+            listeners: existingCached ? existingCached.listeners + 1 : 1 
         });
 
-        // Store the new subscription, or update if it was created in parallel
-        if (!cache.has(cacheKey)) {
-            cache.set(cacheKey, { data: [], lastUpdateTime: new Date(), unsubscribe, listeners: 1 });
-        }
-    }
+      } catch (e: any) {
+        setError(e);
+      } finally {
+        setLoading(false);
+      }
+    }, (err) => {
+      setError(err);
+      setLoading(false);
+    });
 
     return () => {
         if (cacheKey && cache.has(cacheKey)) {
@@ -109,7 +111,7 @@ export function useCollection<T>(
            }
         }
     };
-  }, [cacheKey]); 
+  }, [cacheKey, realtime]); 
 
-  return { data, loading, error, lastUpdateTime };
+  return { data, loading, error, lastUpdateTime, setData };
 }

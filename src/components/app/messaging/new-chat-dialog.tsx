@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from "react";
 import { useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,11 +17,11 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { UserProfile } from "@/lib/types";
+import type { UserProfile, Room } from "@/lib/types";
 
-export const NewChatDialog = ({ onRoomCreated }: { onRoomCreated: (roomId: string) => void }) => {
+export const NewChatDialog = ({ onRoomCreated }: { onRoomCreated: (room: Room) => void }) => {
     const { firestore } = useFirebase();
-    const { user: currentUser, userProfile: currentUserProfile } = useUser();
+    const { user: currentUser } = useUser();
     const [search, setSearch] = useState("");
     const [open, setOpen] = useState(false);
 
@@ -30,33 +30,36 @@ export const NewChatDialog = ({ onRoomCreated }: { onRoomCreated: (roomId: strin
 
     const filteredUsers = useMemo(() => {
         return (allUsers || [])
-            .filter(u => u.uid !== currentUser?.uid) // Exclude self
+            .filter(u => u.uid !== currentUser?.uid)
             .filter(u => u.displayName.toLowerCase().includes(search.toLowerCase()));
     }, [allUsers, search, currentUser]);
     
     const handleSelectUser = async (selectedUser: UserProfile) => {
         if (!firestore || !currentUser) return;
         
-        // Check if a 1-on-1 room already exists
         const members = [currentUser.uid, selectedUser.uid].sort();
         const roomQuery = query(collection(firestore, 'rooms'), where('isGroup', '==', false), where('members', '==', members));
 
         const querySnapshot = await getDocs(roomQuery);
+        let roomToSelect: Room;
+
         if (!querySnapshot.empty) {
-            // Room exists, select it
-            const existingRoom = querySnapshot.docs[0];
-            onRoomCreated(existingRoom.id);
+            const existingRoomDoc = querySnapshot.docs[0];
+            roomToSelect = { id: existingRoomDoc.id, ...existingRoomDoc.data() } as Room;
         } else {
-            // Create a new room
             const newRoomData = {
                 name: `Conversation avec ${selectedUser.displayName}`,
                 isGroup: false,
                 members: members,
                 createdAt: serverTimestamp(),
+                lastMessage: null,
             };
             const newRoomRef = await addDoc(collection(firestore, 'rooms'), newRoomData);
-            onRoomCreated(newRoomRef.id);
+            const newDocSnap = await getDoc(newRoomRef);
+            roomToSelect = { id: newDocSnap.id, ...newDocSnap.data() } as Room;
         }
+
+        onRoomCreated(roomToSelect);
         setOpen(false);
     };
 

@@ -45,7 +45,7 @@ export function useQuery<T>(
   collectionQuery: Query<DocumentData> | CollectionReference<DocumentData> | null,
   constraints: QueryConstraint[] = [],
   options: UseQueryOptions = {}
-): { data: T[]; loading: boolean; error: Error | null; lastUpdateTime: Date | null } {
+): { data: T[]; loading: boolean; error: Error | null; lastUpdateTime: Date | null; setData: React.Dispatch<React.SetStateAction<T[]>> } {
   const { realtime = false, refreshKey = 0 } = options;
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,5 +146,5 @@ export function useQuery<T>(
     };
   }, [cacheKey, collectionQuery, realtime]); // removed constraints from here
 
-  return { data, loading, error, lastUpdateTime };
+  return { data, loading, error, lastUpdateTime, setData };
 }
