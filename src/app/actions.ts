@@ -12,8 +12,8 @@ import { initializeFirebaseOnServer } from "@/firebase/server-init";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
-import type { ProcessedNpsData } from "../nps-analysis/page";
-import { ProcessedVerbatim } from "../verbatim-treatment/page";
+import type { ProcessedNpsData } from "./nps-analysis/page";
+import { ProcessedVerbatim } from "./verbatim-treatment/page";
 import { FieldValue } from 'firebase-admin/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
@@ -243,7 +243,7 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         bacsSec: aggregatedBacs.bacsSec,
         bacsPoisson: aggregatedBacs.bacsPoisson,
         bacsBoucherie: aggregatedBacs.bacsBoucherie,
-        totalSecFrais: aggregatedBacs.bacsSec + aggregatedBacs.bacsFrais,
+        totalSecFrais: aggregatedBacs.bacsSec + bacs.bacsFrais,
         nombreDeBacs: rawRound.dimensions?.bac,
         poidsTournee: rawRound.dimensions?.poids,
         poidsReel: poidsReel,
@@ -703,18 +703,15 @@ async function saveCollectionInAction(
     
     const existingDocsMap = new Map<string, any>();
     try {
-        const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate);
+        const q = collectionRef.where("date", ">=", fromDate).where("date", "<=", toDate).select();
         const snapshot = await q.get();
         snapshot.forEach(doc => {
-            const data = doc.data();
-            const id = String(data[idKey] || doc.id).replace(/^0+/, '');
-            if (id) {
-                existingDocsMap.set(id, { ...data, __docId: doc.id });
-            }
+            const id = doc.id.replace(/^0+/, '');
+            existingDocsMap.set(id, { __docId: doc.id });
         });
-        logs.push(`      - ${existingDocsMap.size} documents trouvés dans la base de données.`);
+        logs.push(`      - ${existingDocsMap.size} ID de documents existants récupérés.`);
     } catch (e: any) {
-        logs.push(`      - ❌ Erreur lors de la lecture des documents existants: ${e.message}`);
+        logs.push(`      - ❌ Erreur lors de la lecture des ID existants: ${e.message}`);
         return false;
     }
 
@@ -739,8 +736,8 @@ async function saveCollectionInAction(
             await batch.commit();
             logs.push(`      - Lot de suppression ${Math.floor(i / deleteBatchSize) + 1}/${Math.ceil(idsToDelete.length / deleteBatchSize)} terminé.`);
             
-            if (batchCount % 5 === 0 && idsToDelete.length > (i + deleteBatchSize)) {
-                logs.push(`      - ⏱️ Grosse pause de 10 secondes après 5 lots de suppression...`);
+            if (batchCount % 10 === 0 && idsToDelete.length > (i + deleteBatchSize)) {
+                logs.push(`      - ⏱️ Grosse pause de 10 secondes après 10 lots de suppression...`);
                 await delay(10000);
             } else if (idsToDelete.length > deleteBatchSize) {
                 await delay(1500);
@@ -750,32 +747,9 @@ async function saveCollectionInAction(
         logs.push(`      - ✅ Aucune suppression nécessaire.`);
     }
 
-    const itemsToUpdate: any[] = [];
-    let unchangedCount = 0;
+    const itemsToUpdate = dataFromApi; // We no longer pre-filter for updates, we write all and let Firestore merge.
+    logs.push(`      - Documents à écrire (création/mise à jour): ${itemsToUpdate.length}`);
     
-    dataFromApi.forEach(item => {
-        const id = String(item[idKey]).replace(/^0+/, '');
-        if (!id) return;
-
-        const existingDoc = existingDocsMap.get(id);
-        if (!existingDoc) {
-            itemsToUpdate.push(item);
-        } else {
-            const { __docId, ...comparableExisting } = existingDoc;
-            const normalizedExisting = normalizeDatesInObject(comparableExisting);
-            const normalizedApi = normalizeDatesInObject({ ...item });
-
-            if (!equal(normalizedExisting, normalizedApi)) {
-                itemsToUpdate.push(item);
-            } else {
-                unchangedCount++;
-            }
-        }
-    });
-
-    logs.push(`      - Documents à écrire (nouveaux ou modifiés): ${itemsToUpdate.length}`);
-    logs.push(`      - Documents inchangés (ignorés): ${unchangedCount}`);
-
     if (itemsToUpdate.length > 0) {
         const writeBatchSize = 400;
         let batchCount = 0;
@@ -798,7 +772,7 @@ async function saveCollectionInAction(
                             dataToSet[key] = value;
                         }
                     });
-                    batch.set(docRef, dataToSet, { merge: true });
+                    batch.set(docRef, dataToSet, { merge: true }); // Always use merge: true
                 }
             });
 
@@ -806,8 +780,8 @@ async function saveCollectionInAction(
             await batch.commit();
             logs.push(`      - ✅ Lot ${currentBatchNumber} sauvegardé.`);
 
-            if (batchCount % 5 === 0 && itemsToUpdate.length > (i + writeBatchSize)) {
-                logs.push(`      - ⏱️ Grosse pause de 10 secondes après 5 lots d'écriture...`);
+            if (batchCount % 10 === 0 && itemsToUpdate.length > (i + writeBatchSize)) {
+                logs.push(`      - ⏱️ Grosse pause de 10 secondes après 10 lots d'écriture...`);
                 await delay(10000);
             } else if (itemsToUpdate.length > writeBatchSize) {
                 await delay(1500);
@@ -921,3 +895,5 @@ export async function runDailySyncAction() {
     };
   }
 }
+
+    
