@@ -55,7 +55,7 @@ interface DeviationSummary {
 
 interface PunctualityIssue {
   task: Tache;
-  plannedArriveTime: string;
+  plannedArriveTime?: string;
   deviationMinutes: number; // positive for late, negative for early
 }
 
@@ -562,3 +562,4 @@ export default function DeviationAnalysisPage() {
   );
 }
 
+    
