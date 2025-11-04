@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -559,7 +560,7 @@ export async function saveSingleCategorizedCommentAction(comment: CategorizedCom
   }
 }
 
-export async function saveProcessedVerbatimsAction(verbatims: ProcessedNpsVerbatim[]) {
+export async function saveProcessedVerbatimsAction(verbatims: ProcessedVerbatim[]) {
   try {
     const { firestore } = await initializeFirebaseOnServer();
     const batch = firestore.batch();
@@ -576,7 +577,7 @@ export async function saveProcessedVerbatimsAction(verbatims: ProcessedNpsVerbat
   }
 }
 
-export async function saveSingleProcessedVerbatimAction(verbatim: ProcessedNpsVerbatim) {
+export async function saveSingleProcessedVerbatimAction(verbatim: ProcessedVerbatim) {
   try {
     const { firestore } = await initializeFirebaseOnServer();
     if (!verbatim.id) throw new Error("Verbatim ID is missing.");
@@ -587,5 +588,81 @@ export async function saveSingleProcessedVerbatimAction(verbatim: ProcessedNpsVe
   } catch (error: any) {
     console.error("Error saving single verbatim:", error);
     return { success: false, error: error.message || "Failed to save verbatim." };
+  }
+}
+
+export async function saveNpsDataAction(
+    payload: {
+        associationDate: string; // Expecting 'yyyy-MM-dd' format
+        verbatims: ProcessedNpsData[];
+    }
+) {
+    const { firestore } = await initializeFirebaseOnServer();
+    const docId = payload.associationDate; // e.g., '2024-07-29'
+    const docRef = firestore.collection("nps_data").doc(docId);
+
+    try {
+        // Fetch existing document for this date
+        const existingDoc = await docRef.get();
+        let finalVerbatims: ProcessedNpsData[] = [];
+
+        if (existingDoc.exists) {
+            const existingData = existingDoc.data() as NpsData;
+            // Create a Map to handle deduplication based on taskId
+            const verbatimsMap = new Map<string, ProcessedNpsData>();
+
+            // Add existing verbatims to the map
+            (existingData.verbatims || []).forEach(v => {
+                verbatimsMap.set(v.taskId, v);
+            });
+
+            // Add new/updated verbatims, overwriting duplicates
+            payload.verbatims.forEach(v => {
+                verbatimsMap.set(v.taskId, v);
+            });
+            
+            finalVerbatims = Array.from(verbatimsMap.values());
+        } else {
+            // No existing document, just use the new data
+            finalVerbatims = payload.verbatims;
+        }
+
+        // Save the merged and deduplicated data
+        await docRef.set({
+            id: docId,
+            associationDate: payload.associationDate,
+            verbatims: finalVerbatims
+        }, { merge: true });
+
+        return { success: true, error: null, newCount: finalVerbatims.length };
+
+    } catch (error: any) {
+        console.error("Error saving/merging NPS data:", error);
+        return {
+            success: false,
+            error: error.message || "Failed to save NPS data to Firestore.",
+        };
+    }
+}
+export async function saveActionNoteAction(note: { depot: string, content: string; date: string }) {
+  try {
+    const { firestore } = await initializeFirebaseOnServer();
+    const docId = `${note.depot}-${note.date}`; // Use depot-YYYY-MM-DD as the document ID
+    const docRef = firestore.collection("action_notes_depot").doc(docId);
+    
+    // Using set with merge to create or update the document for that day and depot
+    await docRef.set({
+      depot: note.depot,
+      date: note.date,
+      content: note.content
+    }, { merge: true });
+
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error saving action note:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to save action note to Firestore.",
+    };
   }
 }

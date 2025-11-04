@@ -15,7 +15,7 @@ import { saveCategorizedCommentsAction, categorizeSingleCommentAction, saveSingl
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Loader2, Sparkles, Save, User, Building, Calendar } from "lucide-react";
+import { Loader2, Sparkles, Save, User, Building, Calendar, Bot } from "lucide-react";
 import { usePendingComments, type CategorizedComment } from "@/hooks/use-pending-comments";
 import { categories as categoryOptions } from "@/components/app/comment-analysis";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,6 +33,7 @@ export default function CommentManagementPage() {
   const { toast } = useToast();
   const [isSaving, startSaveTransition] = useTransition();
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [isBulkAnalyzing, startBulkAnalyzeTransition] = useTransition();
 
   const {
     pendingComments,
@@ -72,11 +73,23 @@ export default function CommentManagementPage() {
     const updatedComment = { ...comment, [field]: value, status: 'en cours' as const };
     addPendingComment(updatedComment);
   };
+  
+  const prepareForSave = (comment: CategorizedComment): CategorizedComment => {
+    const hasCategory = comment.category && comment.category.length > 0 && comment.category[0] !== '';
+    const hasResponsibility = comment.responsibilities && comment.responsibilities.length > 0 && comment.responsibilities[0] !== '';
+
+    if (hasCategory && hasResponsibility) {
+        return { ...comment, status: 'traité' };
+    }
+    return comment;
+  };
 
   const handleSaveAll = () => {
     startSaveTransition(async () => {
-      const commentsToSave = Object.values(pendingComments);
-      if (commentsToSave.length === 0) return;
+      const commentsToSaveRaw = Object.values(pendingComments);
+      if (commentsToSaveRaw.length === 0) return;
+      
+      const commentsToSave = commentsToSaveRaw.map(prepareForSave);
 
       const result = await saveCategorizedCommentsAction(commentsToSave);
       if (result.success) {
@@ -97,7 +110,8 @@ export default function CommentManagementPage() {
   
   const handleSaveOne = async (comment: CategorizedComment) => {
     startSaveTransition(async () => {
-      const result = await saveSingleCategorizedCommentAction(comment);
+      const commentToSave = prepareForSave(comment);
+      const result = await saveSingleCategorizedCommentAction(commentToSave);
       if (result.success) {
         toast({
           title: "Commentaire sauvegardé",
@@ -125,8 +139,9 @@ export default function CommentManagementPage() {
       if (result.responsibilities) {
         updates.responsibilities = result.responsibilities;
       }
-      handleFieldChange(comment, 'category', updates.category || comment.category);
-      handleFieldChange(comment, 'responsibilities', updates.responsibilities || comment.responsibilities);
+      
+      const updatedComment = { ...comment, ...updates };
+      addPendingComment(updatedComment);
 
       toast({
         title: "Suggestion de l'IA appliquée",
@@ -144,6 +159,36 @@ export default function CommentManagementPage() {
     }
   };
 
+  const handleBulkSuggest = () => {
+    startBulkAnalyzeTransition(async () => {
+      const commentsToAnalyze = finalCommentsToDisplay.filter(c => c.status === 'à traiter');
+      if (commentsToAnalyze.length === 0) {
+        toast({ title: "Aucun commentaire à analyser", description: "Il n'y a pas de commentaires avec le statut 'à traiter'."});
+        return;
+      }
+      
+      toast({ title: "Analyse en cours...", description: `Analyse de ${commentsToAnalyze.length} commentaires.`});
+
+      let successCount = 0;
+      for (const comment of commentsToAnalyze) {
+        try {
+          const result = await categorizeSingleCommentAction(comment.comment);
+          const updates: Partial<CategorizedComment> = { status: 'en cours' };
+          if (result.categories) updates.category = result.categories;
+          if (result.responsibilities) updates.responsibilities = result.responsibilities;
+          addPendingComment({ ...comment, ...updates });
+          successCount++;
+        } catch (error) {
+          // Silently fail for one, but maybe log it
+          console.error(`Failed to analyze comment for task ${comment.taskId}:`, error);
+        }
+      }
+
+      toast({ title: "Analyse terminée", description: `${successCount} sur ${commentsToAnalyze.length} commentaires ont été analysés et mis en cache.`});
+    });
+  };
+
+
   if (isContextLoading) {
     return <div className="container mx-auto py-10 text-center">Chargement des données...</div>;
   }
@@ -159,6 +204,12 @@ export default function CommentManagementPage() {
             <Button variant={statusFilter === 'traité' ? 'default' : 'outline'} onClick={() => setStatusFilter('traité')}>Traités</Button>
             <Button variant={statusFilter === 'tous' ? 'default' : 'outline'} onClick={() => setStatusFilter('tous')}>Tous</Button>
           </div>
+          {statusFilter === 'à traiter' && (
+            <Button onClick={handleBulkSuggest} disabled={isBulkAnalyzing}>
+              {isBulkAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Bot className="mr-2 h-4 w-4" />}
+              Analyser les commentaires à traiter
+            </Button>
+          )}
           {hasPendingItems && (
             <Button onClick={handleSaveAll} disabled={isSaving}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -232,7 +283,7 @@ export default function CommentManagementPage() {
                         </Button>
                         {isPending(comment.taskId) && (
                           <Button size="icon" variant="ghost" onClick={() => handleSaveOne(comment)} disabled={isSaving} title="Sauvegarder ce commentaire">
-                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 text-green-600" />}
+                            {isSaving && analyzingId !== comment.taskId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 text-green-600" />}
                           </Button>
                         )}
                      </div>
@@ -252,3 +303,4 @@ export default function CommentManagementPage() {
     </div>
   );
 }
+
