@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useQuery, useFirebase } from "@/firebase";
-import { collection, orderBy, writeBatch, doc, where } from "firebase/firestore";
+import { collection, orderBy, writeBatch, doc, where, query } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -172,5 +172,3 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         </div>
     )
 }
-
-    
