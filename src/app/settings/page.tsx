@@ -12,9 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FileSearch, PlusCircle, Save, Trash2, Edit } from "lucide-react";
 import type { Tache, Tournee, ForecastRule } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@/firebase";
+import { useQuery, useFirebase } from "@/firebase";
 import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc } from "firebase/firestore";
-import { useFirebase } from "@/firebase/provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {

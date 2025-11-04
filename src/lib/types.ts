@@ -329,3 +329,15 @@ export interface Room {
 export interface Message {
   id: string;
   text: string;
+  senderId: string;
+  senderName: string;
+  timestamp: any;
+}
+
+
+export interface UserProfile {
+    uid: string;
+    email: string;
+    displayName: string;
+    role: string;
+}
