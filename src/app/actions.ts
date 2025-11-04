@@ -7,7 +7,7 @@ import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
 import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, Article, CommentStatus, ProcessedNpsVerbatim } from "@/lib/types";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, parseISO, addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import { FieldValue } from 'firebase-admin/firestore';
 import equal from "deep-equal";
@@ -480,6 +480,38 @@ export async function runSyncAction(
         });
         notificationCount++;
     }
+
+    const lateDrivers: Record<string, { count: number, total: number }> = {};
+    transformedTasks.forEach(task => {
+        try {
+            if (task.nomCompletChauffeur && task.dateCloture && task.finCreneauInitial) {
+                const arrival = parseISO(task.dateCloture);
+                const windowEnd = parseISO(task.finCreneauInitial);
+                const lateLimit = addMinutes(windowEnd, 15);
+                
+                if (!lateDrivers[task.nomCompletChauffeur]) {
+                    lateDrivers[task.nomCompletChauffeur] = { count: 0, total: 0 };
+                }
+                lateDrivers[task.nomCompletChauffeur].total++;
+                if (arrival > lateLimit) {
+                    lateDrivers[task.nomCompletChauffeur].count++;
+                }
+            }
+        } catch {}
+    });
+
+    for (const [driver, stats] of Object.entries(lateDrivers)) {
+        const latePercentage = (stats.count / stats.total) * 100;
+        if (stats.total >= 5 && latePercentage > 40) {
+             await createNotification(firestore, {
+                type: 'late_delivery_pattern',
+                message: `Tendance de retard détectée pour ${driver} (${stats.count}/${stats.total} livraisons en retard).`,
+                relatedEntity: { type: 'driver', id: driver }
+            });
+            notificationCount++;
+        }
+    }
+
     logs.push(`   - ✅ ${notificationCount} notifications générées.`);
 
     logs.push(`\n\n🎉 Exportation terminée !`);
@@ -668,10 +700,3 @@ export async function saveActionNoteAction(note: { depot: string, content: strin
     };
   }
 }
-
-    
-    
-
-    
-
-    
