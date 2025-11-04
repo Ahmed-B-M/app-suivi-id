@@ -2,7 +2,31 @@
 
 Ce document sert de rappel des règles critiques à suivre lors du développement de cette application.
 
-## 1. Utilisation des Identifiants de Tâche (`taskId` vs `id`)
+## 1. Contexte Métier Général
+
+-   **Acteurs :**
+    -   **ID Logistics** (nous) : L'entreprise qui effectue les livraisons.
+    -   **Carrefour** : Le client donneur d'ordre.
+    -   **STEF** : Le partenaire qui prépare les commandes.
+-   **Outil :** Les livraisons sont gérées via l'API **Urbantz**.
+
+## 2. Distinction Entrepôt vs. Magasin
+
+C'est une règle fondamentale pour la structure des données et la logique de filtrage.
+
+-   **Entrepôt (ou Dépôt)** :
+    -   Représente un **lieu physique unique** (ex: Vitry, Aix, Rungis).
+    -   Dans Urbantz, il est représenté par **plusieurs `nomHub`** qui partagent un préfixe commun (ex: "Vitry Matin", "Vitry AM").
+    -   Le regroupement se fait via les règles de préfixes définies dans `src/lib/grouping.ts`.
+
+-   **Magasin** :
+    -   Représente un **lieu unique et indépendant**.
+    -   Chaque `nomHub` est une entité distincte.
+    -   Ils sont identifiés par des préfixes spécifiques (ex: "f...", "carrefour...", "lex...") pour les différencier des entrepôts.
+
+**Règle d'or : Toujours appliquer cette distinction lors du filtrage, du regroupement et de l'affichage des données.**
+
+## 3. Utilisation des Identifiants de Tâche (`taskId` vs `id`)
 
 **C'est une règle impérative.**
 
@@ -12,7 +36,7 @@ Ce document sert de rappel des règles critiques à suivre lors du développemen
 
 **Règle d'or : Quand il s'agit d'une tâche, toujours penser et utiliser `taskId` en premier.**
 
-## 2. Utilisation du Nom du Chauffeur (`nomCompletChauffeur`)
+## 4. Utilisation du Nom du Chauffeur (`nomCompletChauffeur`)
 
 **Source de vérité unique.**
 
@@ -22,6 +46,6 @@ Ce document sert de rappel des règles critiques à suivre lors du développemen
 
 **Règle d'or : Pour toute information liée au nom du chauffeur, utiliser le champ `nomCompletChauffeur` présent dans les objets `Tache` et `Tournee`.**
 
-## 3. Nom de champ correct pour le commentaire livreur
+## 5. Nom de champ correct pour le commentaire livreur
 
--   Le champ correct pour extraire le commentaire du livreur depuis l'API est `commentaireLivr` et non `commentaireLivreur`. Toujours utiliser `rawTask.metadata?.commentaireLivr` lors de la transformation des données.
+-   Le champ correct pour extraire le commentaire du client sur le livreur depuis l'API est `commentaireLivr` et non `commentaireLivreur`. Toujours utiliser `rawTask.metadata?.commentaireLivr` lors de la transformation des données.
