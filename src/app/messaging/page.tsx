@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, serverTimestamp, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, serverTimestamp, getDoc, doc } from "firebase/firestore";
 import { Loader2, MessageCircle } from "lucide-react";
 import { RoomListItem } from "@/components/app/messaging/room-list-item";
 import { ChatWindow } from "@/components/app/messaging/chat-window";
@@ -48,6 +48,29 @@ export default function MessagingPage() {
         setSelectedRoomId(newRoom.id);
     };
 
+    // This effect ensures that if a room ID is provided (e.g., from a URL)
+    // but the room isn't in the local list yet, we fetch it directly.
+    useEffect(() => {
+        if (firestore && selectedRoomId && !selectedRoom) {
+            const roomRef = doc(firestore, 'rooms', selectedRoomId);
+            getDoc(roomRef).then(docSnap => {
+                if (docSnap.exists()) {
+                    const newRoom = { id: docSnap.id, ...docSnap.data() } as Room;
+                    // Add the fetched room to the local state so it can be rendered.
+                    setRooms(prevRooms => {
+                         if (!prevRooms.some(r => r.id === newRoom.id)) {
+                             return [newRoom, ...prevRooms];
+                         }
+                         return prevRooms;
+                    });
+                } else {
+                    // Handle case where the room doesn't exist or user doesn't have access
+                    setSelectedRoomId(null);
+                }
+            });
+        }
+    }, [selectedRoomId, selectedRoom, firestore, setRooms]);
+
     return (
         <div className="h-[calc(100vh-10rem)] border rounded-lg overflow-hidden grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4">
             <aside className="md:col-span-1 lg:col-span-1 border-r flex flex-col">
@@ -76,9 +99,15 @@ export default function MessagingPage() {
                     <ChatWindow room={selectedRoom} />
                  ) : (
                     <div className="flex flex-col h-full items-center justify-center text-center text-muted-foreground p-8">
-                        <MessageCircle className="h-16 w-16 mb-4"/>
-                        <h2 className="text-xl font-semibold">Sélectionnez un salon</h2>
-                        <p>Choisissez un salon de discussion dans la liste pour commencer à chatter.</p>
+                        {loading || !selectedRoomId ? (
+                            <Loader2 className="h-16 w-16 animate-spin mb-4" />
+                        ) : (
+                            <MessageCircle className="h-16 w-16 mb-4"/>
+                        )}
+                        <h2 className="text-xl font-semibold">
+                           {loading || !selectedRoomId ? "Chargement..." : "Sélectionnez un salon"}
+                        </h2>
+                        <p>{loading || !selectedRoomId ? "Récupération des discussions..." : "Choisissez un salon de discussion dans la liste pour commencer à chatter."}</p>
                     </div>
                  )}
             </main>
