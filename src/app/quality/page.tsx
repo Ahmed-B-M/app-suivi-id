@@ -1,38 +1,81 @@
 
-"use client";
-
-import { useMemo, useState, useEffect } from "react";
-import { useQuery, useFirebase, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Tache, Tournee } from "@/lib/types";
-import { getHubCategory, getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
+import { useMemo, useState } from "react";
+import type { Tache } from "@/lib/types";
+import { getDepotFromHub, getDriverFullName, getCarrierFromDriver } from "@/lib/grouping";
 import { useFilters } from "@/context/filter-context";
-import { CommentAnalysis, type CategorizedComment } from "@/components/app/comment-analysis";
+import { CommentAnalysis } from "@/components/app/comment-analysis";
 import { calculateDriverScore, calculateRawDriverStats, DriverStats } from "@/lib/scoring";
 import { DriverPerformanceRankings } from "@/components/app/driver-performance-rankings";
 import { AlertRecurrenceTable, type AlertData } from "@/components/app/alert-recurrence-table";
 import { QualityDashboard, QualityData } from "@/components/app/quality-dashboard";
 import { Input } from "@/components/ui/input";
-import { Download, Search, ClipboardCopy } from "lucide-react";
-import { getCategoryFromKeywords } from "@/lib/stats-calculator";
+import { Search, ClipboardCopy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
-import { startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { EmailPreviewDialog } from "@/components/app/email-preview-dialog";
+import { initializeFirebaseOnServer } from "@/firebase/server-init";
+
+export const dynamic = "force-dynamic";
+
+async function getQualityPageData() {
+    const { firestore } = await initializeFirebaseOnServer();
+    const tasksSnapshot = await firestore.collection("tasks").get();
+    const allTasks = tasksSnapshot.docs.map(doc => doc.data() as Tache);
+    
+    // De-duplicate tasks based on tacheId
+    const uniqueTasksMap = new Map<string, Tache>();
+    allTasks.forEach(task => {
+        uniqueTasksMap.set(task.tacheId, task);
+    });
+    const uniqueTasks = Array.from(uniqueTasksMap.values());
+    
+    const npsSnapshot = await firestore.collection("nps_data").get();
+    const allNpsData = npsSnapshot.docs.map(doc => doc.data());
+    
+    const commentsSnapshot = await firestore.collection("categorized_comments").get();
+    const allComments = commentsSnapshot.docs.map(doc => doc.data());
+    
+    const processedSnapshot = await firestore.collection("processed_nps_verbatims").get();
+    const processedVerbatims = processedSnapshot.docs.map(doc => doc.data());
+
+    return {
+        allTasks: uniqueTasks,
+        allNpsData,
+        allComments,
+        processedVerbatims
+    };
+}
+
 
 export default function QualityPage() {
-  const { allTasks, allRounds, allComments, allNpsData, processedVerbatims, isContextLoading, dateRange } = useFilters();
+  const { isContextLoading: isFiltersLoading, dateRange } = useFilters();
+  const [initialData, setInitialData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [emailHtmlContent, setEmailHtmlContent] = useState('');
+  
+  useMemo(async () => {
+      setIsLoading(true);
+      const data = await getQualityPageData();
+      setInitialData(data);
+      setIsLoading(false);
+  }, []);
+
+  const {
+    allTasks = [],
+    allNpsData = [],
+    allComments = [],
+    processedVerbatims = []
+  } = initialData || {};
 
   const qualityData: QualityData | null = useMemo(() => {
-    if (!allTasks || isContextLoading) return null;
+    if (isLoading || !allTasks.length) return null;
 
     const driverTasks: Record<string, Tache[]> = {};
-    allTasks.forEach(task => {
+    allTasks.forEach((task: Tache) => {
         const driverName = getDriverFullName(task);
         if (driverName) {
             if (!driverTasks[driverName]) driverTasks[driverName] = [];
@@ -41,7 +84,7 @@ export default function QualityPage() {
     });
 
     const driverNpsData: Record<string, { promoter: number, passive: number, detractor: number, count: number }> = {};
-    allNpsData.flatMap(d => d.verbatims).forEach(v => {
+    allNpsData.flatMap((d: any) => d.verbatims).forEach((v: any) => {
         if (v.driver) {
             if (!driverNpsData[v.driver]) {
                 driverNpsData[v.driver] = { promoter: 0, passive: 0, detractor: 0, count: 0 };
@@ -52,7 +95,7 @@ export default function QualityPage() {
             driverNpsData[v.driver].count++;
         }
     });
-
+    
     const rawDriverStats = Object.entries(driverTasks).map(([name, tasks]) => {
         const nps = driverNpsData[name];
         let npsScore: number | null = null;
@@ -151,7 +194,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, allNpsData, isContextLoading]);
+  }, [allTasks, allNpsData, isLoading]);
 
 
   const filteredQualityData = useMemo(() => {
@@ -175,10 +218,10 @@ export default function QualityPage() {
   }, [qualityData, searchQuery]);
 
  const { driverRankings, alertData } = useMemo(() => {
-    if (!allTasks || isContextLoading || !allComments) return { driverRankings: null, alertData: [] };
+    if (isLoading || !allTasks.length || !allComments.length) return { driverRankings: null, alertData: [] };
     
     const driverTasks: Record<string, Tache[]> = {};
-    allTasks.forEach(task => {
+    allTasks.forEach((task: Tache) => {
         const driverName = getDriverFullName(task);
         if (driverName) {
             if (!driverTasks[driverName]) driverTasks[driverName] = [];
@@ -200,10 +243,10 @@ export default function QualityPage() {
 
     const alertAggregation: Record<string, { name: string; carriers: Record<string, { name: string; drivers: Record<string, any> }> }> = {};
     
-    allComments.forEach(comment => {
+    allComments.forEach((comment: any) => {
         if (comment.rating >= 4) return;
 
-        const task = allTasks.find(t => t.tacheId === comment.taskId);
+        const task = allTasks.find((t: Tache) => t.tacheId === comment.taskId);
         const depot = getDepotFromHub(task?.nomHub);
         if (!depot) return;
 
@@ -232,7 +275,7 @@ export default function QualityPage() {
         const driverEntry = alertAggregation[depot].carriers[carrierName].drivers[driverName];
         driverEntry.alertCount++;
         const categories = Array.isArray(comment.category) ? comment.category : [comment.category];
-        categories.forEach(cat => {
+        categories.forEach((cat: string) => {
           if (cat) {
             driverEntry.commentCategories[cat] = (driverEntry.commentCategories[cat] || 0) + 1;
           }
@@ -257,7 +300,7 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isContextLoading, allComments]);
+  }, [allTasks, isLoading, allComments]);
 
 
   const handleGenerateEmail = () => {
@@ -301,9 +344,6 @@ export default function QualityPage() {
     });
   };
 
-
-  const isLoading = isContextLoading;
-
   return (
     <div className="space-y-8">
        <EmailPreviewDialog
@@ -331,14 +371,14 @@ export default function QualityPage() {
         </div>
       </div>
       <div className="space-y-8">
-        <QualityDashboard data={filteredQualityData} isLoading={isLoading} />
+        <QualityDashboard data={filteredQualityData} isLoading={isLoading || isFiltersLoading} />
         <DriverPerformanceRankings 
             data={driverRankings || []}
-            isLoading={isLoading}
+            isLoading={isLoading || isFiltersLoading}
         />
-        <AlertRecurrenceTable data={alertData} isLoading={isLoading} />
+        <AlertRecurrenceTable data={alertData} isLoading={isLoading || isFiltersLoading} />
         <CommentAnalysis 
-            data={allComments.filter(c => c.rating < 4)}
+            data={allComments.filter((c: any) => c.rating < 4)}
         />
       </div>
     </div>
