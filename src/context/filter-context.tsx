@@ -130,7 +130,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: false});
   const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useQuery<Tournee>(roundsCollection, firestoreDateFilters, {realtime: false});
-  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: false});
+  const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: true});
   const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, commentsDateFilters, {realtime: true});
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true});
   
