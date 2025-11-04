@@ -15,14 +15,16 @@ import { saveCategorizedCommentsAction, categorizeSingleCommentAction, saveSingl
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
-import { Loader2, Sparkles, Save } from "lucide-react";
+import { Loader2, Sparkles, Save, User, Building, Calendar } from "lucide-react";
 import { usePendingComments, type CategorizedComment } from "@/hooks/use-pending-comments";
 import { categories as categoryOptions } from "@/components/app/comment-analysis";
-import { InlineMultiSelect } from "@/components/ui/inline-multi-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CommentStatus } from "@/lib/types";
+import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
+import { format } from "date-fns";
 
 const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
+const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
 export default function CommentManagementPage() {
   const { allComments, isContextLoading } = useFilters();
@@ -45,9 +47,13 @@ export default function CommentManagementPage() {
     const mergedComments = allComments.map(comment => {
       const baseComment = pendingComments[comment.taskId] || comment;
       const category = baseComment.category;
-      const normalizedCategory = Array.isArray(category) ? category : (category ? [category] : []);
-      
-      return { ...baseComment, category: normalizedCategory };
+      const responsibilities = baseComment.responsibilities;
+
+      return { 
+        ...baseComment, 
+        category: Array.isArray(category) ? category : (category ? [category] : []),
+        responsibilities: Array.isArray(responsibilities) ? responsibilities : (responsibilities ? [responsibilities] : []),
+      };
     });
 
     const commentsToFilter = statusFilter === 'tous' 
@@ -63,7 +69,7 @@ export default function CommentManagementPage() {
   }, [allComments, pendingComments, statusFilter]);
 
   const handleFieldChange = (comment: CategorizedComment, field: keyof CategorizedComment, value: any) => {
-    const updatedComment = { ...comment, [field]: value };
+    const updatedComment = { ...comment, [field]: value, status: 'en cours' as const };
     addPendingComment(updatedComment);
   };
 
@@ -108,17 +114,25 @@ export default function CommentManagementPage() {
     });
   };
   
-  const handleSuggestCategory = async (comment: CategorizedComment) => {
+  const handleSuggest = async (comment: CategorizedComment) => {
     setAnalyzingId(comment.taskId);
     try {
       const result = await categorizeSingleCommentAction(comment.comment);
+      const updates: Partial<CategorizedComment> = { status: 'en cours' };
       if (result.categories) {
-         handleFieldChange(comment, 'category', result.categories);
-        toast({
-          title: "Suggestion de l'IA appliquée",
-          description: `Catégories suggérées : "${result.categories.join(', ')}".`,
-        });
+         updates.category = result.categories;
       }
+      if (result.responsibilities) {
+        updates.responsibilities = result.responsibilities;
+      }
+      handleFieldChange(comment, 'category', updates.category || comment.category);
+      handleFieldChange(comment, 'responsibilities', updates.responsibilities || comment.responsibilities);
+
+      toast({
+        title: "Suggestion de l'IA appliquée",
+        description: `Suggestions mises en cache. N'oubliez pas de sauvegarder.`,
+      });
+      
     } catch (error) {
       toast({
         title: "Erreur d'analyse",
@@ -158,13 +172,11 @@ export default function CommentManagementPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[150px]">Statut</TableHead>
-              <TableHead>Task ID</TableHead>
+              <TableHead>Détails</TableHead>
               <TableHead className="w-[30%]">Commentaire</TableHead>
               <TableHead>Note</TableHead>
-              <TableHead>Catégorie</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Chauffeur</TableHead>
-              <TableHead>Entrepôt</TableHead>
+              <TableHead className="w-[15%]">Responsabilité</TableHead>
+              <TableHead className="w-[20%]">Catégorie</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -182,24 +194,40 @@ export default function CommentManagementPage() {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell>{comment.taskId}</TableCell>
-                  <TableCell><p className="whitespace-pre-wrap">{comment.comment}</p></TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1 text-xs">
+                        <div className="font-mono text-primary">{comment.taskId}</div>
+                        <div className="flex items-center gap-1.5 font-medium"><User className="h-3 w-3 text-muted-foreground"/>{comment.driverName || 'N/A'}</div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground"><Building className="h-3 w-3"/>{comment.nomHub || 'N/A'}</div>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Calendar className="h-3 w-3"/>
+                            {comment.taskDate ? format(new Date(comment.taskDate as string), 'dd/MM/yyyy') : 'N/A'}
+                        </div>
+                    </div>
+                  </TableCell>
+                  <TableCell><p className="whitespace-pre-wrap italic text-muted-foreground">"{comment.comment}"</p></TableCell>
                   <TableCell><Badge variant={comment.rating < 4 ? "destructive" : "default"}>{comment.rating} / 5</Badge></TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <InlineMultiSelect
+                    <MultiSelectCombobox
+                        options={responsibilityOptions}
+                        selected={comment.responsibilities || []}
+                        onChange={(value) => handleFieldChange(comment, 'responsibilities', value)}
+                        placeholder="Choisir..."
+                        className="w-full"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <MultiSelectCombobox
                         options={categoryOptions}
                         selected={comment.category}
                         onChange={(value) => handleFieldChange(comment, 'category', value)}
-                      />
-                    </div>
+                        placeholder="Choisir..."
+                        className="w-full"
+                    />
                   </TableCell>
-                  <TableCell>{comment.taskDate ? new Date(comment.taskDate as string).toLocaleDateString() : 'N/A'}</TableCell>
-                  <TableCell>{comment.driverName}</TableCell>
-                  <TableCell>{comment.nomHub}</TableCell>
                   <TableCell className="text-right">
                      <div className="flex items-center justify-end gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleSuggestCategory(comment)} disabled={analyzingId === comment.taskId} title="Suggérer une catégorie">
+                        <Button size="icon" variant="ghost" onClick={() => handleSuggest(comment)} disabled={analyzingId === comment.taskId} title="Suggérer catégories & responsabilités">
                           {analyzingId === comment.taskId ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4 text-primary"/>}
                         </Button>
                         {isPending(comment.taskId) && (

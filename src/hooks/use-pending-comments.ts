@@ -4,10 +4,12 @@ import type { CommentStatus } from '@/lib/types';
 
 // This type should ideally be in a central types file, but is defined here for clarity.
 export interface CategorizedComment {
+  id?: string;
   taskId: string;
   comment: string;
   rating: number;
   category: string[];
+  responsibilities: string[];
   status: CommentStatus;
   taskDate?: string;
   driverName?: string;
