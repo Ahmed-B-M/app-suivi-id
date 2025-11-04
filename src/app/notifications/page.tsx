@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight } from "lucide-react";
+import { Bell, Archive, Eye, Link as LinkIcon, Loader2, User, Route, AlertCircle, Weight, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -164,6 +164,15 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
         };
     };
 
+    const getNotificationIcon = (type: Notification['type']) => {
+        switch (type) {
+            case 'quality_alert': return <AlertCircle className="h-4 w-4 text-destructive" />;
+            case 'overweight_round': return <Weight className="h-4 w-4 text-orange-500" />;
+            case 'late_delivery_pattern': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+            default: return <Bell className="h-4 w-4" />;
+        }
+    }
+
 
     return (
         <div className="rounded-md border">
@@ -192,10 +201,9 @@ const NotificationTable = ({ notifications, onUpdateStatus, isPending, isRead = 
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={notification.type === 'quality_alert' ? 'destructive' : 'secondary'}>
-                                        <div className="flex items-center gap-1">
-                                            {notification.type === 'quality_alert' && <AlertCircle className="h-3 w-3" />}
-                                            {notification.type === 'overweight_round' && <Weight className="h-3 w-3" />}
-                                            {notification.type.replace(/_/g, ' ')}
+                                        <div className="flex items-center gap-1.5">
+                                            {getNotificationIcon(notification.type)}
+                                            <span className="capitalize">{notification.type.replace(/_/g, ' ')}</span>
                                         </div>
                                     </Badge>
                                 </TableCell>
