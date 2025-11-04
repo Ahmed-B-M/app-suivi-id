@@ -26,7 +26,21 @@ C'est une règle fondamentale pour la structure des données et la logique de fi
 
 **Règle d'or : Toujours appliquer cette distinction lors du filtrage, du regroupement et de l'affichage des données.**
 
-## 3. Utilisation des Identifiants de Tâche (`taskId` vs `id`)
+## 3. Liaison Arrêt (Stop) et Tâche (Task)
+
+**Ceci est une règle de jointure de données impérative.**
+
+Lors de l'enrichissement des données, pour trouver l'arrêt (`stop`) correspondant à une tâche (`task`) au sein d'une tournée (`round`), la comparaison doit **obligatoirement** se faire entre les deux champs suivants :
+
+-   `stop.taskId` (provenant de la liste des arrêts de la tournée)
+-   `rawTask.taskId` (provenant de la liste des tâches)
+
+**Ne JAMAIS utiliser l'identifiant de document (`rawTask.id` ou `rawTask._id`) pour cette jointure**, car il ne correspond pas à l'identifiant métier utilisé dans la structure des arrêts.
+
+**Exemple de logique correcte :**
+`round.stops.find(stop => stop.taskId === rawTask.taskId)`
+
+## 4. Utilisation des Identifiants de Tâche (`taskId` vs `id`)
 
 **C'est une règle impérative.**
 
@@ -36,7 +50,7 @@ C'est une règle fondamentale pour la structure des données et la logique de fi
 
 **Règle d'or : Quand il s'agit d'une tâche, toujours penser et utiliser `taskId` en premier.**
 
-## 4. Utilisation du Nom du Chauffeur (`nomCompletChauffeur`)
+## 5. Utilisation du Nom du Chauffeur (`nomCompletChauffeur`)
 
 **Source de vérité unique.**
 
@@ -46,6 +60,6 @@ C'est une règle fondamentale pour la structure des données et la logique de fi
 
 **Règle d'or : Pour toute information liée au nom du chauffeur, utiliser le champ `nomCompletChauffeur` présent dans les objets `Tache` et `Tournee`.**
 
-## 5. Nom de champ correct pour le commentaire livreur
+## 6. Nom de champ correct pour le commentaire livreur
 
 -   Le champ correct pour extraire le commentaire du client sur le livreur depuis l'API est `commentaireLivr` et non `commentaireLivreur`. Toujours utiliser `rawTask.metadata?.commentaireLivr` lors de la transformation des données.
