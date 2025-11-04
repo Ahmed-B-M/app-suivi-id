@@ -142,7 +142,11 @@ export default function QualityPage() {
                 drivers: carrier.drivers.sort((a,b) => (b.score ?? 0) - (a.score ?? 0))
             })).sort((a,b) => (b.drivers.reduce((s,d) => s + (d.score ?? 0), 0) / b.drivers.length) - (a.drivers.reduce((s,d) => s + (d.score ?? 0), 0) / a.drivers.length))
         };
-    }).sort((a,b) => (b.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + (d.score ?? 0), 0), 0) / b.carriers.flatMap(c => c.drivers).length) - (a.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + (d.score ?? 0), 0), 0) / a.carriers.flatMap(c => c.drivers).length));
+    }).sort((a,b) => {
+        const scoreA = a.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + (d.score ?? 0), 0), 0) / (a.carriers.flatMap(c => c.drivers).length || 1);
+        const scoreB = b.carriers.reduce((s,c) => s + c.drivers.reduce((ss, d) => ss + (d.score ?? 0), 0), 0) / (b.carriers.flatMap(c => c.drivers).length || 1);
+        return scoreB - scoreA;
+    });
 
     const summary = calculateAggregatedStats(driverStatsList);
 
@@ -271,7 +275,8 @@ export default function QualityPage() {
         alertData, 
         allComments, 
         processedVerbatims,
-        { from: dateRange.from, to: dateRange.to }
+        { from: dateRange.from, to: dateRange.to },
+        allTasks
     );
     setEmailHtmlContent(emailBodyHtml);
     setIsPreviewOpen(true);

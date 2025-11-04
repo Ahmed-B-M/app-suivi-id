@@ -1,8 +1,8 @@
 
-import type { QualityData, DepotData } from "@/components/app/quality-dashboard";
+import type { QualityData } from "@/components/app/quality-dashboard";
 import type { AlertData } from "@/components/app/alert-recurrence-table";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
-import type { ProcessedNpsVerbatim } from "@/lib/types";
+import type { ProcessedNpsVerbatim, Tache } from "@/lib/types";
 
 // --- Helper Functions ---
 
@@ -130,12 +130,12 @@ function createCriticalAlertsSection(comments: CategorizedComment[], verbatims: 
     return createCard(content, "Alertes Critiques", '⚠️', {bgColor: COLORS.CRITICAL_BG, borderColor: COLORS.DESTRUCTIVE});
 }
 
-function createManagerialSummaryCard(depotComments: CategorizedComment[], depotAlerts?: AlertData): string {
-    // Find Top Driver (most 5-star ratings)
-    const fiveStarRatings = depotComments.filter(c => c.rating === 5 && c.driverName);
+function createManagerialSummaryCard(depotTasks: Tache[], depotAlerts?: AlertData): string {
+    // Find Top Driver (most 5-star ratings) from all tasks in the depot
+    const fiveStarRatings = depotTasks.filter(t => t.notationLivreur === 5 && t.nomCompletChauffeur);
     const fiveStarCounts: Record<string, number> = {};
-    fiveStarRatings.forEach(c => {
-        fiveStarCounts[c.driverName!] = (fiveStarCounts[c.driverName!] || 0) + 1;
+    fiveStarRatings.forEach(t => {
+        fiveStarCounts[t.nomCompletChauffeur!] = (fiveStarCounts[t.nomCompletChauffeur!] || 0) + 1;
     });
     const topDriverEntry = Object.entries(fiveStarCounts).sort((a, b) => b[1] - a[1])[0];
     const topDriver = topDriverEntry ? { name: topDriverEntry[0], count: topDriverEntry[1] } : null;
@@ -183,7 +183,8 @@ export function generateQualityEmailBody(
     alertData: AlertData[],
     allComments: CategorizedComment[],
     processedVerbatims: ProcessedNpsVerbatim[],
-    dateRange: { from: Date, to: Date }
+    dateRange: { from: Date, to: Date },
+    allTasks: Tache[] // Pass all tasks for the period
 ): string {
     const formattedDateRange = `${new Date(dateRange.from).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} au ${new Date(dateRange.to).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
@@ -236,11 +237,13 @@ export function generateQualityEmailBody(
 
     for (const depot of qualityData.details) {
         const depotKpis = createKpiGrid(buildKpis(depot));
-        const depotComments = allComments.filter(c => c.nomHub === depot.name);
+        
+        const depotTasks = allTasks.filter(t => t.nomHub && depot.carriers.some(c => c.drivers.some(d => d.name === t.nomCompletChauffeur)));
+        const depotComments = allComments.filter(c => c.nomHub && depot.carriers.some(c => c.drivers.some(d => d.name === c.driverName)));
         const depotVerbatims = processedVerbatims.filter(v => v.depot === depot.name);
         const depotAlerts = alertDataMap.get(depot.name);
 
-        const managerialSummarySection = createManagerialSummaryCard(depotComments, depotAlerts);
+        const managerialSummarySection = createManagerialSummaryCard(depotTasks, depotAlerts);
         const depotAlertsSection = createCriticalAlertsSection(depotComments, depotVerbatims);
         
         let recurrenceRows = '';
