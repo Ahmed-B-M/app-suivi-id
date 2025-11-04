@@ -151,7 +151,7 @@ export default function NpsAnalysisPage() {
                         npsScore,
                         npsCategory,
                         verbatim: row.VERBATIM,
-                        store: row.MAG,
+                        store: task.nomHub || row.MAG,
                         taskDate: taskDateStr,
                         carrier: getCarrierFromDriver(task),
                         depot: getDepotFromHub(task.nomHub),
