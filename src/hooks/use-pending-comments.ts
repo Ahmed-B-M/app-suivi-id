@@ -19,7 +19,7 @@ export interface CategorizedComment {
 const CACHE_KEY = 'pendingCategorizedComments';
 
 export function usePendingComments() {
-  const [pendingComments, setPendingComments] = useState<Record<string, CategorizedComment>>({});
+  const [pendingComments, setPendingComments] = useState<Record<string, Partial<CategorizedComment>>>({});
 
   // Load pending comments from localStorage on initial mount
   useEffect(() => {
@@ -36,22 +36,22 @@ export function usePendingComments() {
     }
   }, []);
 
-  const updateCache = (newPendingComments: Record<string, CategorizedComment>) => {
+  const updateCache = (newPendingComments: Record<string, Partial<CategorizedComment>>) => {
     setPendingComments(newPendingComments);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(CACHE_KEY, JSON.stringify(newPendingComments));
     }
   };
 
-  const addPendingComment = useCallback((commentOrComments: CategorizedComment | Record<string, CategorizedComment>) => {
+  const addPendingComment = useCallback((comment: CategorizedComment) => {
     setPendingComments(prev => {
-      const newComments = { ...prev };
-      if ('taskId' in commentOrComments) { // Single comment
-        newComments[commentOrComments.taskId] = commentOrComments;
-      } else { // Batch of comments
-        Object.assign(newComments, commentOrComments);
-      }
-      
+      const newComments: Record<string, Partial<CategorizedComment>> = {
+        ...prev,
+        [comment.taskId]: {
+          ...(prev[comment.taskId] || {}), // Keep existing pending changes
+          ...comment, // Apply new changes
+        }
+      };
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(CACHE_KEY, JSON.stringify(newComments));
       }

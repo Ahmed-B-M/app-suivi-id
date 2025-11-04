@@ -14,7 +14,6 @@ import {
 import { saveCategorizedCommentsAction, categorizeSingleCommentAction, saveSingleCategorizedCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { useFilters } from "@/context/filter-context";
 import { Loader2, Sparkles, Save, User, Building, Calendar, Bot, Link as LinkIcon } from "lucide-react";
 import { usePendingComments, type CategorizedComment } from "@/hooks/use-pending-comments";
 import { categories as categoryOptions } from "@/components/app/comment-analysis";
@@ -23,14 +22,13 @@ import type { CommentStatus } from "@/lib/types";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import { format } from "date-fns";
 import Link from "next/link";
-import { useFirebase, useQuery, useMemoFirebase } from "@/firebase";
+import { useFirebase, useQuery } from "@/firebase";
 import { collection, where, orderBy, query, QueryConstraint } from "firebase/firestore";
 
 const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
 
 export default function CommentManagementPage() {
-  const { isContextLoading: isFiltersLoading } = useFilters();
   const { firestore } = useFirebase();
   const [statusFilter, setStatusFilter] = useState<CommentStatus | 'tous'>('à traiter');
   
@@ -40,7 +38,7 @@ export default function CommentManagementPage() {
   const [isBulkAnalyzing, startBulkAnalyzeTransition] = useTransition();
 
   // --- Data Fetching Logic ---
-  const commentsCollection = useMemoFirebase(() => 
+  const commentsCollection = useMemo(() => 
     firestore ? collection(firestore, 'categorized_comments') : null
   , [firestore]);
 
@@ -66,14 +64,19 @@ export default function CommentManagementPage() {
 
   const finalCommentsToDisplay = useMemo(() => {
     const mergedComments = allComments.map(comment => {
-      const baseComment = pendingComments[comment.taskId] || comment;
-      const category = baseComment.category;
-      const responsibilities = baseComment.responsibilities;
-
-      return { 
-        ...baseComment, 
-        category: Array.isArray(category) ? category : (category ? [category] : []),
-        responsibilities: Array.isArray(responsibilities) ? responsibilities : (responsibilities ? [responsibilities] : []),
+      const pendingChange = pendingComments[comment.taskId];
+      if (pendingChange) {
+        return { 
+          ...comment, 
+          ...pendingChange,
+          category: Array.isArray(pendingChange.category) ? pendingChange.category : (pendingChange.category ? [pendingChange.category] : []),
+          responsibilities: Array.isArray(pendingChange.responsibilities) ? pendingChange.responsibilities : (pendingChange.responsibilities ? [pendingChange.responsibilities] : []),
+        };
+      }
+      return {
+        ...comment,
+        category: Array.isArray(comment.category) ? comment.category : (comment.category ? [comment.category] : []),
+        responsibilities: Array.isArray(comment.responsibilities) ? comment.responsibilities : (comment.responsibilities ? [comment.responsibilities] : []),
       };
     });
     
@@ -218,7 +221,7 @@ export default function CommentManagementPage() {
           if (result.categories) updates.category = result.categories;
           if (result.responsibilities) updates.responsibilities = result.responsibilities;
           
-          newPendingComments[comment.taskId] = { ...comment, ...updates };
+          newPendingComments[comment.taskId] = { ...pendingComments[comment.taskId], ...comment, ...updates };
           successCount++;
         }
       });
@@ -232,9 +235,9 @@ export default function CommentManagementPage() {
         description: `${successCount} sur ${commentsToAnalyze.length} commentaires ont été analysés et mis en cache.`,
       });
     });
-  }, [finalCommentsToDisplay, toast, startBulkAnalyzeTransition, addPendingComment]);
+  }, [finalCommentsToDisplay, toast, startBulkAnalyzeTransition, addPendingComment, pendingComments]);
 
-  const isLoading = isFiltersLoading || isCommentsLoading;
+  const isLoading = isCommentsLoading;
 
   if (isLoading) {
     return <div className="container mx-auto py-10 text-center">Chargement des données...</div>;
