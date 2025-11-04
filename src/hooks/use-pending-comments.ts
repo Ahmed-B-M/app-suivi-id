@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
+import type { CommentStatus } from '@/lib/types';
 
 // This type should ideally be in a central types file, but is defined here for clarity.
 export interface CategorizedComment {
@@ -7,7 +8,7 @@ export interface CategorizedComment {
   comment: string;
   rating: number;
   category: string[];
-  status: 'à traiter' | 'traité';
+  status: CommentStatus;
   taskDate?: string;
   driverName?: string;
   nomHub?: string;

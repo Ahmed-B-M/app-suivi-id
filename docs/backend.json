@@ -339,9 +339,10 @@
         "rating": { "type": "number" },
         "category": { "type": "array", "items": { "type": "string" } },
         "taskDate": { "type": "string", "format": "date-time" },
-        "driverName": { "type": "string" }
+        "driverName": { "type": "string" },
+        "status": { "type": "string", "enum": ["à traiter", "en cours", "traité"] }
       },
-      "required": ["taskId", "comment", "rating", "category", "taskDate"]
+      "required": ["taskId", "comment", "rating", "category", "taskDate", "status"]
     },
     "NpsData": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -382,7 +383,7 @@
         "verbatim": { "type": "string" },
         "responsibilities": { "type": "array", "items": { "type": "string" } },
         "category": { "type": "array", "items": { "type": "string" } },
-        "status": { "type": "string", "enum": ["à traiter", "traité"] },
+        "status": { "type": "string", "enum": ["à traiter", "en cours", "traité"] },
         "store": { "type": "string" },
         "taskDate": { "type": "string", "format": "date-time" },
         "carrier": { "type": "string" },

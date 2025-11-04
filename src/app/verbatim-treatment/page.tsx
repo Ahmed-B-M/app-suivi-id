@@ -15,32 +15,36 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ThumbsDown, Sparkles, Save, User, Truck, Building, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveProcessedVerbatimsAction, categorizeSingleCommentAction } from '../actions';
-import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
+import { saveProcessedVerbatimsAction, categorizeSingleCommentAction, saveSingleProcessedVerbatimAction } from '../actions';
+import { ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CommentStatus } from '@/lib/types';
 import { format } from 'date-fns';
 import { categories as categoryOptions } from '@/components/app/comment-analysis';
 import { MultiSelectCombobox } from '@/components/ui/multi-select-combobox';
 import { usePendingVerbatims } from '@/hooks/use-pending-verbatims';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category' | 'responsibilities'> & { 
+export type ProcessedVerbatim = Omit<SavedProcessedNpsVerbatim, 'id' | 'category' | 'responsibilities' | 'status'> & { 
   id: string, 
   category: string[],
-  responsibilities: string[]
+  responsibilities: string[],
+  status: CommentStatus;
 };
 
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
+const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
 
 export default function VerbatimTreatmentPage() {
   const { allProcessedVerbatims, isContextLoading } = useFilters();
   const { toast } = useToast();
 
-  const [statusFilter, setStatusFilter] = useState<'à traiter' | 'traité' | 'tous'>('à traiter');
+  const [statusFilter, setStatusFilter] = useState<CommentStatus | 'tous'>('à traiter');
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isSaving, startSaveTransition] = useTransition();
 
   const {
     pendingVerbatims,
     addPendingVerbatim,
+    removePendingVerbatim,
     clearAllPendingVerbatims,
     isPending,
     hasPendingItems,
@@ -68,7 +72,7 @@ export default function VerbatimTreatmentPage() {
   }, [allProcessedVerbatims, pendingVerbatims, statusFilter]);
 
   const handleVerbatimUpdate = (verbatim: ProcessedVerbatim, updates: Partial<ProcessedVerbatim>) => {
-    const updatedVerbatim = { ...verbatim, ...updates, status: 'traité' as const };
+    const updatedVerbatim = { ...verbatim, ...updates };
     addPendingVerbatim(updatedVerbatim);
   };
   
@@ -95,6 +99,25 @@ export default function VerbatimTreatmentPage() {
     });
   };
 
+  const handleSaveOne = async (verbatim: ProcessedVerbatim) => {
+    startSaveTransition(async () => {
+      const result = await saveSingleProcessedVerbatimAction(verbatim);
+      if (result.success) {
+        toast({
+          title: "Verbatim sauvegardé",
+          description: `Le verbatim pour la tâche ${verbatim.taskId} a été mis à jour.`,
+        });
+        removePendingVerbatim(verbatim.taskId);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur de sauvegarde",
+          description: result.error,
+        });
+      }
+    });
+  };
+
   const handleSuggest = async (verbatim: ProcessedVerbatim) => {
     setAnalyzingId(verbatim.id);
     try {
@@ -104,7 +127,7 @@ export default function VerbatimTreatmentPage() {
       if (result.responsibilities) updates.responsibilities = result.responsibilities;
 
       if (Object.keys(updates).length > 0) {
-        handleVerbatimUpdate(verbatim, updates);
+        handleVerbatimUpdate(verbatim, { ...updates, status: 'en cours' });
         toast({
           title: "Suggestion de l'IA appliquée",
           description: `Les suggestions ont été mises en cache.`,
@@ -133,6 +156,7 @@ export default function VerbatimTreatmentPage() {
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
                 <Button variant={statusFilter === 'à traiter' ? 'destructive' : 'outline'} onClick={() => setStatusFilter('à traiter')}>À traiter</Button>
+                <Button variant={statusFilter === 'en cours' ? 'default' : 'outline'} onClick={() => setStatusFilter('en cours')}>En cours</Button>
                 <Button variant={statusFilter === 'traité' ? 'default' : 'outline'} onClick={() => setStatusFilter('traité')}>Traités</Button>
                 <Button variant={statusFilter === 'tous' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('tous')}>Tous</Button>
             </div>
@@ -149,23 +173,27 @@ export default function VerbatimTreatmentPage() {
           <Table>
               <TableHeader>
               <TableRow>
-                  <TableHead>Statut</TableHead>
+                  <TableHead className="w-[150px]">Statut</TableHead>
                   <TableHead>Détails</TableHead>
                   <TableHead className="w-[30%]">Verbatim</TableHead>
                   <TableHead>Note</TableHead>
                   <TableHead className="w-[15%]">Responsabilité</TableHead>
                   <TableHead className="w-[20%]">Catégorie</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
               </TableRow>
               </TableHeader>
               <TableBody>
               {finalVerbatimsToDisplay.map((verbatim) => (
                   <TableRow key={verbatim.id}>
                   <TableCell>
-                      <div className="flex flex-col gap-1 items-start">
-                        <Badge variant={verbatim.status === 'traité' ? 'default' : 'destructive'}>{verbatim.status}</Badge>
-                        {isPending(verbatim.taskId) && <Badge variant="secondary">Modifié</Badge>}
-                      </div>
+                    <Select value={verbatim.status} onValueChange={(value) => handleVerbatimUpdate(verbatim, { status: value as CommentStatus })}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {statusOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                   </TableCell>
                    <TableCell>
                       <div className="flex flex-col gap-1 text-xs">
@@ -186,7 +214,7 @@ export default function VerbatimTreatmentPage() {
                       <MultiSelectCombobox
                           options={responsibilityOptions}
                           selected={verbatim.responsibilities}
-                          onChange={(newSelection) => handleVerbatimUpdate(verbatim, { responsibilities: newSelection })}
+                          onChange={(newSelection) => handleVerbatimUpdate(verbatim, { responsibilities: newSelection, status: "en cours" })}
                           placeholder="Sélectionner..."
                           className="w-full"
                       />
@@ -195,13 +223,13 @@ export default function VerbatimTreatmentPage() {
                       <MultiSelectCombobox
                           options={categoryOptions}
                           selected={verbatim.category}
-                          onChange={(value) => handleVerbatimUpdate(verbatim, { category: value })}
+                          onChange={(value) => handleVerbatimUpdate(verbatim, { category: value, status: "en cours" })}
                           placeholder="Sélectionner..."
                           className="w-full"
                       />
                    </TableCell>
-                  <TableCell>
-                     <div className="flex items-center gap-1">
+                  <TableCell className="text-right">
+                     <div className="flex items-center justify-end gap-1">
                          <Button
                               size="icon"
                               variant="ghost"
@@ -211,6 +239,11 @@ export default function VerbatimTreatmentPage() {
                           >
                               {analyzingId === verbatim.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4 text-primary"/>}
                           </Button>
+                          {isPending(verbatim.taskId) && (
+                            <Button size="icon" variant="ghost" onClick={() => handleSaveOne(verbatim)} disabled={isSaving} title="Sauvegarder ce verbatim">
+                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 text-green-600" />}
+                            </Button>
+                         )}
                       </div>
                   </TableCell>
                   </TableRow>

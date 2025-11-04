@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,18 +11,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { saveCategorizedCommentsAction, categorizeSingleCommentAction } from "@/app/actions";
+import { saveCategorizedCommentsAction, categorizeSingleCommentAction, saveSingleCategorizedCommentAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useFilters } from "@/context/filter-context";
 import { Loader2, Sparkles, Save } from "lucide-react";
 import { usePendingComments, type CategorizedComment } from "@/hooks/use-pending-comments";
 import { categories as categoryOptions } from "@/components/app/comment-analysis";
-import { InlineMultiSelect } from "@/components/ui/inline-multi-select"; // <-- NEW IMPORT
+import { InlineMultiSelect } from "@/components/ui/inline-multi-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { CommentStatus } from "@/lib/types";
+
+const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
 
 export default function CommentManagementPage() {
   const { allComments, isContextLoading } = useFilters();
-  const [statusFilter, setStatusFilter] = useState<'tous' | 'à traiter' | 'traité'>('à traiter');
+  const [statusFilter, setStatusFilter] = useState<CommentStatus | 'tous'>('à traiter');
   
   const { toast } = useToast();
   const [isSaving, startSaveTransition] = useTransition();
@@ -31,6 +35,7 @@ export default function CommentManagementPage() {
   const {
     pendingComments,
     addPendingComment,
+    removePendingComment,
     clearAllPendingComments,
     isPending,
     hasPendingItems,
@@ -57,8 +62,8 @@ export default function CommentManagementPage() {
 
   }, [allComments, pendingComments, statusFilter]);
 
-  const handleCategoryChange = (comment: CategorizedComment, newCategories: string[]) => {
-    const updatedComment = { ...comment, category: newCategories, status: 'traité' as const };
+  const handleFieldChange = (comment: CategorizedComment, field: keyof CategorizedComment, value: any) => {
+    const updatedComment = { ...comment, [field]: value };
     addPendingComment(updatedComment);
   };
 
@@ -84,12 +89,31 @@ export default function CommentManagementPage() {
     });
   };
   
+  const handleSaveOne = async (comment: CategorizedComment) => {
+    startSaveTransition(async () => {
+      const result = await saveSingleCategorizedCommentAction(comment);
+      if (result.success) {
+        toast({
+          title: "Commentaire sauvegardé",
+          description: `Le commentaire pour la tâche ${comment.taskId} a été mis à jour.`,
+        });
+        removePendingComment(comment.taskId);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur de sauvegarde",
+          description: result.error,
+        });
+      }
+    });
+  };
+  
   const handleSuggestCategory = async (comment: CategorizedComment) => {
     setAnalyzingId(comment.taskId);
     try {
       const result = await categorizeSingleCommentAction(comment.comment);
       if (result.categories) {
-         handleCategoryChange(comment, result.categories);
+         handleFieldChange(comment, 'category', result.categories);
         toast({
           title: "Suggestion de l'IA appliquée",
           description: `Catégories suggérées : "${result.categories.join(', ')}".`,
@@ -117,6 +141,7 @@ export default function CommentManagementPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Button variant={statusFilter === 'à traiter' ? 'default' : 'outline'} onClick={() => setStatusFilter('à traiter')}>À traiter</Button>
+            <Button variant={statusFilter === 'en cours' ? 'default' : 'outline'} onClick={() => setStatusFilter('en cours')}>En cours</Button>
             <Button variant={statusFilter === 'traité' ? 'default' : 'outline'} onClick={() => setStatusFilter('traité')}>Traités</Button>
             <Button variant={statusFilter === 'tous' ? 'default' : 'outline'} onClick={() => setStatusFilter('tous')}>Tous</Button>
           </div>
@@ -132,7 +157,7 @@ export default function CommentManagementPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Statut</TableHead>
+              <TableHead className="w-[150px]">Statut</TableHead>
               <TableHead>Task ID</TableHead>
               <TableHead className="w-[30%]">Commentaire</TableHead>
               <TableHead>Note</TableHead>
@@ -140,6 +165,7 @@ export default function CommentManagementPage() {
               <TableHead>Date</TableHead>
               <TableHead>Chauffeur</TableHead>
               <TableHead>Entrepôt</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -147,37 +173,47 @@ export default function CommentManagementPage() {
               finalCommentsToDisplay.map((comment) => (
                 <TableRow key={comment.taskId}>
                   <TableCell>
-                    <div className="flex flex-col gap-1 items-start">
-                      <Badge variant={comment.status === "traité" ? "default" : "destructive"}>
-                        {comment.status}
-                      </Badge>
-                      {isPending(comment.taskId) && <Badge variant="secondary">Modifié</Badge>}
-                    </div>
+                    <Select value={comment.status} onValueChange={(value) => handleFieldChange(comment, 'status', value as CommentStatus)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>{comment.taskId}</TableCell>
                   <TableCell><p className="whitespace-pre-wrap">{comment.comment}</p></TableCell>
                   <TableCell><Badge variant={comment.rating < 4 ? "destructive" : "default"}>{comment.rating} / 5</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {/* NEW COMPONENT IN USE */}
                       <InlineMultiSelect
                         options={categoryOptions}
                         selected={comment.category}
-                        onChange={(value) => handleCategoryChange(comment, value)}
+                        onChange={(value) => handleFieldChange(comment, 'category', value)}
                       />
-                       <Button size="icon" variant="ghost" onClick={() => handleSuggestCategory(comment)} disabled={analyzingId === comment.taskId} title="Suggérer une catégorie">
-                          {analyzingId === comment.taskId ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4 text-primary"/>}
-                      </Button>
                     </div>
                   </TableCell>
                   <TableCell>{comment.taskDate ? new Date(comment.taskDate as string).toLocaleDateString() : 'N/A'}</TableCell>
                   <TableCell>{comment.driverName}</TableCell>
                   <TableCell>{comment.nomHub}</TableCell>
+                  <TableCell className="text-right">
+                     <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => handleSuggestCategory(comment)} disabled={analyzingId === comment.taskId} title="Suggérer une catégorie">
+                          {analyzingId === comment.taskId ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4 text-primary"/>}
+                        </Button>
+                        {isPending(comment.taskId) && (
+                          <Button size="icon" variant="ghost" onClick={() => handleSaveOne(comment)} disabled={isSaving} title="Sauvegarder ce commentaire">
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 text-green-600" />}
+                          </Button>
+                        )}
+                     </div>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
                 <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={9} className="h-24 text-center">
                         Aucun commentaire à afficher pour ce filtre.
                     </TableCell>
                 </TableRow>

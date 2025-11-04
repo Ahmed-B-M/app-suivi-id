@@ -1,4 +1,3 @@
-
 "use server";
 
 import { z } from "zod";
@@ -7,17 +6,17 @@ import {
   serverExportSchema,
 } from "@/lib/schemas";
 import { optimizeApiCallSchedule } from "@/ai/flows/optimize-api-call-schedule";
-import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, Article } from "@/lib/types";
+import { Tache, Tournee, Notification, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, Article, CommentStatus, ProcessedNpsVerbatim } from "@/lib/types";
 import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
-import { ProcessedVerbatim } from "./verbatim-treatment/page";
-import { writeBatch, collection, doc, getDocs, query, where, Timestamp, addDoc } from 'firebase/firestore';
+import { writeBatch, collection, doc, getDocs, query, where, Timestamp, addDoc, setDoc } from 'firebase/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
 import { useFirebase } from "@/firebase/provider";
 import { errorEmitter, FirestorePermissionError } from "@/firebase";
+import type { CategorizedComment } from "@/hooks/use-pending-comments";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -543,29 +542,14 @@ export async function categorizeSingleCommentAction(comment: string): Promise<Ca
 }
 
 // --- Save Categorized Comments to Firestore ---
-export async function saveCategorizedCommentsAction(
-  categorizedComments: {
-    taskId: string;
-    comment: string;
-    rating: number;
-    category: string[];
-    taskDate?: string;
-    driverName?: string;
-    nomHub?: string;
-  }[]
-) {
+export async function saveCategorizedCommentsAction(comments: CategorizedComment[]) {
   try {
     const { firestore } = useFirebase();
     const batch = writeBatch(firestore);
-    
-    categorizedComments.forEach(comment => {
-      if (comment.taskId) {
-        const docRef = doc(firestore, "categorized_comments", comment.taskId);
-        // Ensure a default status is set when saving
-        batch.set(docRef, { ...comment, status: 'traité' }, { merge: true });
-      }
+    comments.forEach(comment => {
+      const docRef = doc(firestore, "categorized_comments", comment.taskId);
+      batch.set(docRef, { ...comment }, { merge: true });
     });
-
     await batch.commit();
     return { success: true, error: null };
   } catch (error: any) {
@@ -573,31 +557,45 @@ export async function saveCategorizedCommentsAction(
     const permissionError = new FirestorePermissionError({
         path: 'categorized_comments',
         operation: 'write',
-        requestResourceData: categorizedComments.map(c => c.taskId)
+        requestResourceData: comments.map(c => c.taskId)
     });
     errorEmitter.emit('permission-error', permissionError);
-
-    return {
-      success: false,
-      error: error.message || "Failed to save categorized comments to Firestore.",
-    };
+    return { success: false, error: error.message || "Failed to save comments." };
   }
 }
 
+// --- Save a single Categorized Comment to Firestore ---
+export async function saveSingleCategorizedCommentAction(comment: CategorizedComment) {
+  try {
+    const { firestore } = useFirebase();
+    if (!comment.taskId) throw new Error("Task ID is missing.");
+    const docRef = doc(firestore, "categorized_comments", comment.taskId);
+    await setDoc(docRef, comment, { merge: true });
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error saving single comment:", error);
+    const permissionError = new FirestorePermissionError({
+        path: `categorized_comments/${comment.taskId}`,
+        operation: 'write',
+        requestResourceData: comment
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    return { success: false, error: error.message || "Failed to save comment." };
+  }
+}
+
+
 // --- Save Processed Verbatims to Firestore ---
-export async function saveProcessedVerbatimsAction(
-  verbatims: ProcessedVerbatim[]
-) {
+export async function saveProcessedVerbatimsAction(verbatims: ProcessedNpsVerbatim[]) {
   try {
     const { firestore } = useFirebase();
     const batch = writeBatch(firestore);
-    
     verbatims.forEach(verbatim => {
+      const docRef = doc(firestore, "processed_nps_verbatims", verbatim.id);
+      // Remove id from the data being saved
       const { id, ...dataToSave } = verbatim;
-      const docRef = doc(firestore, "processed_nps_verbatims", id);
-      batch.set(docRef, { ...dataToSave, status: 'traité' }, { merge: true });
+      batch.set(docRef, { ...dataToSave }, { merge: true });
     });
-
     await batch.commit();
     return { success: true, error: null };
   } catch (error: any) {
@@ -608,10 +606,28 @@ export async function saveProcessedVerbatimsAction(
         requestResourceData: verbatims.map(v => v.taskId)
     });
     errorEmitter.emit('permission-error', permissionError);
+    return { success: false, error: error.message || "Failed to save verbatims." };
+  }
+}
 
-    return {
-      success: false,
-      error: error.message || "Failed to save processed verbatims to Firestore.",
-    };
+// --- Save a single Processed Verbatim to Firestore ---
+export async function saveSingleProcessedVerbatimAction(verbatim: ProcessedNpsVerbatim) {
+  try {
+    const { firestore } = useFirebase();
+    if (!verbatim.id) throw new Error("Verbatim ID is missing.");
+    const docRef = doc(firestore, "processed_nps_verbatims", verbatim.id);
+     // Remove id from the data being saved
+    const { id, ...dataToSave } = verbatim;
+    await setDoc(docRef, dataToSave, { merge: true });
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error("Error saving single verbatim:", error);
+    const permissionError = new FirestorePermissionError({
+        path: `processed_nps_verbatims/${verbatim.id}`,
+        operation: 'write',
+        requestResourceData: verbatim
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    return { success: false, error: error.message || "Failed to save verbatim." };
   }
 }

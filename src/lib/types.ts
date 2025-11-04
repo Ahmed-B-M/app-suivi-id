@@ -265,6 +265,7 @@ export type NpsData = {
     verbatims: NpsVerbatim[];
 }
 
+export type CommentStatus = 'à traiter' | 'en cours' | 'traité';
 
 export type ProcessedNpsVerbatim = {
     id: string; // document id
@@ -273,7 +274,7 @@ export type ProcessedNpsVerbatim = {
     verbatim: string;
     responsibilities: string[] | string;
     category: string[] | string;
-    status: 'à traiter' | 'traité';
+    status: CommentStatus;
     // other fields from NpsVerbatim if needed
     store: string;
     taskDate: string;
