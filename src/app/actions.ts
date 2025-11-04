@@ -13,9 +13,11 @@ import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categoriz
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
 import { ProcessedVerbatim } from "./verbatim-treatment/page";
-import { FieldValue } from 'firebase/firestore';
+import { writeBatch, collection, doc, getDocs, query, where, Timestamp, addDoc } from 'firebase/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
+import { useFirebase } from "@/firebase/provider";
+import { errorEmitter, FirestorePermissionError } from "@/firebase";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -284,9 +286,9 @@ function transformRoundData(rawRound: any, allTasks: Tache[]): Tournee {
         pausesVehicule: rawRound.vehicle?.breaks,
         capaciteBacs: rawRound.vehicle?.dimensions?.bac,
         capacitePoids: rawRound.vehicle?.dimensions?.poids,
-dimVehiculeVolume: rawRound.vehicle?.dimensions?.volume,
-distanceMaxVehicule: rawRound.vehicle?.maxDistance,
-dureeMaxVehicule: rawRound.vehicle?.maxDuration,
+        dimVehiculeVolume: rawRound.vehicle?.dimensions?.volume,
+        distanceMaxVehicule: rawRound.vehicle?.maxDistance,
+        dureeMaxVehicule: rawRound.vehicle?.maxDuration,
         commandesMaxVehicule: rawRound.vehicle?.maxOrders,
         misAJourLe: toIsoOrUndefined(rawRound.updated),
         valide: rawRound.validated,
@@ -358,6 +360,15 @@ async function fetchAllRounds(apiKey: string, params: URLSearchParams, logs: str
     return fetchGeneric("round", apiKey, params, logs);
 }
 
+async function createNotification(firestore: any, notification: Omit<Notification, 'id' | 'createdAt' | 'status'>) {
+    const notificationWithTimestamp = {
+        ...notification,
+        status: 'unread' as const,
+        createdAt: new Date(),
+    };
+    await addDoc(collection(firestore, 'notifications'), notificationWithTimestamp);
+}
+
 export async function runSyncAction(
   values: z.infer<typeof serverExportSchema>
 ) {
@@ -372,6 +383,7 @@ export async function runSyncAction(
   const logs: string[] = [];
 
   try {
+    const { firestore } = useFirebase();
     logs.push(`🚀 Début de l'exportation unifiée...`);
     logs.push(`   - Clé API: ********${apiKey.slice(-4)}`);
     logs.push(`   - Période: ${from} à ${to}`);
@@ -427,6 +439,57 @@ export async function runSyncAction(
       finalFilteredRounds = finalTransformedRounds.filter((round) => round.statut === roundStatus);
       logs.push(`   - ${finalTransformedRounds.length - finalFilteredRounds.length} tournées écartées.`);
     }
+    
+    // --- Generate Notifications ---
+    logs.push(`\n🔔 Génération des notifications...`);
+    let notificationCount = 0;
+    const WEIGHT_LIMIT = 1250;
+    const NEGATIVE_COMMENT_KEYWORDS = ["casse", "abime", "manquant", "erreur", "retard", "impoli"];
+    
+    const processedTaskIdsForNotif = new Set<string>();
+
+    // 1. Quality Alerts from bad ratings
+    const qualityAlertTasks = transformedTasks.filter(t => typeof t.notationLivreur === 'number' && t.notationLivreur < 4);
+    for (const task of qualityAlertTasks) {
+        if (!processedTaskIdsForNotif.has(task.tacheId)) {
+            await createNotification(firestore, {
+                type: 'quality_alert',
+                message: `Alerte qualité pour ${getDriverFullName(task) || 'un livreur'}. Note de ${task.notationLivreur}/5 sur la tournée ${task.nomTournee || 'inconnue'}.`,
+                relatedEntity: { type: 'task', id: task.tacheId }
+            });
+            notificationCount++;
+            processedTaskIdsForNotif.add(task.tacheId);
+        }
+    }
+
+    // 2. Quality Alerts from negative comments
+    const commentAlertTasks = transformedTasks.filter(t => 
+        !processedTaskIdsForNotif.has(t.tacheId) &&
+        t.metaCommentaireLivreur &&
+        NEGATIVE_COMMENT_KEYWORDS.some(keyword => t.metaCommentaireLivreur!.toLowerCase().includes(keyword))
+    );
+     for (const task of commentAlertTasks) {
+        await createNotification(firestore, {
+            type: 'quality_alert',
+            message: `Commentaire négatif de ${getDriverFullName(task) || 'un livreur'} sur la tournée ${task.nomTournee || 'inconnue'}.`,
+            relatedEntity: { type: 'task', id: task.tacheId }
+        });
+        notificationCount++;
+        processedTaskIdsForNotif.add(task.tacheId);
+    }
+
+
+    // 3. Overweight Rounds
+    const overweightRounds = finalTransformedRounds.filter(r => r.poidsReel && r.poidsReel > WEIGHT_LIMIT);
+    for (const round of overweightRounds) {
+       await createNotification(firestore, {
+            type: 'overweight_round',
+            message: `La tournée ${round.nom} est en surcharge de poids (${round.poidsReel.toFixed(0)} kg).`,
+            relatedEntity: { type: 'round', id: round.id }
+        });
+        notificationCount++;
+    }
+    logs.push(`   - ✅ ${notificationCount} notifications générées.`);
 
     logs.push(`\n\n🎉 Exportation terminée !`);
     logs.push(`   - ${transformedTasks.length} tâches et ${finalFilteredRounds.length} tournées prêtes.`);
