@@ -60,9 +60,14 @@ export function usePendingComments() {
   }, []);
 
   const removePendingComment = useCallback((taskId: string) => {
-    const { [taskId]: _, ...rest } = pendingComments;
-    updateCache(rest);
-  }, [pendingComments]);
+    setPendingComments(prev => {
+      const { [taskId]: _, ...rest } = prev;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(rest));
+      }
+      return rest;
+    });
+  }, []);
 
   const clearAllPendingComments = useCallback(() => {
     updateCache({});
