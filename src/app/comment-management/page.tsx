@@ -63,30 +63,38 @@ export default function CommentManagementPage() {
   } = usePendingComments();
 
   const finalCommentsToDisplay = useMemo(() => {
-    const mergedComments = allComments.map(comment => {
-      const pendingChange = pendingComments[comment.taskId];
-      if (pendingChange) {
-        return { 
-          ...comment, 
-          ...pendingChange,
-          category: Array.isArray(pendingChange.category) ? pendingChange.category : (pendingChange.category ? [pendingChange.category] : []),
-          responsibilities: Array.isArray(pendingChange.responsibilities) ? pendingChange.responsibilities : (pendingChange.responsibilities ? [pendingChange.responsibilities] : []),
-        };
-      }
-      return {
+    // Create a map of the fetched comments
+    const fetchedCommentsMap = new Map(allComments.map(c => [c.taskId, c]));
+
+    // Iterate over pending comments. If a pending comment matches the filter, add/update it.
+    Object.values(pendingComments).forEach(pending => {
+        const matchesFilter = statusFilter === 'tous' || pending.status === statusFilter;
+        if (matchesFilter) {
+            const existing = fetchedCommentsMap.get(pending.taskId!) || {};
+            // Ensure the pending data is merged correctly over the fetched data
+            fetchedCommentsMap.set(pending.taskId!, { ...existing, ...pending, id: pending.taskId!, taskId: pending.taskId! });
+        }
+    });
+
+    // Filter the final list based on the status filter, considering pending changes
+    const displayList = Array.from(fetchedCommentsMap.values()).filter(comment => {
+        if (statusFilter === 'tous') return true;
+        const finalStatus = pendingComments[comment.taskId]?.status || comment.status;
+        return finalStatus === statusFilter;
+    });
+
+    // Normalize category and responsibilities to always be arrays for consistent rendering
+    return displayList.map(comment => ({
         ...comment,
         category: Array.isArray(comment.category) ? comment.category : (comment.category ? [comment.category] : []),
         responsibilities: Array.isArray(comment.responsibilities) ? comment.responsibilities : (comment.responsibilities ? [comment.responsibilities] : []),
-      };
-    });
-    
-    return mergedComments.sort((a, b) => {
-        const dateA = a.taskDate ? new Date(a.taskDate as string).getTime() : 0;
-        const dateB = b.taskDate ? new Date(b.taskDate as string).getTime() : 0;
+    })).sort((a, b) => {
+        const dateA = a.taskDate ? new Date(a.taskDate).getTime() : 0;
+        const dateB = b.taskDate ? new Date(b.taskDate).getTime() : 0;
         return dateB - dateA;
     });
+}, [allComments, pendingComments, statusFilter]);
 
-  }, [allComments, pendingComments]);
 
   const handleFieldChange = (comment: CategorizedComment, field: keyof CategorizedComment, value: any) => {
     const updatedComment = { ...comment, [field]: value, status: 'en cours' as const };
@@ -221,7 +229,8 @@ export default function CommentManagementPage() {
           if (result.categories) updates.category = result.categories;
           if (result.responsibilities) updates.responsibilities = result.responsibilities;
           
-          newPendingComments[comment.taskId] = { ...pendingComments[comment.taskId], ...comment, ...updates };
+          const existingPending = pendingComments[comment.taskId] || {};
+          newPendingComments[comment.taskId] = { ...existingPending, ...comment, ...updates };
           successCount++;
         }
       });
@@ -239,7 +248,7 @@ export default function CommentManagementPage() {
 
   const isLoading = isCommentsLoading;
 
-  if (isLoading) {
+  if (isLoading && finalCommentsToDisplay.length === 0) {
     return <div className="container mx-auto py-10 text-center">Chargement des données...</div>;
   }
 
