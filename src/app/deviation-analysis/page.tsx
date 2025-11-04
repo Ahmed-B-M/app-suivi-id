@@ -73,7 +73,7 @@ interface AggregatedStats {
 interface AggregationGroup {
     stats: AggregatedStats;
     byWarehouse?: Record<string, AggregationGroup>;
-    byCarrier?: Record<string, AggregatedStats>;
+    byCarrier?: Record<string, AggregationGroup>;
 }
 
 
@@ -121,59 +121,41 @@ const DeviationSummaryCard = ({ title, data, icon }: { title: string, data: Devi
     );
 };
 
-const AggregationAccordion = ({ data }: { data: Record<string, AggregationGroup> }) => (
+const AggregationAccordion = ({ data, title, icon }: { data: Record<string, AggregationGroup>, title: string, icon: React.ReactNode }) => (
     <Accordion type="multiple" className="w-full space-y-4">
-        {Object.entries(data).map(([depotName, depotData]) => (
-            <AccordionItem value={depotName} key={depotName}>
+        {Object.entries(data).map(([name, groupData]) => (
+            <AccordionItem value={name} key={name}>
                  <Card>
                     <AccordionTrigger className="p-4 text-lg font-semibold hover:no-underline">
                         <div className="flex w-full items-center justify-between pr-2">
                              <span className="flex items-center gap-2">
-                                <Building />{depotName}
+                                {icon} {name}
                             </span>
                             <div className="flex items-center gap-4 text-sm">
-                               <Badge variant={depotData.stats.punctualityRealized && depotData.stats.punctualityRealized >= 95 ? "default" : "destructive"}>
-                                   Ponctualité: {depotData.stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%
+                               <Badge variant={groupData.stats.punctualityRealized && groupData.stats.punctualityRealized >= 95 ? "default" : "destructive"}>
+                                   Ponctualité: {groupData.stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%
                                </Badge>
-                               <Badge variant={depotData.stats.averageRating && depotData.stats.averageRating >= 4.7 ? "default" : "destructive"}>
-                                   Note: {depotData.stats.averageRating?.toFixed(2) ?? 'N/A'}
+                               <Badge variant={groupData.stats.averageRating && groupData.stats.averageRating >= 4.7 ? "default" : "destructive"}>
+                                   Note: {groupData.stats.averageRating?.toFixed(2) ?? 'N/A'}
                                </Badge>
                            </div>
                         </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-4 border-t">
                         <div className="py-4">
-                            <StatGrid stats={depotData.stats} />
+                            <StatGrid stats={groupData.stats} />
                         </div>
-                        {depotData.byWarehouse && (
-                            <Accordion type="multiple" className="w-full space-y-2">
-                                {Object.entries(depotData.byWarehouse).map(([whName, whData]) => (
-                                    <AccordionItem value={whName} key={whName}>
-                                        <Card>
-                                             <AccordionTrigger className="p-3 text-base font-semibold hover:no-underline">
-                                                <div className="flex w-full items-center justify-between pr-2">
-                                                     <span className="flex items-center gap-2">
-                                                        <Warehouse />{whName}
-                                                    </span>
-                                                    <div className="flex items-center gap-4 text-sm">
-                                                    <Badge variant={whData.stats.punctualityRealized && whData.stats.punctualityRealized >= 95 ? "default" : "destructive"} className="bg-blue-100 text-blue-800">
-                                                        Ponctualité: {whData.stats.punctualityRealized?.toFixed(1) ?? 'N/A'}%
-                                                    </Badge>
-                                                    <Badge variant={whData.stats.averageRating && whData.stats.averageRating >= 4.7 ? "default" : "destructive"} className="bg-yellow-100 text-yellow-800">
-                                                        Note: {whData.stats.averageRating?.toFixed(2) ?? 'N/A'}
-                                                    </Badge>
-                                                    </div>
-                                                </div>
-                                            </AccordionTrigger>
-                                            <AccordionContent className="px-4 pb-4 border-t">
-                                                 <div className="py-4">
-                                                    <StatGrid stats={whData.stats} />
-                                                 </div>
-                                            </AccordionContent>
-                                        </Card>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
+                        {groupData.byWarehouse && (
+                             <div className="mt-4">
+                                <h4 className="font-semibold text-muted-foreground mb-2">Par Entrepôt:</h4>
+                                <AggregationAccordion data={groupData.byWarehouse} title="Entrepôt" icon={<Warehouse />} />
+                            </div>
+                        )}
+                        {groupData.byCarrier && (
+                            <div className="mt-4">
+                                <h4 className="font-semibold text-muted-foreground mb-2">Par Transporteur:</h4>
+                                <AggregationAccordion data={groupData.byCarrier} title="Transporteur" icon={<Truck />} />
+                            </div>
                         )}
                     </AccordionContent>
                 </Card>
@@ -240,7 +222,6 @@ export default function DeviationAnalysisPage() {
     const bacResults: BacDeviation[] = [];
     const depotAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
     const warehouseAggregation: Record<string, { totalRounds: number, overweightRounds: number }> = {};
-    const tasksById = new Map(allTasks.map(t => [t.id, t]));
 
     const allGroupedRounds = allRounds.map(round => ({
         round, 
@@ -310,16 +291,22 @@ export default function DeviationAnalysisPage() {
         const roundsForDepot = allGroupedRounds.filter(g => g.depot === depot);
         const depotStats = processGroup(roundsForDepot);
         
-        const warehouses = [...new Set(roundsForDepot.map(g => g.warehouse))];
         const byWarehouse: Record<string, AggregationGroup> = {};
-
+        const warehouses = [...new Set(roundsForDepot.map(g => g.warehouse))];
         warehouses.forEach(warehouse => {
              if (!warehouse) return;
-             const roundsForWarehouse = roundsForDepot.filter(g => g.warehouse === warehouse);
-             byWarehouse[warehouse] = { stats: processGroup(roundsForWarehouse) };
+             byWarehouse[warehouse] = { stats: processGroup(roundsForDepot.filter(g => g.warehouse === warehouse)) };
         });
 
-        aggregatedStats[depot] = { stats: depotStats, byWarehouse };
+        const byCarrier: Record<string, AggregationGroup> = {};
+        const carriers = [...new Set(roundsForDepot.map(g => g.carrier))];
+        carriers.forEach(carrier => {
+             if (!carrier) return;
+             byCarrier[carrier] = { stats: processGroup(roundsForDepot.filter(g => g.carrier === carrier)) };
+        });
+
+
+        aggregatedStats[depot] = { stats: depotStats, byWarehouse, byCarrier };
     });
 
     for (const round of allRounds) {
@@ -432,7 +419,7 @@ export default function DeviationAnalysisPage() {
                     <CardDescription>Comparaison des indicateurs de performance clés par dépôt.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <AggregationAccordion data={aggregatedStats} />
+                    <AggregationAccordion data={aggregatedStats} title="Dépôt" icon={<Building />} />
                 </CardContent>
             </Card>
 
@@ -574,3 +561,4 @@ export default function DeviationAnalysisPage() {
     </main>
   );
 }
+
