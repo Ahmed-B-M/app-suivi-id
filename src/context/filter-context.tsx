@@ -208,7 +208,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       const taskId = task.tacheId;
       const isNegativeComment = typeof task.notationLivreur === 'number' &&
                                 task.notationLivreur < 4 &&
-                                task.commentaireLivreur;
+                                task.metaCommentaireLivreur;
   
       if (savedCommentsMap.has(taskId)) {
         if (!acc.has(taskId)) {
@@ -221,9 +221,9 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         acc.set(taskId, {
           id: taskId,
           taskId: taskId,
-          comment: task.commentaireLivreur!,
+          comment: task.metaCommentaireLivreur!,
           rating: task.notationLivreur!,
-          category: getCategoryFromKeywords(task.commentaireLivreur!),
+          category: getCategoryFromKeywords(task.metaCommentaireLivreur!),
           responsibilities: [], // Initial empty state for new comments
           taskDate: taskDate,
           driverName: task.nomCompletChauffeur,
