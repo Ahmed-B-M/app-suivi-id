@@ -472,23 +472,23 @@ function ForecastRulesTab() {
     const { data: rules, loading, error } = useQuery<ForecastRule>(rulesCollection, [], { realtime: true });
     const [isPending, startTransition] = useTransition();
 
-    const [editedRules, setEditedRules] = useState<Record<string, Partial<ForecastRule>>>({});
-    const [newRule, setNewRule] = useState<Partial<ForecastRule> | null>(null);
+    const [editedRules, setEditedRules] = useState<Record<string, Partial<ForecastRule> & { keywordsString?: string }>>({});
+    const [newRule, setNewRule] = useState<Partial<ForecastRule> & { keywordsString?: string }>({ isActive: true });
+    
+    const processKeywords = (value: string) => {
+        return value.split(',').map(k => k.trim()).filter(Boolean);
+    }
 
-    const handleRuleChange = (id: string, field: keyof ForecastRule, value: any) => {
+    const handleRuleChange = (id: string, field: keyof (ForecastRule & { keywordsString?: string }), value: any) => {
         setEditedRules(prev => ({
             ...prev,
             [id]: { ...prev[id], [field]: value }
         }));
     };
     
-    const handleNewRuleChange = (field: keyof ForecastRule, value: any) => {
+    const handleNewRuleChange = (field: keyof typeof newRule, value: any) => {
         setNewRule(prev => ({ ...prev, [field]: value }));
     };
-
-    const processKeywords = (value: string) => {
-        return value.split(',').map(k => k.trim()).filter(Boolean);
-    }
 
     const handleAddRule = () => {
         if (!newRule || !newRule.name || !newRule.type || !newRule.category) {
@@ -500,7 +500,7 @@ function ForecastRulesTab() {
         const ruleToAdd: Omit<ForecastRule, 'id'> = {
             name: newRule.name,
             type: newRule.type,
-            keywords: newRule.keywords || [],
+            keywords: processKeywords(newRule.keywordsString || ''),
             category: newRule.category,
             isActive: newRule.isActive ?? true,
         };
@@ -509,7 +509,7 @@ function ForecastRulesTab() {
             try {
                 await addDoc(collection(firestore, 'forecast_rules'), ruleToAdd);
                 toast({ title: "Règle ajoutée", description: "La nouvelle règle a été sauvegardée." });
-                setNewRule(null);
+                setNewRule({ isActive: true, keywordsString: '' });
             } catch (e: any) {
                 toast({ title: "Erreur", description: e.message, variant: "destructive" });
             }
@@ -523,7 +523,13 @@ function ForecastRulesTab() {
             const batch = writeBatch(firestore);
             Object.entries(editedRules).forEach(([id, changes]) => {
                 const ruleRef = doc(firestore, "forecast_rules", id);
-                batch.update(ruleRef, changes);
+                // Create a copy to avoid modifying the state object
+                const updateData: Partial<ForecastRule> = { ...changes };
+                if (typeof updateData.keywordsString === 'string') {
+                    updateData.keywords = processKeywords(updateData.keywordsString);
+                }
+                delete (updateData as any).keywordsString; // Remove the temporary field
+                batch.update(ruleRef, updateData);
             });
             try {
                 await batch.commit();
@@ -581,19 +587,19 @@ function ForecastRulesTab() {
                         </TableHeader>
                         <TableBody>
                             {rules.map(rule => {
-                                const currentRuleState = { ...rule, ...editedRules[rule.id] };
+                                const currentKeywordsString = editedRules[rule.id]?.keywordsString ?? rule.keywords.join(', ');
                                 return (
                                 <TableRow key={rule.id}>
                                     <TableCell>
                                         <Input
-                                            value={currentRuleState.name}
+                                            value={editedRules[rule.id]?.name ?? rule.name}
                                             onChange={(e) => handleRuleChange(rule.id, 'name', e.target.value)}
                                             className="font-medium"
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Select
-                                            value={currentRuleState.type}
+                                            value={editedRules[rule.id]?.type ?? rule.type}
                                             onValueChange={(value) => handleRuleChange(rule.id, 'type', value)}
                                         >
                                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -605,7 +611,7 @@ function ForecastRulesTab() {
                                     </TableCell>
                                     <TableCell>
                                         <Select
-                                            value={currentRuleState.category}
+                                            value={editedRules[rule.id]?.category ?? rule.category}
                                             onValueChange={(value) => handleRuleChange(rule.id, 'category', value)}
                                         >
                                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -619,13 +625,14 @@ function ForecastRulesTab() {
                                     </TableCell>
                                     <TableCell>
                                         <Input
-                                            value={Array.isArray(currentRuleState.keywords) ? currentRuleState.keywords.join(', ') : ''}
-                                            onChange={(e) => handleRuleChange(rule.id, 'keywords', processKeywords(e.target.value))}
+                                            value={currentKeywordsString}
+                                            onChange={(e) => handleRuleChange(rule.id, 'keywordsString', e.target.value)}
+                                            onBlur={(e) => handleRuleChange(rule.id, 'keywords', processKeywords(e.target.value))}
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Switch
-                                            checked={currentRuleState.isActive}
+                                            checked={editedRules[rule.id]?.isActive ?? rule.isActive}
                                             onCheckedChange={(checked) => handleRuleChange(rule.id, 'isActive', checked)}
                                         />
                                     </TableCell>
@@ -668,8 +675,8 @@ function ForecastRulesTab() {
                                 <TableCell>
                                     <Input
                                         placeholder="motclé1, motclé2..."
-                                        value={newRule?.keywords?.join(', ') || ''}
-                                        onChange={(e) => handleNewRuleChange('keywords', processKeywords(e.target.value))}
+                                        value={newRule?.keywordsString || ''}
+                                        onChange={(e) => handleNewRuleChange('keywordsString', e.target.value)}
                                     />
                                 </TableCell>
                                 <TableCell>
