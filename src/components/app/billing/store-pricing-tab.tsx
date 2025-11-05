@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2, Edit, Save, Loader2, Calendar as CalendarIcon, Map } from "lucide-react";
+import { PlusCircle, Trash2, Edit, Save, Loader2, Calendar as CalendarIcon, Map, Zone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -38,7 +38,7 @@ interface StoreRule {
     nonWorkedDays: Date[];
     grid?: {
         bacThreshold: number;
-        zonePrices: { zoneName: string; price: number }[];
+        zonePrices: { id: string; zoneName: string; price: number }[];
     }
 }
 
@@ -63,6 +63,10 @@ export function StorePricingTab() {
         ruleType: 'jour', // default
         price: 0,
         nonWorkedDays: [],
+        grid: {
+            bacThreshold: 10,
+            zonePrices: [{ id: `zone-${Date.now()}`, zoneName: 'Zone A', price: 0 }]
+        }
     }
     setRules(prev => [...prev, newRule]);
     setEditingRule(newRule);
@@ -70,6 +74,9 @@ export function StorePricingTab() {
 
   const handleUpdateRule = (updatedRule: StoreRule) => {
       setRules(prev => prev.map(r => r.id === updatedRule.id ? updatedRule : r));
+      if (editingRule && editingRule.id === updatedRule.id) {
+          setEditingRule(updatedRule);
+      }
   };
   
   const handleSaveAndClose = () => {
@@ -83,14 +90,12 @@ export function StorePricingTab() {
   }
 
   const groupedByStore = useMemo(() => {
-    return rules.reduce((acc, rule) => {
-      if (!acc[rule.storeName]) {
-        acc[rule.storeName] = [];
-      }
-      acc[rule.storeName].push(rule);
-      return acc;
+    const allStores = [...new Set([...availableStores, ...rules.map(r => r.storeName)])];
+    return allStores.sort().reduce((acc, storeName) => {
+        acc[storeName] = rules.filter(rule => rule.storeName === storeName);
+        return acc;
     }, {} as Record<string, StoreRule[]>);
-  }, [rules]);
+  }, [rules, availableStores]);
 
   return (
     <Card>
@@ -103,18 +108,18 @@ export function StorePricingTab() {
       <CardContent className="space-y-4">
 
         <Accordion type="multiple" className="w-full space-y-4">
-            {availableStores.map(store => (
-                <AccordionItem value={store} key={store} className="border-b-0">
+            {Object.entries(groupedByStore).map(([storeName, storeRules]) => (
+                <AccordionItem value={storeName} key={storeName} className="border-b-0">
                     <Card>
                          <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
                             <div className="w-full flex justify-between items-center">
-                                <span className="flex items-center gap-3">{store}</span>
-                                <Badge variant="outline">{groupedByStore[store]?.length || 0} règles</Badge>
+                                <span className="flex items-center gap-3">{storeName}</span>
+                                <Badge variant="outline">{storeRules.length} règle(s)</Badge>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="p-4 pt-0">
                            <div className="border rounded-lg p-4 space-y-4">
-                                {groupedByStore[store]?.map(rule => (
+                                {storeRules.map(rule => (
                                     <div key={rule.id} className="flex justify-between items-center p-2 rounded-md bg-muted/50">
                                         <div>
                                             <p className="font-semibold">{ruleTypeLabels[rule.ruleType]}</p>
@@ -126,7 +131,7 @@ export function StorePricingTab() {
                                         </div>
                                     </div>
                                 ))}
-                                 <Button onClick={() => handleAddRule(store)} className="w-full mt-2" variant="outline">
+                                 <Button onClick={() => handleAddRule(storeName)} className="w-full mt-2" variant="outline">
                                     <PlusCircle className="mr-2"/>
                                     Ajouter une Règle de Tarification
                                 </Button>
@@ -158,6 +163,28 @@ function EditRuleDialog({ rule, onUpdate, onSaveAndClose, onCancel }: { rule: St
         onUpdate({ ...rule, [field]: value });
     };
 
+    const handleGridChange = (field: keyof NonNullable<StoreRule['grid']>, value: any) => {
+        handleFieldChange('grid', { ...rule.grid, [field]: value });
+    }
+    
+    const handleZonePriceChange = (zoneId: string, field: 'zoneName' | 'price', value: any) => {
+        const updatedZones = rule.grid?.zonePrices.map(zone => 
+            zone.id === zoneId ? { ...zone, [field]: value } : zone
+        );
+        handleGridChange('zonePrices', updatedZones);
+    }
+    
+    const addZone = () => {
+        const newZone = { id: `zone-${Date.now()}`, zoneName: `Nouvelle Zone`, price: 0 };
+        const updatedZones = [...(rule.grid?.zonePrices || []), newZone];
+        handleGridChange('zonePrices', updatedZones);
+    }
+
+    const removeZone = (zoneId: string) => {
+        const updatedZones = rule.grid?.zonePrices.filter(zone => zone.id !== zoneId);
+        handleGridChange('zonePrices', updatedZones);
+    }
+
     return (
          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
             <Card className="w-full max-w-2xl">
@@ -187,13 +214,30 @@ function EditRuleDialog({ rule, onUpdate, onSaveAndClose, onCancel }: { rule: St
                     {rule.ruleType === 'grille' && (
                         <Card className="bg-muted/50">
                             <CardHeader><CardTitle className="text-base flex items-center gap-2"><Map/> Grille Bacs/Zones</CardTitle></CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-4">
                                  <div>
                                     <Label>Seuil de Bacs</Label>
-                                    <Input type="number" placeholder="Ex: 10" />
+                                    <Input 
+                                        type="number" 
+                                        placeholder="Ex: 10" 
+                                        value={rule.grid?.bacThreshold}
+                                        onChange={e => handleGridChange('bacThreshold', parseInt(e.target.value) || 0)}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">Le prix de base s'applique jusqu'à ce seuil. Au-delà, le prix de la zone est utilisé.</p>
                                  </div>
-                                 {/* Zone editor will go here */}
-                                 <p className="text-center text-muted-foreground text-sm pt-4">Le configurateur de zones sera bientôt disponible.</p>
+                                 <div className="space-y-2">
+                                     <Label>Zones de Tarification</Label>
+                                     {rule.grid?.zonePrices.map(zone => (
+                                         <div key={zone.id} className="flex items-center gap-2">
+                                             <Input placeholder="Nom de la zone" value={zone.zoneName} onChange={e => handleZonePriceChange(zone.id, 'zoneName', e.target.value)} />
+                                             <Input type="number" placeholder="Prix" className="w-32" value={zone.price} onChange={e => handleZonePriceChange(zone.id, 'price', parseFloat(e.target.value) || 0)} />
+                                             <Button variant="ghost" size="icon" onClick={() => removeZone(zone.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                         </div>
+                                     ))}
+                                      <Button variant="outline" size="sm" onClick={addZone} className="w-full">
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Ajouter une zone
+                                      </Button>
+                                 </div>
                             </CardContent>
                         </Card>
                     )}
