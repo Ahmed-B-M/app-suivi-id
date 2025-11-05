@@ -1,22 +1,67 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { useFilters } from "@/context/filter-context";
 import { getDepotFromHub, getCarrierFromDriver } from "@/lib/grouping";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Building, Truck } from "lucide-react";
+import { Building, Truck, TrendingUp, Sun, Moon, Boxes, BookOpen } from "lucide-react";
 import { useQuery } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import type { ForecastRule, Tournee } from "@/lib/types";
 
 
+interface ForecastTotals {
+    total: number;
+    matin: number;
+    soir: number;
+    bu: number;
+    classique: number;
+}
+
+interface DepotForecast extends ForecastTotals {
+    name: string;
+}
+
+interface GlobalForecast {
+    totals: ForecastTotals;
+    byDepot: DepotForecast[];
+}
+
+const StatCard = ({ title, value, icon }: { title: string, value: number, icon: React.ReactNode }) => (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            {icon}
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+        </CardContent>
+    </Card>
+);
+
+const GlobalForecastSummary = ({ totals }: { totals: ForecastTotals }) => {
+    return (
+        <Card className="mb-8">
+            <CardHeader>
+                <CardTitle>Synthèse Globale</CardTitle>
+                <CardDescription>Aperçu de toutes les tournées prévisionnelles pour la période sélectionnée.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <StatCard title="Tournées Totales" value={totals.total} icon={<Truck className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Tournées BU" value={totals.bu} icon={<Boxes className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Tournées Classiques" value={totals.classique} icon={<BookOpen className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Shift Matin" value={totals.matin} icon={<Sun className="h-4 w-4 text-muted-foreground" />} />
+                <StatCard title="Shift Soir" value={totals.soir} icon={<Moon className="h-4 w-4 text-muted-foreground" />} />
+            </CardContent>
+        </Card>
+    );
+};
+
 export default function ForecastPage() {
-  const { allRounds, allCarrierRules, allDepotRules } = useFilters();
+  const { allRounds, allDepotRules, isContextLoading } = useFilters();
   const { firestore } = useFirebase();
 
   const rulesCollection = useMemo(() => 
@@ -27,130 +72,120 @@ export default function ForecastPage() {
   );
   const { data: activeRules, loading: rulesLoading } = useQuery<ForecastRule>(rulesCollection, [], {realtime: true});
 
-
-  const forecastData = useMemo(() => {
-    if (!allRounds || rulesLoading || !activeRules) return {};
+  const forecastData: GlobalForecast | null = useMemo(() => {
+    if (isContextLoading || rulesLoading || !allRounds || !activeRules) return null;
 
     const timeRules = activeRules.filter(r => r.type === 'time');
     const buRules = activeRules.filter(r => r.type === 'type' && r.category === 'BU');
-
-    const dataByDepot: Record<string, {
-      total: number;
-      carriers: Record<string, {
-        total: number;
-        matin: number;
-        soir: number;
-        bu: number;
-        classique: number;
-      }>
-    }> = {};
+    
+    const dataByDepot: Record<string, ForecastTotals> = {};
 
     allRounds.forEach(round => {
       const depot = getDepotFromHub(round.nomHub, allDepotRules);
       if (!depot) return;
 
-      const carrier = getCarrierFromDriver(round, allCarrierRules) || 'Inconnu';
-      
       if (!dataByDepot[depot]) {
-        dataByDepot[depot] = { total: 0, carriers: {} };
-      }
-      if (!dataByDepot[depot].carriers[carrier]) {
-        dataByDepot[depot].carriers[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
+        dataByDepot[depot] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
       }
 
-      const depotCarrier = dataByDepot[depot].carriers[carrier];
-      dataByDepot[depot].total++;
-      depotCarrier.total++;
+      const depotData = dataByDepot[depot];
+      depotData.total++;
       
-      // Time-based classification (Matin/Soir) based on hub name
       const hubNameLower = round.nomHub?.toLowerCase() || '';
       for (const rule of timeRules) {
         if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
-          if (rule.category === 'Matin') depotCarrier.matin++;
-          else if (rule.category === 'Soir') depotCarrier.soir++;
-          break; // Stop after first time match
+          if (rule.category === 'Matin') depotData.matin++;
+          else if (rule.category === 'Soir') depotData.soir++;
+          break; 
         }
       }
 
-      // BU vs Classique classification based on round name
       let isBuAssigned = false;
       const roundNameLower = round.nom?.toLowerCase() || '';
-      for (const rule of buRules) {
-        if(rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))){
-          depotCarrier.bu++;
-          isBuAssigned = true;
-          break;
-        }
+      if (roundNameLower) {
+          for (const rule of buRules) {
+              if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
+                  depotData.bu++;
+                  isBuAssigned = true;
+                  break;
+              }
+          }
       }
-
-      // If it's not BU, it's Classique. This is the primary distinction.
-      if(!isBuAssigned) {
-          depotCarrier.classique++;
+      if (!isBuAssigned) {
+          depotData.classique++;
       }
     });
 
-    return dataByDepot;
-  }, [allRounds, activeRules, rulesLoading, allCarrierRules, allDepotRules]);
+    const depotList = Object.entries(dataByDepot)
+        .map(([name, totals]) => ({ name, ...totals }))
+        .sort((a,b) => b.total - a.total);
+    
+    const globalTotals = depotList.reduce((acc, depot) => {
+        acc.total += depot.total;
+        acc.matin += depot.matin;
+        acc.soir += depot.soir;
+        acc.bu += depot.bu;
+        acc.classique += depot.classique;
+        return acc;
+    }, { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 });
+
+    return {
+        totals: globalTotals,
+        byDepot: depotList
+    };
+
+  }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules]);
   
+  if (!forecastData) {
+      return <div className="flex-1 container py-8">Chargement des prévisions...</div>
+  }
+
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Prévisions de Tournées</h1>
 
-      <Card className="mb-8">
+      <GlobalForecastSummary totals={forecastData.totals} />
+
+      <Card>
         <CardHeader>
-          <CardTitle>Prévisions par Dépôt et Transporteur</CardTitle>
-          <CardDescription>Analyse quantitative des tournées prévisionnelles basée sur les affectations et classifications.</CardDescription>
+            <CardTitle>Prévisions par Dépôt</CardTitle>
+            <CardDescription>Analyse quantitative des tournées prévisionnelles par dépôt.</CardDescription>
         </CardHeader>
         <CardContent>
-           <Accordion type="multiple" className="w-full space-y-4">
-            {Object.entries(forecastData).sort((a,b) => b[1].total - a[1].total).map(([depot, data]) => (
-                <AccordionItem value={depot} key={depot} className="border-b-0">
-                    <Card>
-                        <AccordionTrigger className="p-4 hover:no-underline text-lg">
-                            <div className="w-full flex justify-between items-center font-semibold">
-                                <span className="flex items-center gap-3"><Building />{depot}</span>
-                                <Badge variant="outline">{data.total} tournées</Badge>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="p-0 pt-0">
-                           <div className="p-4 bg-muted/50">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-1/4">Transporteur</TableHead>
-                                        <TableHead className="text-center">Total</TableHead>
-                                        <TableHead className="text-center">Matin</TableHead>
-                                        <TableHead className="text-center">Soir</TableHead>
-                                        <TableHead className="text-center">BU</TableHead>
-                                        <TableHead className="text-center">Classiques</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {Object.entries(data.carriers).sort((a,b) => b[1].total - a[1].total).map(([carrier, carrierData]) => (
-                                        <TableRow key={carrier}>
-                                            <TableCell className="font-medium flex items-center gap-2"><Truck className="text-muted-foreground"/>{carrier}</TableCell>
-                                            <TableCell className="text-center font-bold">{carrierData.total}</TableCell>
-                                            <TableCell className="text-center font-mono">{carrierData.matin}</TableCell>
-                                            <TableCell className="text-center font-mono">{carrierData.soir}</TableCell>
-                                            <TableCell className="text-center font-mono">{carrierData.bu}</TableCell>
-                                            <TableCell className="text-center font-mono">{carrierData.classique}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                           </div>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-            ))}
-             {Object.keys(forecastData).length === 0 && (
-                <div className="text-center text-muted-foreground py-8">
-                    Aucune donnée de tournée à afficher pour la période sélectionnée.
-                </div>
-            )}
-           </Accordion>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-1/4">Dépôt</TableHead>
+                        <TableHead className="text-center">Total</TableHead>
+                        <TableHead className="text-center">BU</TableHead>
+                        <TableHead className="text-center">Classiques</TableHead>
+                        <TableHead className="text-center">Matin</TableHead>
+                        <TableHead className="text-center">Soir</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {forecastData.byDepot.map(depot => (
+                        <TableRow key={depot.name}>
+                            <TableCell className="font-medium flex items-center gap-2"><Building className="text-muted-foreground"/>{depot.name}</TableCell>
+                            <TableCell className="text-center font-bold">{depot.total}</TableCell>
+                            <TableCell className="text-center font-mono">{depot.bu}</TableCell>
+                            <TableCell className="text-center font-mono">{depot.classique}</TableCell>
+                            <TableCell className="text-center font-mono">{depot.matin}</TableCell>
+                            <TableCell className="text-center font-mono">{depot.soir}</TableCell>
+                        </TableRow>
+                    ))}
+                    {forecastData.byDepot.length === 0 && (
+                         <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                Aucune donnée de prévision à afficher.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
         </CardContent>
       </Card>
     </main>
   );
 }
+
