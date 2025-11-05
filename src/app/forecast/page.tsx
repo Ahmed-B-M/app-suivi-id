@@ -42,7 +42,7 @@ interface GlobalForecast {
     byCarrier: CarrierForecast[];
 }
 
-const DonutChart = ({ data, title, colors }: { data: { name: string, value: number, fill: string }[], title: string, colors: string[] }) => {
+const DonutChart = ({ data, title }: { data: { name: string, value: number, fill: string }[], title: string }) => {
     const chartConfig = data.reduce((acc, item) => {
         acc[item.name] = { label: item.name, color: item.fill };
         return acc;
@@ -56,8 +56,8 @@ const DonutChart = ({ data, title, colors }: { data: { name: string, value: numb
                 <PieChart>
                     <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                     <Pie data={data} dataKey="value" nameKey="name" innerRadius={40} outerRadius={60} strokeWidth={2}>
-                         {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                         {data.map((entry) => (
+                            <Cell key={`cell-${entry.name}`} fill={entry.fill} />
                         ))}
                     </Pie>
                 </PieChart>
@@ -270,8 +270,8 @@ export default function ForecastPage() {
                             </Table>
                         </div>
                         <div className="flex justify-around items-center">
-                            <DonutChart data={typeChartData} title="Répartition par Type" colors={["hsl(var(--chart-1))", "hsl(var(--chart-2))"]} />
-                            <DonutChart data={shiftChartData} title="Répartition par Shift" colors={["hsl(var(--chart-3))", "hsl(var(--chart-4))"]}/>
+                            <DonutChart data={typeChartData} title="Répartition par Type" />
+                            <DonutChart data={shiftChartData} title="Répartition par Shift"/>
                         </div>
                     </CardContent>
                 </Card>
