@@ -35,6 +35,7 @@ interface DepotForecast {
 interface GlobalForecast {
     totals: ForecastTotals;
     byDepot: DepotForecast[];
+    byCarrier: CarrierForecast[];
 }
 
 
@@ -87,6 +88,7 @@ export default function ForecastPage() {
     const buRules = activeRules.filter(r => r.type === 'type' && r.category === 'BU');
     
     const dataByDepot: Record<string, { totals: ForecastTotals; byCarrier: Record<string, ForecastTotals> }> = {};
+    const dataByCarrier: Record<string, ForecastTotals> = {};
 
     allRounds.forEach(round => {
       const depot = getDepotFromHub(round.nomHub, allDepotRules);
@@ -94,6 +96,7 @@ export default function ForecastPage() {
       
       if (!depot) return;
 
+      // Initialize structures if they don't exist
       if (!dataByDepot[depot]) {
         dataByDepot[depot] = { 
             totals: { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 },
@@ -103,36 +106,47 @@ export default function ForecastPage() {
       if (!dataByDepot[depot].byCarrier[carrier]) {
         dataByDepot[depot].byCarrier[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
       }
+       if (!dataByCarrier[carrier]) {
+        dataByCarrier[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
+      }
 
       const depotTotals = dataByDepot[depot].totals;
-      const carrierTotals = dataByDepot[depot].byCarrier[carrier];
+      const depotCarrierTotals = dataByDepot[depot].byCarrier[carrier];
+      const carrierGlobalTotals = dataByCarrier[carrier];
 
+      // --- Increment Counts ---
       depotTotals.total++;
-      carrierTotals.total++;
-      
+      depotCarrierTotals.total++;
+      carrierGlobalTotals.total++;
+
+      // Time-based classification
       const hubNameLower = round.nomHub?.toLowerCase() || '';
       let isTimeAssigned = false;
       for (const rule of timeRules) {
         if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') {
               depotTotals.matin++;
-              carrierTotals.matin++;
+              depotCarrierTotals.matin++;
+              carrierGlobalTotals.matin++;
           } else if (rule.category === 'Soir') {
               depotTotals.soir++;
-              carrierTotals.soir++;
+              depotCarrierTotals.soir++;
+              carrierGlobalTotals.soir++;
           }
           isTimeAssigned = true;
-          break; 
+          break;
         }
       }
-
-      let isBuAssigned = false;
+      
+      // Type-based classification (BU vs Classique)
       const roundNameLower = round.nom?.toLowerCase() || '';
+      let isBuAssigned = false;
       if (roundNameLower) {
           for (const rule of buRules) {
               if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
                   depotTotals.bu++;
-                  carrierTotals.bu++;
+                  depotCarrierTotals.bu++;
+                  carrierGlobalTotals.bu++;
                   isBuAssigned = true;
                   break;
               }
@@ -141,7 +155,8 @@ export default function ForecastPage() {
       
       if (!isBuAssigned) {
           depotTotals.classique++;
-          carrierTotals.classique++;
+          depotCarrierTotals.classique++;
+          carrierGlobalTotals.classique++;
       }
     });
 
@@ -155,6 +170,10 @@ export default function ForecastPage() {
             })).sort((a,b) => b.total - a.total)
         }))
         .sort((a,b) => b.totals.total - a.totals.total);
+
+    const carrierList: CarrierForecast[] = Object.entries(dataByCarrier)
+        .map(([name, totals]) => ({ name, ...totals }))
+        .sort((a,b) => b.total - a.total);
     
     const globalTotals = depotList.reduce((acc, depot) => {
         acc.total += depot.totals.total;
@@ -168,6 +187,7 @@ export default function ForecastPage() {
     return {
         totals: globalTotals,
         byDepot: depotList,
+        byCarrier: carrierList,
     };
 
   }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules, allCarrierRules]);
@@ -182,9 +202,52 @@ export default function ForecastPage() {
 
       <GlobalForecastSummary totals={forecastData.totals} />
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Building /> Prévisions par Dépôt</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {forecastData.byDepot.map(depot => (
+                            <TableRow key={depot.name}>
+                                <TableCell className="font-medium">{depot.name}</TableCell>
+                                <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
+                                <TableCell className="text-center">{depot.totals.bu}</TableCell>
+                                <TableCell className="text-center">{depot.totals.classique}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Truck /> Prévisions par Transporteur</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <Table>
+                    <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {forecastData.byCarrier.map(carrier => (
+                            <TableRow key={carrier.name}>
+                                <TableCell className="font-medium">{carrier.name}</TableCell>
+                                <TableCell className="text-center font-bold">{carrier.total}</TableCell>
+                                <TableCell className="text-center">{carrier.bu}</TableCell>
+                                <TableCell className="text-center">{carrier.classique}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-            <CardTitle>Prévisions par Dépôt et Transporteur</CardTitle>
+            <CardTitle>Détail par Dépôt et Transporteur</CardTitle>
         </CardHeader>
         <CardContent>
              <Accordion type="multiple" className="w-full space-y-4">
