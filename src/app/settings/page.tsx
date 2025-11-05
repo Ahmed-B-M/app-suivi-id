@@ -487,7 +487,7 @@ function ForecastRulesTab() {
     };
 
     const processKeywords = (value: string) => {
-        return value.split(/[\s,]+/).map(k => k.trim()).filter(Boolean);
+        return value.split(',').map(k => k.trim()).filter(Boolean);
     }
 
     const handleAddRule = () => {
@@ -574,7 +574,7 @@ function ForecastRulesTab() {
                                 <TableHead>Nom de la Règle</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead>Catégorie</TableHead>
-                                <TableHead className="w-1/3">Mots-clés (séparés par espace ou virgule)</TableHead>
+                                <TableHead className="w-1/3">Mots-clés (séparés par virgule)</TableHead>
                                 <TableHead>Active</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
                             </TableRow>
@@ -619,7 +619,7 @@ function ForecastRulesTab() {
                                     </TableCell>
                                     <TableCell>
                                         <Input
-                                            value={Array.isArray(currentRuleState.keywords) ? currentRuleState.keywords.join(' ') : ''}
+                                            value={Array.isArray(currentRuleState.keywords) ? currentRuleState.keywords.join(', ') : ''}
                                             onChange={(e) => handleRuleChange(rule.id, 'keywords', processKeywords(e.target.value))}
                                         />
                                     </TableCell>
@@ -667,8 +667,8 @@ function ForecastRulesTab() {
                                 </TableCell>
                                 <TableCell>
                                     <Input
-                                        placeholder="motclé1 motclé2..."
-                                        value={newRule?.keywords?.join(' ') || ''}
+                                        placeholder="motclé1, motclé2..."
+                                        value={newRule?.keywords?.join(', ') || ''}
                                         onChange={(e) => handleNewRuleChange('keywords', processKeywords(e.target.value))}
                                     />
                                 </TableCell>
