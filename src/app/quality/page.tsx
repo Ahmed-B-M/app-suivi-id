@@ -88,7 +88,13 @@ export default function QualityPage() {
         const tasks = driverTasks[driverStat.name];
         if (!tasks || tasks.length === 0) return;
         
-        const mainHub = tasks[0].nomHub;
+        // Find the most frequent hub for this driver to determine their main depot/store
+        const hubCounts: Record<string, number> = {};
+        tasks.forEach(t => {
+            if(t.nomHub) hubCounts[t.nomHub] = (hubCounts[t.nomHub] || 0) + 1;
+        });
+        const mainHub = Object.keys(hubCounts).sort((a,b) => hubCounts[b] - hubCounts[a])[0];
+        
         if (!mainHub) return;
 
         const groupName = getDepotFromHub(mainHub, allDepotRules);
