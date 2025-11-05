@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // Correction pour l'erreur de requête inter-origines dans l'environnement de développement.
+    allowedDevOrigins: [
+      "https://*.cluster-fbfjltn375c6wqxlhoehbz44sk.cloudworkstations.dev",
+    ],
+  },
   images: {
     remotePatterns: [
       {
