@@ -25,7 +25,8 @@ export default function QualityPage() {
     allComments,
     processedVerbatims,
     isContextLoading,
-    dateRange
+    dateRange,
+    allCarrierRules,
   } = useFilters();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +93,7 @@ export default function QualityPage() {
         const depotName = getDepotFromHub(mainHub);
         if (!depotName || depotName === 'Magasin') return;
 
-        const carrierName = getCarrierFromDriver(driverStat.name);
+        const carrierName = getCarrierFromDriver(driverStat.name, allCarrierRules);
         
         if (!depotAggregation[depotName]) {
             depotAggregation[depotName] = { name: depotName, carriers: {} };
@@ -158,7 +159,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, allNpsData, isContextLoading]);
+  }, [allTasks, allNpsData, isContextLoading, allCarrierRules]);
 
 
   const filteredQualityData = useMemo(() => {
@@ -217,7 +218,7 @@ export default function QualityPage() {
         const driverName = comment.driverName;
         if (!driverName) return;
 
-        const carrierName = getCarrierFromDriver(driverName);
+        const carrierName = getCarrierFromDriver(driverName, allCarrierRules);
 
         if (!alertAggregation[depot]) {
             alertAggregation[depot] = { name: depot, carriers: {} };
@@ -264,7 +265,7 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isContextLoading, allComments]);
+  }, [allTasks, isContextLoading, allComments, allCarrierRules]);
 
 
   const handleGenerateEmail = () => {

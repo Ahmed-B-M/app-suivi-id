@@ -194,7 +194,7 @@ const StatDisplay = ({ icon, label, value }: { icon: React.ReactNode, label: str
 
 
 export default function DeviationAnalysisPage() {
-  const { allTasks, allRounds, isContextLoading } = useFilters();
+  const { allTasks, allRounds, isContextLoading, allCarrierRules } = useFilters();
   const BAC_LIMIT = 105;
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations, aggregatedStats } = useMemo(() => {
@@ -228,7 +228,7 @@ export default function DeviationAnalysisPage() {
         tasks: allTasks.filter(t => t.hubId === round.hubId && t.nomTournee === round.nom && t.date && round.date && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString()),
         depot: getDepotFromHub(round.nomHub),
         warehouse: round.nomHub,
-        carrier: getCarrierFromDriver(round) 
+        carrier: getCarrierFromDriver(round, allCarrierRules) 
     }));
     
     const processGroup = (group: typeof allGroupedRounds): AggregatedStats => {
@@ -374,7 +374,7 @@ export default function DeviationAnalysisPage() {
         bacDeviations: bacResults.sort((a, b) => b.deviation - a.deviation),
         aggregatedStats
     };
-  }, [allTasks, allRounds, isContextLoading]);
+  }, [allTasks, allRounds, isContextLoading, allCarrierRules]);
 
   const error = null;
 
@@ -406,7 +406,7 @@ export default function DeviationAnalysisPage() {
           </CardHeader>
           <CardContent>
             <p>Impossible de charger les données. Veuillez vérifier vos permissions et la configuration.</p>
-            <pre className="mt-4 text-sm bg-background p-2 rounded">{error.message}</pre>
+            <pre className="mt-4 text-sm bg-background p-2 rounded">{(error as Error).message}</pre>
           </CardContent>
         </Card>
       )}
@@ -561,6 +561,3 @@ export default function DeviationAnalysisPage() {
     </main>
   );
 }
-
-    
-    

@@ -32,7 +32,7 @@ function groupRoundsBy<T extends keyof any>(rounds: Tournee[], getKey: (round: T
 
 
 export default function AssignmentPage() {
-    const { allRounds } = useFilters();
+    const { allRounds, allCarrierRules } = useFilters();
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
@@ -88,12 +88,12 @@ export default function AssignmentPage() {
     const availableCarriers = useMemo(() => {
         const carriers = new Set<string>();
         allRounds.forEach(round => {
-            const determinedCarrier = getCarrierFromDriver(round);
+            const determinedCarrier = getCarrierFromDriver(round, allCarrierRules);
             if (determinedCarrier !== 'Inconnu') carriers.add(determinedCarrier);
             if (round.carrierOverride) carriers.add(round.carrierOverride);
         });
         return Array.from(carriers).sort();
-    }, [allRounds]);
+    }, [allRounds, allCarrierRules]);
     
     const sortedDepots = useMemo(() => Object.keys(roundsByDepotAndDate).sort(), [roundsByDepotAndDate]);
 
@@ -153,7 +153,7 @@ export default function AssignmentPage() {
                                                                                     <TableCell className="font-medium">{round.nom}</TableCell>
                                                                                     <TableCell>{getDriverFullName(round)}</TableCell>
                                                                                     <TableCell>
-                                                                                        <Badge variant="outline">{getCarrierFromDriver({ ...round, carrierOverride: undefined })}</Badge>
+                                                                                        <Badge variant="outline">{getCarrierFromDriver({ ...round, carrierOverride: undefined }, allCarrierRules)}</Badge>
                                                                                     </TableCell>
                                                                                     <TableCell>
                                                                                         <Select
@@ -164,7 +164,7 @@ export default function AssignmentPage() {
                                                                                                 <SelectValue />
                                                                                             </SelectTrigger>
                                                                                             <SelectContent>
-                                                                                                <SelectItem value="default">Défaut ({getCarrierFromDriver({ ...round, carrierOverride: undefined })})</SelectItem>
+                                                                                                <SelectItem value="default">Défaut ({getCarrierFromDriver({ ...round, carrierOverride: undefined }, allCarrierRules)})</SelectItem>
                                                                                                 {availableCarriers.map(carrier => (
                                                                                                     <SelectItem key={carrier} value={carrier}>{carrier}</SelectItem>
                                                                                                 ))}

@@ -17,7 +17,7 @@ import type { ForecastRule, Tournee } from "@/lib/types";
 
 
 export default function ForecastPage() {
-  const { allRounds } = useFilters();
+  const { allRounds, allCarrierRules } = useFilters();
   const { firestore } = useFirebase();
 
   const rulesCollection = useMemo(() => 
@@ -50,7 +50,7 @@ export default function ForecastPage() {
       const depot = getDepotFromHub(round.nomHub);
       if (!depot) return;
 
-      const carrier = getCarrierFromDriver(round) || 'Inconnu';
+      const carrier = getCarrierFromDriver(round, allCarrierRules) || 'Inconnu';
       
       if (!dataByDepot[depot]) {
         dataByDepot[depot] = { total: 0, carriers: {} };
@@ -92,7 +92,7 @@ export default function ForecastPage() {
     });
 
     return dataByDepot;
-  }, [allRounds, activeRules, rulesLoading]);
+  }, [allRounds, activeRules, rulesLoading, allCarrierRules]);
   
   return (
     <main className="flex-1 container py-8">
