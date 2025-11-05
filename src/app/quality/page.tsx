@@ -27,6 +27,7 @@ export default function QualityPage() {
     isContextLoading,
     dateRange,
     allCarrierRules,
+    allDepotRules
   } = useFilters();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,7 +69,7 @@ export default function QualityPage() {
             npsScore = ((nps.promoter / nps.count) - (nps.detractor / nps.count)) * 100;
         }
         return {
-            ...calculateRawDriverStats(name, tasks),
+            ...calculateRawDriverStats(name, tasks, allComments),
             npsScore,
         };
     });
@@ -90,7 +91,7 @@ export default function QualityPage() {
         const mainHub = tasks[0].nomHub;
         if (!mainHub) return;
 
-        const depotName = getDepotFromHub(mainHub);
+        const depotName = getDepotFromHub(mainHub, allDepotRules);
         if (!depotName || depotName === 'Magasin') return;
 
         const carrierName = getCarrierFromDriver(driverStat.name, allCarrierRules);
@@ -159,7 +160,7 @@ export default function QualityPage() {
     const summary = calculateAggregatedStats(driverStatsList);
 
     return { summary, details };
-  }, [allTasks, allNpsData, isContextLoading, allCarrierRules]);
+  }, [allTasks, allNpsData, isContextLoading, allCarrierRules, allDepotRules, allComments]);
 
 
   const filteredQualityData = useMemo(() => {
@@ -195,7 +196,7 @@ export default function QualityPage() {
     });
 
     const rawDriverStats = Object.entries(driverTasks)
-      .map(([name, tasks]) => calculateRawDriverStats(name, tasks));
+      .map(([name, tasks]) => calculateRawDriverStats(name, tasks, allComments));
 
     const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
 
@@ -212,7 +213,7 @@ export default function QualityPage() {
         if (comment.rating >= 4) return;
 
         const task = allTasks.find((t: Tache) => t.tacheId === comment.taskId);
-        const depot = getDepotFromHub(task?.nomHub);
+        const depot = getDepotFromHub(task?.nomHub, allDepotRules);
         if (!depot || depot === 'Magasin') return;
 
         const driverName = comment.driverName;
@@ -265,7 +266,7 @@ export default function QualityPage() {
       driverRankings: driverStatsList,
       alertData: finalAlertData,
     };
-  }, [allTasks, isContextLoading, allComments, allCarrierRules]);
+  }, [allTasks, isContextLoading, allComments, allCarrierRules, allDepotRules]);
 
 
   const handleGenerateEmail = () => {

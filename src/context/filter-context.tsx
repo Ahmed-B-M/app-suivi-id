@@ -3,11 +3,11 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, groupTasksByMonth, DEPOTS_LIST } from '@/lib/grouping';
+import { getDepotFromHub, getHubCategory } from '@/lib/grouping';
 import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup, orderBy } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule } from '@/lib/types';
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule, DepotRule } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay, isEqual } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
@@ -43,6 +43,7 @@ interface FilterContextProps {
   processedVerbatims: SavedProcessedNpsVerbatim[];
   allProcessedVerbatims: ProcessedVerbatim[];
   allCarrierRules: CarrierRule[];
+  allDepotRules: DepotRule[];
   isContextLoading: boolean;
   clearAllData: () => void;
 }
@@ -111,8 +112,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     
     if (!from) return [];
     
-    const startDate = startOfDay(from).toISOString();
-    const endDate = endOfDay(to ?? from).toISOString();
+    const startDate = format(startOfDay(from), 'yyyy-MM-dd');
+    const endDate = format(endOfDay(to ?? from), 'yyyy-MM-dd');
     
     return [
       where("taskDate", ">=", startDate),
@@ -138,6 +139,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const npsDataCollection = useMemo(() => firestore ? collection(firestore, 'nps_data') : null, [firestore]);
   const categorizedCommentsCollection = useMemo(() => firestore ? collection(firestore, 'categorized_comments') : null, [firestore]);
   const processedVerbatimsCollection = useMemo(() => firestore ? collection(firestore, 'processed_nps_verbatims') : null, [firestore]);
+  const depotRulesCollection = useMemo(() => firestore ? collection(firestore, 'depot_rules') : null, [firestore]);
   const carrierRulesCollection = useMemo(() => firestore ? collection(firestore, 'carrier_rules') : null, [firestore]);
 
 
@@ -147,20 +149,20 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, [], {realtime: true, refreshKey});
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true, refreshKey});
   const { data: allCarrierRules = [], loading: isLoadingCarrierRules } = useQuery<CarrierRule>(carrierRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
+  const { data: allDepotRules = [], loading: isLoadingDepotRules } = useQuery<DepotRule>(depotRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
   
   const availableDepots = useMemo(() => {
-    return [...DEPOTS_LIST].sort();
-  }, []);
+    if (!allDepotRules) return [];
+    const depots = allDepotRules.filter(r => r.type === 'entrepot').map(r => r.depotName);
+    return [...new Set(depots)].sort();
+  }, [allDepotRules]);
   
-  const availableStores = useMemo(
-    () => {
-        if (!allTasksData) return [];
-        const stores = allTasksData.filter(t => getHubCategory(t.nomHub) === 'magasin').map(t => t.nomHub);
-        const filteredStores = stores.filter((s): s is string => !!s);
-        return [...new Set(filteredStores)].sort();
-    },
-    [allTasksData]
-  );
+  const availableStores = useMemo(() => {
+    if (!allTasksData) return [];
+    const stores = allTasksData.filter(t => getHubCategory(t.nomHub, allDepotRules) === 'magasin').map(t => t.nomHub);
+    const filteredStores = stores.filter((s): s is string => !!s);
+    return [...new Set(filteredStores)].sort();
+  }, [allTasksData, allDepotRules]);
   
   const lastUpdateTime = useMemo(() => {
     const dates = [tasksLastUpdate, roundsLastUpdate, npsLastUpdate].filter(Boolean) as Date[];
@@ -168,33 +170,33 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     return new Date(Math.max(...dates.map(d => d.getTime())));
   }, [tasksLastUpdate, roundsLastUpdate, npsLastUpdate]);
 
-    const allTasks = useMemo(() => {
+  const allTasks = useMemo(() => {
     let tasksToFilter = allTasksData;
     if (filterType !== 'tous') {
-      tasksToFilter = tasksToFilter.filter(item => getHubCategory(item.nomHub) === filterType);
+      tasksToFilter = tasksToFilter.filter(item => getHubCategory(item.nomHub, allDepotRules) === filterType);
     }
     if (selectedDepot !== "all") {
-       tasksToFilter = tasksToFilter.filter(item => getDepotFromHub(item.nomHub) === selectedDepot);
+       tasksToFilter = tasksToFilter.filter(item => getDepotFromHub(item.nomHub, allDepotRules) === selectedDepot);
     }
     if (selectedStore !== "all") {
       tasksToFilter = tasksToFilter.filter(item => item.nomHub === selectedStore);
     }
     return tasksToFilter;
-  }, [allTasksData, filterType, selectedDepot, selectedStore]);
+  }, [allTasksData, filterType, selectedDepot, selectedStore, allDepotRules]);
   
   const allRounds = useMemo(() => {
     let roundsToFilter = allRoundsData;
     if (filterType !== 'tous') {
-      roundsToFilter = roundsToFilter.filter(item => getHubCategory(item.nomHub) === filterType);
+      roundsToFilter = roundsToFilter.filter(item => getHubCategory(item.nomHub, allDepotRules) === filterType);
     }
     if (selectedDepot !== "all") {
-       roundsToFilter = roundsToFilter.filter(item => getDepotFromHub(item.nomHub) === selectedDepot);
+       roundsToFilter = roundsToFilter.filter(item => getDepotFromHub(item.nomHub, allDepotRules) === selectedDepot);
     }
     if (selectedStore !== "all") {
       roundsToFilter = roundsToFilter.filter(item => item.nomHub === selectedStore);
     }
     return roundsToFilter;
-  }, [allRoundsData, filterType, selectedDepot, selectedStore]);
+  }, [allRoundsData, filterType, selectedDepot, selectedStore, allDepotRules]);
 
   const allComments = useMemo(() => {
     const savedCommentsMap = new Map<string, CategorizedComment>();
@@ -206,7 +208,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       const taskId = task.tacheId;
       const isNegativeComment = typeof task.notationLivreur === 'number' &&
                                 task.notationLivreur < 4 &&
-                                task.metaCommentaireLivreur;
+                                task.commentaireLivreur;
   
       if (savedCommentsMap.has(taskId)) {
         if (!acc.has(taskId)) {
@@ -219,9 +221,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         acc.set(taskId, {
           id: taskId,
           taskId: taskId,
-          comment: task.metaCommentaireLivreur!,
+          comment: task.commentaireLivreur!,
           rating: task.notationLivreur!,
-          category: getCategoryFromKeywords(task.metaCommentaireLivreur!),
+          category: getCategoryFromKeywords(task.commentaireLivreur!),
+          responsibilities: [], // Initial empty state for new comments
           taskDate: taskDate,
           driverName: task.nomCompletChauffeur,
           nomHub: task.nomHub,
@@ -241,7 +244,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
 
     if (filterType !== 'tous') {
         verbatimsToFilter = verbatimsToFilter.filter(v => {
-            const hubCategory = getHubCategory(v.store);
+            const hubCategory = getHubCategory(v.store, allDepotRules);
             return hubCategory === filterType;
         });
     }
@@ -261,7 +264,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         associationDate: new Date(),
         verbatims: verbatimsToFilter,
     }];
-  }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore]);
+  }, [npsDataFromDateRange, filterType, selectedDepot, selectedStore, allDepotRules]);
   
  const processedVerbatims = useMemo(() => {
     let verbatimsToFilter = allSavedVerbatims;
@@ -338,7 +341,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         processedVerbatims,
         allProcessedVerbatims,
         allCarrierRules,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules,
+        allDepotRules,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules || isLoadingDepotRules,
         clearAllData,
       }}
     >

@@ -314,19 +314,27 @@ function DepotRulesTab() {
   };
 
   const handleNewRuleChange = (field: keyof typeof newRule, value: any) => {
-    setNewRule(prev => ({ ...prev, [field]: value }));
+     setNewRule(prev => {
+      const updatedRule = { ...prev, [field]: value };
+      if (field === 'type' && value === 'magasin') {
+        updatedRule.depotName = 'Magasin';
+      }
+      return updatedRule;
+    });
   };
 
   const handleAddRule = () => {
-    if (!newRule?.depotName || !newRule.type || !newRule.prefixes || newRule.prefixes.length === 0) {
+    if ((!newRule?.depotName && newRule.type !== 'magasin') || !newRule.type || !newRule.prefixes || newRule.prefixes.length === 0) {
       toast({ title: "Champs requis manquants", description: "Veuillez remplir le nom du dépôt, le type et au moins un préfixe.", variant: "destructive" });
       return;
     }
     if (!firestore) return;
+    
+    const finalNewRule = { ...newRule, depotName: newRule.type === 'magasin' ? 'Magasin' : newRule.depotName };
 
     startTransition(async () => {
       try {
-        await addDoc(collection(firestore, 'depot_rules'), newRule);
+        await addDoc(collection(firestore, 'depot_rules'), finalNewRule);
         toast({ title: "Règle ajoutée" });
         setNewRule({ type: 'entrepot', isActive: true, prefixes: [] });
       } catch (e: any) {
@@ -396,10 +404,11 @@ function DepotRulesTab() {
             <TableBody>
               {rules.map(rule => {
                 const current = { ...rule, ...editedRules[rule.id] };
+                const isMagasin = current.type === 'magasin';
                 return (
                   <TableRow key={rule.id}>
                     <TableCell>
-                      <Input value={current.depotName} onChange={e => handleRuleChange(rule.id, 'depotName', e.target.value)} />
+                      <Input value={current.depotName} onChange={e => handleRuleChange(rule.id, 'depotName', e.target.value)} disabled={isMagasin} />
                     </TableCell>
                     <TableCell>
                       <Select value={current.type} onValueChange={v => handleRuleChange(rule.id, 'type', v)}>
@@ -424,7 +433,14 @@ function DepotRulesTab() {
               })}
               {/* New Rule Row */}
               <TableRow>
-                <TableCell><Input placeholder="Nom du Dépôt" value={newRule.depotName || ''} onChange={e => handleNewRuleChange('depotName', e.target.value)} /></TableCell>
+                <TableCell>
+                    <Input 
+                        placeholder="Nom du Dépôt" 
+                        value={newRule.type === 'magasin' ? 'Magasin' : newRule.depotName || ''} 
+                        onChange={e => handleNewRuleChange('depotName', e.target.value)} 
+                        disabled={newRule.type === 'magasin'}
+                    />
+                </TableCell>
                 <TableCell>
                   <Select value={newRule.type} onValueChange={v => handleNewRuleChange('type', v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -435,7 +451,7 @@ function DepotRulesTab() {
                   </Select>
                 </TableCell>
                 <TableCell><Input placeholder="prefixe1, prefixe2" value={(newRule.prefixes || []).join(', ')} onChange={e => handleNewRuleChange('prefixes', e.target.value.split(',').map(p => p.trim()).filter(Boolean))} /></TableCell>
-                <TableCell><Switch checked={newRule.isActive} onCheckedChange={c => handleNewRuleChange('isActive', c)} /></TableCell>
+                <TableCell><Switch checked={newRule.isActive ?? true} onCheckedChange={c => handleNewRuleChange('isActive', c)} /></TableCell>
                 <TableCell className="text-right">
                   <Button size="sm" onClick={handleAddRule} disabled={isPending}><PlusCircle className="mr-2 h-4 w-4" /> Ajouter</Button>
                 </TableCell>
@@ -818,7 +834,7 @@ function CarrierRulesTab() {
                     </Select>
                   </TableCell>
                   <TableCell><Input placeholder="Valeur à rechercher" value={newRule.value || ''} onChange={e => handleNewRuleChange('value', e.target.value)} /></TableCell>
-                  <TableCell><Switch checked={newRule.isActive} onCheckedChange={c => handleNewRuleChange('isActive', c)} /></TableCell>
+                  <TableCell><Switch checked={newRule.isActive ?? true} onCheckedChange={c => handleNewRuleChange('isActive', c)} /></TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" onClick={handleAddRule} disabled={isPending}><PlusCircle className="mr-2 h-4 w-4" /> Ajouter</Button>
                   </TableCell>
