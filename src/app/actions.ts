@@ -158,7 +158,7 @@ function transformTaskData(rawTask: any, allRoundsData: Tournee[]): Tache {
         notationLivreur: rawTask.metadata?.notationLivreur,
         serviceMeta: rawTask.metadata?.service,
         codeEntrepôt: rawTask.metadata?.warehouseCode,
-        metaCommentaireLivreur: rawTask.metadata?.commentaireLivr,
+        commentaireLivreur: rawTask.metadata?.commentaireLivr,
         infosSuiviTransp: rawTask.externalCarrier?.trackingInfo,
         desassocTranspRejetee: rawTask.externalCarrier?.unassociationRejected,
         dateMiseAJour: toIsoOrUndefined(rawTask.updated),
@@ -475,12 +475,12 @@ export async function runSyncAction(
 
     const commentAlertTasks = transformedTasks.filter(t => 
         t.tacheId &&
-        t.metaCommentaireLivreur &&
-        NEGATIVE_COMMENT_KEYWORDS.some(keyword => t.metaCommentaireLivreur!.toLowerCase().includes(keyword))
+        t.commentaireLivreur &&
+        NEGATIVE_COMMENT_KEYWORDS.some(keyword => t.commentaireLivreur!.toLowerCase().includes(keyword))
     );
      for (const task of commentAlertTasks) {
         if (task.tacheId) {
-            const commentExtract = task.metaCommentaireLivreur!.substring(0, 30);
+            const commentExtract = task.commentaireLivreur!.substring(0, 30);
              const created = await createNotification(firestore, {
                 type: 'quality_alert',
                 message: `Commentaire négatif pour ${getDriverFullName(task) || 'un livreur'}: "${commentExtract}..."`,

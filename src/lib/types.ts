@@ -136,7 +136,7 @@ export interface Tache {
     notationLivreur?: number;
     serviceMeta?: string;
     codeEntrepôt?: string;
-    metaCommentaireLivreur?: string;
+    commentaireLivreur?: string;
     infosSuiviTransp?: any;
     desassocTranspRejetee?: boolean;
     dateMiseAJour?: string;
