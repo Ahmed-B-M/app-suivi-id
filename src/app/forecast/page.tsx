@@ -241,58 +241,61 @@ export default function ForecastPage() {
 
       <GlobalForecastSummary totals={forecastData.totals} />
       
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Building /> FORECAST par Dépôt</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
+      <Card className="mb-8">
+          <CardHeader>
+              <CardTitle>Analyse Détaillée</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="depot">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="depot">Par Dépôt</TabsTrigger>
+                    <TabsTrigger value="transporteur">Par Transporteur</TabsTrigger>
+                </TabsList>
+                <TabsContent value="depot" className="mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2">
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {forecastData.byDepot.map(depot => (
+                                        <TableRow key={depot.name}>
+                                            <TableCell className="font-medium">{depot.name}</TableCell>
+                                            <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
+                                            <TableCell className="text-center">{depot.totals.bu}</TableCell>
+                                            <TableCell className="text-center">{depot.totals.classique}</TableCell>
+                                            <TableCell className="text-center">{depot.totals.matin}</TableCell>
+                                            <TableCell className="text-center">{depot.totals.soir}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div className="flex justify-around items-center border rounded-lg p-4">
+                            <DonutChart data={typeChartData} title="Répartition par Type" />
+                            <DonutChart data={shiftChartData} title="Répartition par Shift"/>
+                        </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="transporteur" className="mt-4">
                      <Table>
-                        <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {forecastData.byDepot.map(depot => (
-                                <TableRow key={depot.name}>
-                                    <TableCell className="font-medium">{depot.name}</TableCell>
-                                    <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
-                                    <TableCell className="text-center">{depot.totals.bu}</TableCell>
-                                    <TableCell className="text-center">{depot.totals.classique}</TableCell>
-                                    <TableCell className="text-center">{depot.totals.matin}</TableCell>
-                                    <TableCell className="text-center">{depot.totals.soir}</TableCell>
+                            {forecastData.byCarrier.map(carrier => (
+                                <TableRow key={carrier.name}>
+                                    <TableCell className="font-medium">{carrier.name}</TableCell>
+                                    <TableCell className="text-center font-bold">{carrier.total}</TableCell>
+                                    <TableCell className="text-center">{carrier.bu}</TableCell>
+                                    <TableCell className="text-center">{carrier.classique}</TableCell>
+                                    <TableCell className="text-center">{carrier.matin}</TableCell>
+                                    <TableCell className="text-center">{carrier.soir}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
-                </div>
-                <div className="flex justify-around items-center">
-                    <DonutChart data={typeChartData} title="Répartition par Type" />
-                    <DonutChart data={shiftChartData} title="Répartition par Shift"/>
-                </div>
-            </CardContent>
-        </Card>
-         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Truck /> FORECAST par Transporteur</CardTitle>
-            </CardHeader>
-            <CardContent>
-                 <Table>
-                    <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {forecastData.byCarrier.map(carrier => (
-                            <TableRow key={carrier.name}>
-                                <TableCell className="font-medium">{carrier.name}</TableCell>
-                                <TableCell className="text-center font-bold">{carrier.total}</TableCell>
-                                <TableCell className="text-center">{carrier.bu}</TableCell>
-                                <TableCell className="text-center">{carrier.classique}</TableCell>
-                                <TableCell className="text-center">{carrier.matin}</TableCell>
-                                <TableCell className="text-center">{carrier.soir}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-      </div>
+                </TabsContent>
+            </Tabs>
+          </CardContent>
+      </Card>
       
       <Card>
         <CardHeader>
