@@ -4,7 +4,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { useFilters } from "@/context/filter-context";
 import { doc, writeBatch, collection, addDoc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
-import { useFirebase, useQuery } from "@/firebase/provider";
+import { useFirebase, useQuery } from "@/firebase";
 import { getCarrierFromDriver, getDriverFullName, getDepotFromHub } from "@/lib/grouping";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
