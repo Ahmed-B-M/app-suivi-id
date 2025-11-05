@@ -9,7 +9,7 @@ import { getDriverFullName } from "@/lib/grouping";
 import { categorizeComment, CategorizeCommentOutput } from "@/ai/flows/categorize-comment";
 import { format, subDays, startOfDay, endOfDay, parseISO, addMinutes, subMinutes, differenceInMinutes } from "date-fns";
 import type { ProcessedNpsData } from "./nps-analysis/page";
-import { FieldValue, getDocs, collection, query, where, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, getDocs, query, where, Timestamp } from 'firebase-admin/firestore';
 import equal from "deep-equal";
 import { DateRange } from "react-day-picker";
 import type { CategorizedComment } from "@/hooks/use-pending-comments";
@@ -446,7 +446,7 @@ export async function runSyncAction(
     
     // --- Déduplication des notifications ---
     logs.push(`   - Vérification des notifications existantes pour éviter les doublons...`);
-    const existingNotificationsSnapshot = await getDocs(query(collection(firestore, 'notifications'), where('status', '==', 'unread')));
+    const existingNotificationsSnapshot = await getDocs(query(firestore.collection('notifications'), where('status', '==', 'unread')));
     const existingUnreadNotifications = new Set<string>();
     existingNotificationsSnapshot.forEach(doc => {
         const notif = doc.data() as Notification;
