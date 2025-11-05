@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -17,7 +16,7 @@ import type { ForecastRule, Tournee } from "@/lib/types";
 
 
 export default function ForecastPage() {
-  const { allRounds, allCarrierRules } = useFilters();
+  const { allRounds, allCarrierRules, allDepotRules } = useFilters();
   const { firestore } = useFirebase();
 
   const rulesCollection = useMemo(() => 
@@ -47,7 +46,7 @@ export default function ForecastPage() {
     }> = {};
 
     allRounds.forEach(round => {
-      const depot = getDepotFromHub(round.nomHub);
+      const depot = getDepotFromHub(round.nomHub, allDepotRules);
       if (!depot) return;
 
       const carrier = getCarrierFromDriver(round, allCarrierRules) || 'Inconnu';
@@ -65,7 +64,7 @@ export default function ForecastPage() {
       
       // Time-based classification (Matin/Soir)
       let isTimeAssigned = false;
-      const roundNameLower = round.name?.toLowerCase() || '';
+      const roundNameLower = round.nom?.toLowerCase() || '';
       for (const rule of timeRules) {
         if (rule.keywords.some(k => roundNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') depotCarrier.matin++;
@@ -92,7 +91,7 @@ export default function ForecastPage() {
     });
 
     return dataByDepot;
-  }, [allRounds, activeRules, rulesLoading, allCarrierRules]);
+  }, [allRounds, activeRules, rulesLoading, allCarrierRules, allDepotRules]);
   
   return (
     <main className="flex-1 container py-8">
