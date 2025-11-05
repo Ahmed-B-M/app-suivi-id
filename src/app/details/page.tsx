@@ -6,7 +6,7 @@ import { useFilters } from "@/context/filter-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, FileSearch } from "lucide-react";
 import { DetailsTasksTable } from "@/components/app/details-tasks-table";
 import { DetailsRoundsTable } from "@/components/app/details-rounds-table";
 import { DetailsBacsTable } from "@/components/app/details-bacs-table";
@@ -20,7 +20,7 @@ export default function DetailsPage() {
   return (
     <main className="flex-1 container py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold">Données Détaillées</h1>
+        <h1 className="text-3xl font-bold">Explorateur de Données</h1>
       </div>
 
        {isLoading && (

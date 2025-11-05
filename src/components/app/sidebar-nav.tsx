@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut, User as UserIcon, RefreshCw, Loader2, Bell, MessageCircle, UserCog, Download } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, ShieldCheck, Scale, BarChartBig, ListChecks, MessageSquareWarning, BarChart, MessagesSquare, CheckSquare, PieChart, TrendingUp, HandPlatter, Users, LogOut, User as UserIcon, RefreshCw, Loader2, Bell, MessageCircle, UserCog, Download, FileSearch, BarChart2 } from "lucide-react";
 import { usePendingComments } from "@/hooks/use-pending-comments";
 import { usePendingVerbatims } from "@/hooks/use-pending-verbatims";
 import { Badge } from "@/components/ui/badge";
@@ -32,27 +32,30 @@ import { collection, where } from "firebase/firestore";
 const allLinks = [
   // --- Vues d'Ensemble ---
   { href: "/dashboard", label: "Tableau de Bord", icon: <LayoutDashboard /> },
-  { href: "/summary", label: "Synthèse", icon: <BarChartBig /> },
+  { href: "/summary", label: "Synthèse Quotidienne", icon: <BarChart2 /> },
   { href: "/forecast", label: "FORECAST", icon: <TrendingUp /> },
   { href: "/notifications", label: "Notifications", icon: <Bell />, isNotificationLink: true },
   { href: "/messaging", label: "Messagerie", icon: <MessageCircle /> },
-  // --- Analyse & Opérations ---
-  { href: "/deviation-analysis", label: "Analyse des Écarts", icon: <Scale /> },
-  { href: "/details", label: "Détails", icon: <ListChecks /> },
+  
+  // --- Opérations & Données ---
+  { href: "/details", label: "Explorateur Données", icon: <FileSearch /> },
   { href: "/export", label: "Export Données", icon: <Download /> },
   { href: "/assignment", label: "Gestion des Tournées", icon: <HandPlatter /> },
-  { href: "/billing", label: "Facturation", icon: <CreditCard /> },
+  
   // --- Qualité & Retours Clients ---
-  { href: "/quality", label: "Qualité", icon: <ShieldCheck /> },
+  { href: "/quality", label: "Qualité & Performance", icon: <ShieldCheck /> },
+  { href: "/deviation-analysis", label: "Analyse des Écarts", icon: <Scale /> },
   { href: "/driver-feedback", label: "Suivi Livreurs", icon: <Users /> },
-  { href: "/comment-management", label: "Gestion des Commentaires", icon: <MessageSquareWarning />, isCommentLink: true },
-  { href: "/nps-analysis", label: "Intégration NPS", icon: <BarChart /> },
+  { href: "/comment-management", label: "Gestion Commentaires", icon: <MessageSquareWarning />, isCommentLink: true },
+  { href: "/nps-analysis", label: "Analyse NPS", icon: <BarChart /> },
   { href: "/verbatim-treatment", label: "Traitement Verbatims", icon: <CheckSquare />, isVerbatimLink: true },
-  { href: "/verbatims", label: "Verbatims NPS", icon: <MessagesSquare /> },
-  { href: "/verbatim-analysis", label: "Analyse Verbatims", icon: <PieChart /> },
+  { href: "/verbatims", label: "Verbatims Bruts", icon: <MessagesSquare /> },
+  { href: "/verbatim-analysis", label: "Analyse Catégories", icon: <PieChart /> },
+
   // --- Configuration ---
+  { href: "/billing", label: "Facturation", icon: <CreditCard /> },
   { href: "/user-management", label: "Gestion Utilisateurs", icon: <UserCog /> },
-  { href: "/settings", label: "Paramètres & Outils", icon: <Settings /> },
+  { href: "/settings", label: "Paramètres", icon: <Settings /> },
 ];
 
 export function SidebarNav() {
