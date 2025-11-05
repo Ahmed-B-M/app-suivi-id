@@ -2,6 +2,7 @@
 import type { Tache, Tournee } from "@/lib/types";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import type { CarrierRule } from "@/lib/types";
 
 export interface Depot {
   name: string;
@@ -78,12 +79,16 @@ export function getDepotFromHub(hubName: string | undefined | null): string {
 
 
 /**
- * Determines the carrier name from a driver's name or a round object.
+ * Determines the carrier name from a driver's name or a round object, based on dynamic rules.
  * @param driverNameOrRound - The full name of the driver or a Tache/Tournee object.
+ * @param rules - An array of CarrierRule objects from Firestore.
  * @returns The name of the carrier.
  */
-export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee | undefined | null): string {
-    // Check for carrierOverride first
+export function getCarrierFromDriver(
+    driverNameOrRound: string | Tache | Tournee | undefined | null,
+    rules: CarrierRule[] = []
+): string {
+    // 1. Check for a manual override on the round first
     if (driverNameOrRound && typeof driverNameOrRound === 'object' && 'carrierOverride' in driverNameOrRound && driverNameOrRound.carrierOverride) {
         return driverNameOrRound.carrierOverride;
     }
@@ -95,38 +100,32 @@ export function getCarrierFromDriver(driverNameOrRound: string | Tache | Tournee
     }
 
     const lowerCaseName = driverName.toLowerCase();
+    
+    // Sort rules by priority (lower number is higher priority)
+    const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
 
-    if (lowerCaseName.includes("id log")) {
-        return "ID LOG";
+    // 2. Apply dynamic rules
+    for (const rule of sortedRules) {
+        if (!rule.isActive) continue;
+
+        const ruleValue = rule.value.toLowerCase();
+        
+        if (rule.type === 'suffix' && lowerCaseName.endsWith(ruleValue)) {
+            return rule.carrier;
+        }
+        if (rule.type === 'prefix' && lowerCaseName.startsWith(ruleValue)) {
+            return rule.carrier;
+        }
+        if (rule.type === 'contains' && lowerCaseName.includes(ruleValue)) {
+            return rule.carrier;
+        }
     }
 
+    // 3. Fallback to old logic if no rules match (optional, can be removed)
+    if (lowerCaseName.includes("id log")) return "ID LOG";
     if (lowerCaseName.startsWith("stt")) {
         const parts = driverName.split(" ");
         return parts.length > 1 ? parts[1] : "STT";
-    }
-
-    const nameParts = driverName.split(' ');
-    const lastNamePart = nameParts.length > 1 ? nameParts[nameParts.length - 1] : driverName;
-
-    const lastChar = lastNamePart.slice(-1);
-    const firstChar = lastNamePart.charAt(0);
-
-    if (firstChar === '4' || lastChar === '4') return "YEL'IN";
-    if (firstChar === '1' || lastChar === '1') return "TLN";
-    if (firstChar === '9' || lastChar === '9') return "MH";
-    
-    if (lastChar === '3') return "BC one";
-    if (lastChar === '0') return "DUB";
-    if (lastChar === '8') return "GPC";
-    if (lastChar === '7') return "GPL";
-    if (lastChar === '6') return "RK";
-    if (lastChar === '2') return "Express";
-    if (lastChar === '5') return "MLG";
-    
-    // New logic based on suffix in the last part of the name
-    const separatorIndex = lastNamePart.indexOf('-');
-    if (separatorIndex !== -1 && separatorIndex < lastNamePart.length - 1) {
-      return lastNamePart.substring(separatorIndex + 1).trim();
     }
 
     return "Inconnu";

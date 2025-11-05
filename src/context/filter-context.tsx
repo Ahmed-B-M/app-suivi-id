@@ -7,7 +7,7 @@ import { getDepotFromHub, getHubCategory, getDriverFullName, groupTasksByDay, gr
 import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup, orderBy } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim } from '@/lib/types';
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay, isEqual } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
@@ -42,6 +42,7 @@ interface FilterContextProps {
   allNpsData: NpsData[];
   processedVerbatims: SavedProcessedNpsVerbatim[];
   allProcessedVerbatims: ProcessedVerbatim[];
+  allCarrierRules: CarrierRule[];
   isContextLoading: boolean;
   clearAllData: () => void;
 }
@@ -137,12 +138,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const npsDataCollection = useMemo(() => firestore ? collection(firestore, 'nps_data') : null, [firestore]);
   const categorizedCommentsCollection = useMemo(() => firestore ? collection(firestore, 'categorized_comments') : null, [firestore]);
   const processedVerbatimsCollection = useMemo(() => firestore ? collection(firestore, 'processed_nps_verbatims') : null, [firestore]);
+  const carrierRulesCollection = useMemo(() => firestore ? collection(firestore, 'carrier_rules') : null, [firestore]);
+
 
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: true, refreshKey});
   const { data: allRoundsData = [], loading: isLoadingRounds, lastUpdateTime: roundsLastUpdate } = useQuery<Tournee>(roundsCollection, firestoreDateFilters, {realtime: true, refreshKey});
   const { data: npsDataFromDateRange = [], loading: isLoadingNps, lastUpdateTime: npsLastUpdate } = useQuery<NpsData>(npsDataCollection, npsFirestoreFilters, {realtime: true, refreshKey});
   const { data: allSavedComments = [], loading: isLoadingCategorized } = useQuery<CategorizedComment>(categorizedCommentsCollection, [], {realtime: true, refreshKey});
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true, refreshKey});
+  const { data: allCarrierRules = [], loading: isLoadingCarrierRules } = useQuery<CarrierRule>(carrierRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
   
   const availableDepots = useMemo(() => {
     return [...DEPOTS_LIST].sort();
@@ -333,7 +337,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allNpsData,
         processedVerbatims,
         allProcessedVerbatims,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims,
+        allCarrierRules,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules,
         clearAllData,
       }}
     >

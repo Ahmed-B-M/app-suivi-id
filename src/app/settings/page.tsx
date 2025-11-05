@@ -9,11 +9,11 @@ import { LogDisplay } from "@/components/app/log-display";
 import { TasksTable } from "@/components/app/tasks-table";
 import { RoundsTable } from "@/components/app/rounds-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSearch, PlusCircle, Save, Trash2, Edit } from "lucide-react";
-import type { Tache, Tournee, ForecastRule } from "@/lib/types";
+import { FileSearch, PlusCircle, Save, Trash2, Edit, Truck } from "lucide-react";
+import type { Tache, Tournee, ForecastRule, CarrierRule } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useFirebase } from "@/firebase";
-import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
@@ -512,15 +512,173 @@ function ForecastRulesTab() {
     );
 }
 
+function CarrierRulesTab() {
+  const { firestore } = useFirebase();
+  const { toast } = useToast();
+  const rulesCollection = useMemo(() => firestore ? collection(firestore, "carrier_rules") : null, [firestore]);
+  const { data: rules, loading, error } = useQuery<CarrierRule>(rulesCollection, [orderBy("priority", "asc")], { realtime: true });
+  const [isPending, startTransition] = useTransition();
+
+  const [editedRules, setEditedRules] = useState<Record<string, Partial<CarrierRule>>>({});
+  const [newRule, setNewRule] = useState<Partial<Omit<CarrierRule, 'id'>>>({ type: 'suffix', priority: (rules?.length + 1) * 10, isActive: true });
+
+  const handleRuleChange = (id: string, field: keyof CarrierRule, value: any) => {
+    setEditedRules(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value }
+    }));
+  };
+
+  const handleNewRuleChange = (field: keyof typeof newRule, value: any) => {
+    setNewRule(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddRule = () => {
+    if (!newRule?.carrier || !newRule.type || !newRule.value) {
+      toast({ title: "Champs requis manquants", variant: "destructive" });
+      return;
+    }
+    if (!firestore) return;
+
+    startTransition(async () => {
+      try {
+        await addDoc(collection(firestore, 'carrier_rules'), newRule);
+        toast({ title: "Règle ajoutée" });
+        setNewRule({ type: 'suffix', priority: (rules?.length + 2) * 10, isActive: true });
+      } catch (e: any) {
+        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      }
+    });
+  };
+
+  const handleSaveRules = () => {
+    if (!firestore || Object.keys(editedRules).length === 0) return;
+    startTransition(async () => {
+      const batch = writeBatch(firestore);
+      Object.entries(editedRules).forEach(([id, changes]) => {
+        batch.update(doc(firestore, "carrier_rules", id), changes);
+      });
+      try {
+        await batch.commit();
+        toast({ title: "Sauvegarde réussie" });
+        setEditedRules({});
+      } catch (e: any) {
+        toast({ title: "Erreur", description: e.message, variant: "destructive" });
+      }
+    });
+  };
+
+  const handleDeleteRule = (id: string) => {
+    if (!firestore) return;
+    startTransition(async () => {
+        try {
+            await deleteDoc(doc(firestore, "carrier_rules", id));
+            toast({ title: "Règle supprimée" });
+        } catch (e: any) {
+            toast({ title: "Erreur", description: e.message, variant: "destructive" });
+        }
+    });
+  }
+
+  if (loading) return <Skeleton className="h-96 w-full" />;
+  if (error) return <p className="text-destructive">Erreur: {error.message}</p>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Règles d'Affectation des Transporteurs</CardTitle>
+        <CardDescription>
+          Gérez les règles qui déterminent le transporteur en fonction du nom du chauffeur. La priorité la plus basse (ex: 10) est appliquée en premier.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-end mb-4">
+          <Button onClick={handleSaveRules} disabled={isPending || Object.keys(editedRules).length === 0}>
+            <Save className="mr-2" />
+            Sauvegarder les modifications ({Object.keys(editedRules).length})
+          </Button>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Priorité</TableHead>
+              <TableHead>Transporteur</TableHead>
+              <TableHead className="w-[150px]">Type de Règle</TableHead>
+              <TableHead>Valeur (Suffixe/Préfixe)</TableHead>
+              <TableHead className="w-[80px]">Active</TableHead>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rules.map(rule => {
+              const current = { ...rule, ...editedRules[rule.id] };
+              return (
+                <TableRow key={rule.id}>
+                  <TableCell>
+                    <Input type="number" value={current.priority} onChange={e => handleRuleChange(rule.id, 'priority', parseInt(e.target.value) || 0)} />
+                  </TableCell>
+                  <TableCell>
+                    <Input value={current.carrier} onChange={e => handleRuleChange(rule.id, 'carrier', e.target.value)} />
+                  </TableCell>
+                  <TableCell>
+                    <Select value={current.type} onValueChange={v => handleRuleChange(rule.id, 'type', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="suffix">Se termine par</SelectItem>
+                        <SelectItem value="prefix">Commence par</SelectItem>
+                        <SelectItem value="contains">Contient</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input value={current.value} onChange={e => handleRuleChange(rule.id, 'value', e.target.value)} />
+                  </TableCell>
+                  <TableCell>
+                    <Switch checked={current.isActive} onCheckedChange={c => handleRuleChange(rule.id, 'isActive', c)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteRule(rule.id)} disabled={isPending}><Trash2 className="text-destructive h-4 w-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {/* New Rule Row */}
+            <TableRow>
+              <TableCell><Input type="number" placeholder="Priorité" value={newRule.priority || ''} onChange={e => handleNewRuleChange('priority', parseInt(e.target.value) || 0)} /></TableCell>
+              <TableCell><Input placeholder="Nom du transporteur" value={newRule.carrier || ''} onChange={e => handleNewRuleChange('carrier', e.target.value)} /></TableCell>
+              <TableCell>
+                <Select value={newRule.type} onValueChange={v => handleNewRuleChange('type', v)}>
+                  <SelectTrigger><SelectValue placeholder="Type..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="suffix">Se termine par</SelectItem>
+                    <SelectItem value="prefix">Commence par</SelectItem>
+                    <SelectItem value="contains">Contient</SelectItem>
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell><Input placeholder="Valeur à rechercher" value={newRule.value || ''} onChange={e => handleNewRuleChange('value', e.target.value)} /></TableCell>
+              <TableCell><Switch checked={newRule.isActive} onCheckedChange={c => handleNewRuleChange('isActive', c)} /></TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" onClick={handleAddRule} disabled={isPending}><PlusCircle className="mr-2 h-4 w-4" /> Ajouter</Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function SettingsPage() {
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Paramètres et Outils</h1>
       <Tabs defaultValue="export" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="export">Configuration de l'Export</TabsTrigger>
           <TabsTrigger value="database">Explorateur de Données</TabsTrigger>
           <TabsTrigger value="forecast-rules">Règles de Prévision</TabsTrigger>
+          <TabsTrigger value="carrier-rules"><Truck className="mr-2 h-4 w-4"/>Règles Transporteurs</TabsTrigger>
         </TabsList>
         <TabsContent value="export" className="mt-4">
           <ExportTab />
@@ -530,6 +688,9 @@ export default function SettingsPage() {
         </TabsContent>
          <TabsContent value="forecast-rules" className="mt-4">
           <ForecastRulesTab />
+        </TabsContent>
+        <TabsContent value="carrier-rules" className="mt-4">
+          <CarrierRulesTab />
         </TabsContent>
       </Tabs>
     </main>

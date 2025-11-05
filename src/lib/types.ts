@@ -313,6 +313,16 @@ export interface ForecastRule {
   isActive: boolean;
 }
 
+export interface CarrierRule {
+  id: string;
+  carrier: string;
+  type: 'prefix' | 'suffix' | 'contains';
+  value: string;
+  priority: number;
+  isActive: boolean;
+}
+
+
 export interface Room {
   id: string;
   name: string;

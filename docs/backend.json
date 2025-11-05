@@ -466,6 +466,19 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "senderId", "senderName", "timestamp"]
+    },
+    "CarrierRule": {
+        "title": "Carrier Rule",
+        "type": "object",
+        "description": "Defines a rule for assigning a carrier based on a driver's name.",
+        "properties": {
+            "carrier": { "type": "string", "description": "The name of the carrier to assign." },
+            "type": { "type": "string", "enum": ["prefix", "suffix", "contains"], "description": "The type of match to perform on the driver's name." },
+            "value": { "type": "string", "description": "The value (prefix, suffix, or substring) to look for." },
+            "priority": { "type": "number", "description": "The priority of the rule (lower numbers are checked first)." },
+            "isActive": { "type": "boolean", "description": "Whether the rule is currently active." }
+        },
+        "required": ["carrier", "type", "value", "priority", "isActive"]
     }
   },
   "auth": {
@@ -612,6 +625,15 @@
             { "name": "roomId", "description": "The ID of the parent chat room." },
             { "name": "messageId", "description": "The unique ID for the message." }
           ]
+        }
+      },
+      {
+        "path": "/carrier_rules/{ruleId}",
+        "definition": {
+            "entityName": "CarrierRule",
+            "schema": { "$ref": "#/backend/entities/CarrierRule" },
+            "description": "Stores rules for carrier assignment based on driver names.",
+            "params": [{ "name": "ruleId", "description": "The unique ID for the carrier rule." }]
         }
       }
     ],
