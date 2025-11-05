@@ -11,7 +11,8 @@ import { useQuery } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { useFirebase } from "@/firebase/provider";
 import type { ForecastRule, Tournee } from "@/lib/types";
-
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 interface ForecastTotals {
     total: number;
@@ -21,18 +22,21 @@ interface ForecastTotals {
     classique: number;
 }
 
-interface DepotForecast extends ForecastTotals {
-    name: string;
-}
 interface CarrierForecast extends ForecastTotals {
     name: string;
+}
+
+interface DepotForecast {
+    name: string;
+    totals: ForecastTotals;
+    byCarrier: CarrierForecast[];
 }
 
 interface GlobalForecast {
     totals: ForecastTotals;
     byDepot: DepotForecast[];
-    byCarrier: CarrierForecast[];
 }
+
 
 const StatCard = ({ title, value, icon }: { title: string, value: number, icon: React.ReactNode }) => (
     <Card>
@@ -64,47 +68,6 @@ const GlobalForecastSummary = ({ totals }: { totals: ForecastTotals }) => {
     );
 };
 
-const ForecastTable = ({ title, data, icon, nameHeader }: { title: string, data: (DepotForecast | CarrierForecast)[], icon: React.ReactNode, nameHeader: string }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">{icon}{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-1/4">{nameHeader}</TableHead>
-                        <TableHead className="text-center">Total</TableHead>
-                        <TableHead className="text-center">BU</TableHead>
-                        <TableHead className="text-center">Classiques</TableHead>
-                        <TableHead className="text-center">Matin</TableHead>
-                        <TableHead className="text-center">Soir</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {data.map(item => (
-                        <TableRow key={item.name}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell className="text-center font-bold">{item.total}</TableCell>
-                            <TableCell className="text-center font-mono">{item.bu}</TableCell>
-                            <TableCell className="text-center font-mono">{item.classique}</TableCell>
-                            <TableCell className="text-center font-mono">{item.matin}</TableCell>
-                            <TableCell className="text-center font-mono">{item.soir}</TableCell>
-                        </TableRow>
-                    ))}
-                    {data.length === 0 && (
-                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                                Aucune donnée de prévision à afficher.
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
-);
-
 export default function ForecastPage() {
   const { allRounds, allDepotRules, allCarrierRules, isContextLoading } = useFilters();
   const { firestore } = useFirebase();
@@ -123,75 +86,88 @@ export default function ForecastPage() {
     const timeRules = activeRules.filter(r => r.type === 'time');
     const buRules = activeRules.filter(r => r.type === 'type' && r.category === 'BU');
     
-    const dataByDepot: Record<string, ForecastTotals> = {};
-    const dataByCarrier: Record<string, ForecastTotals> = {};
+    const dataByDepot: Record<string, { totals: ForecastTotals; byCarrier: Record<string, ForecastTotals> }> = {};
 
     allRounds.forEach(round => {
       const depot = getDepotFromHub(round.nomHub, allDepotRules);
       const carrier = getCarrierFromDriver(round, allCarrierRules);
       
-      const entities = [
-          { name: depot, data: dataByDepot },
-          { name: carrier, data: dataByCarrier }
-      ];
+      if (!depot) return;
 
-      entities.forEach(({ name, data }) => {
-          if (!name) return;
-          if (!data[name]) {
-            data[name] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
-          }
-          const entityData = data[name];
-          entityData.total++;
-          
-          const hubNameLower = round.nomHub?.toLowerCase() || '';
-          let isTimeAssigned = false;
-          for (const rule of timeRules) {
-            if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
-              if (rule.category === 'Matin') entityData.matin++;
-              else if (rule.category === 'Soir') entityData.soir++;
-              isTimeAssigned = true;
-              break; 
-            }
-          }
+      if (!dataByDepot[depot]) {
+        dataByDepot[depot] = { 
+            totals: { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 },
+            byCarrier: {} 
+        };
+      }
+      if (!dataByDepot[depot].byCarrier[carrier]) {
+        dataByDepot[depot].byCarrier[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
+      }
 
-          let isBuAssigned = false;
-          const roundNameLower = round.nom?.toLowerCase() || '';
-          if (roundNameLower) {
-              for (const rule of buRules) {
-                  if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
-                      entityData.bu++;
-                      isBuAssigned = true;
-                      break;
-                  }
+      const depotTotals = dataByDepot[depot].totals;
+      const carrierTotals = dataByDepot[depot].byCarrier[carrier];
+
+      depotTotals.total++;
+      carrierTotals.total++;
+      
+      const hubNameLower = round.nomHub?.toLowerCase() || '';
+      let isTimeAssigned = false;
+      for (const rule of timeRules) {
+        if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
+          if (rule.category === 'Matin') {
+              depotTotals.matin++;
+              carrierTotals.matin++;
+          } else if (rule.category === 'Soir') {
+              depotTotals.soir++;
+              carrierTotals.soir++;
+          }
+          isTimeAssigned = true;
+          break; 
+        }
+      }
+
+      let isBuAssigned = false;
+      const roundNameLower = round.nom?.toLowerCase() || '';
+      if (roundNameLower) {
+          for (const rule of buRules) {
+              if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
+                  depotTotals.bu++;
+                  carrierTotals.bu++;
+                  isBuAssigned = true;
+                  break;
               }
           }
-          if (!isBuAssigned) {
-              entityData.classique++;
-          }
-      });
+      }
+      
+      if (!isBuAssigned) {
+          depotTotals.classique++;
+          carrierTotals.classique++;
+      }
     });
 
-    const depotList = Object.entries(dataByDepot)
-        .map(([name, totals]) => ({ name, ...totals }))
-        .sort((a,b) => b.total - a.total);
+    const depotList: DepotForecast[] = Object.entries(dataByDepot)
+        .map(([name, data]) => ({
+            name,
+            totals: data.totals,
+            byCarrier: Object.entries(data.byCarrier).map(([carrierName, totals]) => ({
+                name: carrierName,
+                ...totals
+            })).sort((a,b) => b.total - a.total)
+        }))
+        .sort((a,b) => b.totals.total - a.totals.total);
     
-    const carrierList = Object.entries(dataByCarrier)
-        .map(([name, totals]) => ({ name, ...totals }))
-        .sort((a,b) => b.total - a.total);
-
     const globalTotals = depotList.reduce((acc, depot) => {
-        acc.total += depot.total;
-        acc.matin += depot.matin;
-        acc.soir += depot.soir;
-        acc.bu += depot.bu;
-        acc.classique += depot.classique;
+        acc.total += depot.totals.total;
+        acc.matin += depot.totals.matin;
+        acc.soir += depot.totals.soir;
+        acc.bu += depot.totals.bu;
+        acc.classique += depot.totals.classique;
         return acc;
     }, { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 });
 
     return {
         totals: globalTotals,
         byDepot: depotList,
-        byCarrier: carrierList
     };
 
   }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules, allCarrierRules]);
@@ -206,10 +182,64 @@ export default function ForecastPage() {
 
       <GlobalForecastSummary totals={forecastData.totals} />
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        <ForecastTable title="Prévisions par Dépôt" data={forecastData.byDepot} icon={<Building />} nameHeader="Dépôt" />
-        <ForecastTable title="Prévisions par Transporteur" data={forecastData.byCarrier} icon={<Truck />} nameHeader="Transporteur" />
-      </div>
+      <Card>
+        <CardHeader>
+            <CardTitle>Prévisions par Dépôt et Transporteur</CardTitle>
+        </CardHeader>
+        <CardContent>
+             <Accordion type="multiple" className="w-full space-y-4">
+                {forecastData.byDepot.map(depot => (
+                     <AccordionItem value={depot.name} key={depot.name} className="border-b-0">
+                         <Card>
+                            <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
+                                <div className="w-full flex justify-between items-center">
+                                    <span className="flex items-center gap-3"><Building />{depot.name}</span>
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <Badge variant="outline">Total: {depot.totals.total}</Badge>
+                                        <Badge>BU: {depot.totals.bu}</Badge>
+                                        <Badge variant="secondary">Classiques: {depot.totals.classique}</Badge>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-0 pt-0">
+                                <div className="p-4 bg-muted/50">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Transporteur</TableHead>
+                                                <TableHead className="text-center">Total</TableHead>
+                                                <TableHead className="text-center">BU</TableHead>
+                                                <TableHead className="text-center">Classiques</TableHead>
+                                                <TableHead className="text-center">Matin</TableHead>
+                                                <TableHead className="text-center">Soir</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {depot.byCarrier.map(carrier => (
+                                                <TableRow key={carrier.name}>
+                                                    <TableCell className="font-medium flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground"/>{carrier.name}</TableCell>
+                                                    <TableCell className="text-center font-bold">{carrier.total}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.bu}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.classique}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.matin}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.soir}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </AccordionContent>
+                         </Card>
+                     </AccordionItem>
+                ))}
+             </Accordion>
+             {forecastData.byDepot.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                    Aucune donnée de prévision à afficher.
+                </div>
+            )}
+        </CardContent>
+      </Card>
 
     </main>
   );
