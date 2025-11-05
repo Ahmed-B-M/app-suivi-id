@@ -3,9 +3,9 @@
 
 runConfig:
   # Number of CPUs to allocate to each instance.
-  cpu: 2
+  cpu: 8
   # Amount of memory in MiB to allocate to each instance.
-  memoryMiB: 2048
+  memoryMiB: 32768
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
-  maxInstances: 10
+  maxInstances: 100
