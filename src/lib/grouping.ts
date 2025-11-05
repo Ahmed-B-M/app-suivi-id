@@ -2,79 +2,60 @@
 import type { Tache, Tournee } from "@/lib/types";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import type { CarrierRule } from "@/lib/types";
+import type { CarrierRule, DepotRule } from "@/lib/types";
 
-export interface Depot {
-  name: string;
-  hubs: string[];
-}
-
-// Règle métier : Les noms de dépôts et les préfixes correspondants
-export const DEPOT_RULES: { name: string; prefixes: string[] }[] = [
-  { name: "Aix", prefixes: ["Aix"] },
-  { name: "Castries", prefixes: ["Cast"] },
-  { name: "Rungis", prefixes: ["Rung"] },
-  { name: "Antibes", prefixes: ["Solo"] },
-  { name: "VLG", prefixes: ["Villeneuve", "Vill"] },
-  { name: "Vitry", prefixes: ["Vitr"] },
-];
-
-export const DEPOTS_LIST = DEPOT_RULES.map(rule => rule.name);
-
-// Règle métier : Les préfixes qui identifient un hub comme étant un magasin
-const STORE_PREFIXES = ['f', 'carrefour', 'lex'];
+export const DEPOTS_LIST = ["Aix", "Castries", "Rungis", "Antibes", "VLG", "Vitry"];
 
 
 /**
- * Détermine la catégorie d'un hub ('entrepot' ou 'magasin') en se basant sur les règles métier.
- * @param hubName - Le nom du hub.
- * @returns 'entrepot' ou 'magasin'.
+ * Determines the category of a hub ('entrepot' or 'magasin') based on dynamic rules.
+ * @param hubName - The name of the hub.
+ * @param depotRules - An array of DepotRule objects from Firestore.
+ * @returns 'entrepot' or 'magasin'.
  */
-export function getHubCategory(hubName: string | undefined | null): 'entrepot' | 'magasin' {
+export function getHubCategory(hubName: string | undefined | null, depotRules: DepotRule[] = []): 'entrepot' | 'magasin' {
   if (!hubName) {
-    return "magasin";
+    return "magasin"; // Default case
   }
   
   const lowerHubName = hubName.toLowerCase();
   
-  // Si le nom du hub correspond à une règle de dépôt, c'est un entrepôt.
-  for (const rule of DEPOT_RULES) {
+  const activeRules = depotRules.filter(rule => rule.isActive);
+
+  for (const rule of activeRules) {
     if (rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))) {
-      return "entrepot";
+      return rule.type;
     }
   }
 
-  // Si le nom du hub correspond à une règle de magasin, c'est un magasin.
-  if (STORE_PREFIXES.some(prefix => lowerHubName.startsWith(prefix))) {
-    return 'magasin';
-  }
-
-  // Règle par défaut : si aucune règle de dépôt ne correspond, c'est un magasin.
+  // Default fallback if no rule matches
   return "magasin";
 }
 
 
 /**
- * Extrait le nom du dépôt groupé à partir d'un nom de hub.
- * Si le hub est un magasin, il renvoie "Magasin".
- * @param hubName - Le nom du hub.
- * @returns Le nom du dépôt (ex: "Aix", "Vitry") ou "Magasin".
+ * Extracts the grouped depot name from a hub name based on dynamic rules.
+ * If the hub is classified as a 'magasin' by the rules, it returns "Magasin".
+ * @param hubName - The name of the hub.
+ * @param depotRules - An array of DepotRule objects from Firestore.
+ * @returns The name of the depot (e.g., "Aix", "Vitry") or "Magasin".
  */
-export function getDepotFromHub(hubName: string | undefined | null): string {
-  if (!hubName) {
-    return "Magasin"; // Cas par défaut
-  }
-
-  const lowerHubName = hubName.toLowerCase();
-
-  for (const rule of DEPOT_RULES) {
-    if (rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))) {
-      return rule.name;
+export function getDepotFromHub(hubName: string | undefined | null, depotRules: DepotRule[] = []): string {
+    if (!hubName) {
+        return "Magasin"; // Default case
     }
-  }
 
-  // Si aucune règle de regroupement de dépôt ne correspond, il s'agit d'un magasin.
-  return "Magasin";
+    const lowerHubName = hubName.toLowerCase();
+    const activeRules = depotRules.filter(rule => rule.isActive);
+
+    for (const rule of activeRules) {
+        if (rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))) {
+            return rule.type === 'entrepot' ? rule.depotName : "Magasin";
+        }
+    }
+
+    // If no rule matches, it's considered a store by default.
+    return "Magasin";
 }
 
 
@@ -119,13 +100,6 @@ export function getCarrierFromDriver(
         if (rule.type === 'contains' && normalizedDriverName.includes(normalizedRuleValue)) {
             return rule.carrier;
         }
-    }
-
-    // 3. Fallback to old logic if no rules match (optional, can be removed)
-    if (normalizedDriverName.includes("idlog")) return "ID LOG";
-    if (normalizedDriverName.startsWith("stt")) {
-        const parts = driverName.split(" ");
-        return parts.length > 1 ? parts[1] : "STT";
     }
 
     return "Inconnu";

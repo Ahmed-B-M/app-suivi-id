@@ -322,6 +322,14 @@ export interface CarrierRule {
   isActive: boolean;
 }
 
+export interface DepotRule {
+    id: string;
+    depotName: string;
+    type: 'entrepot' | 'magasin';
+    prefixes: string[];
+    isActive: boolean;
+}
+
 
 export interface Room {
   id: string;

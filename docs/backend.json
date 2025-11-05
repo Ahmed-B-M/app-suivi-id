@@ -479,6 +479,18 @@
             "isActive": { "type": "boolean", "description": "Whether the rule is currently active." }
         },
         "required": ["carrier", "type", "value", "priority", "isActive"]
+    },
+    "DepotRule": {
+      "title": "Depot Rule",
+      "type": "object",
+      "description": "Defines a rule for grouping hubs into a depot and classifying it.",
+      "properties": {
+        "depotName": { "type": "string", "description": "The name of the depot (e.g., 'Aix', 'Vitry')." },
+        "type": { "type": "string", "enum": ["entrepot", "magasin"], "description": "The classification of this group." },
+        "prefixes": { "type": "array", "items": { "type": "string" }, "description": "A list of prefixes to identify hubs belonging to this depot." },
+        "isActive": { "type": "boolean", "description": "Whether the rule is currently active." }
+      },
+      "required": ["depotName", "type", "prefixes", "isActive"]
     }
   },
   "auth": {
@@ -634,6 +646,15 @@
             "schema": { "$ref": "#/backend/entities/CarrierRule" },
             "description": "Stores rules for carrier assignment based on driver names.",
             "params": [{ "name": "ruleId", "description": "The unique ID for the carrier rule." }]
+        }
+      },
+      {
+        "path": "/depot_rules/{ruleId}",
+        "definition": {
+            "entityName": "DepotRule",
+            "schema": { "$ref": "#/backend/entities/DepotRule" },
+            "description": "Stores rules for grouping hubs into depots.",
+            "params": [{ "name": "ruleId", "description": "The unique ID for the depot rule." }]
         }
       }
     ],
