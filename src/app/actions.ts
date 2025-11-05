@@ -446,7 +446,7 @@ export async function runSyncAction(
     
     // --- Déduplication des notifications ---
     logs.push(`   - Vérification des notifications existantes pour éviter les doublons...`);
-    const existingNotificationsSnapshot = await getDocs(query(firestore.collection('notifications'), where('status', '==', 'unread')));
+    const existingNotificationsSnapshot = await firestore.collection('notifications').where('status', '==', 'unread').get();
     const existingUnreadNotifications = new Set<string>();
     existingNotificationsSnapshot.forEach(doc => {
         const notif = doc.data() as Notification;
