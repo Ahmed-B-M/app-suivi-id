@@ -99,7 +99,7 @@ export function getCarrierFromDriver(
         return "Inconnu";
     }
 
-    const lowerCaseName = driverName.toLowerCase();
+    const normalizedDriverName = driverName.toLowerCase().replace(/\s/g, '');
     
     // Sort rules by priority (lower number is higher priority)
     const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
@@ -108,22 +108,22 @@ export function getCarrierFromDriver(
     for (const rule of sortedRules) {
         if (!rule.isActive) continue;
 
-        const ruleValue = rule.value.toLowerCase();
+        const normalizedRuleValue = rule.value.toLowerCase().replace(/\s/g, '');
         
-        if (rule.type === 'suffix' && lowerCaseName.endsWith(ruleValue)) {
+        if (rule.type === 'suffix' && normalizedDriverName.endsWith(normalizedRuleValue)) {
             return rule.carrier;
         }
-        if (rule.type === 'prefix' && lowerCaseName.startsWith(ruleValue)) {
+        if (rule.type === 'prefix' && normalizedDriverName.startsWith(normalizedRuleValue)) {
             return rule.carrier;
         }
-        if (rule.type === 'contains' && lowerCaseName.includes(ruleValue)) {
+        if (rule.type === 'contains' && normalizedDriverName.includes(normalizedRuleValue)) {
             return rule.carrier;
         }
     }
 
     // 3. Fallback to old logic if no rules match (optional, can be removed)
-    if (lowerCaseName.includes("id log")) return "ID LOG";
-    if (lowerCaseName.startsWith("stt")) {
+    if (normalizedDriverName.includes("idlog")) return "ID LOG";
+    if (normalizedDriverName.startsWith("stt")) {
         const parts = driverName.split(" ");
         return parts.length > 1 ? parts[1] : "STT";
     }
