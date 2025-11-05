@@ -92,7 +92,7 @@ export default function QualityPage() {
         if (!mainHub) return;
 
         const depotName = getDepotFromHub(mainHub, allDepotRules);
-        if (!depotName || depotName === 'Magasin') return;
+        if (!depotName) return;
 
         const carrierName = getCarrierFromDriver(driverStat.name, allCarrierRules);
         
@@ -214,7 +214,7 @@ export default function QualityPage() {
 
         const task = allTasks.find((t: Tache) => t.tacheId === comment.taskId);
         const depot = getDepotFromHub(task?.nomHub, allDepotRules);
-        if (!depot || depot === 'Magasin') return;
+        if (!depot) return;
 
         const driverName = comment.driverName;
         if (!driverName) return;
