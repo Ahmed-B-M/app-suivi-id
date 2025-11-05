@@ -2,11 +2,6 @@
 "use client";
 
 import { useState, useMemo, useEffect, useTransition } from "react";
-import { UnifiedExportForm } from "@/app/unified-export-form";
-import { Scheduler } from "@/components/app/scheduler";
-import { LogDisplay } from "@/components/app/log-display";
-import { TasksTable } from "@/components/app/tasks-table";
-import { RoundsTable } from "@/components/app/rounds-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileSearch, PlusCircle, Save, Trash2, Edit, Truck, Map, Briefcase } from "lucide-react";
 import type { Tache, Tournee, ForecastRule, CarrierRule, DepotRule } from "@/lib/types";
@@ -35,113 +30,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-
-function ExportTab() {
-  const [logs, setLogs] = useState<string[]>([]);
-  const [taskJsonData, setTaskJsonData] = useState<Tache[] | null>(null);
-  const [roundJsonData, setRoundJsonData] = useState<Tournee[] | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleExportStart = () => {
-    setLogs([]);
-    setTaskJsonData(null);
-    setRoundJsonData(null);
-    setIsExporting(true);
-  };
-
-  const handleExportComplete = (
-    newLogs: string[],
-    data: { tasks: Tache[]; rounds: Tournee[] } | null
-  ) => {
-    setLogs((prev) => [...prev, ...newLogs]);
-    if (data) {
-      setTaskJsonData(data.tasks);
-      setRoundJsonData(data.rounds);
-    }
-    setIsExporting(false);
-  };
-
-  const handleLogUpdate = (newLogs: string[]) => {
-    setLogs((prev) => [...prev, ...newLogs]);
-  };
-
-  const handleSavingChange = (saving: boolean) => {
-    setIsSaving(saving);
-  };
-
-  const handleReset = () => {
-    setLogs([]);
-    setTaskJsonData(null);
-    setRoundJsonData(null);
-  };
-
-  const isLoading = isExporting || isSaving;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-      <div className="lg:col-span-3 flex flex-col gap-8">
-        <UnifiedExportForm
-          onExportStart={handleExportStart}
-          onExportComplete={handleExportComplete}
-          onReset={handleReset}
-          onLogUpdate={handleLogUpdate}
-          onSavingChange={handleSavingChange}
-          taskJsonData={taskJsonData}
-          roundJsonData={roundJsonData}
-          isExporting={isExporting}
-          isSaving={isSaving}
-        />
-
-        {(taskJsonData || roundJsonData) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileSearch />
-                Données Extraites
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="tasks">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="tasks">
-                    Tâches ({taskJsonData?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="rounds">
-                    Tournées ({roundJsonData?.length || 0})
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="tasks" className="mt-4">
-                  {taskJsonData && taskJsonData.length > 0 ? (
-                    <TasksTable data={taskJsonData} />
-                  ) : (
-                    <p className="text-muted-foreground text-center p-4">
-                      Aucune tâche extraite.
-                    </p>
-                  )}
-                </TabsContent>
-                <TabsContent value="rounds" className="mt-4">
-                  {roundJsonData && roundJsonData.length > 0 ? (
-                    <RoundsTable data={roundJsonData} />
-                  ) : (
-                    <p className="text-muted-foreground text-center p-4">
-                      Aucune tournée extraite.
-                    </p>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        )}
-
-        {logs.length > 0 && <LogDisplay logs={logs} />}
-      </div>
-      <div className="lg:col-span-2">
-        <Scheduler />
-      </div>
-    </div>
-  );
-}
+import { TasksTable } from "@/components/app/tasks-table";
+import { RoundsTable } from "@/components/app/rounds-table";
 
 function DatabaseTab() {
   const { firestore } = useFirebase();
@@ -860,17 +750,13 @@ export default function SettingsPage() {
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Paramètres et Outils</h1>
-      <Tabs defaultValue="export" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="export">Configuration de l'Export</TabsTrigger>
+      <Tabs defaultValue="database" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="database">Explorateur de Données</TabsTrigger>
           <TabsTrigger value="forecast-rules">Règles de Prévision</TabsTrigger>
           <TabsTrigger value="carrier-rules"><Truck className="mr-2 h-4 w-4"/>Règles Transporteurs</TabsTrigger>
           <TabsTrigger value="depot-rules"><Map className="mr-2 h-4 w-4"/>Règles de Groupement</TabsTrigger>
         </TabsList>
-        <TabsContent value="export" className="mt-4">
-          <ExportTab />
-        </TabsContent>
         <TabsContent value="database" className="mt-4">
           <DatabaseTab />
         </TabsContent>

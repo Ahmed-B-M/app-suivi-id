@@ -9,6 +9,7 @@ export const ALL_PAGES = [
   "/messaging",
   "/deviation-analysis",
   "/details",
+  "/export",
   "/assignment",
   "/billing",
   "/quality",
@@ -36,6 +37,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/driver-feedback",
     "/verbatim-analysis",
     "/settings",
+    "/export",
   ],
   Dispatch: [
     "/",
@@ -44,6 +46,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/messaging",
     "/quality",
     "/settings",
+    "/export",
   ],
   RH: [
     "/forecast",
@@ -65,6 +68,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/settings",
     "/notifications",
     "/messaging",
+    "/export",
   ],
   viewer: ["/", "/notifications", "/messaging"]
 };
