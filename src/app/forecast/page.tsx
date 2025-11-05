@@ -13,10 +13,6 @@ import { useFirebase } from "@/firebase/provider";
 import type { ForecastRule } from "@/lib/types";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Pie, PieChart, Cell } from 'recharts';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
 
 interface ForecastTotals {
     total: number;
@@ -39,62 +35,29 @@ interface DepotForecast {
 interface GlobalForecast {
     totals: ForecastTotals;
     byDepot: DepotForecast[];
-    byCarrier: CarrierForecast[];
 }
 
-const DonutChart = ({ data, title }: { data: { name: string, value: number, fill: string }[], title: string }) => {
-    const chartConfig = data.reduce((acc, item) => {
-        acc[item.name] = { label: item.name, color: item.fill };
-        return acc;
-    }, {} as ChartConfig);
-
-    const totalValue = useMemo(() => data.reduce((acc, curr) => acc + curr.value, 0), [data]);
-
-    return (
-        <div className="flex flex-col items-center">
-            <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[150px]">
-                <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                    <Pie data={data} dataKey="value" nameKey="name" innerRadius={40} outerRadius={60} strokeWidth={2}>
-                         {data.map((entry) => (
-                            <Cell key={`cell-${entry.name}`} fill={entry.fill} />
-                        ))}
-                    </Pie>
-                </PieChart>
-            </ChartContainer>
-            <p className="text-center font-semibold text-muted-foreground mt-2">{title}</p>
-        </div>
-    );
-};
-
-
-const StatCard = ({ title, value, icon }: { title: string, value: number, icon: React.ReactNode }) => (
-    <Card>
+const StatCard = ({ title, value, icon, cardClass }: { title: string, value: number, icon: React.ReactNode, cardClass?: string }) => (
+    <Card className={cardClass}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
             {icon}
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
+            <div className="text-3xl font-bold">{value}</div>
         </CardContent>
     </Card>
 );
 
 const GlobalForecastSummary = ({ totals }: { totals: ForecastTotals }) => {
     return (
-        <Card className="mb-8">
-            <CardHeader>
-                <CardTitle>FORECAST Global</CardTitle>
-                <CardDescription>Aperçu de toutes les tournées pour la période sélectionnée.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <StatCard title="Tournées Totales" value={totals.total} icon={<Truck className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Tournées BU" value={totals.bu} icon={<Boxes className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Tournées Classiques" value={totals.classique} icon={<BookOpen className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Shift Matin" value={totals.matin} icon={<Sun className="h-4 w-4 text-muted-foreground" />} />
-                <StatCard title="Shift Soir" value={totals.soir} icon={<Moon className="h-4 w-4 text-muted-foreground" />} />
-            </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <StatCard title="Tournées Totales" value={totals.total} icon={<Truck className="h-5 w-5" />} cardClass="bg-blue-600/10 border-blue-600/20 text-blue-800" />
+            <StatCard title="Tournées BU" value={totals.bu} icon={<Boxes className="h-5 w-5" />} cardClass="bg-purple-600/10 border-purple-600/20 text-purple-800" />
+            <StatCard title="Tournées Classiques" value={totals.classique} icon={<BookOpen className="h-5 w-5" />} cardClass="bg-gray-600/10 border-gray-600/20 text-gray-800" />
+            <StatCard title="Shift Matin" value={totals.matin} icon={<Sun className="h-5 w-5" />} cardClass="bg-amber-500/10 border-amber-500/20 text-amber-800" />
+            <StatCard title="Shift Soir" value={totals.soir} icon={<Moon className="h-5 w-5" />} cardClass="bg-indigo-600/10 border-indigo-600/20 text-indigo-800" />
+        </div>
     );
 };
 
@@ -117,7 +80,6 @@ export default function ForecastPage() {
     const buRules = activeRules.filter(r => r.type === 'type' && r.category === 'BU');
     
     const dataByDepot: Record<string, { totals: ForecastTotals; byCarrier: Record<string, ForecastTotals> }> = {};
-    const dataByCarrier: Record<string, ForecastTotals> = {};
 
     allRounds.forEach(round => {
       const depot = getDepotFromHub(round.nomHub, allDepotRules);
@@ -134,29 +96,22 @@ export default function ForecastPage() {
       if (!dataByDepot[depot].byCarrier[carrier]) {
         dataByDepot[depot].byCarrier[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
       }
-       if (!dataByCarrier[carrier]) {
-        dataByCarrier[carrier] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
-      }
-
+      
       const depotTotals = dataByDepot[depot].totals;
-      const depotCarrierTotals = dataByDepot[depot].byCarrier[carrier];
-      const carrierGlobalTotals = dataByCarrier[carrier];
+      const carrierTotals = dataByDepot[depot].byCarrier[carrier];
 
       depotTotals.total++;
-      depotCarrierTotals.total++;
-      carrierGlobalTotals.total++;
+      carrierTotals.total++;
 
       const hubNameLower = round.nomHub?.toLowerCase() || '';
       timeRules.forEach(rule => {
         if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') {
               depotTotals.matin++;
-              depotCarrierTotals.matin++;
-              carrierGlobalTotals.matin++;
+              carrierTotals.matin++;
           } else if (rule.category === 'Soir') {
               depotTotals.soir++;
-              depotCarrierTotals.soir++;
-              carrierGlobalTotals.soir++;
+              carrierTotals.soir++;
           }
         }
       });
@@ -167,8 +122,7 @@ export default function ForecastPage() {
           for (const rule of buRules) {
               if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
                   depotTotals.bu++;
-                  depotCarrierTotals.bu++;
-                  carrierGlobalTotals.bu++;
+                  carrierTotals.bu++;
                   isBuAssigned = true;
                   break;
               }
@@ -177,8 +131,7 @@ export default function ForecastPage() {
       
       if (!isBuAssigned) {
           depotTotals.classique++;
-          depotCarrierTotals.classique++;
-          carrierGlobalTotals.classique++;
+          carrierTotals.classique++;
       }
     });
 
@@ -192,10 +145,6 @@ export default function ForecastPage() {
             })).sort((a,b) => b.total - a.total)
         }))
         .sort((a,b) => b.totals.total - a.totals.total);
-
-    const carrierList: CarrierForecast[] = Object.entries(dataByCarrier)
-        .map(([name, totals]) => ({ name, ...totals }))
-        .sort((a,b) => b.total - a.total);
     
     const globalTotals = depotList.reduce((acc, depot) => {
         acc.total += depot.totals.total;
@@ -209,97 +158,29 @@ export default function ForecastPage() {
     return {
         totals: globalTotals,
         byDepot: depotList,
-        byCarrier: carrierList,
     };
 
   }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules, allCarrierRules]);
   
-  const typeChartData = useMemo(() => {
-    if (!forecastData) return [];
-    return [
-      { name: "BU", value: forecastData.totals.bu, fill: "hsl(var(--chart-1))" },
-      { name: "Classique", value: forecastData.totals.classique, fill: "hsl(var(--chart-2))" },
-    ];
-  }, [forecastData]);
-
-  const shiftChartData = useMemo(() => {
-    if (!forecastData) return [];
-    return [
-      { name: "Matin", value: forecastData.totals.matin, fill: "hsl(var(--chart-3))" },
-      { name: "Soir", value: forecastData.totals.soir, fill: "hsl(var(--chart-4))" },
-    ];
-  }, [forecastData]);
-
-
   if (!forecastData) {
       return <div className="flex-1 container py-8">Chargement du FORECAST...</div>
   }
 
   return (
-    <main className="flex-1 container py-8">
-      <h1 className="text-3xl font-bold mb-8">FORECAST</h1>
+    <main className="flex-1 container py-8 space-y-8">
+      <div className="flex flex-col items-start gap-2">
+        <h1 className="text-3xl font-bold">FORECAST</h1>
+        <p className="text-muted-foreground">
+          Synthèse globale et détaillée des tournées prévisionnelles.
+        </p>
+      </div>
 
       <GlobalForecastSummary totals={forecastData.totals} />
       
-      <Card className="mb-8">
-          <CardHeader>
-              <CardTitle>Analyse Détaillée</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="depot">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="depot">Par Dépôt</TabsTrigger>
-                    <TabsTrigger value="transporteur">Par Transporteur</TabsTrigger>
-                </TabsList>
-                <TabsContent value="depot" className="mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-2">
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {forecastData.byDepot.map(depot => (
-                                        <TableRow key={depot.name}>
-                                            <TableCell className="font-medium">{depot.name}</TableCell>
-                                            <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.bu}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.classique}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.matin}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.soir}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <div className="flex justify-around items-center border rounded-lg p-4">
-                            <DonutChart data={typeChartData} title="Répartition par Type" />
-                            <DonutChart data={shiftChartData} title="Répartition par Shift"/>
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="transporteur" className="mt-4">
-                     <Table>
-                        <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {forecastData.byCarrier.map(carrier => (
-                                <TableRow key={carrier.name}>
-                                    <TableCell className="font-medium">{carrier.name}</TableCell>
-                                    <TableCell className="text-center font-bold">{carrier.total}</TableCell>
-                                    <TableCell className="text-center">{carrier.bu}</TableCell>
-                                    <TableCell className="text-center">{carrier.classique}</TableCell>
-                                    <TableCell className="text-center">{carrier.matin}</TableCell>
-                                    <TableCell className="text-center">{carrier.soir}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TabsContent>
-            </Tabs>
-          </CardContent>
-      </Card>
-      
       <Card>
         <CardHeader>
-            <CardTitle>Détail par Dépôt et Transporteur</CardTitle>
+            <CardTitle>Analyse FORECAST</CardTitle>
+            <CardDescription>Détail par dépôt et par transporteur pour la période sélectionnée.</CardDescription>
         </CardHeader>
         <CardContent>
             <Accordion type="multiple" className="w-full space-y-4">
@@ -309,10 +190,12 @@ export default function ForecastPage() {
                             <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
                                 <div className="w-full flex justify-between items-center">
                                     <span className="flex items-center gap-3"><Building />{depot.name}</span>
-                                    <div className="flex items-center gap-4 text-sm">
+                                    <div className="flex items-center gap-2 text-base">
                                         <Badge variant="outline">Total: {depot.totals.total}</Badge>
-                                        <Badge>BU: {depot.totals.bu}</Badge>
-                                        <Badge variant="secondary">Classiques: {depot.totals.classique}</Badge>
+                                        <Badge className="bg-purple-600/80 hover:bg-purple-600">BU: {depot.totals.bu}</Badge>
+                                        <Badge className="bg-gray-600/80 hover:bg-gray-600">Classique: {depot.totals.classique}</Badge>
+                                        <Badge className="bg-amber-500/80 hover:bg-amber-500">Matin: {depot.totals.matin}</Badge>
+                                        <Badge className="bg-indigo-600/80 hover:bg-indigo-600">Soir: {depot.totals.soir}</Badge>
                                     </div>
                                 </div>
                             </AccordionTrigger>
@@ -334,10 +217,10 @@ export default function ForecastPage() {
                                                 <TableRow key={carrier.name}>
                                                     <TableCell className="font-medium flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground"/>{carrier.name}</TableCell>
                                                     <TableCell className="text-center font-bold">{carrier.total}</TableCell>
-                                                    <TableCell className="text-center font-mono">{carrier.bu}</TableCell>
-                                                    <TableCell className="text-center font-mono">{carrier.classique}</TableCell>
-                                                    <TableCell className="text-center font-mono">{carrier.matin}</TableCell>
-                                                    <TableCell className="text-center font-mono">{carrier.soir}</TableCell>
+                                                    <TableCell className="text-center font-mono text-purple-700">{carrier.bu}</TableCell>
+                                                    <TableCell className="text-center font-mono text-gray-700">{carrier.classique}</TableCell>
+                                                    <TableCell className="text-center font-mono text-amber-700">{carrier.matin}</TableCell>
+                                                    <TableCell className="text-center font-mono text-indigo-700">{carrier.soir}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
@@ -355,7 +238,6 @@ export default function ForecastPage() {
             )}
         </CardContent>
       </Card>
-
     </main>
   );
 }
