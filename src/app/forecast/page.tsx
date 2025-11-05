@@ -24,10 +24,14 @@ interface ForecastTotals {
 interface DepotForecast extends ForecastTotals {
     name: string;
 }
+interface CarrierForecast extends ForecastTotals {
+    name: string;
+}
 
 interface GlobalForecast {
     totals: ForecastTotals;
     byDepot: DepotForecast[];
+    byCarrier: CarrierForecast[];
 }
 
 const StatCard = ({ title, value, icon }: { title: string, value: number, icon: React.ReactNode }) => (
@@ -60,8 +64,49 @@ const GlobalForecastSummary = ({ totals }: { totals: ForecastTotals }) => {
     );
 };
 
+const ForecastTable = ({ title, data, icon, nameHeader }: { title: string, data: (DepotForecast | CarrierForecast)[], icon: React.ReactNode, nameHeader: string }) => (
+    <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">{icon}{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-1/4">{nameHeader}</TableHead>
+                        <TableHead className="text-center">Total</TableHead>
+                        <TableHead className="text-center">BU</TableHead>
+                        <TableHead className="text-center">Classiques</TableHead>
+                        <TableHead className="text-center">Matin</TableHead>
+                        <TableHead className="text-center">Soir</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {data.map(item => (
+                        <TableRow key={item.name}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell className="text-center font-bold">{item.total}</TableCell>
+                            <TableCell className="text-center font-mono">{item.bu}</TableCell>
+                            <TableCell className="text-center font-mono">{item.classique}</TableCell>
+                            <TableCell className="text-center font-mono">{item.matin}</TableCell>
+                            <TableCell className="text-center font-mono">{item.soir}</TableCell>
+                        </TableRow>
+                    ))}
+                    {data.length === 0 && (
+                         <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                Aucune donnée de prévision à afficher.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
+);
+
 export default function ForecastPage() {
-  const { allRounds, allDepotRules, isContextLoading } = useFilters();
+  const { allRounds, allDepotRules, allCarrierRules, isContextLoading } = useFilters();
   const { firestore } = useFirebase();
 
   const rulesCollection = useMemo(() => 
@@ -79,47 +124,61 @@ export default function ForecastPage() {
     const buRules = activeRules.filter(r => r.type === 'type' && r.category === 'BU');
     
     const dataByDepot: Record<string, ForecastTotals> = {};
+    const dataByCarrier: Record<string, ForecastTotals> = {};
 
     allRounds.forEach(round => {
       const depot = getDepotFromHub(round.nomHub, allDepotRules);
-      if (!depot) return;
-
-      if (!dataByDepot[depot]) {
-        dataByDepot[depot] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
-      }
-
-      const depotData = dataByDepot[depot];
-      depotData.total++;
+      const carrier = getCarrierFromDriver(round, allCarrierRules);
       
-      const hubNameLower = round.nomHub?.toLowerCase() || '';
-      for (const rule of timeRules) {
-        if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
-          if (rule.category === 'Matin') depotData.matin++;
-          else if (rule.category === 'Soir') depotData.soir++;
-          break; 
-        }
-      }
+      const entities = [
+          { name: depot, data: dataByDepot },
+          { name: carrier, data: dataByCarrier }
+      ];
 
-      let isBuAssigned = false;
-      const roundNameLower = round.nom?.toLowerCase() || '';
-      if (roundNameLower) {
-          for (const rule of buRules) {
-              if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
-                  depotData.bu++;
-                  isBuAssigned = true;
-                  break;
+      entities.forEach(({ name, data }) => {
+          if (!name) return;
+          if (!data[name]) {
+            data[name] = { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 };
+          }
+          const entityData = data[name];
+          entityData.total++;
+          
+          const hubNameLower = round.nomHub?.toLowerCase() || '';
+          let isTimeAssigned = false;
+          for (const rule of timeRules) {
+            if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
+              if (rule.category === 'Matin') entityData.matin++;
+              else if (rule.category === 'Soir') entityData.soir++;
+              isTimeAssigned = true;
+              break; 
+            }
+          }
+
+          let isBuAssigned = false;
+          const roundNameLower = round.nom?.toLowerCase() || '';
+          if (roundNameLower) {
+              for (const rule of buRules) {
+                  if (rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))) {
+                      entityData.bu++;
+                      isBuAssigned = true;
+                      break;
+                  }
               }
           }
-      }
-      if (!isBuAssigned) {
-          depotData.classique++;
-      }
+          if (!isBuAssigned) {
+              entityData.classique++;
+          }
+      });
     });
 
     const depotList = Object.entries(dataByDepot)
         .map(([name, totals]) => ({ name, ...totals }))
         .sort((a,b) => b.total - a.total);
     
+    const carrierList = Object.entries(dataByCarrier)
+        .map(([name, totals]) => ({ name, ...totals }))
+        .sort((a,b) => b.total - a.total);
+
     const globalTotals = depotList.reduce((acc, depot) => {
         acc.total += depot.total;
         acc.matin += depot.matin;
@@ -131,10 +190,11 @@ export default function ForecastPage() {
 
     return {
         totals: globalTotals,
-        byDepot: depotList
+        byDepot: depotList,
+        byCarrier: carrierList
     };
 
-  }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules]);
+  }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules, allCarrierRules]);
   
   if (!forecastData) {
       return <div className="flex-1 container py-8">Chargement des prévisions...</div>
@@ -146,46 +206,11 @@ export default function ForecastPage() {
 
       <GlobalForecastSummary totals={forecastData.totals} />
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Prévisions par Dépôt</CardTitle>
-            <CardDescription>Analyse quantitative des tournées prévisionnelles par dépôt.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-1/4">Dépôt</TableHead>
-                        <TableHead className="text-center">Total</TableHead>
-                        <TableHead className="text-center">BU</TableHead>
-                        <TableHead className="text-center">Classiques</TableHead>
-                        <TableHead className="text-center">Matin</TableHead>
-                        <TableHead className="text-center">Soir</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {forecastData.byDepot.map(depot => (
-                        <TableRow key={depot.name}>
-                            <TableCell className="font-medium flex items-center gap-2"><Building className="text-muted-foreground"/>{depot.name}</TableCell>
-                            <TableCell className="text-center font-bold">{depot.total}</TableCell>
-                            <TableCell className="text-center font-mono">{depot.bu}</TableCell>
-                            <TableCell className="text-center font-mono">{depot.classique}</TableCell>
-                            <TableCell className="text-center font-mono">{depot.matin}</TableCell>
-                            <TableCell className="text-center font-mono">{depot.soir}</TableCell>
-                        </TableRow>
-                    ))}
-                    {forecastData.byDepot.length === 0 && (
-                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                                Aucune donnée de prévision à afficher.
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <ForecastTable title="Prévisions par Dépôt" data={forecastData.byDepot} icon={<Building />} nameHeader="Dépôt" />
+        <ForecastTable title="Prévisions par Transporteur" data={forecastData.byCarrier} icon={<Truck />} nameHeader="Transporteur" />
+      </div>
+
     </main>
   );
 }
-
