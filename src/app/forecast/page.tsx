@@ -63,18 +63,16 @@ export default function ForecastPage() {
       depotCarrier.total++;
       
       // Time-based classification (Matin/Soir) based on hub name
-      let isTimeAssigned = false;
       const hubNameLower = round.nomHub?.toLowerCase() || '';
       for (const rule of timeRules) {
         if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') depotCarrier.matin++;
           else if (rule.category === 'Soir') depotCarrier.soir++;
-          isTimeAssigned = true;
-          break;
+          break; // Stop after first time match
         }
       }
 
-      // BU classification based on round name
+      // BU vs Classique classification based on round name
       let isBuAssigned = false;
       const roundNameLower = round.nom?.toLowerCase() || '';
       for (const rule of buRules) {
@@ -85,8 +83,8 @@ export default function ForecastPage() {
         }
       }
 
-      // If no other rule applied, consider it "Classique".
-      if(!isBuAssigned && !isTimeAssigned) {
+      // If it's not BU, it's Classique. This is the primary distinction.
+      if(!isBuAssigned) {
           depotCarrier.classique++;
       }
     });
