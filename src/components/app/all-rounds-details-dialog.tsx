@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { getDepotFromHub, getCarrierFromDriver, getDriverFullName } from "@/lib/grouping";
 import { format } from "date-fns";
+import { useFilters } from "@/context/filter-context";
 
 type AllRoundsDetailsDialogProps = {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function AllRoundsDetailsDialog({
   onOpenChange,
   rounds = [],
 }: AllRoundsDetailsDialogProps) {
+  const { allCarrierRules, allDepotRules } = useFilters();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -59,12 +61,12 @@ export function AllRoundsDetailsDialog({
                 {rounds.map((round) => (
                 <TableRow key={round.id}>
                     <TableCell>
-                    {round.date ? format(new Date(round.date), "dd/MM/yyyy") : 'N/A'}
+                    {round.date ? format(new Date(round.date as string), "dd/MM/yyyy") : 'N/A'}
                     </TableCell>
-                    <TableCell>{round.name || 'N/A'}</TableCell>
-                    <TableCell>{getDepotFromHub(round.nomHub)}</TableCell>
+                    <TableCell>{round.nom || 'N/A'}</TableCell>
+                    <TableCell>{getDepotFromHub(round.nomHub, allDepotRules)}</TableCell>
                     <TableCell>{round.nomHub || 'N/A'}</TableCell>
-                    <TableCell>{getCarrierFromDriver(round)}</TableCell>
+                    <TableCell>{getCarrierFromDriver(round, allCarrierRules)}</TableCell>
                     <TableCell>{getDriverFullName(round) || 'N/A'}</TableCell>
                 </TableRow>
                 ))}

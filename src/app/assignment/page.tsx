@@ -32,7 +32,7 @@ function groupRoundsBy<T extends keyof any>(rounds: Tournee[], getKey: (round: T
 
 
 export default function AssignmentPage() {
-    const { allRounds, allCarrierRules } = useFilters();
+    const { allRounds, allCarrierRules, allDepotRules } = useFilters();
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
@@ -72,8 +72,8 @@ export default function AssignmentPage() {
     };
 
     const groupedByDepot = useMemo(() => {
-        return groupRoundsBy(allRounds, (round) => getDepotFromHub(round.nomHub));
-    }, [allRounds]);
+        return groupRoundsBy(allRounds, (round) => getDepotFromHub(round.nomHub, allDepotRules));
+    }, [allRounds, allDepotRules]);
     
     const roundsByDepotAndDate = useMemo(() => {
         const result: Record<string, Record<string, Tournee[]>> = {};
