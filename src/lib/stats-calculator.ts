@@ -63,8 +63,8 @@ export function getCategoryFromKeywords(comment: string | undefined | null): str
 
 
 export function calculateDashboardStats(
-    allTasks: Tache[], 
-    allRounds: Tournee[], 
+    initialTasks: Tache[], 
+    initialRounds: Tournee[], 
     allNegativeComments: CategorizedComment[],
     allNpsData: NpsData[],
     processedVerbatims: ProcessedNpsVerbatim[],
@@ -72,19 +72,25 @@ export function calculateDashboardStats(
     selectedDepot: string,
     selectedStore: string
 ) {
-    if (!allTasks || !allRounds) {
+    if (!initialTasks || !initialRounds) {
       return { hasData: false, stats: null };
     }
 
-    // Apply depot/store filters for comparison page
-    let tasks = allTasks;
-    let rounds = allRounds;
+    // Apply depot/store filters first
+    let tasks = initialTasks;
+    let rounds = initialRounds;
 
+    if (filterType !== 'tous') {
+      tasks = tasks.filter(t => getHubCategory(t.nomHub) === filterType);
+      rounds = rounds.filter(r => getHubCategory(r.nomHub) === filterType);
+    }
     if (selectedDepot !== 'all') {
         tasks = tasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
         rounds = rounds.filter(r => getDepotFromHub(r.nomHub) === selectedDepot);
-        allNegativeComments = allNegativeComments.filter(c => getDepotFromHub(c.nomHub) === selectedDepot);
-        // This part needs refinement if we want to filter NPS and verbatims by depot too
+    }
+    if (selectedStore !== 'all') {
+      tasks = tasks.filter(t => t.nomHub === selectedStore);
+      rounds = rounds.filter(r => r.nomHub === selectedStore);
     }
   
     const completedTasks = tasks.filter(t => t.progression === "COMPLETED");
@@ -212,7 +218,7 @@ export function calculateDashboardStats(
     });
 
     const rawDriverStats = Object.entries(driverTasks).map(([name, driverTasks]) => {
-      return calculateRawDriverStats(name, driverTasks);
+      return calculateRawDriverStats(name, driverTasks, allNegativeComments);
     });
 
     const maxCompletedTasks = Math.max(0, ...rawDriverStats.map(s => s.completedTasks));
@@ -441,3 +447,5 @@ export function calculateDashboardStats(
       }
     };
 }
+
+    
