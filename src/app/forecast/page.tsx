@@ -105,14 +105,17 @@ export default function ForecastPage() {
       carrierTotals.total++;
 
       const hubNameLower = round.nomHub?.toLowerCase() || '';
+      let isTimeAssigned = false;
       timeRules.forEach(rule => {
         if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') {
               depotTotals.matin++;
               carrierTotals.matin++;
+              isTimeAssigned = true;
           } else if (rule.category === 'Soir') {
               depotTotals.soir++;
               carrierTotals.soir++;
+              isTimeAssigned = true;
           }
         }
       });
@@ -210,6 +213,8 @@ export default function ForecastPage() {
                             <TableHead className="text-center">Total</TableHead>
                             <TableHead className="text-center">BU</TableHead>
                             <TableHead className="text-center">Classique</TableHead>
+                            <TableHead className="text-center">Matin</TableHead>
+                            <TableHead className="text-center">Soir</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -219,6 +224,8 @@ export default function ForecastPage() {
                                 <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
                                 <TableCell className="text-center font-mono text-purple-700">{depot.totals.bu}</TableCell>
                                 <TableCell className="text-center font-mono text-gray-700">{depot.totals.classique}</TableCell>
+                                <TableCell className="text-center font-mono text-amber-700">{depot.totals.matin}</TableCell>
+                                <TableCell className="text-center font-mono text-indigo-700">{depot.totals.soir}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -238,6 +245,8 @@ export default function ForecastPage() {
                             <TableHead className="text-center">Total</TableHead>
                             <TableHead className="text-center">BU</TableHead>
                             <TableHead className="text-center">Classique</TableHead>
+                            <TableHead className="text-center">Matin</TableHead>
+                            <TableHead className="text-center">Soir</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -247,6 +256,8 @@ export default function ForecastPage() {
                                 <TableCell className="text-center font-bold">{carrier.total}</TableCell>
                                 <TableCell className="text-center font-mono text-purple-700">{carrier.bu}</TableCell>
                                 <TableCell className="text-center font-mono text-gray-700">{carrier.classique}</TableCell>
+                                <TableCell className="text-center font-mono text-amber-700">{carrier.matin}</TableCell>
+                                <TableCell className="text-center font-mono text-indigo-700">{carrier.soir}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
