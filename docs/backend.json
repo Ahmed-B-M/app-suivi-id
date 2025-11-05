@@ -301,6 +301,19 @@
       },
       "required": ["id"]
     },
+    "BuRound": {
+      "title": "BU Round",
+      "type": "object",
+      "description": "Represents a manually created Business Unit (BU) round.",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the BU round." },
+        "carrier": { "type": "string", "description": "The assigned carrier." },
+        "depot": { "type": "string", "description": "The assigned depot." },
+        "isActive": { "type": "boolean", "description": "Whether the round is active and should be included in stats." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the round was created." }
+      },
+      "required": ["name", "carrier", "depot", "isActive", "createdAt"]
+    },
     "Round": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Round",
@@ -546,6 +559,15 @@
               "description": "Unique identifier for the round."
             }
           ]
+        }
+      },
+       {
+        "path": "/bu_rounds/{buRoundId}",
+        "definition": {
+          "entityName": "BuRound",
+          "schema": { "$ref": "#/backend/entities/BuRound" },
+          "description": "Stores manually created BU (Business Unit) rounds.",
+          "params": [{ "name": "buRoundId", "description": "The unique ID for the BU round." }]
         }
       },
       {

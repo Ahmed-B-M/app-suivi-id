@@ -235,7 +235,6 @@ export interface Tournee {
     driver?: any; // Garder l'objet driver pour getDriverFullName
 }
 
-
 // Représentation de base de l'objet Tournée (ancien)
 export interface Round {
   id: string;
@@ -303,6 +302,14 @@ export interface Notification {
   };
 }
 
+export interface BuRound {
+  id: string;
+  name: string;
+  carrier: string;
+  depot: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+}
 
 export interface ForecastRule {
   id: string;
