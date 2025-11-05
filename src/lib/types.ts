@@ -343,6 +343,13 @@ export interface HubAssignment {
     depot?: string; // Only if type is 'entrepot'
 }
 
+export interface Zone {
+  id: string;
+  name: string;
+  postalCodes: string[];
+  isActive: boolean;
+}
+
 
 export interface Room {
   id: string;

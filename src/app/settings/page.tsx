@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileSearch, PlusCircle, Save, Trash2, Edit, Truck, Map, Briefcase } from "lucide-react";
+import { FileSearch, PlusCircle, Save, Trash2, Edit, Truck, Map, Briefcase, Zone as ZoneIcon } from "lucide-react";
 import type { Tache, Tournee, ForecastRule, CarrierRule, DepotRule } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useFirebase } from "@/firebase";
@@ -746,28 +746,54 @@ function CarrierRulesTab() {
   )
 }
 
+function ZonePricingTab() {
+  // This will be implemented in the future
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion des Zones de Tarification</CardTitle>
+        <CardDescription>
+          Définissez ici des zones géographiques basées sur des listes de codes postaux.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border p-4">
+          <p className="text-muted-foreground text-center">
+            La configuration des zones de tarification sera bientôt disponible ici.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
 export default function SettingsPage() {
   return (
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Paramètres et Outils</h1>
-      <Tabs defaultValue="database" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="database">Explorateur de Données</TabsTrigger>
-          <TabsTrigger value="forecast-rules">Règles de Prévision</TabsTrigger>
+      <Tabs defaultValue="carrier-rules" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="carrier-rules"><Truck className="mr-2 h-4 w-4"/>Règles Transporteurs</TabsTrigger>
           <TabsTrigger value="depot-rules"><Map className="mr-2 h-4 w-4"/>Règles de Groupement</TabsTrigger>
+          <TabsTrigger value="zone-pricing"><ZoneIcon className="mr-2 h-4 w-4"/>Gestion des Zones</TabsTrigger>
+          <TabsTrigger value="forecast-rules">Règles de Prévision</TabsTrigger>
+          <TabsTrigger value="database">Explorateur de Données</TabsTrigger>
         </TabsList>
-        <TabsContent value="database" className="mt-4">
-          <DatabaseTab />
-        </TabsContent>
-         <TabsContent value="forecast-rules" className="mt-4">
-          <ForecastRulesTab />
-        </TabsContent>
         <TabsContent value="carrier-rules" className="mt-4">
           <CarrierRulesTab />
         </TabsContent>
         <TabsContent value="depot-rules" className="mt-4">
           <DepotRulesTab />
+        </TabsContent>
+        <TabsContent value="zone-pricing" className="mt-4">
+          <ZonePricingTab />
+        </TabsContent>
+        <TabsContent value="forecast-rules" className="mt-4">
+          <ForecastRulesTab />
+        </TabsContent>
+        <TabsContent value="database" className="mt-4">
+          <DatabaseTab />
         </TabsContent>
       </Tabs>
     </main>

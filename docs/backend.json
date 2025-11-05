@@ -504,6 +504,17 @@
         "isActive": { "type": "boolean", "description": "Whether the rule is currently active." }
       },
       "required": ["depotName", "type", "prefixes", "isActive"]
+    },
+    "Zone": {
+      "title": "Zone",
+      "type": "object",
+      "description": "Defines a geographical zone for pricing based on postal codes.",
+      "properties": {
+        "name": { "type": "string", "description": "The unique name of the zone." },
+        "postalCodes": { "type": "array", "items": { "type": "string" }, "description": "A list of postal codes belonging to this zone." },
+        "isActive": { "type": "boolean", "description": "Whether the zone is currently active." }
+      },
+      "required": ["name", "postalCodes", "isActive"]
     }
   },
   "auth": {
@@ -677,6 +688,15 @@
             "schema": { "$ref": "#/backend/entities/DepotRule" },
             "description": "Stores rules for grouping hubs into depots.",
             "params": [{ "name": "ruleId", "description": "The unique ID for the depot rule." }]
+        }
+      },
+      {
+        "path": "/zones/{zoneId}",
+        "definition": {
+            "entityName": "Zone",
+            "schema": { "$ref": "#/backend/entities/Zone" },
+            "description": "Stores pricing zones based on postal codes.",
+            "params": [{ "name": "zoneId", "description": "The unique ID for the zone." }]
         }
       }
     ],
