@@ -1,5 +1,5 @@
 
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim, Article } from "@/lib/types";
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim, Article, DepotRule } from "@/lib/types";
 import { calculateRawDriverStats, calculateDriverScore } from "./scoring";
 import { getDriverFullName, getHubCategory, getDepotFromHub } from "./grouping";
 import { addMinutes, differenceInMinutes, parseISO, subMinutes } from "date-fns";
@@ -70,7 +70,8 @@ export function calculateDashboardStats(
     processedVerbatims: ProcessedNpsVerbatim[],
     filterType: 'tous' | 'magasin' | 'entrepot',
     selectedDepot: string,
-    selectedStore: string
+    selectedStore: string,
+    allDepotRules: DepotRule[]
 ) {
     if (!initialTasks || !initialRounds) {
       return { hasData: false, stats: null };
@@ -81,12 +82,12 @@ export function calculateDashboardStats(
     let rounds = initialRounds;
 
     if (filterType !== 'tous') {
-      tasks = tasks.filter(t => getHubCategory(t.nomHub) === filterType);
-      rounds = rounds.filter(r => getHubCategory(r.nomHub) === filterType);
+      tasks = tasks.filter(t => getHubCategory(t.nomHub, allDepotRules) === filterType);
+      rounds = rounds.filter(r => getHubCategory(r.nomHub, allDepotRules) === filterType);
     }
     if (selectedDepot !== 'all') {
-        tasks = tasks.filter(t => getDepotFromHub(t.nomHub) === selectedDepot);
-        rounds = rounds.filter(r => getDepotFromHub(r.nomHub) === selectedDepot);
+        tasks = tasks.filter(t => getDepotFromHub(t.nomHub, allDepotRules) === selectedDepot);
+        rounds = rounds.filter(r => getDepotFromHub(r.nomHub, allDepotRules) === selectedDepot);
     }
     if (selectedStore !== 'all') {
       tasks = tasks.filter(t => t.nomHub === selectedStore);
@@ -344,7 +345,7 @@ export function calculateDashboardStats(
             }
             const data = tasksDataByRound.get(roundKey)!;
             data.weight += task.poidsEnKg ?? 0;
-            data.bacs += (task.items ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
+            data.bacs += (task.articles ?? []).filter((a:any) => a.type === 'BAC_SEC' || a.type === 'BAC_FRAIS').length;
         }
     });
 
@@ -447,5 +448,3 @@ export function calculateDashboardStats(
       }
     };
 }
-
-    

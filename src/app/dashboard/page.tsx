@@ -62,6 +62,7 @@ export default function DashboardPage() {
     filterType,
     selectedDepot,
     selectedStore,
+    allDepotRules,
    } = useFilters();
 
   const [isRatingDetailsOpen, setIsRatingDetailsOpen] = useState(false);
@@ -104,8 +105,8 @@ export default function DashboardPage() {
 
 
   const dashboardData = useMemo(() => {
-    return calculateDashboardStats(allTasks, allRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore);
-  }, [allTasks, allRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore]);
+    return calculateDashboardStats(allTasks, allRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore, allDepotRules);
+  }, [allTasks, allRounds, allComments, allNpsData, processedVerbatims, filterType, selectedDepot, selectedStore, allDepotRules]);
 
   const isLoading = isContextLoading;
   const error = null; 
@@ -366,5 +367,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
