@@ -96,7 +96,6 @@ export default function ForecastPage() {
       
       if (!depot) return;
 
-      // Initialize structures if they don't exist
       if (!dataByDepot[depot]) {
         dataByDepot[depot] = { 
             totals: { total: 0, matin: 0, soir: 0, bu: 0, classique: 0 },
@@ -114,15 +113,12 @@ export default function ForecastPage() {
       const depotCarrierTotals = dataByDepot[depot].byCarrier[carrier];
       const carrierGlobalTotals = dataByCarrier[carrier];
 
-      // --- Increment Counts ---
       depotTotals.total++;
       depotCarrierTotals.total++;
       carrierGlobalTotals.total++;
 
-      // Time-based classification
       const hubNameLower = round.nomHub?.toLowerCase() || '';
-      let isTimeAssigned = false;
-      for (const rule of timeRules) {
+      timeRules.forEach(rule => {
         if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') {
               depotTotals.matin++;
@@ -133,12 +129,9 @@ export default function ForecastPage() {
               depotCarrierTotals.soir++;
               carrierGlobalTotals.soir++;
           }
-          isTimeAssigned = true;
-          break;
         }
-      }
+      });
       
-      // Type-based classification (BU vs Classique)
       const roundNameLower = round.nom?.toLowerCase() || '';
       let isBuAssigned = false;
       if (roundNameLower) {
@@ -209,7 +202,7 @@ export default function ForecastPage() {
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
                     <TableBody>
                         {forecastData.byDepot.map(depot => (
                             <TableRow key={depot.name}>
@@ -217,6 +210,8 @@ export default function ForecastPage() {
                                 <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
                                 <TableCell className="text-center">{depot.totals.bu}</TableCell>
                                 <TableCell className="text-center">{depot.totals.classique}</TableCell>
+                                <TableCell className="text-center">{depot.totals.matin}</TableCell>
+                                <TableCell className="text-center">{depot.totals.soir}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -229,7 +224,7 @@ export default function ForecastPage() {
             </CardHeader>
             <CardContent>
                  <Table>
-                    <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
                     <TableBody>
                         {forecastData.byCarrier.map(carrier => (
                             <TableRow key={carrier.name}>
@@ -237,6 +232,8 @@ export default function ForecastPage() {
                                 <TableCell className="text-center font-bold">{carrier.total}</TableCell>
                                 <TableCell className="text-center">{carrier.bu}</TableCell>
                                 <TableCell className="text-center">{carrier.classique}</TableCell>
+                                <TableCell className="text-center">{carrier.matin}</TableCell>
+                                <TableCell className="text-center">{carrier.soir}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
