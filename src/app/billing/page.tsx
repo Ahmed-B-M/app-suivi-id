@@ -4,7 +4,7 @@
 import { useState, useMemo } from "react";
 import type { Tache, Tournee } from "@/lib/types";
 import { useFilters } from "@/context/filter-context";
-import { getCarrierFromDriver, getDepotFromHub } from "@/lib/grouping";
+import { getCarrierFromDriver, getDepotFromHub, getDriverFullName } from "@/lib/grouping";
 import { format, getDay, parseISO } from "date-fns";
 import {
   Card,
