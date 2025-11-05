@@ -85,7 +85,7 @@ export default function ForecastPage() {
         }
       }
 
-      // If not BU and not time-based, it's classique
+      // If no other rule applied, consider it "Classique".
       if(!isBuAssigned && !isTimeAssigned) {
           depotCarrier.classique++;
       }
