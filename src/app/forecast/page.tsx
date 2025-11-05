@@ -56,7 +56,7 @@ const GlobalForecastSummary = ({ totals }: { totals: ForecastTotals }) => {
         <Card className="mb-8">
             <CardHeader>
                 <CardTitle>Synthèse Globale</CardTitle>
-                <CardDescription>Aperçu de toutes les tournées prévisionnelles pour la période sélectionnée.</CardDescription>
+                <CardDescription>Aperçu de toutes les tournées pour la période sélectionnée.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <StatCard title="Tournées Totales" value={totals.total} icon={<Truck className="h-4 w-4 text-muted-foreground" />} />
@@ -186,19 +186,19 @@ export default function ForecastPage() {
   }, [allRounds, activeRules, isContextLoading, rulesLoading, allDepotRules, allCarrierRules]);
   
   if (!forecastData) {
-      return <div className="flex-1 container py-8">Chargement des prévisions...</div>
+      return <div className="flex-1 container py-8">Chargement du FORECAST...</div>
   }
 
   return (
     <main className="flex-1 container py-8">
-      <h1 className="text-3xl font-bold mb-8">Prévisions de Tournées</h1>
+      <h1 className="text-3xl font-bold mb-8">FORECAST</h1>
 
       <GlobalForecastSummary totals={forecastData.totals} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Building /> Prévisions par Dépôt</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Building /> FORECAST par Dépôt</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -220,7 +220,7 @@ export default function ForecastPage() {
         </Card>
          <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Truck /> Prévisions par Transporteur</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Truck /> FORECAST par Transporteur</CardTitle>
             </CardHeader>
             <CardContent>
                  <Table>
@@ -295,7 +295,7 @@ export default function ForecastPage() {
              </Accordion>
              {forecastData.byDepot.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
-                    Aucune donnée de prévision à afficher.
+                    Aucune donnée de FORECAST à afficher.
                 </div>
             )}
         </CardContent>
