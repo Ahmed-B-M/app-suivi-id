@@ -121,7 +121,7 @@ export function UnifiedExportForm({
   const form = useForm<UnifiedExportFormValues>({
     resolver: zodResolver(unifiedExportFormSchema),
     defaultValues: {
-      apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
+      apiKey: process.env.NEXT_PUBLIC_URBANTZ_API_KEY || "",
       dateRange: {
         from: new Date(),
         to: new Date(),
@@ -417,7 +417,7 @@ export function UnifiedExportForm({
 
   const handleResetClick = () => {
     form.reset({
-        apiKey: "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk",
+        apiKey: process.env.NEXT_PUBLIC_URBANTZ_API_KEY || "",
         dateRange: { from: new Date(), to: new Date() },
         taskStatus: "all",
         roundStatus: "all",

@@ -756,7 +756,7 @@ async function saveCollectionInAction(
 
 // --- Daily Sync Action ---
 export async function runDailySyncAction() {
-  const apiKey = process.env.URBANTZ_API_KEY || "P_q6uTM746JQlmFpewz3ZS0cDV0tT8UEXk";
+  const apiKey = process.env.URBANTZ_API_KEY || "";
   if (!apiKey) {
     return { success: false, error: "Clé API Urbantz non configurée sur le serveur." };
   }
