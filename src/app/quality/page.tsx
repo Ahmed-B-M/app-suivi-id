@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { generateQualityEmailBody } from "@/lib/mail-generator";
 import { useToast } from "@/hooks/use-toast";
 import { EmailPreviewDialog } from "@/components/app/email-preview-dialog";
-import { getDriverFullName, getDepotFromHub, getCarrierFromDriver } from "@/lib/grouping";
+import { getDriverFullName, getDepotFromHub, getCarrierFromDriver, getHubCategory } from "@/lib/grouping";
 
 
 export default function QualityPage() {
@@ -91,18 +91,17 @@ export default function QualityPage() {
         const mainHub = tasks[0].nomHub;
         if (!mainHub) return;
 
-        const depotName = getDepotFromHub(mainHub, allDepotRules);
-        if (!depotName) return;
-
+        const groupName = getDepotFromHub(mainHub, allDepotRules);
+        
         const carrierName = getCarrierFromDriver(driverStat.name, allCarrierRules);
         
-        if (!depotAggregation[depotName]) {
-            depotAggregation[depotName] = { name: depotName, carriers: {} };
+        if (!depotAggregation[groupName]) {
+            depotAggregation[groupName] = { name: groupName, carriers: {} };
         }
-        if (!depotAggregation[depotName].carriers[carrierName]) {
-            depotAggregation[depotName].carriers[carrierName] = { name: carrierName, drivers: [] };
+        if (!depotAggregation[groupName].carriers[carrierName]) {
+            depotAggregation[groupName].carriers[carrierName] = { name: carrierName, drivers: [] };
         }
-        depotAggregation[depotName].carriers[carrierName].drivers.push(driverStat);
+        depotAggregation[groupName].carriers[carrierName].drivers.push(driverStat);
     });
 
     const calculateAggregatedStats = (drivers: typeof driverStatsList) => {
@@ -213,23 +212,23 @@ export default function QualityPage() {
         if (comment.rating >= 4) return;
 
         const task = allTasks.find((t: Tache) => t.tacheId === comment.taskId);
-        const depot = getDepotFromHub(task?.nomHub, allDepotRules);
-        if (!depot) return;
+        const groupName = getDepotFromHub(task?.nomHub, allDepotRules);
+        if (!groupName) return;
 
         const driverName = comment.driverName;
         if (!driverName) return;
 
         const carrierName = getCarrierFromDriver(driverName, allCarrierRules);
 
-        if (!alertAggregation[depot]) {
-            alertAggregation[depot] = { name: depot, carriers: {} };
+        if (!alertAggregation[groupName]) {
+            alertAggregation[groupName] = { name: groupName, carriers: {} };
         }
-        if (!alertAggregation[depot].carriers[carrierName]) {
-            alertAggregation[depot].carriers[carrierName] = { name: carrierName, drivers: {} };
+        if (!alertAggregation[groupName].carriers[carrierName]) {
+            alertAggregation[groupName].carriers[carrierName] = { name: carrierName, drivers: {} };
         }
-        if (!alertAggregation[depot].carriers[carrierName].drivers[driverName]) {
+        if (!alertAggregation[groupName].carriers[carrierName].drivers[driverName]) {
             const driverGlobalStats = driverStatsList.find(d => d.name === driverName);
-            alertAggregation[depot].carriers[carrierName].drivers[driverName] = {
+            alertAggregation[groupName].carriers[carrierName].drivers[driverName] = {
                 name: driverName,
                 alertCount: 0,
                 totalRatings: driverGlobalStats?.totalRatings || 0,
@@ -238,7 +237,7 @@ export default function QualityPage() {
             };
         }
 
-        const driverEntry = alertAggregation[depot].carriers[carrierName].drivers[driverName];
+        const driverEntry = alertAggregation[groupName].carriers[carrierName].drivers[driverName];
         driverEntry.alertCount++;
         const categories = Array.isArray(comment.category) ? comment.category : [comment.category];
         categories.forEach((cat: string) => {
