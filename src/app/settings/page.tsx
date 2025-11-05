@@ -486,6 +486,10 @@ function ForecastRulesTab() {
         setNewRule(prev => ({ ...prev, [field]: value }));
     };
 
+    const processKeywords = (value: string) => {
+        return value.split(/[\s,]+/).map(k => k.trim()).filter(Boolean);
+    }
+
     const handleAddRule = () => {
         if (!newRule || !newRule.name || !newRule.type || !newRule.category) {
             toast({ title: "Champs requis manquants", description: "Veuillez remplir le nom, le type et la catégorie.", variant: "destructive" });
@@ -570,7 +574,7 @@ function ForecastRulesTab() {
                                 <TableHead>Nom de la Règle</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead>Catégorie</TableHead>
-                                <TableHead className="w-1/3">Mots-clés (séparés par une virgule)</TableHead>
+                                <TableHead className="w-1/3">Mots-clés (séparés par espace ou virgule)</TableHead>
                                 <TableHead>Active</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
                             </TableRow>
@@ -615,8 +619,8 @@ function ForecastRulesTab() {
                                     </TableCell>
                                     <TableCell>
                                         <Input
-                                            value={Array.isArray(currentRuleState.keywords) ? currentRuleState.keywords.join(', ') : ''}
-                                            onChange={(e) => handleRuleChange(rule.id, 'keywords', e.target.value.split(',').map(k => k.trim()))}
+                                            value={Array.isArray(currentRuleState.keywords) ? currentRuleState.keywords.join(' ') : ''}
+                                            onChange={(e) => handleRuleChange(rule.id, 'keywords', processKeywords(e.target.value))}
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -663,9 +667,9 @@ function ForecastRulesTab() {
                                 </TableCell>
                                 <TableCell>
                                     <Input
-                                        placeholder="motclé1, motclé2, ..."
-                                        value={newRule?.keywords?.join(', ') || ''}
-                                        onChange={(e) => handleNewRuleChange('keywords', e.target.value.split(',').map(k => k.trim()))}
+                                        placeholder="motclé1 motclé2..."
+                                        value={newRule?.keywords?.join(' ') || ''}
+                                        onChange={(e) => handleNewRuleChange('keywords', processKeywords(e.target.value))}
                                     />
                                 </TableCell>
                                 <TableCell>
