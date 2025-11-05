@@ -22,8 +22,9 @@ import type { CommentStatus } from "@/lib/types";
 import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import { format } from "date-fns";
 import Link from "next/link";
-import { useFirebase, useQuery } from "@/firebase";
-import { collection, where, orderBy, query, QueryConstraint } from "firebase/firestore";
+import { useFirebase } from "@/firebase";
+import { useFilters } from "@/context/filter-context";
+
 
 const statusOptions: CommentStatus[] = ['à traiter', 'en cours', 'traité'];
 const responsibilityOptions = ["STEF", "ID", "Carrefour", "Inconnu"];
@@ -37,21 +38,7 @@ export default function CommentManagementPage() {
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [isBulkAnalyzing, startBulkAnalyzeTransition] = useTransition();
 
-  // --- Data Fetching Logic ---
-  const commentsCollection = useMemo(() => 
-    firestore ? collection(firestore, 'categorized_comments') : null
-  , [firestore]);
-
-  const commentsConstraints = useMemo(() => {
-    const constraints: QueryConstraint[] = [orderBy("taskDate", "desc")];
-    if (statusFilter !== 'tous') {
-        constraints.unshift(where("status", "==", statusFilter));
-    }
-    return constraints;
-  }, [statusFilter]);
-  
-  const { data: allComments, loading: isCommentsLoading } = useQuery<CategorizedComment>(commentsCollection, commentsConstraints, {realtime: true});
-  // --- End Data Fetching ---
+  const { allComments, isContextLoading } = useFilters();
 
   const {
     pendingComments,
@@ -63,34 +50,32 @@ export default function CommentManagementPage() {
   } = usePendingComments();
 
   const finalCommentsToDisplay = useMemo(() => {
-    // Create a map of the fetched comments
-    const fetchedCommentsMap = new Map(allComments.map(c => [c.taskId, c]));
+    // Start with the full list from context, which includes both saved and newly detected 'à traiter' comments
+    const baseComments = allComments;
+    
+    // Create a map of the base comments
+    const commentsMap = new Map(baseComments.map(c => [c.taskId, c]));
 
-    // Iterate over pending comments. If a pending comment matches the filter, add/update it.
+    // Overwrite with any pending changes from the current session
     Object.values(pendingComments).forEach(pending => {
-        const matchesFilter = statusFilter === 'tous' || pending.status === statusFilter;
-        if (matchesFilter) {
-            const existing = fetchedCommentsMap.get(pending.taskId!) || {};
-            // Ensure the pending data is merged correctly over the fetched data
-            fetchedCommentsMap.set(pending.taskId!, { ...existing, ...pending, id: pending.taskId!, taskId: pending.taskId! });
-        }
+        const existing = commentsMap.get(pending.taskId!) || {};
+        commentsMap.set(pending.taskId!, { ...existing, ...pending, id: pending.taskId!, taskId: pending.taskId! });
     });
 
-    // Filter the final list based on the status filter, considering pending changes
-    const displayList = Array.from(fetchedCommentsMap.values()).filter(comment => {
+    // Filter the final list based on the status filter
+    const displayList = Array.from(commentsMap.values()).filter(comment => {
         if (statusFilter === 'tous') return true;
-        const finalStatus = pendingComments[comment.taskId]?.status || comment.status;
-        return finalStatus === statusFilter;
+        return comment.status === statusFilter;
     });
-
+    
     // Normalize category and responsibilities to always be arrays for consistent rendering
     return displayList.map(comment => ({
         ...comment,
         category: Array.isArray(comment.category) ? comment.category : (comment.category ? [comment.category] : []),
         responsibilities: Array.isArray(comment.responsibilities) ? comment.responsibilities : (comment.responsibilities ? [comment.responsibilities] : []),
     })).sort((a, b) => {
-        const dateA = a.taskDate ? new Date(a.taskDate).getTime() : 0;
-        const dateB = b.taskDate ? new Date(b.taskDate).getTime() : 0;
+        const dateA = a.taskDate ? new Date(a.taskDate as string).getTime() : 0;
+        const dateB = b.taskDate ? new Date(b.taskDate as string).getTime() : 0;
         return dateB - dateA;
     });
 }, [allComments, pendingComments, statusFilter]);
@@ -236,7 +221,7 @@ export default function CommentManagementPage() {
       });
       
       if(Object.keys(newPendingComments).length > 0) {
-        addPendingComment(newPendingComments);
+        addPendingComment(newPendingComments as any); // Cast to any to avoid complex type issues
       }
 
       toast({
@@ -246,7 +231,7 @@ export default function CommentManagementPage() {
     });
   }, [finalCommentsToDisplay, toast, startBulkAnalyzeTransition, addPendingComment, pendingComments]);
 
-  const isLoading = isCommentsLoading;
+  const isLoading = isContextLoading;
 
   if (isLoading && finalCommentsToDisplay.length === 0) {
     return <div className="container mx-auto py-10 text-center">Chargement des données...</div>;
