@@ -20,7 +20,7 @@
       "fields": [
         {
           "fieldPath": "recipientId",
-          "arrayConfig": "CONTAINS"
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "createdAt",
