@@ -9,10 +9,10 @@ import { TasksTable } from "@/components/app/tasks-table";
 import { RoundsTable } from "@/components/app/rounds-table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileSearch, PlusCircle, Save, Trash2, Edit, Truck, Map, Briefcase } from "lucide-react";
-import type { Tache, Tournee, ForecastRule, CarrierRule, DepotRule, BuRound } from "@/lib/types";
+import type { Tache, Tournee, ForecastRule, CarrierRule, DepotRule } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useFirebase } from "@/firebase";
-import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, writeBatch, doc, addDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
@@ -35,9 +35,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { DEPOTS_LIST } from "@/lib/grouping";
-import { useFilters } from "@/context/filter-context";
-
 
 function ExportTab() {
   const [logs, setLogs] = useState<string[]>([]);
@@ -466,144 +463,6 @@ function DepotRulesTab() {
   )
 }
 
-function BuRoundsTab() {
-  const { firestore } = useFirebase();
-  const { toast } = useToast();
-  const { allCarrierRules, availableDepots } = useFilters();
-  
-  const carriers = useMemo(() => 
-    [...new Set(allCarrierRules.map(r => r.carrier))]
-  , [allCarrierRules]);
-
-  const roundsCollection = useMemo(() => firestore ? collection(firestore, "bu_rounds") : null, [firestore]);
-  const { data: buRounds, loading, error } = useQuery<BuRound>(roundsCollection, [orderBy("createdAt", "desc")], { realtime: true });
-
-  const [isPending, startTransition] = useTransition();
-
-  const [newRound, setNewRound] = useState<Partial<Omit<BuRound, 'id' | 'createdAt'>>>({
-    name: '',
-    isActive: true,
-    carrier: '',
-    depot: ''
-  });
-
-  const handleNewRoundChange = (field: keyof typeof newRound, value: any) => {
-    setNewRound(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddRound = () => {
-    if (!newRound.name || !newRound.carrier || !newRound.depot) {
-      toast({ title: "Champs requis manquants", description: "Veuillez remplir le nom, le transporteur et le dépôt.", variant: "destructive" });
-      return;
-    }
-    if (!firestore) return;
-
-    startTransition(async () => {
-      try {
-        await addDoc(collection(firestore, 'bu_rounds'), { ...newRound, createdAt: serverTimestamp() });
-        toast({ title: "Tournée BU ajoutée" });
-        setNewRound({ name: '', isActive: true, carrier: '', depot: '' });
-      } catch (e: any) {
-        toast({ title: "Erreur", description: e.message, variant: "destructive" });
-      }
-    });
-  };
-
-  const handleStatusChange = (id: string, isActive: boolean) => {
-    if (!firestore) return;
-    startTransition(async () => {
-      try {
-        await updateDoc(doc(firestore, "bu_rounds", id), { isActive });
-        toast({ title: "Statut mis à jour" });
-      } catch (e: any) {
-        toast({ title: "Erreur", description: e.message, variant: "destructive" });
-      }
-    });
-  };
-
-  const handleDeleteRound = (id: string) => {
-    if (!firestore) return;
-    startTransition(async () => {
-      try {
-        await deleteDoc(doc(firestore, "bu_rounds", id));
-        toast({ title: "Tournée BU supprimée" });
-      } catch (e: any) {
-        toast({ title: "Erreur", description: e.message, variant: "destructive" });
-      }
-    });
-  };
-
-  if (loading) return <Skeleton className="h-96 w-full" />;
-  if (error) return <p className="text-destructive">Erreur: {error.message}</p>;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Gestion des Tournées BU</CardTitle>
-        <CardDescription>
-          Créez et gérez les tournées de type BU. Seules les tournées actives seront prises en compte dans les modules FORECAST et Facturation.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom de la Tournée</TableHead>
-                <TableHead>Transporteur</TableHead>
-                <TableHead>Dépôt</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* New Round Row */}
-              <TableRow>
-                <TableCell><Input placeholder="Nom de la tournée" value={newRound.name} onChange={e => handleNewRoundChange('name', e.target.value)} /></TableCell>
-                <TableCell>
-                  <Select value={newRound.carrier} onValueChange={v => handleNewRoundChange('carrier', v)}>
-                    <SelectTrigger><SelectValue placeholder="Transporteur..."/></SelectTrigger>
-                    <SelectContent>
-                      {carriers.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Select value={newRound.depot} onValueChange={v => handleNewRoundChange('depot', v)}>
-                    <SelectTrigger><SelectValue placeholder="Dépôt..."/></SelectTrigger>
-                    <SelectContent>
-                       {availableDepots.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell><Switch checked={newRound.isActive} onCheckedChange={c => handleNewRoundChange('isActive', c)} /></TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" onClick={handleAddRound} disabled={isPending}><PlusCircle className="mr-2 h-4 w-4" /> Ajouter</Button>
-                </TableCell>
-              </TableRow>
-              {/* Existing Rounds */}
-              {buRounds.map(round => (
-                <TableRow key={round.id}>
-                  <TableCell className="font-medium">{round.name}</TableCell>
-                  <TableCell>{round.carrier}</TableCell>
-                  <TableCell>{round.depot}</TableCell>
-                  <TableCell>
-                    <Switch checked={round.isActive} onCheckedChange={c => handleStatusChange(round.id, c)} disabled={isPending} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteRound(round.id)} disabled={isPending}><Trash2 className="text-destructive h-4 w-4" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-
 function ForecastRulesTab() {
     const { firestore } = useFirebase();
     const { toast } = useToast();
@@ -1002,10 +861,9 @@ export default function SettingsPage() {
     <main className="flex-1 container py-8">
       <h1 className="text-3xl font-bold mb-8">Paramètres et Outils</h1>
       <Tabs defaultValue="export" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="export">Configuration de l'Export</TabsTrigger>
           <TabsTrigger value="database">Explorateur de Données</TabsTrigger>
-          <TabsTrigger value="bu-rounds"><Briefcase className="mr-2 h-4 w-4" />Tournées BU</TabsTrigger>
           <TabsTrigger value="forecast-rules">Règles de Prévision</TabsTrigger>
           <TabsTrigger value="carrier-rules"><Truck className="mr-2 h-4 w-4"/>Règles Transporteurs</TabsTrigger>
           <TabsTrigger value="depot-rules"><Map className="mr-2 h-4 w-4"/>Règles de Groupement</TabsTrigger>
@@ -1015,9 +873,6 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="database" className="mt-4">
           <DatabaseTab />
-        </TabsContent>
-        <TabsContent value="bu-rounds" className="mt-4">
-          <BuRoundsTab />
         </TabsContent>
          <TabsContent value="forecast-rules" className="mt-4">
           <ForecastRulesTab />

@@ -7,7 +7,7 @@ import { getDepotFromHub, getHubCategory } from '@/lib/grouping';
 import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup, orderBy } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule, DepotRule } from '@/lib/types';
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule, DepotRule, ForecastRule } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay, isEqual } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
@@ -44,6 +44,7 @@ interface FilterContextProps {
   allProcessedVerbatims: ProcessedVerbatim[];
   allCarrierRules: CarrierRule[];
   allDepotRules: DepotRule[];
+  forecastRules: ForecastRule[];
   isContextLoading: boolean;
   clearAllData: () => void;
 }
@@ -141,6 +142,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const processedVerbatimsCollection = useMemo(() => firestore ? collection(firestore, 'processed_nps_verbatims') : null, [firestore]);
   const depotRulesCollection = useMemo(() => firestore ? collection(firestore, 'depot_rules') : null, [firestore]);
   const carrierRulesCollection = useMemo(() => firestore ? collection(firestore, 'carrier_rules') : null, [firestore]);
+  const forecastRulesCollection = useMemo(() => firestore ? collection(firestore, 'forecast_rules') : null, [firestore]);
 
 
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: true, refreshKey});
@@ -150,6 +152,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allSavedVerbatims = [], loading: isLoadingSavedVerbatims } = useQuery<SavedProcessedNpsVerbatim>(processedVerbatimsCollection, npsFirestoreFilters, {realtime: true, refreshKey});
   const { data: allCarrierRules = [], loading: isLoadingCarrierRules } = useQuery<CarrierRule>(carrierRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
   const { data: allDepotRules = [], loading: isLoadingDepotRules } = useQuery<DepotRule>(depotRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
+  const { data: forecastRules = [], loading: isLoadingForecastRules } = useQuery<ForecastRule>(forecastRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
   
   const availableDepots = useMemo(() => {
     if (!allDepotRules) return [];
@@ -193,7 +196,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
        roundsToFilter = roundsToFilter.filter(item => getDepotFromHub(item.nomHub, allDepotRules) === selectedDepot);
     }
     if (selectedStore !== "all") {
-      roundsToFilter = roundsToFilter.filter(item => item.nomHub === selectedStore);
+      roundsToFilter = roundsToFilter.filter(r => r.nomHub === selectedStore);
     }
     return roundsToFilter;
   }, [allRoundsData, filterType, selectedDepot, selectedStore, allDepotRules]);
@@ -342,7 +345,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allProcessedVerbatims,
         allCarrierRules,
         allDepotRules,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules || isLoadingDepotRules,
+        forecastRules,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules || isLoadingDepotRules || isLoadingForecastRules,
         clearAllData,
       }}
     >
