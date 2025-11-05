@@ -313,7 +313,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     });
 
     return Array.from(verbatimsMap.values());
-}, [allNpsData, processedVerbatims]);
+}, [allNpsData, processedVerbatims, allDepotRules]);
 
 
   return (

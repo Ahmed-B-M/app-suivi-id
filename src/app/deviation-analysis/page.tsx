@@ -194,7 +194,7 @@ const StatDisplay = ({ icon, label, value }: { icon: React.ReactNode, label: str
 
 
 export default function DeviationAnalysisPage() {
-  const { allTasks, allRounds, isContextLoading, allCarrierRules } = useFilters();
+  const { allTasks, allRounds, isContextLoading, allCarrierRules, allDepotRules } = useFilters();
   const BAC_LIMIT = 105;
 
   const { deviations, depotSummary, warehouseSummary, punctualityIssues, bacDeviations, aggregatedStats } = useMemo(() => {
@@ -226,7 +226,7 @@ export default function DeviationAnalysisPage() {
     const allGroupedRounds = allRounds.map(round => ({
         round, 
         tasks: allTasks.filter(t => t.hubId === round.hubId && t.nomTournee === round.nom && t.date && round.date && new Date(t.date as string).toDateString() === new Date(round.date as string).toDateString()),
-        depot: getDepotFromHub(round.nomHub),
+        depot: getDepotFromHub(round.nomHub, allDepotRules),
         warehouse: round.nomHub,
         carrier: getCarrierFromDriver(round, allCarrierRules) 
     }));
@@ -317,7 +317,7 @@ export default function DeviationAnalysisPage() {
         const totalWeight = tasksWeightByRound.get(roundKey) || 0;
         const isOverweight = totalWeight > roundCapacity;
 
-        const depot = getDepotFromHub(round.nomHub);
+        const depot = getDepotFromHub(round.nomHub, allDepotRules);
         if (depot) {
             if (!depotAggregation[depot]) depotAggregation[depot] = { totalRounds: 0, overweightRounds: 0 };
             depotAggregation[depot].totalRounds++;
@@ -348,14 +348,14 @@ export default function DeviationAnalysisPage() {
     allTasks.forEach(task => {
         if (task.heureArriveeEstimee && task.debutCreneauInitial) {
             try {
-                const plannedArrive = parseISO(task.heureArriveeEstimee);
-                const windowStart = parseISO(task.debutCreneauInitial);
+                const plannedArrive = parseISO(task.heureArriveeEstimee as string);
+                const windowStart = parseISO(task.debutCreneauInitial as string);
                 const earlyThreshold = subMinutes(windowStart, 15);
                 const deviationEarly = differenceInMinutes(earlyThreshold, plannedArrive);
                 if (deviationEarly > 0) {
                     punctualityResults.push({ task, plannedArriveTime: task.heureArriveeEstimee, deviationMinutes: -deviationEarly });
                 } else if (task.finCreneauInitial) {
-                    const windowEnd = parseISO(task.finCreneauInitial);
+                    const windowEnd = parseISO(task.finCreneauInitial as string);
                     const lateThreshold = addMinutes(windowEnd, 15);
                     const deviationLate = differenceInMinutes(plannedArrive, lateThreshold);
                     if (deviationLate > 0) {
@@ -374,7 +374,7 @@ export default function DeviationAnalysisPage() {
         bacDeviations: bacResults.sort((a, b) => b.deviation - a.deviation),
         aggregatedStats
     };
-  }, [allTasks, allRounds, isContextLoading, allCarrierRules]);
+  }, [allTasks, allRounds, isContextLoading, allCarrierRules, allDepotRules]);
 
   const error = null;
 
@@ -542,7 +542,7 @@ export default function DeviationAnalysisPage() {
                                 <TableCell className="font-medium">{task.nomTournee}</TableCell>
                                 <TableCell>{task.nomHub || 'N/A'}</TableCell>
                                 <TableCell>{task.personneContact || 'N/A'}</TableCell>
-                                <TableCell>{task.debutCreneauInitial ? format(new Date(task.debutCreneauInitial), "HH:mm") : ''}{task.finCreneauInitial ? ` - ${format(new Date(task.finCreneauInitial), "HH:mm")}`: ''}</TableCell>
+                                <TableCell>{task.debutCreneauInitial ? format(new Date(task.debutCreneauInitial as string), "HH:mm") : ''}{task.finCreneauInitial ? ` - ${format(new Date(task.finCreneauInitial as string), "HH:mm")}`: ''}</TableCell>
                                 <TableCell>{plannedArriveTime ? format(new Date(plannedArriveTime), "HH:mm") : 'N/A'}</TableCell>
                                 <TableCell className={`text-right font-bold ${deviationMinutes > 0 ? 'text-destructive' : 'text-blue-500'}`}>{deviationMinutes > 0 ? `+${deviationMinutes}` : deviationMinutes} min</TableCell>
                                 </TableRow>

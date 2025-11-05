@@ -70,7 +70,7 @@ export default function BillingPage() {
     { id: "3", type: "Prix par tournée", targetType: "Entrepôt", targetValue: "Rungis FRAIS", price: 20.00 },
   ]);
 
-  const { allRounds, allCarrierRules } = useFilters();
+  const { allRounds, allCarrierRules, allDepotRules } = useFilters();
 
 
   const billingData = useMemo((): AggregatedData | null => {
@@ -94,8 +94,8 @@ export default function BillingPage() {
     for (const round of allRounds) {
       const driverName = getDriverFullName(round);
       const carrier = getCarrierFromDriver(round, allCarrierRules);
-      const depot = getDepotFromHub(round.nomHub);
-      const hubCategory = getHubCategory(round.nomHub);
+      const depot = getDepotFromHub(round.nomHub, allDepotRules);
+      const hubCategory = getHubCategory(round.nomHub, allDepotRules);
       const entityName = hubCategory === 'magasin' ? round.nomHub : depot;
 
       if (!entityName) continue;
@@ -172,7 +172,7 @@ export default function BillingPage() {
           })).sort((a,b) => b.totalRounds - a.totalRounds)
       })).sort((a,b) => b.totalRounds - a.totalRounds)
     };
-  }, [allRounds, rules, allCarrierRules]);
+  }, [allRounds, rules, allCarrierRules, allDepotRules]);
 
 
   const form = useForm<BillingRuleFormValues>({

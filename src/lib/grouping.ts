@@ -48,10 +48,12 @@ export function getDepotFromHub(hubName: string | undefined | null, depotRules: 
     const lowerHubName = hubName.toLowerCase();
     const activeRules = depotRules.filter(rule => rule.isActive);
 
-    for (const rule of activeRules) {
-        if (rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))) {
-            return rule.type === 'entrepot' ? rule.depotName : "Magasin";
-        }
+    const matchingRule = activeRules.find(rule => 
+        rule.prefixes.some(prefix => lowerHubName.startsWith(prefix.toLowerCase()))
+    );
+
+    if (matchingRule) {
+        return matchingRule.type === 'entrepot' ? matchingRule.depotName : "Magasin";
     }
 
     // If no rule matches, it's considered a store by default.
