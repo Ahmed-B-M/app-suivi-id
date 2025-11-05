@@ -240,131 +240,119 @@ export default function ForecastPage() {
       <h1 className="text-3xl font-bold mb-8">FORECAST</h1>
 
       <GlobalForecastSummary totals={forecastData.totals} />
-
-        <Tabs defaultValue="depot">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="depot">FORECAST par Dépôt</TabsTrigger>
-                <TabsTrigger value="transporteur">FORECAST par Transporteur</TabsTrigger>
-            </TabsList>
-            <TabsContent value="depot">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Building /> FORECAST par Dépôt</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-2">
-                             <Table>
-                                <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {forecastData.byDepot.map(depot => (
-                                        <TableRow key={depot.name}>
-                                            <TableCell className="font-medium">{depot.name}</TableCell>
-                                            <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.bu}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.classique}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.matin}</TableCell>
-                                            <TableCell className="text-center">{depot.totals.soir}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <div className="flex justify-around items-center">
-                            <DonutChart data={typeChartData} title="Répartition par Type" />
-                            <DonutChart data={shiftChartData} title="Répartition par Shift"/>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-             <TabsContent value="transporteur">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Truck /> FORECAST par Transporteur</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                         <Table>
-                            <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {forecastData.byCarrier.map(carrier => (
-                                    <TableRow key={carrier.name}>
-                                        <TableCell className="font-medium">{carrier.name}</TableCell>
-                                        <TableCell className="text-center font-bold">{carrier.total}</TableCell>
-                                        <TableCell className="text-center">{carrier.bu}</TableCell>
-                                        <TableCell className="text-center">{carrier.classique}</TableCell>
-                                        <TableCell className="text-center">{carrier.matin}</TableCell>
-                                        <TableCell className="text-center">{carrier.soir}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-        </Tabs>
       
-      <div className="mt-8">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
         <Card>
             <CardHeader>
-                <CardTitle>Détail par Dépôt et Transporteur</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Building /> FORECAST par Dépôt</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2">
+                     <Table>
+                        <TableHeader><TableRow><TableHead>Dépôt</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {forecastData.byDepot.map(depot => (
+                                <TableRow key={depot.name}>
+                                    <TableCell className="font-medium">{depot.name}</TableCell>
+                                    <TableCell className="text-center font-bold">{depot.totals.total}</TableCell>
+                                    <TableCell className="text-center">{depot.totals.bu}</TableCell>
+                                    <TableCell className="text-center">{depot.totals.classique}</TableCell>
+                                    <TableCell className="text-center">{depot.totals.matin}</TableCell>
+                                    <TableCell className="text-center">{depot.totals.soir}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                <div className="flex justify-around items-center">
+                    <DonutChart data={typeChartData} title="Répartition par Type" />
+                    <DonutChart data={shiftChartData} title="Répartition par Shift"/>
+                </div>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Truck /> FORECAST par Transporteur</CardTitle>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full space-y-4">
-                    {forecastData.byDepot.map(depot => (
-                        <AccordionItem value={depot.name} key={depot.name} className="border-b-0">
-                            <Card>
-                                <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
-                                    <div className="w-full flex justify-between items-center">
-                                        <span className="flex items-center gap-3"><Building />{depot.name}</span>
-                                        <div className="flex items-center gap-4 text-sm">
-                                            <Badge variant="outline">Total: {depot.totals.total}</Badge>
-                                            <Badge>BU: {depot.totals.bu}</Badge>
-                                            <Badge variant="secondary">Classiques: {depot.totals.classique}</Badge>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="p-0 pt-0">
-                                    <div className="p-4 bg-muted/50">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Transporteur</TableHead>
-                                                    <TableHead className="text-center">Total</TableHead>
-                                                    <TableHead className="text-center">BU</TableHead>
-                                                    <TableHead className="text-center">Classiques</TableHead>
-                                                    <TableHead className="text-center">Matin</TableHead>
-                                                    <TableHead className="text-center">Soir</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {depot.byCarrier.map(carrier => (
-                                                    <TableRow key={carrier.name}>
-                                                        <TableCell className="font-medium flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground"/>{carrier.name}</TableCell>
-                                                        <TableCell className="text-center font-bold">{carrier.total}</TableCell>
-                                                        <TableCell className="text-center font-mono">{carrier.bu}</TableCell>
-                                                        <TableCell className="text-center font-mono">{carrier.classique}</TableCell>
-                                                        <TableCell className="text-center font-mono">{carrier.matin}</TableCell>
-                                                        <TableCell className="text-center font-mono">{carrier.soir}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </AccordionContent>
-                            </Card>
-                        </AccordionItem>
-                    ))}
-                </Accordion>
-                {forecastData.byDepot.length === 0 && (
-                    <div className="text-center text-muted-foreground py-8">
-                        Aucune donnée de FORECAST à afficher.
-                    </div>
-                )}
+                 <Table>
+                    <TableHeader><TableRow><TableHead>Transporteur</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">BU</TableHead><TableHead className="text-center">Classiques</TableHead><TableHead className="text-center">Matin</TableHead><TableHead className="text-center">Soir</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {forecastData.byCarrier.map(carrier => (
+                            <TableRow key={carrier.name}>
+                                <TableCell className="font-medium">{carrier.name}</TableCell>
+                                <TableCell className="text-center font-bold">{carrier.total}</TableCell>
+                                <TableCell className="text-center">{carrier.bu}</TableCell>
+                                <TableCell className="text-center">{carrier.classique}</TableCell>
+                                <TableCell className="text-center">{carrier.matin}</TableCell>
+                                <TableCell className="text-center">{carrier.soir}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </CardContent>
         </Card>
       </div>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle>Détail par Dépôt et Transporteur</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <Accordion type="multiple" className="w-full space-y-4">
+                {forecastData.byDepot.map(depot => (
+                    <AccordionItem value={depot.name} key={depot.name} className="border-b-0">
+                        <Card>
+                            <AccordionTrigger className="p-4 hover:no-underline text-lg font-semibold">
+                                <div className="w-full flex justify-between items-center">
+                                    <span className="flex items-center gap-3"><Building />{depot.name}</span>
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <Badge variant="outline">Total: {depot.totals.total}</Badge>
+                                        <Badge>BU: {depot.totals.bu}</Badge>
+                                        <Badge variant="secondary">Classiques: {depot.totals.classique}</Badge>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-0 pt-0">
+                                <div className="p-4 bg-muted/50">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Transporteur</TableHead>
+                                                <TableHead className="text-center">Total</TableHead>
+                                                <TableHead className="text-center">BU</TableHead>
+                                                <TableHead className="text-center">Classiques</TableHead>
+                                                <TableHead className="text-center">Matin</TableHead>
+                                                <TableHead className="text-center">Soir</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {depot.byCarrier.map(carrier => (
+                                                <TableRow key={carrier.name}>
+                                                    <TableCell className="font-medium flex items-center gap-2"><Truck className="h-4 w-4 text-muted-foreground"/>{carrier.name}</TableCell>
+                                                    <TableCell className="text-center font-bold">{carrier.total}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.bu}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.classique}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.matin}</TableCell>
+                                                    <TableCell className="text-center font-mono">{carrier.soir}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </AccordionContent>
+                        </Card>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+            {forecastData.byDepot.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                    Aucune donnée de FORECAST à afficher.
+                </div>
+            )}
+        </CardContent>
+      </Card>
 
     </main>
   );
 }
-
-    
