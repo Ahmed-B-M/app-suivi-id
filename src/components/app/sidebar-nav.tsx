@@ -31,7 +31,7 @@ import { collection, where } from "firebase/firestore";
 
 const allLinks = [
   // --- Vues d'Ensemble ---
-  { href: "/", label: "Tableau de Bord", icon: <LayoutDashboard /> },
+  { href: "/dashboard", label: "Tableau de Bord", icon: <LayoutDashboard /> },
   { href: "/summary", label: "Synthèse", icon: <BarChartBig /> },
   { href: "/forecast", label: "FORECAST", icon: <TrendingUp /> },
   { href: "/notifications", label: "Notifications", icon: <Bell />, isNotificationLink: true },

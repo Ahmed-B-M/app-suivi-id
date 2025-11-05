@@ -3,6 +3,7 @@ export type Role = 'admin' | 'RD' | 'Dispatch' | 'RH' | 'Qualité' | 'viewer';
 
 export const ALL_PAGES = [
   "/",
+  "/dashboard",
   "/summary",
   "/forecast",
   "/notifications",
@@ -27,6 +28,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
   admin: ALL_PAGES,
   RD: [
     "/",
+    "/dashboard",
     "/summary",
     "/forecast",
     "/notifications",
@@ -41,6 +43,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
   ],
   Dispatch: [
     "/",
+    "/dashboard",
     "/details",
     "/notifications",
     "/messaging",
@@ -57,6 +60,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
   ],
   Qualité: [
     "/",
+    "/dashboard",
     "/summary",
     "/deviation-analysis",
     "/quality",
@@ -70,7 +74,7 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "/messaging",
     "/export",
   ],
-  viewer: ["/", "/notifications", "/messaging"]
+  viewer: ["/", "/dashboard", "/notifications", "/messaging"]
 };
 
 export function hasAccess(role: Role, path: string): boolean {

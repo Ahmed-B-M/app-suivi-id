@@ -337,6 +337,12 @@ export interface DepotRule {
     isActive: boolean;
 }
 
+export interface HubAssignment {
+    id: string; // hub name
+    type: 'entrepot' | 'magasin' | 'non-affecte';
+    depot?: string; // Only if type is 'entrepot'
+}
+
 
 export interface Room {
   id: string;
