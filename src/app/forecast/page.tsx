@@ -62,11 +62,11 @@ export default function ForecastPage() {
       dataByDepot[depot].total++;
       depotCarrier.total++;
       
-      // Time-based classification (Matin/Soir)
+      // Time-based classification (Matin/Soir) based on hub name
       let isTimeAssigned = false;
-      const roundNameLower = round.nom?.toLowerCase() || '';
+      const hubNameLower = round.nomHub?.toLowerCase() || '';
       for (const rule of timeRules) {
-        if (rule.keywords.some(k => roundNameLower.includes(k.toLowerCase()))) {
+        if (rule.keywords.some(k => hubNameLower.includes(k.toLowerCase()))) {
           if (rule.category === 'Matin') depotCarrier.matin++;
           else if (rule.category === 'Soir') depotCarrier.soir++;
           isTimeAssigned = true;
@@ -74,8 +74,9 @@ export default function ForecastPage() {
         }
       }
 
-      // BU classification
+      // BU classification based on round name
       let isBuAssigned = false;
+      const roundNameLower = round.nom?.toLowerCase() || '';
       for (const rule of buRules) {
         if(rule.keywords.some(k => roundNameLower.startsWith(k.toLowerCase()))){
           depotCarrier.bu++;
@@ -84,8 +85,8 @@ export default function ForecastPage() {
         }
       }
 
-      // If not BU and time-based, it's classique
-      if(!isBuAssigned) {
+      // If not BU and not time-based, it's classique
+      if(!isBuAssigned && !isTimeAssigned) {
           depotCarrier.classique++;
       }
     });
