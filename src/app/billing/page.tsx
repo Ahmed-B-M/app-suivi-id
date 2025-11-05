@@ -25,18 +25,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function BillingPage() {
   const { allRounds, allTasks, allCarrierRules, allDepotRules, isContextLoading } = useFilters();
   
-  // These would come from Firestore in a real app via the config tabs
-  const depotPricing = {
-    "Aix": { weekday: 150, sunday: 180 },
-    "Vitry": { weekday: 160, sunday: 190 },
-    "Rungis": { weekday: 155, sunday: 185 },
-  };
+  // Rules would come from Firestore via context in a real app. For now, they are managed in their respective tabs.
+  // We'll assume for calculation purposes they are fetched and available here, starting empty.
+  const depotPricing: Record<string, { weekday: number, sunday: number }> = {};
+  const costConfig: Record<string, { type: string, cost: number }> = {};
 
-  const costConfig = {
-    "entrepot": { type: "tournee", cost: 120 },
-    "magasin": { type: "jour", cost: 200 }
-  };
-  
   const aggregatedData: AggregatedData | null = useMemo(() => {
     if (isContextLoading) return null;
 
@@ -54,17 +47,23 @@ export default function BillingPage() {
 
       let price = 0;
       let cost = 0;
-
+      
+      // TODO: Implement full pricing logic based on rules from Firestore
+      // This is a placeholder logic based on the now-empty objects.
       if (store) {
         // Magasin pricing logic (to be implemented from rules)
-        price = costConfig.magasin.cost * 1.2; // Dummy price
-        cost = costConfig.magasin.cost;
+        if (costConfig.magasin) {
+            price = costConfig.magasin.cost * 1.2; // Dummy price
+            cost = costConfig.magasin.cost;
+        }
       } else if (depot && depotPricing[depot as keyof typeof depotPricing]) {
         // Entrepot pricing logic
-        const roundDate = parseISO(round.date as string);
+        const roundDate = round.date ? parseISO(round.date as string) : new Date();
         const isSunday = getDay(roundDate) === 0;
-        price = isSunday ? depotPricing[depot as keyof typeof depotPricing].sunday : depotPricing[depot as keyof typeof depotPricing].weekday;
-        cost = costConfig.entrepot.cost;
+        price = isSunday ? (depotPricing[depot as keyof typeof depotPricing]?.sunday || 0) : (depotPricing[depot as keyof typeof depotPricing]?.weekday || 0);
+        if (costConfig.entrepot) {
+            cost = costConfig.entrepot.cost;
+        }
       }
 
       return { round, depot, store, carrier, price, cost };
