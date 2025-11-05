@@ -7,7 +7,7 @@ import { getDepotFromHub, getHubCategory } from '@/lib/grouping';
 import { useQuery, clearQueryCache } from '@/firebase/firestore/use-query';
 import { collection, DocumentData, Query, Timestamp, where, collectionGroup, orderBy } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
-import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule, DepotRule, ForecastRule } from '@/lib/types';
+import type { Tache, Tournee, NpsData, ProcessedNpsVerbatim as SavedProcessedNpsVerbatim, CarrierRule, DepotRule, ForecastRule, Notification } from '@/lib/types';
 import { format, subDays, startOfDay, endOfDay, isEqual } from 'date-fns';
 import { getCategoryFromKeywords } from '@/lib/stats-calculator';
 import type { CategorizedComment } from '@/hooks/use-pending-comments';
@@ -45,6 +45,7 @@ interface FilterContextProps {
   allCarrierRules: CarrierRule[];
   allDepotRules: DepotRule[];
   forecastRules: ForecastRule[];
+  unreadNotificationsCount: number;
   isContextLoading: boolean;
   clearAllData: () => void;
 }
@@ -143,6 +144,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const depotRulesCollection = useMemo(() => firestore ? collection(firestore, 'depot_rules') : null, [firestore]);
   const carrierRulesCollection = useMemo(() => firestore ? collection(firestore, 'carrier_rules') : null, [firestore]);
   const forecastRulesCollection = useMemo(() => firestore ? collection(firestore, 'forecast_rules') : null, [firestore]);
+  const notificationsCollection = useMemo(() => firestore ? collection(firestore, 'notifications') : null, [firestore]);
 
 
   const { data: allTasksData = [], loading: isLoadingTasks, lastUpdateTime: tasksLastUpdate } = useQuery<Tache>(tasksCollection, firestoreDateFilters, {realtime: true, refreshKey});
@@ -153,7 +155,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const { data: allCarrierRules = [], loading: isLoadingCarrierRules } = useQuery<CarrierRule>(carrierRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
   const { data: allDepotRules = [], loading: isLoadingDepotRules } = useQuery<DepotRule>(depotRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
   const { data: forecastRules = [], loading: isLoadingForecastRules } = useQuery<ForecastRule>(forecastRulesCollection, [where("isActive", "==", true)], {realtime: true, refreshKey});
-  
+  const { data: unreadNotifications, loading: isLoadingNotifications } = useQuery<Notification>(notificationsCollection, [where('status', '==', 'unread')], {realtime: true});
+
   const availableDepots = useMemo(() => {
     if (!allDepotRules) return [];
     const depots = allDepotRules.filter(r => r.type === 'entrepot').map(r => r.depotName);
@@ -346,7 +349,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         allCarrierRules,
         allDepotRules,
         forecastRules,
-        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules || isLoadingDepotRules || isLoadingForecastRules,
+        unreadNotificationsCount: unreadNotifications.length,
+        isContextLoading: isLoadingTasks || isLoadingRounds || isLoadingCategorized || isLoadingNps || isLoadingSavedVerbatims || isLoadingCarrierRules || isLoadingDepotRules || isLoadingForecastRules || isLoadingNotifications,
         clearAllData,
       }}
     >
